@@ -421,3 +421,42 @@ describe("POST /api/email/accounts", () => {
     expect(rpc("email_account_state")).toEqual([{ p_owner: USER, p_account: "acct-work", p_state: "disconnected", p_error: null }]);
   });
 });
+
+describe("sync honesty (Email spec section 8, AC40, AC41)", () => {
+  it("a Gmail quota 403 is RATE_LIMITED and is not recorded as a reconnect (AC41)", async () => {
+    await stubWorld({ gmail: (_m, path) => (path.startsWith("/profile") ? res({ error: { code: 403, status: "PERMISSION_DENIED", errors: [{ reason: "userRateLimitExceeded" }] } }, 403) : undefined) });
+    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
+    expect(r.status).toBe(429);
+    expect(r.json).toMatchObject({ code: "RATE_LIMITED", retryable: true });
+    expect(rpc("email_sync_failed")[0]).toMatchObject({ p_reauth: false });
+  });
+
+  it("a Gmail 403 with no quota reason is still the grant", async () => {
+    await stubWorld({ gmail: (_m, path) => (path.startsWith("/profile") ? res({ error: { errors: [{ reason: "insufficientPermissions" }] } }, 403) : undefined) });
+    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
+    expect(r.status).toBe(410);
+    expect(r.json).toMatchObject({ code: "PROVIDER_AUTH" });
+    expect(rpc("email_sync_failed")[0]).toMatchObject({ p_reauth: true });
+  });
+
+  it("a history read cut off at the page bound applies what it saw but leaves the cursor where it was (AC40)", async () => {
+    await stubWorld({
+      cursor: { [DAVE]: "h100", [WORK]: null },
+      gmail: (_m, path) => {
+        if (path.startsWith("/history")) return res({ history: [{ messagesAdded: [{ message: { id: "m7" } }] }], historyId: "h999", nextPageToken: "more" });
+        return listingGmail()(_m, path);
+      },
+    });
+    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
+    expect(r.json).toMatchObject({ ok: true, truncated: true });
+    expect(gmailCalls().filter((c) => c.startsWith("GET /history")).length).toBe(20);
+    expect(rpc("email_sync_apply")[0]).toMatchObject({ p_cursor: null, p_advance: true });
+  });
+
+  it("a history read that reaches the end moves the cursor, and says it was not cut off", async () => {
+    await stubWorld({ cursor: { [DAVE]: "h100", [WORK]: null }, gmail: listingGmail() });
+    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
+    expect(r.json).toMatchObject({ ok: true, truncated: false });
+    expect(rpc("email_sync_apply")[0]).toMatchObject({ p_cursor: "h300" });
+  });
+});

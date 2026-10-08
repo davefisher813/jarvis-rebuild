@@ -67,6 +67,7 @@ export default async function handler(req: Request): Promise<Response> {
     let historyId: string | undefined;
     let pageToken: string | undefined;
     let expired = false;
+    let truncated = false;
     for (let i = 0; i < 20; i++) {
       const a = await gmail(tok, `/history?startHistoryId=${encodeURIComponent(account.cursor)}&labelId=INBOX&maxResults=500${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`, { safeRead: true });
       if (a.status === 404) { expired = true; break; }
@@ -81,14 +82,17 @@ export default async function handler(req: Request): Promise<Response> {
       historyId = b.historyId ?? historyId;
       pageToken = b.nextPageToken;
       if (!pageToken) break;
+      // The loop is bounded. If Gmail still has pages after the last one, what was read is applied but the cursor must NOT
+      // move to it, or the changes in the unread pages would be skipped for good (Email spec AC40).
+      if (i === 19) truncated = true;
     }
     if (!expired) {
       const metas = await fetchMetas(tok, [...changed]);
       if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
-      const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: [...removed, ...metas.gone], p_cursor: historyId ?? account.cursor, p_advance: true });
+      const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: [...removed, ...metas.gone], p_cursor: truncated ? null : (historyId ?? account.cursor), p_advance: true });
       if (applied.error) { const f = fail("UNAVAILABLE"); await recordFailure(env, who.id, account.id, f); return failResponse(f); }
       const r = applied.data as { last_sync_at?: string } | null;
-      return json({ ok: true, synced: metas.rows.length, removed: removed.size + metas.gone.length, next_page: null, complete: false, resynced: false, last_sync_at: r?.last_sync_at ?? null });
+      return json({ ok: true, synced: metas.rows.length, removed: removed.size + metas.gone.length, next_page: null, complete: false, resynced: false, truncated, last_sync_at: r?.last_sync_at ?? null });
     }
     resynced = true;
   }

@@ -2,7 +2,7 @@
 // Dave 2026-10-06: "make the ring tappable: Still Open on top with quick
 // actions on each, Done below". (He later confirmed the counter itself is
 // accurate, so it is not touched.)
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useTasks } from "../data/NotesProvider";
@@ -15,6 +15,11 @@ import TodayFlow from "./TodayFlow";
 
 vi.mock("../shared/toast", () => ({ showToast: () => {}, hideToast: () => {} }));
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
+
+// THE CLOCK IS PINNED TO MIDDAY (2026-10-08): TodayFlow draws the evening posture (no ring) after the evening hour, so this file
+// failed for everyone who ran it at night. Only Date is faked, so waitFor and the timers are untouched. Test-only.
+beforeAll(() => { const d = new Date(); d.setHours(12, 0, 0, 0); vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(d); });
+afterAll(() => { vi.useRealTimers(); });
 
 type Svc = import("../tasks/TasksService").TasksService;
 
