@@ -14,6 +14,9 @@ export const PROTOCOL_VERSION = 1;
 
 export const AGENT_METHODS = [
   "capabilities", "context.preview", "context.issue", "proposal.submit", "draft.submit", "review.link", "action.status", "connection.revoke",
+  // Phase 0 (PHASE0-DESIGN.md D6): an outside app hands JARVIS records; each lands as a proposal on the
+  // app surface and nothing else. Behind the vyzn_sync_v1 flag at the handler.
+  "record.push",
 ] as const;
 export type AgentMethod = (typeof AGENT_METHODS)[number];
 
@@ -27,7 +30,17 @@ export const LIMITS = {
   recipients: 20,
   evidenceRefs: 20,
   importBytes: 262144,
+  recordsPerPush: 50,
+  recordBytes: 8192,
 } as const;
+
+/** The apps that may push or be pulled: the TS mirror of jarvis_vyzn_apps() (migration 0061). */
+export const VYZN_APPS = ["backend-inbox", "bridge", "tucci"] as const;
+export type VyznApp = (typeof VYZN_APPS)[number];
+
+/** The record kinds Phase 0 accepts (task and event have adapters; note and person approve into the writers' own shapes). */
+export const RECORD_KINDS = ["task", "event", "note", "person"] as const;
+export type RecordKind = (typeof RECORD_KINDS)[number];
 
 export const ERROR_CODES = [
   "AUTH_REQUIRED", "AI_DISABLED", "ADMIN_AI_DISABLED", "SCOPE_DENIED", "CAPABILITY_UNVERIFIED", "MODE_CEILING",
@@ -113,6 +126,27 @@ export const PARAM_SCHEMAS: Record<AgentMethod, Schema> = {
           reply_headers: { type: "object", fields: { in_reply_to: { type: "string", max: 998 }, references: strings(50, 998) }, optional: ["in_reply_to", "references"] },
         },
         optional: ["thread_id", "cc", "bcc", "subject", "body_text", "reply_headers"],
+      },
+    },
+  },
+  "record.push": {
+    type: "object",
+    fields: {
+      source_app: { type: "string", enum: VYZN_APPS },
+      records: {
+        type: "array", max: LIMITS.recordsPerPush,
+        items: {
+          type: "object",
+          fields: {
+            source_record_id: { type: "string", min: 1, max: 128, pattern: /^[A-Za-z0-9._:-]+$/ },
+            revision: { type: "integer", min: 1, max: 2147483647 },
+            kind: { type: "string", enum: RECORD_KINDS },
+            data: { type: "json", maxBytes: LIMITS.recordBytes },
+            source: { type: "object", fields: { url: { type: "string", max: 512 }, label: { type: "string", max: 120 } }, optional: ["url", "label"] },
+            client_at: { type: "string", max: 40, pattern: /^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})$/ },
+          },
+          optional: ["source", "client_at"],
+        },
       },
     },
   },

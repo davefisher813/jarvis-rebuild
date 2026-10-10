@@ -25,6 +25,18 @@ describe("one change against the preload cache", () => {
     expect(readPreload(OWNER, "note")).toHaveLength(1);
   });
 
+  // Phase 0 D8 (2026-10-10): the row's created_at rides into the cache as
+  // Item.createdAt, so a live arrival reads the same as the list after it.
+  it("an insert that carries created_at keeps it, and one without it invents nothing", () => {
+    writePreload(OWNER, "note", []);
+    applyRealtimeChange(OWNER, { eventType: "INSERT", new: row({ created_at: "2026-09-06T09:00:00.000Z" }) });
+    expect(readPreload(OWNER, "note")![0]!.createdAt).toBe(Date.parse("2026-09-06T09:00:00.000Z"));
+    clearPreload();
+    writePreload(OWNER, "note", []);
+    applyRealtimeChange(OWNER, { eventType: "INSERT", new: row() });
+    expect("createdAt" in readPreload(OWNER, "note")![0]!).toBe(false);
+  });
+
   it("an update replaces the row it matches", () => {
     writePreload(OWNER, "note", [{ id: "n1", ownerId: OWNER, entityType: "note", data: { title: "Old" }, serverTime: 1 }]);
     expect(applyRealtimeChange(OWNER, { eventType: "UPDATE", new: row() })).toBe("note");

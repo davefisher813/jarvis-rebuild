@@ -120,7 +120,7 @@ export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStora
   for (const key of SAFE_TO_CLEAR) {
     try { storage.removeItem(key); } catch { /* ignore */ }
   }
-  // The preload cache is its own family (jarvis.preload.v1.<entityType>, one
+  // The preload cache is its own family (jarvis.preload.v2.<entityType>, one
   // key per type) with an existing sweep that already knows how to find all
   // of them; reuse it instead of re-deriving the prefix here.
   clearPreload();

@@ -8,8 +8,11 @@
 // place that says WHICH fields hold an id, so a new reference field is one
 // line here instead of a silent hole in every future restore.
 //
-// ADDING A FIELD THAT HOLDS ANOTHER RECORD'S ID? Add its path below. Nothing
-// else needs to change for a restore to keep the link.
+// ADDING A FIELD THAT HOLDS ANOTHER RECORD'S ID? A relationship goes into
+// 0060's jarvis_link_paths() and substrate/links/paths.ts (one row, both
+// sides; linkLaw holds them equal) and arrives here through LINK_PATHS. A
+// filing id (a category) goes into FILING_FIELDS below. Nothing else needs
+// to change for a restore to keep the link.
 //
 // Paths are dotted, with "[]" meaning "descend into this array":
 //   "category"                    data.category is one id
@@ -17,42 +20,53 @@
 //   "connections[].targetId"      one id inside each element of an array
 //   "blocks[].items[].taskId"     two arrays deep
 //   "dropped.decisionId"          one id inside a nested object
+//
+// Phase 0 D2 (PHASE0-DESIGN.md, 2026-10-10): the paths that are RELATIONSHIPS
+// now come from one registry, substrate/links/paths.ts, the TypeScript mirror
+// of 0060's jarvis_link_paths() (item_link is a projection of these fields;
+// write the field, never the table). What stays written by hand here is the
+// FILING: category ids, tags, the sport a program is for. Those are a
+// classification with 192 readers and not a relationship (Dave 2026-08-21),
+// so they are not links, but a restore still has to rewrite them.
+// laws/linkLaw.test.ts holds the two halves exact: every path below is a
+// LINK_PATHS row or sits in its NOT_LINKS roster with the reason.
 import { ENTITY_TASK, ENTITY_NOTE } from "../notes/types";
 import { ENTITY_EVENT } from "../schedule/types";
 import { ENTITY_PROJECT } from "../projects/types";
 import { ENTITY_AREA, ENTITY_GOAL } from "../life/types";
 import { ENTITY_PERSON } from "../people/types";
-import { ENTITY_DECISION } from "../decisions/types";
-import { ENTITY_PROGRAM, ENTITY_WORKOUT } from "../gym/types";
-import { ENTITY_METRIC_LOG } from "../gym/metrics";
-import { ENTITY_ATE_BEFORE, ENTITY_CALL_IT, ENTITY_BAG_CHECK } from "../health/types";
+import { ENTITY_PROGRAM } from "../gym/types";
+import { LINK_PATHS } from "../substrate/links/paths";
 
-export const REFERENCE_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  // The category id every list, dot and colour reads, plus the tags, the
-  // note a checklist task was promoted from, and the project it sits under.
-  [ENTITY_TASK]: ["category", "extraCategories[]", "fromNote", "projectId"],
-  // An event's category, the task Plan My Day generated it from, and the
-  // tasks attached to it.
-  [ENTITY_EVENT]: ["category", "sourceTaskId", "taskIds[]"],
-  // A note's category, its Connections rows (which point at an event or a
-  // task), and the task each promoted checklist line became.
-  [ENTITY_NOTE]: ["category", "connections[].targetId", "blocks[].items[].taskId"],
-  [ENTITY_PROJECT]: ["category", "goalId"],
-  // tags are category ids the goal watches; dropped.decisionId is the
-  // decision that says why it was put down.
-  [ENTITY_GOAL]: ["areaId", "tags[]", "dropped.decisionId"],
+// The filing paths, kept by hand. Not links; still ids a restore rewrites.
+const FILING_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  // The category id every list, dot and colour reads, plus the extra tags.
+  [ENTITY_TASK]: ["category", "extraCategories[]"],
+  [ENTITY_EVENT]: ["category"],
+  [ENTITY_NOTE]: ["category"],
+  [ENTITY_PROJECT]: ["category"],
+  // tags are category ids the goal watches.
+  [ENTITY_GOAL]: ["tags[]"],
   [ENTITY_PERSON]: ["categoryIds[]"],
-  // A decision attaches to one record of some other kind, and a reversal
-  // links to the decision it replaces in both directions.
-  [ENTITY_DECISION]: ["linkedId", "supersedesId", "supersededById"],
+  // The sport the program is for: a category id.
   [ENTITY_PROGRAM]: ["gameCategoryId"],
-  [ENTITY_WORKOUT]: ["programId"],
-  [ENTITY_METRIC_LOG]: ["metricId"],
-  // The three health rows that answer a specific calendar event.
-  [ENTITY_ATE_BEFORE]: ["eventId"],
-  [ENTITY_CALL_IT]: ["eventId"],
-  [ENTITY_BAG_CHECK]: ["eventId"],
 };
+
+/** The filing paths plus every registry link path, grouped by entity type,
+ *  each path once. Order inside a type: the filing paths first, then the
+ *  registry's own order. */
+function referenceFields(): Readonly<Record<string, readonly string[]>> {
+  const out: Record<string, string[]> = {};
+  for (const [type, paths] of Object.entries(FILING_FIELDS)) out[type] = [...paths];
+  for (const r of LINK_PATHS) {
+    const list = (out[r.entityType] ??= []);
+    // note.connections[].targetId is two registry rows (about, mentions) and one path.
+    if (!list.includes(r.path)) list.push(r.path);
+  }
+  return out;
+}
+
+export const REFERENCE_FIELDS: Readonly<Record<string, readonly string[]>> = referenceFields();
 
 // life_area has no outbound reference of its own; named here so the list
 // above reads as deliberate rather than as an oversight.

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTasks, useCategories, useSchedule, useRoutine, useNotes, usePeople, useOptionalBrainMemory } from "../data/NotesProvider";
+import { useTasks, useCategories, useSchedule, useRoutine, useNotes, usePeople, useOptionalBrainMemory, useStore } from "../data/NotesProvider";
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
 import SyllabusUploadFlow from "../life/SyllabusUploadFlow";
@@ -35,6 +35,8 @@ import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
+import { heldText, savedToastText } from "../shared/saved";
+import { flagOn } from "../substrate/flags";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine, SLIDING_TAG } from "./lifecycle";
 import { useCategoryEstimates, useTaskEstimate } from "../schedule/useTaskEstimate";
 import FilingSheet from "../ai/FilingSheet";
@@ -96,6 +98,15 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
+  // THE TRUST CHECKPOINT (Phase 0 D4, 2026-10-10), behind trust_v1. The
+  // TasksService's store is private, so the New Task sheet asks the Store
+  // through useStore (null outside a provider means not pending). While it
+  // is pending the "Saved to <Filter>" toast says Will Sync instead, through
+  // shared/saved.ts, and a new row that did not move the filter is still
+  // announced, because a row appearing with no word is the lie the
+  // checkpoint names. Flag off: today's words and today's silence.
+  const store = useStore();
+  const storePending = () => flagOn("trust_v1") && (store?.pending() ?? false);
   // EVENTS ARE FIRST-CLASS (2026-09-09): the task sheet can file a task to an
   // event, so this page has to know what is coming. Read once, the same shape
   // every other sheet uses (schedule/sheetEvents.ts).
@@ -589,9 +600,12 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (wasNew) {
       const landed = filterOf({ text: draft.text, category: draft.category, done: false, due: draft.due || undefined, recurrence: rec || undefined }, today);
       if (draft.category && catFilter !== "all" && draft.category !== catFilter) setCatFilter("all");
+      const pending = storePending();
       if (landed !== filter) {
         setFilter(landed);
-        showToast({ message: `Saved to ${FILTER_LABEL[landed]}` });
+        showToast({ message: savedToastText(`Saved to ${FILTER_LABEL[landed]}`, heldText(FILTER_LABEL[landed]), pending) });
+      } else if (pending) {
+        showToast({ message: heldText() });
       }
     }
   };

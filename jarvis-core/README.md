@@ -46,7 +46,7 @@ docs/verify-rls.mjs          the script that proves it
 
 ```
 npm install
-npm test          # 23 tests: 11 steps + 10 coverage + 2 permanent guardians
+npm test          # 110 tests: core.spec (D1 to D10 steps, coverage, guardians), offlineQueue, patchWire, subscriptionTier, createdAt
 npm run typecheck
 ```
 
@@ -76,6 +76,25 @@ Now: Supabase Auth. `owner_id` defaults to the signed-in user and RLS enforces
 isolation. At Milestone B this swaps to Clerk with no table changes: change how
 the client signs in and swap `auth.uid()` for the Clerk subject in the policies.
 See `docs/DEVICE_TEST.md`.
+
+## What the Store knows about what it holds (Phase 0, 2026-10-10)
+
+`Store.pending()` answers one word, `true` while the Store is offline or has
+anything in its queue, so a door can say "Saved" only when nothing of the
+user's is still on the phone and "Will Sync" otherwise (design D4). Every
+`Item` now carries `createdAt` (epoch ms, the row's `created_at`, read by both
+adapters in one shape, design D8); for a create held offline it is the moment
+the capture was queued, and the drain hands that same number to
+`adapter.create`, so the date a list shows offline is the one the server row
+reads after reconnect. Which replay shapes carry an age (design D1 change 2): a
+create carries `queuedAt` as its `created_at`; a patch to a row the same drain
+created carries `queuedAt` as `p_client_at` on `item_apply_patch` (every other
+held patch already carries it through `item_apply_patch_if_older`); a delete is
+stamped with `queuedAt` from this build on and the drain passes it to
+`adapter.del`, where the Supabase adapter accepts it and has nowhere to send it
+until a delete RPC exists; nothing persisted by an older build carries an age,
+and those ops replay exactly as before. All of this is pinned in
+`tests/offlineQueue.spec.ts` and `tests/createdAt.spec.ts`.
 
 ## Scope notes (deliberate)
 

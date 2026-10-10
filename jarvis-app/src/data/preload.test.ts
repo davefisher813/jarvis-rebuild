@@ -141,7 +141,21 @@ describe("stale-while-revalidate adapter", () => {
     const all = await adapter.listForUser(U);
     expect(all.length).toBe(1);
     // No untyped cache entry was written.
-    expect(localStorage.getItem("jarvis.preload.v1" + ".undefined")).toBeNull();
+    expect(localStorage.getItem("jarvis.preload.v2" + ".undefined")).toBeNull();
+  });
+
+  // Phase 0 D8 (2026-10-10): Item gained createdAt, so the cache key moved to
+  // v2 and a v1 entry is never read. clearPreload sweeps the retired family
+  // too, so an install that cached before the bump does not keep it forever.
+  it("the cache lives under v2, and a retired v1 entry is neither read nor kept", () => {
+    localStorage.setItem("jarvis.preload.v1" + ".task", JSON.stringify({ owner: U, items: [{ id: "old", ownerId: U, entityType: "task", data: {}, serverTime: 1 }] }));
+    expect(readPreload(U, "task")).toBeNull();
+    writePreload(U, "task", [{ id: "a", ownerId: U, entityType: "task", data: {}, serverTime: 1, createdAt: 1 }]);
+    expect(localStorage.getItem("jarvis.preload.v2" + ".task")).not.toBeNull();
+    expect(readPreload(U, "task")![0]!.createdAt).toBe(1);
+    clearPreload();
+    expect(localStorage.getItem("jarvis.preload.v1" + ".task")).toBeNull();
+    expect(localStorage.getItem("jarvis.preload.v2" + ".task")).toBeNull();
   });
 
   it("listSignature detects both membership and content change", () => {

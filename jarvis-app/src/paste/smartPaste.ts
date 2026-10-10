@@ -12,7 +12,8 @@ import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
 import type { NotesService } from "../notes/NotesService";
 import type { Category } from "../categories/types";
-import { madeBy } from "../shared/provenance";
+import { madeBy, withInferred, type Source } from "../shared/provenance";
+import { flagOn } from "../substrate/flags";
 import { parsePaste, titleCase, type ParsedEntity } from "./deterministic";
 import { selfFact } from "./selfFact";
 import { readPrefix } from "./prefixes";
@@ -57,6 +58,10 @@ export interface SavedEntity {
   // receipt asks (the Uncertainty Protocol).
   personChoices?: string[];
   projectId?: string;
+  // Phase 0 D3 (2026-10-10): the fields a rule filled on this entity
+  // (ParsedEntity.inferred), kept so a refile can stamp the copy with only
+  // the guesses it still carries. Absent when nothing was guessed.
+  inferred?: string[];
   // Person only: the card exactly as it was before this sentence touched it,
   // so Undo restores rather than deletes. Absent when the card was created.
   priorPerson?: PersonData;
@@ -88,7 +93,8 @@ export interface PasteDeps {
   // UP-CORE-01 (2026-09-05): the bounded lists the person and project reads
   // match against. Optional, and absent means those two lanes are simply
   // closed: a capture is never dropped because a list was not passed.
-  people?: { id: string; name: string }[];
+  // Phase 0 D11: a contact's aliases ride along, so "Mom" matches Linda.
+  people?: { id: string; name: string; aliases?: string[] }[];
   projects?: { id: string; title: string }[];
   // Learned rules, optional. Absent means no capture is ever categorised by
   // a rule, which is what every existing caller and every test gets by
@@ -183,26 +189,55 @@ function toCaptureResult(e: ParsedEntity, kind: CaptureResult["kind"]): CaptureR
   };
 }
 
-// Try the AI on one unconfident line. Any failure (unavailable, gated off,
-// network, unparseable reply) returns null; the caller falls back honestly.
-async function aiImprove(line: string, deps: PasteDeps): Promise<CaptureResult | null> {
-  if (!deps.ai.available) return null;
+// THE REFUSED VERSUS FAILED SPLIT (Phase 0 D11, PHASE0-DESIGN.md, 2026-10-10).
+//
+// This used to answer null for every miss alike, and the caller read null
+// plus `ai.available` as "the model read it and could not", so an
+// unconfident line became a note with no personId whenever the backend was
+// configured, which in production it always is (AIService.ts:54). With AI
+// off in Settings or in airplane mode, "Need to follow up with Mike about
+// summer roster" lost Mike. The three answers are now three words:
+//
+//   refused     no model answer exists: AI is off in this build, the call
+//               was refused before any request left (the AI Control gate, the
+//               admin switch, the budget; AIService.complete throws), the
+//               backend could not be reached (fetch threw), or it answered
+//               non 2xx (complete throws on !res.ok, AIService.ts:121-137).
+//               The deterministic reading was never contradicted.
+//   unreadable  a 2xx answer that parseCapture cannot read. The model had
+//               its say and said nothing usable: the honest note.
+//   parsed      the model's reading, Title Cased like every created title.
+type AiAnswer = { kind: "refused" } | { kind: "unreadable" } | { kind: "parsed"; result: CaptureResult };
+
+async function aiImprove(line: string, deps: PasteDeps): Promise<AiAnswer> {
+  if (!deps.ai.available) return { kind: "refused" };
+  let raw: string;
   try {
     const ctx = await deps.gather();
-    const raw = await deps.ai.complete(
+    raw = await deps.ai.complete(
       [{ role: "user", content: line }],
       captureSystemPrompt(ctx, deps.today),
       { kind: "paste", pin: "pasteFallback", schema: CAPTURE_SCHEMA },
     );
-    const parsed = parseCapture(raw);
-    if (!parsed) return null;
-    // Created titles get the convention; the model does not get to invent
-    // casing any more than the heuristics do.
-    parsed.title = titleCase(parsed.title);
-    return parsed;
   } catch {
-    return null;
+    return { kind: "refused" };
   }
+  const parsed = parseCapture(raw);
+  if (!parsed) return { kind: "unreadable" };
+  // Created titles get the convention; the model does not get to invent
+  // casing any more than the heuristics do.
+  parsed.title = titleCase(parsed.title);
+  return { kind: "parsed", result: parsed };
+}
+
+// The paste stamp. Behind memory_v1 it names the fields a rule guessed
+// (Source.inferred, D3); flag off it is madeBy("paste") byte for byte, which
+// about 25 exact data assertions pin. `fields` is empty whenever the reading
+// that landed is not the rule's own (the model's answer, a refile that
+// dropped the guessed field), because the stamp is a fact about THIS row.
+function pasteStamp(fields: readonly string[]): Source {
+  const stamp = madeBy("paste");
+  return flagOn("memory_v1") ? withInferred(stamp, fields) : stamp;
 }
 
 // Save a paste. Returns what was created, in order, for the receipt, the
@@ -332,6 +367,9 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       }
     }
     let result: CaptureResult;
+    // Whether the reading that lands is the deterministic layer's own, so
+    // its inferred fields are facts about the row (pasteStamp above).
+    let ruleRead = true;
     if (e.kind === "fact") {
       // The lane is closed (no strand store). Read it the way this pipeline
       // read it before Quick Add existed: a short line with no date is a
@@ -349,17 +387,24 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       // asked to improve "Accounts" when the person wrote "separate 2
       // accounts". It gets the line as pasted; that is the only version of it
       // that still holds every word.
-      const improved = await aiImprove(e.body ?? e.raw, deps);
-      if (improved) {
-        result = improved;
-      } else if (deps.ai.available) {
-        // The AI ran (or was reachable) and still could not read it: honest
-        // note fallback, paste kept verbatim. Never a guessed schedule.
+      const answer = await aiImprove(e.body ?? e.raw, deps);
+      // Behind memory_v1 (D11): only a model that answered and could not be
+      // read makes the note; a refused or unreachable AI leaves the
+      // deterministic reading standing, personId and all. Flag off, today's
+      // branch byte for byte: any miss with a configured backend is the note.
+      const noteInstead = flagOn("memory_v1") ? answer.kind === "unreadable" : answer.kind !== "parsed" && deps.ai.available;
+      if (answer.kind === "parsed") {
+        result = answer.result;
+        ruleRead = false;
+      } else if (noteInstead) {
+        // The AI ran and still could not read it: honest note fallback,
+        // paste kept verbatim. Never a guessed schedule.
         result = { kind: "note", title: e.title, notes: e.body ?? e.title };
+        ruleRead = false;
       } else {
-        // No AI in this build: the deterministic guess stands (a short text
-        // saved as a task is the cheapest honest read, and it is reversible
-        // with one chip).
+        // No model answer exists: the deterministic guess stands (a short
+        // text saved as a task is the cheapest honest read, and it is
+        // reversible with one chip).
         result = toCaptureResult(e, e.kind);
       }
     }
@@ -368,7 +413,8 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       deps.people?.find((p) => p.id === result.personId)?.name,
       deps.projects?.find((p) => p.id === result.projectId)?.title,
     ].filter(Boolean).join(", ");
-    const applied = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"), billFor);
+    const inferred = ruleRead ? e.inferred : [];
+    const applied = await applyCapture(result, deps, deps.categories, deps.today, pasteStamp(inferred), billFor);
     const { id } = applied;
     if (applied.note) deps.onBillNote?.(applied.note);
     if (id) {
@@ -390,6 +436,7 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
         ...(result.personId ? { personId: result.personId } : {}),
         ...(e.personChoices ? { personChoices: e.personChoices } : {}),
         ...(result.projectId ? { projectId: result.projectId } : {}),
+        ...(inferred.length ? { inferred } : {}),
         raw: e.raw,
       };
       saved.push(s);
@@ -496,9 +543,14 @@ export async function refileSaved(
       ...(s.start ? { start: s.start } : {}),
       ...(toKind === "note" ? { notes: text } : {}),
     };
-    const { id } = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"));
+    // The copy keeps only the guesses it still carries: a refile drops the
+    // person and project, and keeps the date, so "date" survives and
+    // "personId" does not. Flag off, pasteStamp is madeBy("paste") as before.
+    const kept = (s.inferred ?? []).filter((f) => f in result);
+    const { id } = await applyCapture(result, deps, deps.categories, deps.today, pasteStamp(kept));
     if (!id) return null;
-    next = { ...s, id, kind: toKind, title: result.title };
+    next = { ...s, id, kind: toKind, title: result.title, ...(kept.length ? { inferred: kept } : {}) };
+    if (!kept.length) delete next.inferred;
   }
   try {
     await undoSaved(s, deps);

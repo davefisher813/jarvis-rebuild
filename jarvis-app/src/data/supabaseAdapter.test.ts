@@ -23,7 +23,7 @@ function mockClient(result: unknown) {
   };
 }
 
-const ROW = { id: "r1", owner_id: "u1", entity_type: "note", data: { title: "X" }, updated_at: "2026-05-20T10:00:00Z" };
+const ROW = { id: "r1", owner_id: "u1", entity_type: "note", data: { title: "X" }, updated_at: "2026-05-20T10:00:00Z", created_at: "2026-05-19T08:00:00Z" };
 const find = (calls: Call[], name: string) => calls.find((c) => c[0] === name);
 
 describe("SupabaseAdapter (mock client, no network)", () => {
@@ -40,6 +40,36 @@ describe("SupabaseAdapter (mock client, no network)", () => {
     const item = await new SupabaseAdapter(c as never).read("u1", "r1");
     expect(item).toMatchObject({ id: "r1", ownerId: "u1", entityType: "note" });
     expect(item!.serverTime).toBe(Date.parse("2026-05-20T10:00:00Z"));
+  });
+
+  // Phase 0 D8 and D1 change 2 (2026-10-10): the app reads created_at, and a
+  // write held offline carries the moment it was made.
+  it("read and list both select created_at, and map it to createdAt", async () => {
+    const c1 = mockClient({ data: ROW, error: null });
+    const item = await new SupabaseAdapter(c1 as never).read("u1", "r1");
+    expect(find(c1.calls, "select")![1][0]).toMatch(/\bcreated_at\b/);
+    expect(item!.createdAt).toBe(Date.parse("2026-05-19T08:00:00Z"));
+    const c2 = mockClient({ data: [ROW], error: null });
+    const [listed] = await new SupabaseAdapter(c2 as never).listForUser("u1", "note");
+    expect(find(c2.calls, "select")![1][0]).toMatch(/\bcreated_at\b/);
+    expect(listed!.createdAt).toBe(Date.parse("2026-05-19T08:00:00Z"));
+  });
+
+  it("create with createdAt sends created_at, and without it sends none", async () => {
+    const made = Date.parse("2026-05-19T06:02:00Z");
+    const c = mockClient({ data: { id: "r1" }, error: null });
+    await new SupabaseAdapter(c as never).create("u1", "note", { title: "X" }, "r1", made);
+    expect(find(c.calls, "insert")![1][0]).toEqual({ id: "r1", created_at: new Date(made).toISOString(), entity_type: "note", data: { title: "X" } });
+    const plain = mockClient({ data: { id: "r2" }, error: null });
+    await new SupabaseAdapter(plain as never).create("u1", "note", { title: "X" });
+    expect(find(plain.calls, "insert")![1][0]).not.toHaveProperty("created_at");
+  });
+
+  it("apply with clientAt sends p_client_at, and without it sends the two arguments it always did", async () => {
+    const made = Date.parse("2026-05-19T09:00:00Z");
+    const c = mockClient({ data: true, error: null });
+    await new SupabaseAdapter(c as never).apply("u1", "r1", { title: "Y" }, undefined, made);
+    expect(find(c.calls, "rpc")![1]).toEqual(["item_apply_patch", { p_id: "r1", p_patch: { title: "Y" }, p_client_at: new Date(made).toISOString() }]);
   });
 
   it("read returns null when the row is missing or not owned", async () => {

@@ -21,13 +21,32 @@ export interface Relinked { id: string; before: Record<string, unknown>; after: 
 type Data = Record<string, unknown>;
 
 /** Every place a row points at a person, rewritten from one id to another.
- *  Returns null when the row holds no reference. Tasks carry personId, notes
- *  carry person connections, decisions carry a person link (old triple and
- *  the links list), strands carry an entity link. */
+ *  Returns null when the row holds no reference. Tasks carry personId and a
+ *  reminder's linkedItem (type "contact"), notes carry person connections,
+ *  decisions carry a person link (old triple and the links list), strands
+ *  carry an entity link, a waiting row carries contactId and a trusted adult
+ *  carries personId.
+ *
+ *  Phase 0 D2 (2026-10-10): the three paths added here are registry rows in
+ *  substrate/links/paths.ts (task.reminder.linkedItem.id, waiting.contactId,
+ *  health_trusted_adult.personId). The registry does not say which TYPE a
+ *  pointer is for, so this stays the hand kept list of the ones that point
+ *  at a person; linkedItem is read by its own `type` field, which is the
+ *  shape notes/types.ts LinkedItem actually has ("contact", not "person"). */
 export function relinkData(entityType: string, d: Data, from: string, to: string): Data | null {
   let changed = false;
   const next: Data = { ...d };
   if (entityType === "task" && d.personId === from) { next.personId = to; changed = true; }
+  if (entityType === "task") {
+    const reminder = d.reminder as Data | undefined;
+    const link = reminder?.linkedItem as Data | undefined;
+    if (link && link.type === "contact" && link.id === from) {
+      next.reminder = { ...reminder, linkedItem: { ...link, id: to } };
+      changed = true;
+    }
+  }
+  if (entityType === "waiting" && d.contactId === from) { next.contactId = to; changed = true; }
+  if (entityType === "health_trusted_adult" && d.personId === from) { next.personId = to; changed = true; }
   if (entityType === "note" && Array.isArray(d.connections)) {
     const conns = (d.connections as Data[]).map((c) => {
       if (c && c.kind === "person" && c.targetId === from) { changed = true; return { ...c, targetId: to }; }
@@ -51,7 +70,7 @@ export function relinkData(entityType: string, d: Data, from: string, to: string
   return changed ? next : null;
 }
 
-export const RELINK_TYPES = ["task", "note", "decision_record", "strand"] as const;
+export const RELINK_TYPES = ["task", "note", "decision_record", "strand", "waiting", "health_trusted_adult"] as const;
 
 /** Rewrites every reference to `from` so it points at `to`, and returns what
  *  each changed row held, for Undo. */

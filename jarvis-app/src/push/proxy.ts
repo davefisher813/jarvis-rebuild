@@ -17,15 +17,31 @@
 //                               token this proxy issued for THAT endpoint to
 //                               THAT user (Clemenza, condition 3)
 //   POST   /api/push?test=1     one test alert to every device
+//   POST   /api/push?inbox=pull the backend inbox leg of the VYZN feed (Phase 0,
+//                               PHASE0-DESIGN.md D6 item 7): 404 unless the
+//                               vyzn_sync_v1 flag is on; GETs the agent inbox
+//                               with the secret, maps it to records, hands them
+//                               to records_import AS THE PERSON (their own
+//                               bearer, the anon apikey), and deletes a backend
+//                               item ONLY once Dave has taken it (already_saved,
+//                               or a replay whose status is accepted or
+//                               dismissed). A proposed record stays in the
+//                               backend inbox until the tap: Dave's input always
+//                               wins in both systems. Never logs a task's text.
 //
 // Missing configuration is a sentence, not a mystery: with either server
 // variable unset the proxy answers 503 naming WHICH one, and never a value.
+
+import { parseFlags } from "../substrate/flagList";
+import { backendInboxToRecords, batches, type IngestAnswer, type RecordOutcome, type VyznRecord } from "../substrate/records/envelope";
 
 export interface PushEnv {
   JARVIS_SECRET?: string;
   JARVIS_BACKEND_URL?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
+  /** The build's flag string (VITE_JARVIS_FLAGS), parsed here with the pure parser. */
+  FLAGS?: string;
 }
 
 export interface FetchResponse { ok: boolean; status: number; json: () => Promise<unknown>; text?: () => Promise<string> }
@@ -97,8 +113,14 @@ export async function handlePush(req: Request, deps: { env: PushEnv; fetchImpl: 
     return json({ publicKey: body.publicKey ?? null });
   }
 
+  // The pull does not exist without its flag: 404 before any identity is looked at.
+  const pull = method === "POST" && url.searchParams.get("inbox") === "pull";
+  if (pull && !parseFlags(env.FLAGS).has("vyzn_sync_v1")) return json({ error: "Not found" }, 404);
+
   const userId = await whoIs(req, env, fetchImpl);
   if (!userId) return json({ error: "Unauthorized" }, 401);
+
+  if (pull) return pullInbox(req, env, fetchImpl, base, secretHeaders);
 
   if (method === "POST" && url.searchParams.get("test") === "1") {
     const r = await fetchImpl(`${base}/api/push/test`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ message: "Test alert from JARVIS" }) });
@@ -124,4 +146,44 @@ export async function handlePush(req: Request, deps: { env: PushEnv; fetchImpl: 
   }
 
   return json({ error: "Method not allowed" }, 405);
+}
+
+/** The counts a pull answers. `pulled` is what the backend held and the mapping accepted; `refused` is what it did not. */
+export interface PullAnswer { pulled: number; proposed: number; replayed: number; already: number; superseded: number; deleted: number; refused: number }
+
+/** Taken means Dave accepted or dismissed it (his decision 2, the default): only then is the backend's copy consumed. */
+export function takenByDave(r: RecordOutcome): boolean {
+  return r.outcome === "already_saved" || (r.outcome === "replay" && (r.status === "accepted" || r.status === "dismissed"));
+}
+
+async function pullInbox(req: Request, env: PushEnv, fetchImpl: FetchLike, base: string, secretHeaders: Record<string, string>): Promise<Response> {
+  const jwt = (req.headers.get("authorization") || "").slice("Bearer ".length);
+  const got = await fetchImpl(`${base}/api/memory/tasks`, { headers: { "x-jarvis-secret": secretHeaders["x-jarvis-secret"]! } });
+  if (!got.ok) return json({ error: "The backend inbox did not answer" }, 502);
+  const listed = (await got.json()) as { inbox?: unknown };
+  const { records, refused } = backendInboxToRecords(listed.inbox ?? []);
+  const answer: PullAnswer = { pulled: records.length, proposed: 0, replayed: 0, already: 0, superseded: 0, deleted: 0, refused: refused.length };
+  if (records.length === 0) return json(answer);
+
+  for (const batch of batches<VyznRecord>(records)) {
+    const r = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/rpc/records_import`, {
+      method: "POST",
+      headers: { apikey: String(env.SUPABASE_ANON_KEY), Authorization: `Bearer ${jwt}`, "content-type": "application/json" },
+      body: JSON.stringify({ p_source_app: "backend-inbox", p_records: batch }),
+    });
+    if (!r.ok) return json({ ...answer, error: "JARVIS did not take the records" }, 502);
+    const out = (await r.json()) as IngestAnswer | { error: string; detail?: string; source_record_id?: string };
+    // A refused batch wrote nothing, so nothing is consumed on the backend side either.
+    if ("error" in out) return json({ ...answer, error: out.error, ...(out.detail ? { detail: out.detail } : {}) }, 422);
+    for (const res of out.results) {
+      if (res.outcome === "proposed") { answer.proposed += 1; answer.superseded += res.superseded; }
+      else if (res.outcome === "newer_revision_proposed") answer.proposed += 1;
+      else if (res.outcome === "replay") answer.replayed += 1;
+      else if (res.outcome === "already_saved") answer.already += 1;
+      if (!takenByDave(res)) continue;
+      const gone = await fetchImpl(`${base}/api/memory/tasks/${encodeURIComponent(res.source_record_id)}`, { method: "DELETE", headers: secretHeaders });
+      if (gone.ok) answer.deleted += 1;
+    }
+  }
+  return json(answer);
 }

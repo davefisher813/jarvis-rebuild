@@ -79,4 +79,12 @@ describe("the calls", () => {
     expect(destinationKindOf("decision_save")).toBe("decision");
     expect(destinationKindOf("read_context")).toBeNull();
   });
+  it("a record approved from the VYZN inbox opens its module; a person opens nothing until the shell has a person route (Phase 0, 2026-10-10)", () => {
+    expect(destinationKindOf("record_task")).toBe("task");
+    expect(destinationKindOf("record_event")).toBe("event");
+    expect(destinationKindOf("record_note")).toBe("note");
+    // The shell's navigateToEntity has no person branch an Open button could reach; null keeps the button
+    // off the receipt rather than drawing one that does nothing.
+    expect(destinationKindOf("record_person")).toBeNull();
+  });
 });

@@ -12,6 +12,9 @@
 export const config = { runtime: "edge" };
 
 import { handleAgentRequest, type RpcResult } from "../src/substrate/gateway/handler";
+// The pure flag parser, never src/substrate/flags.ts: that module reads import.meta.env at load, which
+// throws under Node and would take every agent method down at cold start (PHASE0-DESIGN.md refutation 2.1).
+import { parseFlags } from "../src/substrate/flagList";
 import { encrypt } from "./_google";
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -55,6 +58,8 @@ export default async function handler(req: Request): Promise<Response> {
       sha256: sha256Hex,
       ...(contextKey ? { encrypt: (plain: string) => encrypt(plain, contextKey) } : {}),
       correlationId: () => crypto.randomUUID(),
+      // The same build string the app reads; record.push is on only when vyzn_sync_v1 is in it.
+      flags: parseFlags(process.env.VITE_JARVIS_FLAGS),
     },
   );
   // Observability, minimal: the status, the code and the correlation id.

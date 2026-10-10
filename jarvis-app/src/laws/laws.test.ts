@@ -2210,6 +2210,62 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     }
     expect(stale).toEqual([]);
   });
+
+  // THE SERVERLESS HANDLERS NEVER READ import.meta.env (2026-10-10, Phase 0
+  // refutation 2.1). substrate/flags.ts reads import.meta.env at module
+  // load; under Node that line throws, so an api/ file that imported it,
+  // directly or through anything it imports, would fail at cold start and
+  // take every route in that function with it. Eight src modules read
+  // import.meta.env today and no api file reaches any of them, which was
+  // luck rather than a rule; this is the rule. api/ reads process.env
+  // (env.test.ts holds both halves to .env.example), and a browser flag the
+  // server needs comes through a pure module such as substrate/flagList.ts.
+  it("no serverless handler names import.meta.env, directly or through what it imports", () => {
+    const API = join(process.cwd().replace(/\\/g, "/"), "api");
+    const CORE = join(process.cwd().replace(/\\/g, "/"), "../jarvis-core/src/index.ts");
+    const apiFiles: string[] = [];
+    try { walk(API, apiFiles); } catch { return; /* api/ may not exist */ }
+    const handlers = apiFiles.filter((f) => /\.ts$/.test(f) && !isTest(f));
+    expect(handlers.length).toBeGreaterThan(20);
+
+    // Relative specifiers and the @core alias (vite.config.ts) resolve to a
+    // file; a package name is somebody else's code and is not followed.
+    const resolveSpec = (from: string, spec: string): string | null => {
+      let base: string;
+      if (spec === "@core") base = CORE;
+      else if (spec.startsWith(".")) base = join(from.slice(0, from.lastIndexOf("/")), spec);
+      else return null;
+      base = base.replace(/\.(js|ts|tsx)$/, "");
+      for (const c of [base + ".ts", base + ".tsx", base + "/index.ts", base]) {
+        try { if (statSync(c).isFile()) return c; } catch { /* try the next shape */ }
+      }
+      return null;
+    };
+    // Every form that loads code: from "x", import "x", import("x"), require("x").
+    // Type only imports are erased before the code runs, so they load nothing.
+    const runtimeSpecs = (src: string) => [...src.replace(/\b(?:import|export)\s+type\s+[^;]*;/g, "")
+      .matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"'\n]+)["']/g)].map((m) => m[1]!);
+
+    const reachedFrom = new Map<string, string>();
+    const queue = handlers.map((f) => [f, f] as [string, string]);
+    while (queue.length) {
+      const [f, root] = queue.shift()!;
+      if (reachedFrom.has(f)) continue;
+      reachedFrom.set(f, root);
+      for (const spec of runtimeSpecs(read(f))) {
+        const to = resolveSpec(f, spec);
+        if (to && !reachedFrom.has(to)) queue.push([to, root]);
+      }
+    }
+    // A comment may say the words (flagList.ts explains that it never
+    // touches import.meta.env); only code that reads it throws.
+    const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
+    const here = process.cwd().replace(/\\/g, "/").length + 1;
+    const bad = [...reachedFrom]
+      .filter(([f]) => /import\.meta\.env/.test(code(read(f))))
+      .map(([f, root]) => `${f.slice(here)} (reached from ${root.slice(here)})`);
+    expect(bad, "import.meta.env throws under Node at module load; a handler that reaches it dies at cold start").toEqual([]);
+  });
 });
 
 // ONE LIST OF LENGTHS (2026-08-24).

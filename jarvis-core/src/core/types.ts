@@ -28,6 +28,13 @@ export interface Item {
   entityType: string;
   data: ItemData;
   serverTime: ServerTime;
+  // Phase 0 D8 (2026-10-10): WHEN THE RECORD WAS MADE, epoch ms. The row has
+  // carried created_at since migration 0001 and no reader ever asked for it,
+  // so the app has been dating a record by its last edit. Optional because a
+  // test double or an older cached read may not carry one. For a create held
+  // offline this is the queued moment, and the drain hands the server the
+  // same number (D1 change 2), so the value never flips on reconnect.
+  createdAt?: number;
 }
 
 // Result of an apply (update). true = applied, false = rejected (missing,
@@ -67,5 +74,11 @@ export interface QueuedDelete {
   op: "delete";
   id: string;
   ownerId: string;
+  // Phase 0 D1 change 2 (2026-10-10): WHEN THE DELETE WAS MADE, client epoch
+  // ms, so the history row the server writes for a replayed delete can carry
+  // the moment he removed the record rather than the reconnect. Optional
+  // because a queue persisted by an earlier build has none; those replay
+  // without an age.
+  queuedAt?: number;
 }
 export type QueuedOp = QueuedCreate | QueuedUpdate | QueuedDelete;

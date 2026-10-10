@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, type ReactNode } from "react";
 import { X } from "../shared/icons";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, usePeople, useProjects } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, usePeople, useProjects, useStore } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
@@ -25,6 +25,8 @@ import { DAY_PRESETS } from "../tasks/reminders";
 import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
 import { lineCase } from "../shared/casing";
+import { flagOn } from "../substrate/flags";
+import { heldText, savedToastText } from "../shared/saved";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -183,6 +185,14 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // decisions seam above -- without a brain service they simply don't render.
   const brain = useOptionalBrainMemory();
   const [filingMode, setFilingMode] = useState<"decision" | "remember" | null>(null);
+  // THE TRUST CHECKPOINT (Phase 0 D4, 2026-10-10), behind trust_v1. This door
+  // reaches no adapter of its own, so it asks the Store through the one seam
+  // that exists (useStore; null outside a provider means not pending, the
+  // hook's own contract). While the Store is pending the receipt's eyebrow
+  // says Filed and the Done toast says Will Sync, through shared/saved.ts,
+  // never a copy of the words here. Flag off: Saved, as today.
+  const store = useStore();
+  const pending = () => flagOn("trust_v1") && (store?.pending() ?? false);
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
@@ -278,7 +288,11 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     setCats(categories);
     // UP-CORE-01: who and which project, read fresh with the categories so a
     // contact added a minute ago is matchable now.
-    const ps = (await peopleSvc.list().catch(() => [])).map((p) => ({ id: p.id, name: p.data.name }));
+    // Phase 0 D11: aliases ride along behind memory_v1, so "Mom" matches Linda.
+    const ps = (await peopleSvc.list().catch(() => [])).map((p) => ({
+      id: p.id, name: p.data.name,
+      ...(flagOn("memory_v1") && p.data.aliases?.length ? { aliases: p.data.aliases } : {}),
+    }));
     const prs = (await projectsSvc.list().catch(() => [])).map((p) => ({ id: p.id, title: p.data.title }));
     setPeople(ps);
     setProjects(prs);
@@ -434,7 +448,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     <div className="sheet-scrim" onClick={() => { if (phase !== "saving") onClose(); }}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{phase !== "saved" ? "Smart Paste" : saved.every((x) => x.removed) ? "Smart Paste" : "Saved"}</div></div>
+        <div className="grp"><div className="eyebrow">{phase !== "saved" ? "Smart Paste" : saved.every((x) => x.removed) ? "Smart Paste" : savedToastText("Saved", "Filed", pending())}</div></div>
 
         {phase !== "saved" && (
           <div className="pad-x sheet-form">
@@ -625,7 +639,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               <button className="btn btn-primary btn-block" onClick={() => {
                 const kept = saved.filter((x) => !x.removed).length;
                 setText(""); setSaved([]); onClose();
-                if (kept > 0) showToast({ message: kept === 1 ? "Saved" : `Saved ${kept} items` });
+                if (kept > 0) showToast({ message: savedToastText(kept === 1 ? "Saved" : `Saved ${kept} items`, heldText(undefined, kept), pending()) });
               }}>Done</button>
               <button className="btn btn-secondary btn-block" onClick={() => { setText(""); setSaved([]); setPhase("input"); }}>Capture Another</button>
             </div>

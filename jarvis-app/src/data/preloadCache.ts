@@ -10,8 +10,15 @@ import type { Item } from "@core";
 
 // Versioned base (laws: stored shapes are versioned); the entity type rides
 // after the version so one type's cache can be dropped without touching the rest.
-const BASE = "jarvis.preload.v1";
+// v2 (Phase 0 D8, 2026-10-10): Item gained createdAt, read from the row's
+// created_at. A v1 entry predates the field, so it would paint a list with no
+// creation times until the refresh landed; the bump makes the first read a
+// miss instead. The v1 family is swept by clearPreload below.
+const BASE = "jarvis.preload.v2";
 const PREFIX = BASE + ".";
+// Earlier bases, left in localStorage by an install that cached before the
+// bump. Nothing reads them; clearPreload removes them with the live family.
+const RETIRED_BASES = ["jarvis.preload.v1"];
 
 // Bounds. A type over the item cap or the byte cap simply is not cached:
 // silent truncation would lie to the first paint, so it is all or nothing
@@ -69,7 +76,7 @@ export function clearPreload(): void {
   const doomed: string[] = [];
   for (let i = 0; i < s.length; i++) {
     const k = s.key(i);
-    if (k && k.startsWith(PREFIX)) doomed.push(k);
+    if (k && (k.startsWith(PREFIX) || RETIRED_BASES.some((b) => k.startsWith(b + ".")))) doomed.push(k);
   }
   for (const k of doomed) s.removeItem(k);
 }

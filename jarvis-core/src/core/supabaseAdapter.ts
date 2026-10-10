@@ -24,6 +24,9 @@ interface ItemRow {
   entity_type: string;
   data: ItemData;
   updated_at: string;
+  // Phase 0 D8 (2026-10-10): read at last. The column has been on the row
+  // since migration 0001; both select lists below now ask for it.
+  created_at: string;
 }
 
 // PostgREST's answer when the RPC does not exist in the database yet.
@@ -43,20 +46,46 @@ function toItem(row: ItemRow): Item {
     // updated_at is the authoritative server time; exposed as epoch millis so
     // callers have a comparable monotonic value matching the in-memory model.
     serverTime: Date.parse(row.updated_at),
+    // Phase 0 D8: when the record was made, epoch ms, same unit as serverTime
+    // so the in-memory adapter and this one answer one shape.
+    createdAt: Date.parse(row.created_at),
   };
 }
+
+// Phase 0 D1 change 2 (2026-10-10): both select lists read the same columns.
+// One constant so the two cannot drift apart; jarvis-app's
+// supabaseAdapter.test.ts pins the string.
+const ITEM_COLUMNS = "id, owner_id, entity_type, data, updated_at, created_at";
 
 export class SupabaseAdapter implements DataAdapter {
   constructor(private readonly db: SupabaseClient) {}
 
-  async create(_ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string> {
+  async create(
+    _ownerId: string,
+    entityType: string,
+    data: ItemData,
+    id?: string,
+    createdAt?: number
+  ): Promise<string> {
     // owner_id defaults to auth.uid() in the schema; RLS with-check validates it.
     // id is the row's uuid primary key with its own gen_random_uuid() default;
     // supplying one (a create replaying from the offline queue, S3-Q14) simply
     // overrides that default, same as any explicit insert value would.
+    //
+    // Phase 0 D1 change 2 (2026-10-10): created_at the same way. Its default
+    // is now(), which for a create held offline is the reconnect, not the
+    // capture; the drain passes the queued moment and the row is dated by it.
+    // The owner may set the column (item_insert's with check is owner_id
+    // only, migration 0001), and the history trigger in 0060 reads
+    // new.created_at as the insert's client_at.
     const { data: row, error } = await this.db
       .from("item")
-      .insert({ ...(id ? { id } : {}), entity_type: entityType, data })
+      .insert({
+        ...(id ? { id } : {}),
+        ...(createdAt !== undefined ? { created_at: new Date(createdAt).toISOString() } : {}),
+        entity_type: entityType,
+        data,
+      })
       .select("id")
       .single();
     if (error) {
@@ -97,7 +126,7 @@ export class SupabaseAdapter implements DataAdapter {
     // for both missing and not-owned ids.
     const { data: row, error } = await this.db
       .from("item")
-      .select("id, owner_id, entity_type, data, updated_at")
+      .select(ITEM_COLUMNS)
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;
@@ -108,7 +137,8 @@ export class SupabaseAdapter implements DataAdapter {
     _ownerId: string,
     id: string,
     patch: ItemData,
-    serverTime?: ServerTime
+    serverTime?: ServerTime,
+    clientAt?: number
   ): Promise<boolean> {
     // The live server owns time, so an explicit serverTime (used only by tests
     // to reproduce exact orderings) is ignored here; the trigger stamps
@@ -116,9 +146,17 @@ export class SupabaseAdapter implements DataAdapter {
     void serverTime;
     // Server-side atomic JSONB merge inside RLS. Returns true if a row the
     // caller owns was updated; false for missing or not-owned ids (D6, D9).
+    //
+    // Phase 0 D1 change 2 (2026-10-10): migration 0060 recreates the function
+    // as item_apply_patch(p_id, p_patch, p_client_at default null), and the
+    // history trigger dates the change by p_client_at when it is given. The
+    // third argument is sent only when the Store has one (a held edit
+    // replaying), so a live edit keeps the two argument call shape and the
+    // database that has not run 0060 yet keeps resolving it.
     const { data: applied, error } = await this.db.rpc("item_apply_patch", {
       p_id: id,
       p_patch: patch,
+      ...(clientAt !== undefined ? { p_client_at: new Date(clientAt).toISOString() } : {}),
     });
     if (error) throw error;
     return applied === true;
@@ -156,8 +194,16 @@ export class SupabaseAdapter implements DataAdapter {
     return outcome === "applied" || outcome === "stale" ? outcome : "missing";
   }
 
-  async del(_ownerId: string, id: string): Promise<void> {
+  async del(_ownerId: string, id: string, clientAt?: number): Promise<void> {
     // RLS makes deleting a missing or not-owned id a safe no-op (D4, D5, D6, D9).
+    //
+    // Phase 0 D1 change 2 (2026-10-10): clientAt is accepted and not sent. The
+    // history trigger reads a delete's client_at from the jarvis.client_at
+    // session setting, and only the SQL patch functions write it; PostgREST
+    // cannot run set_config ahead of this DELETE in one transaction. A delete
+    // RPC that takes p_client_at is the fix, and when it exists this is the
+    // one line that changes. Until then a replayed delete is dated by now().
+    void clientAt;
     const { error } = await this.db.from("item").delete().eq("id", id);
     if (error) throw error;
   }
@@ -177,7 +223,7 @@ export class SupabaseAdapter implements DataAdapter {
     for (let from = 0; ; from += PAGE) {
       let q = this.db
         .from("item")
-        .select("id, owner_id, entity_type, data, updated_at");
+        .select(ITEM_COLUMNS);
       if (entityType !== undefined) q = q.eq("entity_type", entityType);
       const { data: rows, error } = await q
         .order("id", { ascending: true })

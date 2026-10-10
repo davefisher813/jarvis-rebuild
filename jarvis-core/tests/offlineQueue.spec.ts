@@ -766,3 +766,140 @@ describe("PLUMB-F-10: a held session is never refused by itself", () => {
     expect((await adapter.read("U", id))?.data.text).toBe("From the laptop");
   });
 });
+
+describe("Phase 0 D4: pending() is the one word the trust checkpoint reads", () => {
+  // The design (PHASE0-DESIGN.md D4): a door may say "Saved" only when
+  // nothing of the user's is still on the phone. pending() is that question,
+  // and these pin the four states it has to answer.
+  it("online with an empty queue: nothing is held", () => {
+    const store = new Store(new InMemoryAdapter());
+    expect(store.pending()).toBe(false);
+  });
+
+  it("offline, even before any write: a write made now would be held", () => {
+    const store = new Store(new InMemoryAdapter());
+    store.goOffline();
+    expect(store.pending()).toBe(true);
+  });
+
+  it("a queued op: true until it lands, however the store got offline", async () => {
+    const store = new Store(new InMemoryAdapter());
+    store.goOffline();
+    await store.create("U", "note", { title: "Held" });
+    expect(store.pending()).toBe(true);
+    // A restored queue counts too: a relaunch with ops on disk is still pending.
+    const persistence = fakePersistence();
+    const first = new Store(new InMemoryAdapter(), persistence);
+    first.goOffline();
+    await first.create("U", "note", { title: "Survives a kill" });
+    const relaunched = new Store(new InMemoryAdapter(), persistence);
+    expect(relaunched.pending()).toBe(true);
+  });
+
+  it("after a drain: false, and it agrees with syncState()", async () => {
+    const store = new Store(new InMemoryAdapter());
+    store.goOffline();
+    await store.create("U", "note", { title: "Held" });
+    await store.reconnect();
+    expect(store.pending()).toBe(false);
+    expect(store.queueLen()).toBe(0);
+    expect(store.syncState()).toMatchObject({ online: true, queued: 0 });
+  });
+});
+
+describe("Phase 0 D1 change 2: a replay carries the moment it was made", () => {
+  // Records exactly what the adapter is handed on every write, then does the
+  // real thing, so a test can see the age without a server.
+  function recording() {
+    const real = new InMemoryAdapter();
+    const creates: { id?: string; createdAt?: number }[] = [];
+    const applies: { id: string; clientAt?: number }[] = [];
+    const dels: { id: string; clientAt?: number }[] = [];
+    const adapter: DataAdapter = {
+      create: (o, t, d, id, createdAt) => { creates.push({ id, createdAt }); return real.create(o, t, d, id, createdAt); },
+      createMany: (o, t, ds) => real.createMany(o, t, ds),
+      read: (o, id) => real.read(o, id),
+      apply: (o, id, p, st, clientAt) => { applies.push({ id, clientAt }); return real.apply(o, id, p, st, clientAt); },
+      applyIfOlder: (o, id, p, at) => real.applyIfOlder(o, id, p, at),
+      del: (o, id, clientAt) => { dels.push({ id, clientAt }); return real.del(o, id, clientAt); },
+      listForUser: (o, t) => real.listForUser(o, t),
+      getSubscriptionTier: () => real.getSubscriptionTier(),
+    };
+    return { adapter, real, creates, applies, dels };
+  }
+
+  it("a replayed create carries its queued time", async () => {
+    // 6 AM, before a workout, no signal: the capture is dated 6 AM on the
+    // phone. The reconnect hours later must not re-date it.
+    const { adapter, real, creates } = recording();
+    const store = new Store(adapter);
+    store.goOffline();
+    const before = Date.now();
+    const id = await store.create("U", "note", { title: "Pre-workout thought" });
+    const held = await store.read("U", id);
+    expect(held?.createdAt).toBeGreaterThanOrEqual(before);
+    expect(held?.createdAt).toBeLessThanOrEqual(Date.now());
+
+    await store.reconnect();
+    expect(creates).toEqual([{ id, createdAt: held!.createdAt }]);
+    // The server row reads the same number the pending copy showed, so the
+    // fact does not flip on reconnect (D8).
+    expect((await real.read("U", id))?.createdAt).toBe(held!.createdAt);
+    expect((await store.read("U", id))?.createdAt).toBe(held!.createdAt);
+  });
+
+  it("a live create carries no time: the server's clock is the capture moment", async () => {
+    const { adapter, creates } = recording();
+    const store = new Store(adapter);
+    const id = await store.create("U", "note", { title: "Live" });
+    expect(creates).toEqual([{ id: undefined, createdAt: undefined }]);
+  });
+
+  it("a patch to a row this drain created carries its queued time", async () => {
+    // The edit cannot go through applyIfOlder (the row's last write is this
+    // drain's own create, seconds old), so it takes the plain apply path; the
+    // server should still hear WHEN the edit was made.
+    const { adapter, applies, creates } = recording();
+    const store = new Store(adapter);
+    store.goOffline();
+    const id = await store.create("U", "note", { title: "Draft", body: "" });
+    const editedAt = Date.now();
+    await store.update("U", id, { body: "milk, eggs" });
+    await store.reconnect();
+    expect(creates).toHaveLength(1);
+    expect(applies).toHaveLength(1);
+    expect(applies[0]!.id).toBe(id);
+    expect(applies[0]!.clientAt).toBeGreaterThanOrEqual(editedAt);
+    expect(applies[0]!.clientAt).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("a delete made offline is stamped and the drain passes the stamp", async () => {
+    const { adapter, real, dels } = recording();
+    const persistence = fakePersistence();
+    const store = new Store(adapter, persistence);
+    const id = await store.create("U", "task", { text: "Done with this" });
+    store.goOffline();
+    const before = Date.now();
+    await store.delete("U", id);
+    const queued = persistence.saves.at(-1)!.find((op) => op.op === "delete");
+    expect(queued && queued.op === "delete" ? queued.queuedAt : undefined).toBeGreaterThanOrEqual(before);
+    await store.reconnect();
+    expect(dels).toHaveLength(1);
+    expect(dels[0]!.id).toBe(id);
+    expect(dels[0]!.clientAt).toBeGreaterThanOrEqual(before);
+    expect(await real.read("U", id)).toBeNull();
+  });
+
+  it("a queue persisted by an older build replays its delete with no age", async () => {
+    const { adapter, real, dels } = recording();
+    const id = await real.create("U", "task", { text: "Old queue" });
+    const persistence: StorePersistence = {
+      load: () => [{ op: "delete", id, ownerId: "U" }],
+      save: () => {},
+    };
+    const store = new Store(adapter, persistence);
+    await store.reconnect();
+    expect(dels).toEqual([{ id, clientAt: undefined }]);
+    expect(await real.read("U", id)).toBeNull();
+  });
+});
