@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type LoadStyle } from "./equipment";
+import { EQUIPMENT_LABEL, loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type LoadStyle } from "./equipment";
+import { MUSCLE_LABEL } from "./muscles";
+import MusclePickSheet, { type MusclePick } from "./MusclePickSheet";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
@@ -92,6 +94,9 @@ export default function SessionScreen({
   onUngroup,
   onSwap,
   onSetLoad,
+  musclesOf,
+  onSetMuscles,
+  onOpenHistory,
   onAddMidSession,
   onUpdateProgram,
   onAcceptSuggestion,
@@ -155,7 +160,17 @@ export default function SessionScreen({
    *  have the option while I'm logging to select what type of weight system
    *  it is"). The equipment, the reading and the reps axis. Absent leaves the
    *  header chip a fact rather than a door, which is what it was. */
-  onSetLoad?: (next: LoadStyle) => void;
+  onSetLoad?: (next: LoadStyle, at?: number) => void;
+  /** WHAT AN EXERCISE TRAINS (Dave 2026-10-09, mockup 3 and 8): the
+   *  classification the library keeps, read for the header's Primary and Also
+   *  chips and for each list row's muscle fact. Absent, neither is drawn. */
+  musclesOf?: (e: { exerciseKey?: string; name: string; kind: MeasureKind }) => MusclePick;
+  /** The muscles picked on the header's sheet, written to that same
+   *  classification. Absent, the chips are facts rather than doors. */
+  onSetMuscles?: (next: MusclePick) => void;
+  /** The exercise's own history page (mockup 3's History), from the More
+   *  sheet. Absent, the line is absent. */
+  onOpenHistory?: () => void;
   /** The draft, and whether it should also land on the program day. */
   onAddMidSession: (draft: Omit<Exercise, "id">, alsoOnDay: boolean) => void;
   /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
@@ -207,7 +222,25 @@ export default function SessionScreen({
   // WHAT THIS THING LOADS WITH, read once. It drives the strip's own steppers
   // now (2026-09-16), not just the header chip and the calculator's door.
   const style = loadStyleOf(exercise);
-  const [loadOpen, setLoadOpen] = useState(false);
+  /** WHICH EXERCISE THE EQUIPMENT SHEET IS ANSWERING FOR (2026-10-09): the
+   *  one on screen, from the header chip, or any row of the list, from that
+   *  row's own chip. Null when it is closed. */
+  const [loadAt, setLoadAt] = useState<number | null>(null);
+  /** The Primary or Secondary chip's sheet, while it is open. */
+  const [muscleRole, setMuscleRole] = useState<"primary" | "secondary" | null>(null);
+  // THE MUSCLES ON THE HEADER (mockup 3). The library's classification first;
+  // a lift only ever tagged on its program day still shows that one muscle.
+  const muscles: MusclePick | null = musclesOf ? (() => {
+    const c = musclesOf(exercise);
+    return c.primary.length === 0 && c.secondary.length === 0 && exercise.muscleGroup
+      ? { primary: [exercise.muscleGroup], secondary: [] }
+      : c;
+  })() : null;
+  /** A list row's one muscle: its first primary, from the same places. */
+  const rowMuscle = (e: LiveSession["exercises"][number]) => {
+    if (!musclesOf) return null;
+    return musclesOf(e).primary[0] ?? e.program?.muscleGroup ?? dayExercises.find((d) => d.id === e.exerciseId)?.muscleGroup ?? null;
+  };
   /** ONE OVERFLOW (2026-09-26, Dave: "Overall format is cluttered. Dropdowns
    *  everywhere, not organized, not minimalist"). Every secondary move on
    *  the exercise -- a drop, the load calculator, the superset, time, swap,
@@ -696,6 +729,7 @@ export default function SessionScreen({
     ...(lastWorkForDrop && !cond ? [{ label: "Log a Drop", onClick: logDrop }] : []),
     ...(loadCalcFor(style) && !cond ? [{ label: loadCalcFor(style)!, onClick: () => setPlatesOpen(true) }] : []),
     ...(onAdjustTime ? [{ label: "Adjust Time", onClick: onAdjustTime }] : []),
+    ...(onOpenHistory ? [{ label: "Exercise History", onClick: onOpenHistory }] : []),
     { label: "Swap Exercise", onClick: () => setSwapOpen(true) },
     ...(onUpdateProgram ? [{ label: "Also Update the Program", onClick: onUpdateProgram }] : []),
     ...(logged.length === 0 ? [{ label: "Skip This Exercise", onClick: onSkip }] : []),
@@ -839,6 +873,29 @@ export default function SessionScreen({
             })}
           </div>
         )}
+        {/* WHAT IT TRAINS, ON THE EXERCISE (Dave 2026-10-09, mockup 3:
+            "equipment selector + secondary muscles"). Neutral chips, not
+            lime: on this screen lime means logged, and a muscle is not. Each
+            is a door to its own picker (mockup 8). The words are the mockup's:
+            Primary and Secondary. */}
+        {muscles && (
+          <div className="se-chips">
+            {muscles.primary.length === 0 && muscles.secondary.length === 0 ? (
+              <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("primary")}>
+                <em>Muscles</em>Not Set
+              </button>
+            ) : (
+              <>
+                <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("primary")}>
+                  <em>Primary</em>{muscles.primary.length ? muscles.primary.map((m) => MUSCLE_LABEL[m]).join(", ") : "Not Set"}
+                </button>
+                <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("secondary")}>
+                  <em>Secondary</em>{muscles.secondary.length ? muscles.secondary.map((m) => MUSCLE_LABEL[m]).join(", ") : "None"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
         {/* Part 3 wave 5: the equipment convention, on the session too. */}
         {/* 2026-09-14: the chip names the reading, not just the hardware, so
             mid-set there is no doubt whether the number on the button is one
@@ -852,7 +909,7 @@ export default function SessionScreen({
             the rack. */}
         {onSetLoad ? (
           <div className="se-chips">
-            <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={() => setLoadOpen(true)}>
+            <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={() => setLoadAt(idx)}>
               <em>{style.equipment ? weightLabel(style) : "Equipment"}</em>
               {style.equipment ? styleSummary(style) : "Not Set"}
             </button>
@@ -1087,11 +1144,31 @@ export default function SessionScreen({
                   group at a glance; the state fact stays the row's one grey. */}
               <div className="facts">
                 {labels.has(e.exerciseId) && <span className="se-chip se-chip-pair">{labels.get(e.exerciseId)}</span>}
+                {/* WHAT IT TRAINS AND WHAT IT IS LIFTED WITH (Dave 2026-10-09,
+                    mockup 6, "Chest, Dumbbell"). The equipment is the violet
+                    door the header's own equipment chip has always been, so it
+                    can be answered from the list without leaving the exercise
+                    on screen (item 5); the muscle is the row's one grey, after
+                    the chip so the facts line draws its own dot. */}
+                {onSetLoad && e.kind === "weight_reps" && (() => {
+                  const st = i === idx ? style : loadStyleOf(e);
+                  return (
+                    <button type="button" className="se-chip se-chip-pair se-chip-door"
+                      aria-label={`Equipment for ${liftTitle(e.name)}: ${st.equipment ? EQUIPMENT_LABEL[st.equipment] : "Not Set"}`}
+                      onClick={(ev) => { ev.stopPropagation(); setLoadAt(i); }}>
+                      {st.equipment ? EQUIPMENT_LABEL[st.equipment] : <><em>Equipment</em>Not Set</>}
+                    </button>
+                  );
+                })()}
+                {(() => { const m = rowMuscle(e); return m ? <span className="fact">{MUSCLE_LABEL[m]}</span> : null; })()}
+                {/* ONLY A STATE THAT MEANS SOMETHING (Dave 2026-10-09, item
+                    10: "Every row says TO DO in gray, that's noise"). Logged
+                    and skipped say so; untouched says nothing. */}
                 {e.skipped
                   ? <span className="fact st amber">Skipped</span>
                   : e.sets.length > 0
                     ? <span className="fact lime">{lineCase(`${e.sets.length} ${e.sets.length === 1 ? "set" : "sets"}`)}</span>
-                    : <span className="fact st gray">To Do</span>}
+                    : null}
               </div>
             </div>
             {/* NOW is the one row you are standing on. It was .pill-subdued,
@@ -1249,12 +1326,21 @@ export default function SessionScreen({
       {platesOpen && (
         <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} style={style} onClose={() => setPlatesOpen(false)} />
       )}
-      {loadOpen && onSetLoad && (
+      {loadAt != null && onSetLoad && live.exercises[loadAt] && (
         <LoadSheet
+          name={loadAt === idx ? exercise.name : live.exercises[loadAt]!.name}
+          initial={loadAt === idx ? style : loadStyleOf(live.exercises[loadAt]!)}
+          onSave={(next) => { onSetLoad(next, loadAt); setLoadAt(null); }}
+          onCancel={() => setLoadAt(null)}
+        />
+      )}
+      {muscleRole && muscles && onSetMuscles && (
+        <MusclePickSheet
           name={exercise.name}
-          initial={style}
-          onSave={(next) => { onSetLoad(next); setLoadOpen(false); }}
-          onCancel={() => setLoadOpen(false)}
+          role={muscleRole}
+          initial={muscles}
+          onSave={(next) => { onSetMuscles(next); setMuscleRole(null); }}
+          onCancel={() => setMuscleRole(null)}
         />
       )}
       {addOpen && (

@@ -449,3 +449,41 @@ export function styleSummary(style: LoadStyle): string {
   if (!counted || !asksCount(style.equipment) || counted === defaultCount(style.equipment)) return label;
   return `${label}, ${COUNTED_LABEL[counted]}`;
 }
+
+/** THE EQUIPMENT WORDS A NAME CAN END IN (Dave 2026-10-09, pass-off item 5:
+ *  "strip the parentheticals from exercise names: Chest Flys (Machine)
+ *  becomes Chest Flys + equipment property"). Equipment is a property of the
+ *  exercise, so the name stops carrying it. Only a TRAILING parenthetical
+ *  whose whole content is one of these words is equipment; anything else in
+ *  brackets ("Row (Wide Grip)", "Press (Paused)") is part of the name the
+ *  person typed and is never touched. Keys are lower case with the spaces and
+ *  hyphens taken out, so "Smith Machine", "smith-machine" and "SMITH" all
+ *  read the same. A bare "Machine" is the pin-and-stack kind, the one most
+ *  gyms mean by the word. */
+const SUFFIX_EQUIPMENT: Record<string, Equipment> = {
+  barbell: "barbell", bb: "barbell",
+  dumbbell: "dumbbell", dumbbells: "dumbbell", db: "dumbbell", dbs: "dumbbell",
+  kettlebell: "kettlebell", kettlebells: "kettlebell", kb: "kettlebell",
+  cable: "cable", cables: "cable",
+  machine: "stack", selectorized: "stack", selectorizedmachine: "stack",
+  plateloaded: "machine", plateloadedmachine: "machine",
+  smith: "smith", smithmachine: "smith",
+  bodyweight: "bodyweight", bw: "bodyweight",
+  band: "band", bands: "band",
+};
+
+/** Split a trailing equipment parenthetical off a name. Pure, and idempotent:
+ *  a name with nothing to strip comes back exactly as it was, with no
+ *  equipment, and so does a name that would be left empty ("(Machine)" on its
+ *  own is a name, not an equipment). Two parentheticals in a row ("Fly
+ *  (Cable) (Machine)") are left alone: guessing which of two answers the
+ *  person meant is not this function's job, and stripping one would leave a
+ *  name the next call strips again. */
+export function splitEquipmentSuffix(raw: string): { name: string; equipment?: Equipment } {
+  const m = /^(.*?)\s*\(\s*([^()]*?)\s*\)\s*$/.exec(raw);
+  if (!m) return { name: raw };
+  const equipment = SUFFIX_EQUIPMENT[m[2]!.toLowerCase().replace(/[\s-]+/g, "")];
+  const name = m[1]!.trim();
+  if (!equipment || !name || name.endsWith(")")) return { name: raw };
+  return { name, equipment };
+}

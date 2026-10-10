@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { own, rowDoor } from "../shared/rowDoor";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
-import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
+import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, splitEquipmentSuffix, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
 import { condCap, condLength, mmss } from "./conditioning";
 import { fieldsFor, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
@@ -295,7 +295,15 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
 
   const save = () => {
     if (!valid) { setTouched(true); return; }
-    onSave({
+    // EQUIPMENT IS A PROPERTY, NOT PART OF THE NAME (Dave 2026-10-09, pass-off
+    // item 5). "Chest Flys (Machine)" lands as "Chest Flys" with Machine as
+    // its equipment, unless an equipment was picked on the sheet, which wins.
+    // Only on a weighted lift, the one kind the sheet saves an equipment for,
+    // so the word is never dropped without its answer being kept.
+    const split = kind === "weight_reps" ? splitEquipmentSuffix(name.trim()) : { name: name.trim() };
+    const eq = equipment || split.equipment || "";
+    const ct = equipment ? counted : split.equipment ? defaultCount(split.equipment) : counted;
+    const emit = (name: string) => onSave({
       // CASED ON THE WAY IN (Dave 2026-09-17: "Case those too"). This is
       // where a name is minted or rewritten outright, so the record set
       // converges on the spelling the app draws rather than the app
@@ -312,11 +320,11 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(filler ? { filler: true } : {}),
       ...(ramp ? { ramp: true } : {}),
       ...(muscleGroup ? { muscleGroup } : {}),
-      ...(kind === "weight_reps" && equipment ? { equipment } : {}),
+      ...(kind === "weight_reps" && eq ? { equipment: eq } : {}),
       // The reading rides with the equipment, and is saved even when it is
       // that equipment's default: a set logged today has to keep meaning
       // what it meant if the defaults are ever revised.
-      ...(kind === "weight_reps" && counted ? { counted } : {}),
+      ...(kind === "weight_reps" && ct ? { counted: ct } : {}),
       // Not gated on weight_reps: a bodyweight lift measured in reps alone is
       // exactly the case where per-side matters most (a pistol squat, a
       // single-arm row on a band).
@@ -324,6 +332,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(partner && roundRestSec > 0 ? { roundRestSec } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
+    emit(split.name);
   };
 
   return createPortal(

@@ -32,6 +32,7 @@ import { emit } from "../events";
 import { dayWithSessionEntry, movedToDay } from "./edit";
 import { equipmentOf } from "./types";
 import { loadFields, loadStyleOf, type LoadStyle } from "./equipment";
+import { planEquipmentCleanup } from "./equipmentCleanup";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -54,7 +55,7 @@ import ReceiptSheet from "./ReceiptSheet";
 import UploadFlow from "./UploadFlow";
 import HistoryScreen, { GymLoadState } from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
-import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
+import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
 import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
 import ClassifySheet from "./ClassifySheet";
 import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
@@ -1036,6 +1037,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // notes). D9/D11: goals and metrics for the lift detail screen.
   const [healthCategoryIds, setHealthCategoryIds] = useState<string[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  /** The goals have been read at least once (the equipment cleanup waits on
+   *  it: a goal that follows a lift by name must be seen before the rename). */
+  const [goalsRead, setGoalsRead] = useState(false);
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
   const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(startLift ?? null);
@@ -1173,10 +1177,57 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     void (async () => {
       if (!goalsSvc) return;
       const list = await goalsSvc.list();
-      if (!cancelled) setGoals(list);
+      if (!cancelled) { setGoals(list); setGoalsRead(true); }
     })();
     return () => { cancelled = true; };
   }, [goalsSvc, receipt]); // reload after a session finishes, so a fresh Achieved shows up
+
+  // EQUIPMENT OUT OF THE NAMES (Dave 2026-10-09, pass-off item 5). Once the
+  // records are in (and the goals, which a rename must not blind), any
+  // exercise still named "Chest Flys (Machine)" is renamed "Chest Flys" with
+  // Machine as its equipment, through the library's own rename: the key is
+  // kept, the old name becomes an alias, and the classification takes the
+  // equipment only when nothing has said one (gym/equipmentCleanup.ts). Once
+  // per visit; idempotent, so a clean library costs one scan. A write that
+  // fails says nothing (nobody asked for this one) and the next visit finishes
+  // it on the same key.
+  const cleanedRef = useRef(false);
+  useEffect(() => {
+    if (cleanedRef.current || !loaded || loadFailed || (goalsSvc && !goalsRead)) return;
+    cleanedRef.current = true;
+    const gs = readGymSettings();
+    const plan = planEquipmentCleanup({
+      workouts, programs: allPrograms, createdLifts: gs.createdLifts ?? [],
+      store: readClassStore(gs.classByKey, gs.muscleByKey),
+      aliases: gs.aliases ?? {}, favoriteKeys: gs.favoriteKeys ?? [], hiddenKeys: gs.hiddenKeys ?? [],
+      dismissedDupes: gs.dismissedDupes ?? [],
+      goals: goals.flatMap((g) => (g.data.measure?.kind === "lift" ? [g.data.measure as LiftMeasure] : []))
+        .map((m) => ({ exercise: m.exercise, ...(m.exerciseKey ? { exerciseKey: m.exerciseKey } : {}) })),
+      busy: (row) => inProgressOf(row, readLive(), readPending()) !== null,
+    });
+    if (!plan) return;
+    void (async () => {
+      try {
+        for (const w of plan.patch.workouts) await svc.updateWorkout(w.id, { exercises: w.exercises });
+        for (const p of plan.patch.programs) await svc.updateProgram(p.id, { weeks: p.weeks });
+      } catch {
+        await reload();
+        return;
+      }
+      writeGymSettings({
+        ...readGymSettings(), aliases: plan.aliases, favoriteKeys: plan.favoriteKeys, hiddenKeys: plan.hiddenKeys,
+        dismissedDupes: plan.dismissedDupes, createdLifts: plan.createdLifts,
+      });
+      setAliasMap(plan.aliases);
+      setFavoriteKeys(plan.favoriteKeys);
+      setHiddenKeys(plan.hiddenKeys);
+      setDismissedDupes(plan.dismissedDupes);
+      setCreatedLifts(plan.createdLifts);
+      saveClassStore(plan.store);
+      await reload();
+    })();
+    // Once per visit, on the first full read; the ref holds it there.
+  }, [loaded, loadFailed, goalsRead]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1642,26 +1693,62 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // reason -- Swap keeps the original slot's exerciseId (liveSession.ts), so
   // trusting that id would write a dumbbell's reading onto the barbell lift
   // it replaced.
-  const setLoadStyle = async (ex: Exercise, next: LoadStyle) => {
+  const setLoadStyle = async (at: number, next: LoadStyle) => {
     const patch = {
       equipment: next.equipment,
       counted: next.counted,
       ...(next.sided ? { sided: true as const } : { sided: undefined }),
     };
+    const entry = live?.exercises[at];
     patchLive((l) => ({
       ...l,
-      exercises: l.exercises.map((e, i) => (i === l.idx ? { ...e, ...patch } : e)),
+      exercises: l.exercises.map((e, i) => (i === at ? { ...e, ...patch } : e)),
     }));
-    if (!program || !live) return;
+    // EQUIPMENT IS A PROPERTY OF THE EXERCISE (Dave 2026-10-09, item 5), so
+    // the answer is also the library's: the classification takes it, and the
+    // Exercises page, the next workout's pick and the duplicate review all
+    // read the same equipment. Logged sets keep the convention they were
+    // logged under (classify.ts, rule 1).
+    if (entry) {
+      const key = libraryKeyOf(entry);
+      const cur = classStore[key] ?? (entry.exerciseKey ? classStore[entry.exerciseKey] : undefined) ?? EMPTY_CLASS;
+      const nextClass = { ...cur };
+      if (next.equipment) nextClass.equipment = next.equipment; else delete nextClass.equipment;
+      if (next.counted) nextClass.counted = next.counted; else delete nextClass.counted;
+      const store = { ...classStore };
+      if (isBlank(nextClass)) delete store[key]; else store[key] = nextClass;
+      saveClassStore(store);
+    }
+    if (!program || !live || !entry) return;
     const week = program.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId));
     const day = week?.days.find((d) => d.id === live.dayId);
     if (!week || !day) return;
-    const entry = live.exercises[live.idx];
-    const behind = entry ? programExerciseFor(entry, day) : undefined;
-    if (!behind || behind.id !== ex.id) return;
+    // By identity, never by slot: a swapped lift keeps the original slot's
+    // exerciseId (liveSession.ts), and programExerciseFor refuses it.
+    const behind = programExerciseFor(entry, day);
+    if (!behind) return;
     await saveDays(week.id, week.days.map((d) => (d.id !== day.id ? d : {
-      ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? { ...e, ...patch } : e)),
+      ...d, exercises: d.exercises.map((e) => (e.id === behind.id ? { ...e, ...patch } : e)),
     })));
+  };
+
+  /** WHAT AN EXERCISE TRAINS, for the session (mockup 3 and 8): the library's
+   *  classification by the exercise's identity, the same lookup the Exercises
+   *  page makes. */
+  const musclesOf = (e: { exerciseKey?: string; name: string; kind: MeasureKind }) => {
+    const c = classOf(classStore, { key: libraryKeyOf(e), ...(e.exerciseKey ? { exerciseKey: e.exerciseKey } : {}), name: e.name, kind: e.kind });
+    return { primary: c.primary, secondary: c.secondary };
+  };
+  /** The header's muscle sheets write the classification, as the library's
+   *  own editor does: one muscle, one role. */
+  const setMuscles = (e: { exerciseKey?: string; name: string; kind: MeasureKind }, next: { primary: MuscleGroup[]; secondary: MuscleGroup[] }) => {
+    const key = libraryKeyOf(e);
+    const cur = classStore[key] ?? (e.exerciseKey ? classStore[e.exerciseKey] : undefined) ?? classStore[e.name] ?? EMPTY_CLASS;
+    const nextClass = { ...cur, primary: [...next.primary], secondary: next.secondary.filter((m) => !next.primary.includes(m)) };
+    const store = { ...classStore };
+    if (isBlank(nextClass)) delete store[key]; else store[key] = nextClass;
+    saveClassStore(store);
+    showToast({ message: "Muscles Updated" });
   };
 
   // THE FINISH IS TWO STEPS (H-30, Health Push B, 2026-09-12). The receipt
@@ -2803,7 +2890,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         // A free-text swap mints a lift the library has never seen, same as
         // an add does, so it is seeded the same way.
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: lineCase(`Swapped in ${liftTitle(sub.name)}`) }); }}
-        onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
+        onSetLoad={(next, at) => { void setLoadStyle(at ?? live.idx, next); }}
+        musclesOf={musclesOf}
+        onSetMuscles={(next) => setMuscles(exercise, next)}
+        onOpenHistory={() => setLiftDetailFor({ name: exercise.name, kind: exercise.kind, ...(exercise.exerciseKey ? { exerciseKey: exercise.exerciseKey } : {}), ...(exercise.unit ? { unit: exercise.unit } : {}), ...(exercise.timeUnit ? { timeUnit: exercise.timeUnit } : {}) })}
         {...(() => {
           // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
           // a superset as I'm logging"; 2026-09-26: "Superset linking between
