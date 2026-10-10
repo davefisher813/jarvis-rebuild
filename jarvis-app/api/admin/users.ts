@@ -1,5 +1,6 @@
 import { requireAdmin, svcHeaders, json } from "../_admin";
 import { mapUsers, type RawUser, type ProfileRow } from "../../src/admin/adminCompute";
+import { wipeUserData, type FetchLike } from "../../src/account/deleteAccount";
 
 export const config = { runtime: "edge" };
 
@@ -31,7 +32,32 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (req.method === "POST") {
-    const body = (await req.json().catch(() => ({}))) as { id?: string; status?: string; aiAllowed?: unknown };
+    const body = (await req.json().catch(() => ({}))) as { id?: string; status?: string; aiAllowed?: unknown; wipe?: unknown };
+
+    // DEMO TESTER WIPE (Dave, demo week prep, 2026-10-10). A third shape on
+    // this same endpoint rather than a new file under api/: a 31st route
+    // file is what failed the production build on 2026-10-08
+    // (apiFunctionBudget.test.ts holds the count at 30, which api/ is
+    // already at). Admin-only by the same requireAdmin gate every other
+    // branch here uses, and it takes the target id explicitly, unlike
+    // api/account/delete.ts, which deliberately can only act on the caller.
+    // wipeUserData clears the account's files and owned rows and stops
+    // there: the login and any Google connection are untouched, so the same
+    // tester can sign back in to a clean account for the next run.
+    if (body.status === undefined && body.aiAllowed === undefined && body.wipe === true) {
+      if (typeof body.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id)) {
+        return json({ error: "Bad request" }, 400);
+      }
+      try {
+        const { files } = await wipeUserData({ url: ctx.url, serviceKey: ctx.serviceKey }, body.id, fetch as unknown as FetchLike);
+        console.log("[jarvis-admin-wipe]", body.id, "files:", files);
+        return json({ ok: true, files });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Could not wipe that account";
+        console.error("[jarvis-admin-wipe-failed]", body.id, msg);
+        return json({ error: msg }, 502);
+      }
+    }
 
     // THE ADMIN SWITCH FOR AI (Dave 2026-09-30). One account, one boolean, kept
     // in Supabase app_metadata: writable only with the service key this

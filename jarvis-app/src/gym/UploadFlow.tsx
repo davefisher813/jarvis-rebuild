@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { AIService } from "../ai/AIService";
 import { buildVisionMessage } from "../ai/AIService";
 import { JARVIS_VOICE } from "../ai/voice";
-import { EXTRACT_PROMPT, parseProgramExtract } from "./extract";
+import { EXTRACT_PROMPT, parseProgramExtract, cleanPastedText } from "./extract";
 import { targetLine } from "./measures";
 import { MEASURE_LABEL, type ProgramData, type Exercise } from "./types";
 import ExerciseSheet from "./ExerciseSheet";
@@ -171,7 +171,7 @@ export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
             <textarea className="input input-multiline" rows={5} placeholder="Paste the Program · a message or spreadsheet works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
-            onClick={() => void extract({ role: "user", content: EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>
+            onClick={() => void extract({ role: "user", content: EXTRACT_PROMPT + "\n\nCONTENT:\n" + cleanPastedText(text.trim()).slice(0, 12000) })}>
             {busy ? "Reading..." : "Read the Pasted Text"}
           </button>
         </div>

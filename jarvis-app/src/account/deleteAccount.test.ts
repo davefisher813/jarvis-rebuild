@@ -8,6 +8,7 @@ import {
   deleteAccountEverywhere,
   deleteOwnedRows,
   revokeGoogleGrants,
+  wipeUserData,
   OWNED_TABLES,
   GOOGLE_REVOKE_URL,
   type FetchLike,
@@ -213,5 +214,37 @@ describe("what the deletion owes other people", () => {
 
   it("a bug report is not the user's data, so no step deletes it", () => {
     expect(OWNED_TABLES.map((t) => t.table)).not.toContain("feedback");
+  });
+});
+
+// UP-DEMO-01 (2026-10-10): the tester wipe. Same files-then-rows sequence as
+// a real deletion, but it must stop there: nothing here may touch Google or
+// the auth user, or a wipe between demo runs would silently sign the tester
+// out or disconnect their Google account.
+describe("wiping a tester's data in place", () => {
+  it("deletes the files and the owned rows, in that order", async () => {
+    const { calls, doFetch } = rig({ files: { [`${UID}/`]: [{ name: "a.pdf", id: "f1" }] } });
+    const out = await wipeUserData(CTX, UID, doFetch);
+    expect(out).toEqual({ files: 1 });
+    const order = calls.filter((c) => c.method === "DELETE" || c.url.includes("rpc/delete_owned")).map((c) => c.url);
+    expect(order[0]).toContain("/storage/v1/object/user-files");
+    expect(order[1]).toContain("rpc/delete_owned");
+  });
+
+  it("never touches Google grants or the auth user", async () => {
+    const { calls, doFetch } = rig({ files: { [`${UID}/`]: [{ name: "a.pdf", id: "f1" }] } });
+    await wipeUserData(CTX, UID, doFetch);
+    expect(calls.some((c) => c.url === GOOGLE_REVOKE_URL)).toBe(false);
+    expect(calls.some((c) => c.url.includes("/auth/v1/admin/users/"))).toBe(false);
+  });
+
+  it("a project with no files yet still clears the rows", async () => {
+    const { doFetch } = rig({ fail: (url) => (url.includes("/storage/v1/object/list/") ? 404 : null) });
+    await expect(wipeUserData(CTX, UID, doFetch)).resolves.toEqual({ files: 0 });
+  });
+
+  it("a table that refuses stops the wipe, same as a real deletion", async () => {
+    const { doFetch } = rig({ fail: (url, m) => (url.includes("rpc/delete_owned") ? 404 : url.includes("/rest/v1/event_log") && m === "DELETE" ? 500 : null) });
+    await expect(wipeUserData(CTX, UID, doFetch)).rejects.toThrow(/event_log/);
   });
 });
