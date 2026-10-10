@@ -132,7 +132,7 @@ describe("leverOffers", () => {
     // an estimate, the guarantee as its own fact beside the saving.
     expect(offers[2]!.name).toBe("Lat Raise 3 → 2 Sets");
     expect(offers[2]!.sub).toBe(`Saves About ${offers[2]!.saveMin} Min`);
-    expect(offers[2]!.note).toBe("Never Your Main Lift");
+    expect(offers[2]!.note).toBe("Never Your Main Exercise");
     expect(offers[2]!.est).toBe(true);
     expect(offers[3]!.sub).toBe("Saves 5 Min");
     expect(offers[3]!.est).toBe(false);

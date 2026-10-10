@@ -337,13 +337,13 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
     if (t.sets > 0) facts.push(plain(lineCase(`${t.sets} working ${plural(t.sets, "set", "sets")}`)));
     out.push({
       id: "health",
-      title: lineCase(`${seal.sessions} ${plural(seal.sessions, "session", "sessions")}`),
+      title: lineCase(`${seal.sessions} ${plural(seal.sessions, "workout", "workouts")}`),
       facts,
       exit: { label: "Open Health Insights", kind: "health", ...(healthCategoryId ? { id: healthCategoryId } : {}) },
       receipts: [
-        lineCase(`${seal.sessions} ${plural(seal.sessions, "session", "sessions")} logged in ${name}`),
+        lineCase(`${seal.sessions} ${plural(seal.sessions, "workout", "workouts")} logged in ${name}`),
         lineCase(`${t.sets} working ${plural(t.sets, "set", "sets")}; warm-ups and drops are not counted`),
-        ...(t.prs > 0 ? [lineCase(`${t.prs} ${plural(t.prs, "lift", "lifts")} set a personal best`)] : []),
+        ...(t.prs > 0 ? [lineCase(`${t.prs} ${plural(t.prs, "exercise", "exercises")} set a personal best`)] : []),
       ],
     });
   }
@@ -412,7 +412,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const dl = (now: number, was: number | null | undefined) => (inp.stillOpen ? null : deltaOf(now, was ?? null, vsName));
   const tiles: ReportTile[] = [];
   if (seal.done > 0 && movedCount > 0) tiles.push({ num: String(seal.done), label: "Done", tint: "good", delta: dl(seal.done, prev?.done) });
-  if (seal.sessions > 0) tiles.push({ num: String(seal.sessions), label: seal.sessions === 1 ? "Session" : "Sessions", tint: "plain", delta: dl(seal.sessions, prev?.sessions) });
+  if (seal.sessions > 0) tiles.push({ num: String(seal.sessions), label: seal.sessions === 1 ? "Workout" : "Workouts", tint: "plain", delta: dl(seal.sessions, prev?.sessions) });
   if (seal.daysIn > 0) tiles.push({ num: `${seal.daysIn}/${daysInMonth(month)}`, label: "Days Checked In", tint: "plain", delta: dl(seal.daysIn, prev?.daysIn) });
   if (seal.deposits > 0) tiles.push({ num: String(seal.deposits), label: seal.deposits === 1 ? "Deposit" : "Deposits", tint: "plain", delta: dl(seal.deposits, prev?.deposits) });
 

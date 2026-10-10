@@ -47,9 +47,9 @@ export type FindingLabel = "Observation" | "Exploratory Pattern" | "Program Comp
 export interface Minimum { name: string; value: number; reason: string }
 
 export const MINIMUMS = {
-  pairedSessions: { name: "Paired sessions", value: INSIGHT_MIN_PAIRED, reason: "fewer than ten same-day pairs is noise dressed as a pattern" } as Minimum,
-  groupSide: { name: "Sessions on each side", value: INSIGHT_MIN_GROUP, reason: "a split with one or two days on a side says nothing about that side" } as Minimum,
-  plateauSessions: { name: "Sessions without a new best", value: 6, reason: "a short flat stretch is an ordinary week, not a plateau" } as Minimum,
+  pairedSessions: { name: "Paired workouts", value: INSIGHT_MIN_PAIRED, reason: "fewer than ten same-day pairs is noise dressed as a pattern" } as Minimum,
+  groupSide: { name: "Workouts on each side", value: INSIGHT_MIN_GROUP, reason: "a split with one or two days on a side says nothing about that side" } as Minimum,
+  plateauSessions: { name: "Workouts without a new best", value: 6, reason: "a short flat stretch is an ordinary week, not a plateau" } as Minimum,
   backOffShare: { name: "Share of marked sets that ground or missed", value: 0.4, reason: "under that, a hard set is a hard set and not a trend" } as Minimum,
 };
 
@@ -146,14 +146,14 @@ export function correlate(sessions: LiftSession[], kind: MeasureKind, exerciseNa
   const lowerLabel = isYesNo ? `no ${def.data.name}` : `lower ${def.data.name}`;
   const sign = deltaDiff >= 0 ? "+" : "";
   const line = lineCase(
-    `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions (correlation, not cause)`,
+    `${sign}${round1(deltaDiff)} per workout on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired workouts (correlation, not cause)`,
   );
   const evidence: Evidence = {
     label: "Exploratory Pattern",
     from: sessions[1]?.date ?? sessions[0]!.date,
     to: sessions[sessions.length - 1]!.date,
     records: pairs.length,
-    method: `Change in ${exerciseName} from one session to the next, paired with ${def.data.name} logged the same day, split at your own median`,
+    method: `Change in ${exerciseName} from one workout to the next, paired with ${def.data.name} logged the same day, split at your own median`,
     supports: `A difference in how ${exerciseName} moved on ${higherLabel} days against ${lowerLabel} days`,
     doesNot: "Cause, or what to change",
     minimum: MINIMUMS.pairedSessions,
@@ -217,7 +217,7 @@ export function estimateEvidence(sessions: LiftSession[]): Evidence {
     from: sessions[0]?.date ?? "",
     to: sessions[sessions.length - 1]?.date ?? "",
     records: sessions.length,
-    method: "Epley, from each session's best set: weight × (1 + reps ÷ 30)",
+    method: "Epley, from each workout's best set: weight × (1 + reps ÷ 30)",
     supports: "How strength is moving across rep ranges",
     doesNot: "A tested max, or a weight to attempt",
   };
@@ -262,7 +262,7 @@ export function plateauFlag(
     return counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : null;
   };
   const flatSets = avgSets(flatWindow), movingSets = avgSets(movingWindow);
-  if (flatSets != null && movingSets != null) whatChanged.push({ label: "Sets a Session", flat: round1(flatSets), moving: round1(movingSets) });
+  if (flatSets != null && movingSets != null) whatChanged.push({ label: "Sets a Workout", flat: round1(flatSets), moving: round1(movingSets) });
 
   const avgGap = (win: LiftSession[]) => {
     if (win.length < 2) return null;
@@ -271,7 +271,7 @@ export function plateauFlag(
     return total / (win.length - 1);
   };
   const flatGap = avgGap(flatWindow), movingGap = avgGap(movingWindow);
-  if (flatGap != null && movingGap != null) whatChanged.push({ label: "Days Between Sessions", flat: round1(flatGap), moving: round1(movingGap) });
+  if (flatGap != null && movingGap != null) whatChanged.push({ label: "Days Between Workouts", flat: round1(flatGap), moving: round1(movingGap) });
 
   for (const { def, logs } of metrics) {
     const valuesIn = (win: LiftSession[]) => win
@@ -294,7 +294,7 @@ export function plateauFlag(
       from: sessions[movingStart]!.date,
       to: sessions[sessions.length - 1]!.date,
       records: sessions.length - movingStart,
-      method: `The best session, then every session since with no new best, set against the equal stretch before the best`,
+      method: `The best workout, then every workout since with no new best, set against the equal stretch before the best`,
       supports: "That the number has not moved, and what else differed between the two stretches",
       doesNot: "Why, or what to change",
       minimum: MINIMUMS.plateauSessions,

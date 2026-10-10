@@ -27,9 +27,9 @@ describe("HistoryScreen: Lifts / Sessions", () => {
 
   it("opens on Lifts, and Sessions groups the workouts by week with three facts each", () => {
     render(<HistoryScreen workouts={workouts} onBack={() => {}} onOpenLift={() => {}} onOpenWorkout={() => {}} />);
-    expect(screen.getByRole("button", { name: "Lifts" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Exercises" })).toHaveClass("active");
     expect(screen.queryByText("This Week")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Sessions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Workouts" }));
     expect(screen.getByText("This Week")).toBeInTheDocument();
     expect(screen.getByText("Last Week")).toBeInTheDocument();
     expect(screen.getByText("August")).toBeInTheDocument();
@@ -47,15 +47,15 @@ describe("HistoryScreen: Lifts / Sessions", () => {
   it("a session row opens that workout", () => {
     const onOpenWorkout = vi.fn();
     render(<HistoryScreen workouts={workouts} onBack={() => {}} onOpenLift={() => {}} onOpenWorkout={onOpenWorkout} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sessions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Workouts" }));
     fireEvent.click(screen.getByRole("button", { name: /^Open Pull Day/ }));
     expect(onOpenWorkout).toHaveBeenCalledWith(workouts[1]);
   });
 
   it("says so when there are no sessions, and Lifts still lists Done Work only on its own segment", () => {
     render(<HistoryScreen workouts={[]} onBack={() => {}} onOpenLift={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sessions" }));
-    expect(screen.getByText("No Sessions Yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Workouts" }));
+    expect(screen.getByText("No Workouts Yet")).toBeInTheDocument();
   });
 });
 
@@ -81,7 +81,7 @@ describe("History before the workouts have loaded", () => {
 
   it("the Sessions segment waits the same way", () => {
     render(<HistoryScreen workouts={[]} status="loading" mode="sessions" onBack={() => {}} onOpenLift={() => {}} />);
-    expect(screen.queryByText("No Sessions Yet")).toBeNull();
+    expect(screen.queryByText("No Workouts Yet")).toBeNull();
   });
 
   it("once loaded, an empty history is the honest empty state", () => {

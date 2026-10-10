@@ -160,6 +160,6 @@ describe("LibraryPage: the classification editor", () => {
   it("says a declared measurement never rewrites what is already recorded", () => {
     render(<LibraryPage {...base} rows={[row()]} />);
     fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
-    expect(screen.getByText("Sessions already logged keep the numbers and units they were recorded with")).toBeInTheDocument();
+    expect(screen.getByText("Workouts Already Logged Keep the Numbers and Units They Were Recorded With")).toBeInTheDocument();
   });
 });

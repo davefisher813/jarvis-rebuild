@@ -168,7 +168,8 @@ const ACTION_ELSEWHERE: Record<string, string> = {
   "life/tabs/AreasTab.tsx · No Areas Yet": "says 'Add one in Settings > Categories' in words; needs an onOpenCategories prop",
   "gym/LiftDetailScreen.tsx · No Numbers Yet": "needs the log-a-set door for this exercise",
   "gym/HistoryScreen.tsx · No Numbers Yet": "same door",
-  "gym/HistoryScreen.tsx · No Sessions Yet": "needs the start-a-session door",
+  // AMENDED 2026-10-10 (pass-off item 13, one vocabulary): the same dead end, renamed from No Sessions Yet.
+  "gym/HistoryScreen.tsx · No Workouts Yet": "needs the start-a-workout door",
   "insights/InsightsPage.tsx · No Sets Logged Yet": "needs the same door as the lift detail screen",
   "insights/InsightsPage.tsx · Nothing Logged Yet": "needs a workout or a sleep logger",
   "insights/InsightsPage.tsx · Nothing Tracked in This Period": "needs any of the six loggers it names",

@@ -214,7 +214,7 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   if (t && seal.sessions > 0) {
     const facts: WeekFact[] = [];
     if (t.prs > 0) facts.push({ text: `${t.prs} ${plural(t.prs, "PR", "PRs")}`, tone: "good" });
-    facts.push(plain(lineCase(`${seal.sessions} ${plural(seal.sessions, "session", "sessions")}`)));
+    facts.push(plain(lineCase(`${seal.sessions} ${plural(seal.sessions, "workout", "workouts")}`)));
     lines.push({ key: "Health", tone: "quiet", facts });
   }
   const d = seal.decisions;

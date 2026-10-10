@@ -441,7 +441,11 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
       .toMatch(/<div className="sh2 sh2-quiet"><span className="t">\{exercise\.name\}<\/span>/);
     // AMENDED 2026-09-26 (Batch 1 casing): the noun is no longer lowercased
     // on its way in; the line is Title Case through lineCase ("2 of 5 Sets").
+    // AMENDED 2026-10-10 (pass-off item 9): the count is the one the Now row's
+    // number and the header read (stateWord.setCount), so "0 of 3 Sets" and
+    // "Now · Set 1" can never disagree; a skipped set comes off the target.
     expect(screen, "and the noun rides the count, so neither fact is lost")
-      .toMatch(/lineCase\(`\$\{workLogged\} of \$\{planEx\.sets\.length\} \$\{noun\}`\)/);
+      .toMatch(/lineCase\(`\$\{count\.done\} of \$\{count\.target\} \$\{noun\}`\)/);
+    expect(screen, "and the count is the shared one").toMatch(/const count = setCount\(logged, planEx\.sets\.length\)/);
   });
 });

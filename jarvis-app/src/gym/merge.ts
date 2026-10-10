@@ -178,7 +178,7 @@ export function planMerge(args: {
  *  nothing. */
 export function movesLine(plan: MergePlan): string {
   const bits: string[] = [];
-  if (plan.sessions) bits.push(`${plan.sessions} ${plan.sessions === 1 ? "Session" : "Sessions"}`);
+  if (plan.sessions) bits.push(`${plan.sessions} ${plan.sessions === 1 ? "Workout" : "Workouts"}`);
   if (plan.sets) bits.push(`${plan.sets} ${plan.sets === 1 ? "Set" : "Sets"}`);
   if (plan.programDays) bits.push(`${plan.programDays} Program ${plan.programDays === 1 ? "Day" : "Days"}`);
   if (plan.goals.length) bits.push(`${plan.goals.length} ${plan.goals.length === 1 ? "Goal" : "Goals"}`);

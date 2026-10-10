@@ -99,7 +99,7 @@ describe("the red button names exactly what the fields hold", () => {
     expect(cta()).toHaveTextContent("Log 22.5 Lb × 9");
     // And the Up Next row carries the same numbers, so it never changes
     // when it becomes Now.
-    expect(screen.getByText("Up Next · Set 3").parentElement!.parentElement).toHaveTextContent("22.5 Lb × 9");
+    expect(screen.getByText("Set 3", { selector: ".se-kick" }).parentElement!.parentElement).toHaveTextContent("22.5 Lb × 9");
   });
 
   it("correcting the logged set moves the fields and the button together", () => {

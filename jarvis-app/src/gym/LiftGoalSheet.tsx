@@ -148,10 +148,10 @@ export default function LiftGoalSheet({
                 <button className={"seg" + (per === "week" ? " active" : "")} onClick={() => setPer("week")}>A Week</button>
                 <button className={"seg" + (per === "month" ? " active" : "")} onClick={() => setPer("month")}>A Month</button>
               </div>
-              <div className="row field-gap"><div className="row-grow"><div className="conn-name">{lineCase(`${times} sessions`)}</div></div><Stepper value={times} step={1} min={1} label="Sessions" onChange={setTimes} /></div>
+              <div className="row field-gap"><div className="row-grow"><div className="conn-name">{lineCase(`${times} workouts`)}</div></div><Stepper value={times} step={1} min={1} label="Workouts" onChange={setTimes} /></div>
               <div className="field-gap">
                 <div className={"chip" + (scoped ? " active" : "")} role="button" tabIndex={0} onClick={() => setScoped((s) => !s)}>
-                  {scoped ? `Only ${exercise}` : "Any Session Counts"}
+                  {scoped ? `Only ${exercise}` : "Any Workout Counts"}
                 </div>
               </div>
               <div className="input-hint">Counted, never a streak. A missed week is just a missed week.</div>

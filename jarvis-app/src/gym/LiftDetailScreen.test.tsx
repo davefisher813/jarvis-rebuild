@@ -211,7 +211,7 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
   it("tapping a point reads its date, set, and estimate as three facts", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
     expect(screen.queryByText(/^Est \d+ Lb$/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Session 1 of 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Workout 1 of 2" }));
     // The date appears in the Milestones card too, so read the one in the
     // chart's own facts line, which sits beside the estimate.
     const est = screen.getByText(/^Est \d+ Lb$/);
@@ -240,11 +240,11 @@ describe("LiftDetailScreen: best recorded set and milestones", () => {
     expect(screen.getByText("Performance and History")).toBeInTheDocument();
     expect(screen.getByText("Best Set")).toBeInTheDocument();
     expect(screen.getAllByText("135 Lb × 5").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Sessions").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Workouts").length).toBeGreaterThan(0);
     // The estimate has one home: the Trend headline (pass-off item 7).
     expect(screen.queryByText("Change")).not.toBeInTheDocument();
     expect(screen.queryByText("Estimated One-Rep Max")).not.toBeInTheDocument();
     expect(screen.getByText("158 Lb")).toHaveClass("fact", "est");
-    expect(screen.getByText("First Session")).toBeInTheDocument();
+    expect(screen.getByText("First Workout")).toBeInTheDocument();
   });
 });

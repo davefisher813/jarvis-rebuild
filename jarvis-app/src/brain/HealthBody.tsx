@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Program, Workout } from "../gym/types";
-import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
+import { nextDayFor, SCRATCH_DAY_ID } from "../gym/nextDay";
 import { seedsFromSettings, shownLibraryCount, shownSignature } from "../gym/libraryView";
 import { todayDow } from "../gym/pins";
 import { estimateDay } from "../gym/fit";
@@ -9,12 +9,13 @@ import { readGymSettings, rackFrom } from "../gym/settings";
 import ActionSheet from "../gym/ActionSheet";
 import { BarbellGlyph, MoonGlyph, ClockGlyph, PulseGlyph } from "../shared/glyphs";
 import { Timer } from "../shared/icons";
-import { lineCase } from "../shared/casing";
+import { Tile } from "../shared/FormSheet";
+import { lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { fmtTime } from "../schedule/calendar";
 import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
-import { hoursLabel, weekdayShort, type PeriodOverview } from "../insights/analytics";
+import { durationOf, hoursLabel, weekdayShort, type PeriodOverview } from "../insights/analytics";
 import type { Finding } from "../insights/findings";
 import HealthNav, { type HealthView } from "../insights/HealthNav";
 
@@ -22,11 +23,12 @@ import HealthNav, { type HealthView } from "../insights/HealthNav";
 export interface LiveHero { dayName: string; nextExercise: string | null; setNo: number; setTotal: number; logged: number }
 
 // THE HEALTH LANDING PAGE, TO THE APPROVED DESIGN (Dave 2026-09-14, "Your
-// week, in view."). The order is the design's: the week as one card (the
-// range, the workout count, seven bars for seven real dates, working sets,
-// training time, sleep over logged nights), the next workout as a compact
-// card with Start (Resume, and no Start, while a session is open), up to
-// three findings under Your Progress, then the Insights and All Data doors.
+// week, in view."), WORKOUT FIRST (Dave 2026-10-09). The order: Start Workout
+// as the first card (Resume, and no Start, while a workout is open; a
+// program's next day as a row under it when there is one), the week as one
+// card (the range, the workout count, seven bars for seven real dates,
+// working sets, training time, sleep over logged nights), the doors, the
+// three most recent workouts, then up to three findings under Your Progress.
 //
 // CLEAN ROWS, NO PILLS (Dave 2026-10-05, locked). The next workout is a ROW:
 // tap it and its sheet holds every action, Start first and filled, then
@@ -62,7 +64,7 @@ export type RecordsOpen =
 export default function HealthBody({
   program, libraryPrograms, workouts, overview, today, isEvening, gymEvent, findings,
   live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding,
-  logActions, onOpenSettings, sections, more, view, onView, onOpenExercises, onOpenHistory,
+  logActions, onOpenSettings, sections, more, view, onView, onOpenExercises, onOpenHistory, onOpenWorkout,
 }: {
   program: Program | null;
   /** Every program, archived ones too: what the Exercises page builds from.
@@ -89,6 +91,9 @@ export default function HealthBody({
    *  a caller without gym wiring renders no doors to nothing. */
   onOpenExercises?: () => void;
   onOpenHistory?: () => void;
+  /** RECENT WORKOUTS (mockup 1): a tap opens that workout. Absent draws no
+   *  Recent Workouts section, so a caller without gym wiring shows no dead rows. */
+  onOpenWorkout?: (id: string) => void;
   onOpenRecords: (o: RecordsOpen) => void;
   onOpenFinding: (f: Finding) => void;
   /** The rows of Log Something, built by the caller from what he tracks. */
@@ -131,6 +136,10 @@ export default function HealthBody({
     // gymSeeds is re-read every render; seedSig is its signature.
     [libraryPrograms, program, workouts, seedSig],
   );
+  const recentWorkouts = useMemo(
+    () => [...workouts].sort((a, b) => b.data.date.localeCompare(a.data.date) || b.data.startedAt - a.data.startedAt).slice(0, 3),
+    [workouts],
+  );
   const maxMin = Math.max(1, ...overview.days.map((d) => d.activeMin));
   const range = `${monthDay(overview.period.from)} to ${monthDay(overview.period.to)}`;
   const findGlyph = (f: Finding): ReactNode =>
@@ -140,6 +149,75 @@ export default function HealthBody({
     <>
       <HealthNav view={view} onView={onView} />
       <div className="nav-large">Your Week, in View</div>
+
+      {/* START WORKOUT, FIRST (Dave 2026-10-09, items 1 and 2: "Most people
+          don't have programs. Stop assuming a Program on the Health screen";
+          "a prominent Start Workout ... same visual weight as the red Log
+          button ... One tap starts a workout"). The button wears the session
+          Log button's exact classes, and one tap starts an empty workout,
+          program or not; the exercises are added as he goes. A program's next
+          day is a row under it, one tap from its sheet, and only when there is
+          one: no program is the normal case, so nothing here asks for one.
+          While a workout is open the card says so and the button resumes it.
+          The card is the app's plain card in both themes (the mockup's red
+          wash and glow are not built: red is a verb). */}
+      <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
+        <div className="h-hero-head">
+          <span className="h-eyebrow">{live ? "Workout in Progress" : "Ready to Train"}</span>
+        </div>
+        {live ? (
+          <>
+            <div {...pressable(onResume ?? onOpenGym)} className="h-hero">
+              <span className="h-hero-ico"><BarbellGlyph /></span>
+              <div className="h-hero-b">
+                <div className="h-hero-t">{workoutTitle(live.dayName)}</div>
+                <div className="facts h-hero-facts">
+                  {live.nextExercise && <span className="fact cyan">{`Next: ${live.nextExercise}`}</span>}
+                  <span className="fact lime">{lineCase(`${live.logged} logged`)}</span>
+                </div>
+              </div>
+              {CHEV}
+            </div>
+            <div className="h-hero-cta">
+              <button type="button" className="btn btn-primary btn-launch btn-lg btn-block" onClick={onResume ?? onOpenGym}>Resume Workout</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="h-hero">
+              <div className="h-hero-b"><div className="h-hero-t">Log It as You Go</div></div>
+            </div>
+            <div className="h-hero-cta">
+              {/* No glyph: the session's Log button carries none, and the two are one weight. */}
+              <button type="button" className="btn btn-primary btn-launch btn-lg btn-block" onClick={() => onStart(SCRATCH_DAY_ID)}>Start Workout</button>
+            </div>
+            {/* The program's next day, under its own eyebrow so its title is
+                only the day's name and fits the row at every text size. */}
+            {next && (<>
+              <div className="h-hero-head"><span className="h-eyebrow">Next in Your Program</span></div>
+              <div {...pressable(() => setNextOpen(true))} className="h-hero">
+                <span className="h-hero-ico"><BarbellGlyph /></span>
+                <div className="h-hero-b">
+                  <div className="h-hero-t">{workoutTitle(next.day.name)}</div>
+                  <div className="facts h-hero-facts">
+                    {when && <span className={"fact " + whenTone}>{when}</span>}
+                    {/* A PLAIN COUNT IS WHITE, NEVER LIME (the ship-blocker review): lime is
+                        "what is logged" in the Colour Key, and an exercise count on a
+                        workout that has not started logs nothing. A measured number with
+                        no state is the one white, the same in both themes (§AM). */}
+                    <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
+                    {/* The sky ink already says estimate, so no "About"
+                        (2026-09-26): with it, the line cut the number away
+                        at type scale 1.4 ("Abo..."). */}
+                    {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
+                  </div>
+                </div>
+                {CHEV}
+              </div>
+            </>)}
+          </>
+        )}
+      </div></div>
 
       {/* THE WEEK, IN VIEW. One period for every number on the card. */}
       <div className="pad-x"><div className="card h-week-card">
@@ -236,7 +314,7 @@ export default function HealthBody({
           {onOpenHistory && (
             <button type="button" className="h-door" onClick={onOpenHistory}>
               <span className="h-door-k">History</span>
-              <span className="h-door-n">{lineCase(`${workouts.length} ${workouts.length === 1 ? "session" : "sessions"}`)}</span>
+              <span className="h-door-n">{lineCase(`${workouts.length} ${workouts.length === 1 ? "workout" : "workouts"}`)}</span>
               {CHEV}
             </button>
           )}
@@ -249,62 +327,39 @@ export default function HealthBody({
         </div></div>
       )}
 
-      {/* NEXT WORKOUT. Resume while a session is open, and no Start beside it. */}
-      <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
-        <div className="h-hero-head">
-          <span className="h-eyebrow">{live ? "Session Open" : "Next Workout"}</span>
-        </div>
-        {live ? (
-          <>
-            <div {...pressable(onResume ?? onOpenGym)} className="h-hero">
-              <span className="h-hero-ico"><BarbellGlyph /></span>
-              <div className="h-hero-b">
-                <div className="h-hero-t">{live.dayName}</div>
-                <div className="facts h-hero-facts">
-                  {live.nextExercise && <span className="fact cyan">{`Next: ${live.nextExercise}`}</span>}
-                  <span className="fact lime">{lineCase(`${live.logged} logged`)}</span>
+      {/* RECENT WORKOUTS (mockup 1, adapted: no photos, no drag handles and
+          no per-row add, which the app does not have and which would be a
+          second red verb). Up to three, newest first; See All is History.
+          Drawn only when there is a workout: a section with nothing to list
+          is not drawn at all. */}
+      {onOpenWorkout && recentWorkouts.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Recent Workouts</span>
+            {onOpenHistory && <button type="button" className="see-all pill-action" onClick={onOpenHistory}>See All</button>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {recentWorkouts.map((w) => {
+              const n = w.data.exercises.filter((e) => !e.skipped && e.sets.some((x) => !x.skipped)).length;
+              const d = durationOf(w.data);
+              return (
+                <div className="row" key={w.id} {...pressable(() => onOpenWorkout(w.id))}>
+                  <Tile tone="lime"><BarbellGlyph /></Tile>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{workoutTitle(w.data.dayName)}</div>
+                    <div className="facts">
+                      <span className="fact date">{monthDay(w.data.date)}</span>
+                      {/* Lime is what is logged (§AM). */}
+                      {n > 0 && <span className="fact lime">{lineCase(`${n} ${n === 1 ? "exercise" : "exercises"}`)}</span>}
+                      {/* A length that needs review is not stated as a fact. */}
+                      {!d.flagged && <span className="fact">{spanLabel(d.activeMin)}</span>}
+                    </div>
+                  </div>
+                  {CHEV}
                 </div>
-              </div>
-              {CHEV}
-            </div>
-            <div className="h-hero-cta">
-              <button type="button" className="btn btn-primary btn-block" onClick={onResume ?? onOpenGym}>Resume Workout</button>
-            </div>
-          </>
-        ) : next ? (
-          <>
-            <div {...pressable(() => setNextOpen(true))} className="h-hero">
-              <span className="h-hero-ico"><BarbellGlyph /></span>
-              <div className="h-hero-b">
-                <div className="h-hero-t">{next.day.name}</div>
-                <div className="facts h-hero-facts">
-                  {when && <span className={"fact " + whenTone}>{when}</span>}
-                  {/* A PLAIN COUNT IS WHITE, NEVER LIME (the ship-blocker review): lime is
-                      "what is logged" in the Colour Key, and an exercise count on a
-                      workout that has not started logs nothing. It read lime in dark
-                      and neutral grey in light; a measured number with no state is
-                      the one white, the same in both themes (§AM). */}
-                  <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
-                  {/* The sky ink already says estimate, so no "About"
-                      (2026-09-26): with it, the line cut the number away
-                      at type scale 1.4 ("Abo..."). */}
-                  {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
-                </div>
-              </div>
-              {CHEV}
-            </div>
-            <div className="h-hero-cta">
-              <button type="button" className="btn btn-primary btn-block" onClick={() => onStart(next.day.id)}>Start Workout</button>
-            </div>
-          </>
-        ) : (
-          <div {...pressable(onOpenGym)} className="h-hero">
-            <span className="h-hero-ico"><BarbellGlyph /></span>
-            <div className="h-hero-b"><div className="h-hero-t">{program ? program.data.name : "Set Up a Program"}</div></div>
-            {CHEV}
-          </div>
-        )}
-      </div></div>
+              );
+            })}
+          </div></div>
+        </>
+      )}
 
       {/* YOUR PROGRESS: up to three findings, each a door to its records. Log Something is the section's own action, so it
           is the head's capsule (Dave 2026-10-05, locked: a section-level action lives in the head, never in a card). */}
@@ -384,7 +439,7 @@ export default function HealthBody({
           title="Change Workout"
           actions={[
             ...days.filter((d) => d.id !== next?.day.id).map((d) => ({ label: d.name, onClick: () => onStart(d.id) })),
-            { label: SCRATCH_DAY_NAME, onClick: () => onStart(SCRATCH_DAY_ID) },
+            { label: "Empty Workout", onClick: () => onStart(SCRATCH_DAY_ID) },
           ]}
           onClose={() => setChangeOpen(false)}
         />

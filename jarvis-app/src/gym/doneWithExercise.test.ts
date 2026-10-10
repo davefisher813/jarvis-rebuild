@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { posix } from "node:path";
+import { setCount } from "./stateWord";
 
 // ---------------------------------------------------------------------------
 // DAVE, 2026-09-17: "When logging workouts there should be a done button for
@@ -22,15 +23,21 @@ const RULED = read("styles/ruled.css");
 describe("an exercise can be finished on purpose", () => {
   // Warm-ups and drops are not the work and never have been: workLogged
   // already filters them, and this reads that same count.
+  // AMENDED 2026-10-10 (pass-off item 9): the rule lives in the one count
+  // every reader shares (stateWord.setCount); the behaviour is pinned there
+  // and here the screen is pinned to read it.
   it("counts the plan as done from the working sets, not every chip", () => {
-    expect(SESSION).toContain("const planComplete = !current.skipped && (planEx.sets.length > 0");
-    expect(SESSION).toContain("? workLogged >= planEx.sets.length");
+    expect(SESSION).toContain("const planComplete = !current.skipped && count.complete;");
+    expect(setCount([{ warmup: true }, { drop: true }], 1).complete).toBe(false);
+    expect(setCount([{}, { warmup: true }], 2).complete).toBe(false);
+    expect(setCount([{}, {}], 2).complete).toBe(true);
   });
 
   // A lift added mid-session, or any lift in a scratch session, has no plan
   // to run out. One logged set is the whole of "there is something here".
   it("finishes an unplanned lift on its first logged set", () => {
-    expect(SESSION).toContain(": logged.length > 0);");
+    expect(setCount([], 0).complete).toBe(false);
+    expect(setCount([{}], 0).complete).toBe(true);
   });
 
   // AMENDED 2026-09-26 (workout logging): the destination is one decision,

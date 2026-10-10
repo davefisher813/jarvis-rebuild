@@ -2080,6 +2080,13 @@
    over the numbers over Last was three stacked lines). Last time rides the
    kicker line, at its right end, in its own case. */
 .ruled.health-ruled .se-kick .se-chip, .sheet-scrim > .card .se-kick .se-chip { margin-left: auto; text-transform: none; letter-spacing: normal; }
+/* A LONG LAST WRAPS, IT IS NEVER CUT (Dave 2026-10-09, pass-off item 7: the
+   Last chip read "300 Lb × 1, 3..."). A chip in a chip row or on a kicker may
+   shrink to the line it sits on and wrap its words inside its own pill, so
+   every set of last time stays readable at any text size. One rule for both
+   themes. */
+.ruled.health-ruled .se-chips .se-chip, .ruled.health-ruled .se-kick .se-chip,
+.sheet-scrim > .card .se-kick .se-chip { white-space: normal; flex-shrink: 1; min-width: 0; max-width: 100%; }
 .ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber-ink); }
 
 /* ---------- THE FACTS LINE, IN HEALTH (Health R7, Dave's picks 2026-09-12)
@@ -2218,6 +2225,13 @@
    fallback is what the bar measures at the default text size on a phone with
    an indicator, for the one frame before the measurement lands. */
 .ruled.health-ruled .se-foot { height: var(--logbar-clear, 92px); }
+/* THE NOW ROW STOPS ABOVE THE LOG BUTTON (Dave 2026-10-09, pass-off item 8).
+   Any scroll that brings the Now row or one of its fields into view (the
+   reveal in SetStrip, the browser's own scroll to a focused field) leaves the
+   bar's measured height plus a step under it, so the button never sits on
+   the card. One rule for both themes. */
+.ruled.health-ruled .setrow-now,
+.ruled.health-ruled .setrow-now .set-field { scroll-margin-bottom: calc(var(--logbar-clear, 92px) + var(--s-3)); }
 /* TWO BUTTONS, ONCE THE PLAN IS DONE (2026-09-17). Both shrink to share the
    bar; the primary keeps the larger share because moving on is the common
    move at that point and the extra set is the exception. */

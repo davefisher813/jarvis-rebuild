@@ -30,9 +30,9 @@ describe("InsightsPage", () => {
     expect(screen.getByText("Incline Bench")).toBeInTheDocument();
     expect(screen.getAllByText("135 Lb").length).toBeGreaterThan(0);
     expect(screen.getByText("+10 Lb Since Aug 31")).toBeInTheDocument();
-    expect(screen.getByText("3 Comparable Sessions")).toBeInTheDocument();
+    expect(screen.getByText("3 Comparable Workouts")).toBeInTheDocument();
     // The chart's points open their session, and the list twin is there.
-    fireEvent.click(screen.getByRole("button", { name: "Sep 7, 130 lb, open the session" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sep 7, 130 lb, open the workout" }));
     expect(onOpenWorkout).toHaveBeenCalledWith("b");
     expect(screen.getByText("As a List")).toBeInTheDocument();
     // Unassigned sets are shown, not dropped, with the coverage stated.
@@ -58,13 +58,13 @@ describe("InsightsPage", () => {
     // not it is open, so the law still reads the words; what changed is that
     // they are behind a summary that names the question.
     expect(screen.getByText("What Is Being Compared")).toBeInTheDocument();
-    expect(screen.getByText(/Spans the Sessions, Not Only This Period/)).toBeInTheDocument();
+    expect(screen.getByText(/Spans the Workouts, Not Only This Period/)).toBeInTheDocument();
     // THE CATALOG (Dave 2026-10-05): the basis lines are Title Case, like every other fact line.
     expect(screen.getByText("Same Exercise, Same Equipment, Same Unit, Same Rep Count")).toBeInTheDocument();
     expect(screen.getByText("First Muscle Whole, the Rest Half, by the App's Convention")).toBeInTheDocument();
     expect(screen.getByText("Working Sets Only, Warm-Ups Not Counted")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
-    expect(screen.getByText("3 Sessions in the Period")).toBeInTheDocument();
+    expect(screen.getByText("3 Workouts in the Period")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Rest and Readings" }));
     // AMENDED 2026-09-16 (Dave's Rest and Readings screenshot). The row said
     // "Not logged · No log in 7 days" -- the same fact twice -- and the logged
@@ -121,7 +121,7 @@ describe("InsightsPage", () => {
     expect(screen.queryByText(/No two sessions at the same rep count/), "no manual").toBeNull();
     expect(screen.queryByText(/are what it takes/), "nor the other wording of it").toBeNull();
     // The counts it has, instead of a paragraph about the one it has not.
-    expect(screen.getByText("1 Session in the Period")).toBeInTheDocument();
+    expect(screen.getByText("1 Workout in the Period")).toBeInTheDocument();
     expect(screen.getByText("1 Recorded in All")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Choose exercise").length, "still changeable").toBeGreaterThan(0);
   });

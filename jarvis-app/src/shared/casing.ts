@@ -102,7 +102,14 @@ export function titleCase(text: string): string {
 // titleCase is idempotent, so running both is not a bug, and it keeps
 // capitals that are already inside a word (RDLs stays RDLs, AMRAP stays
 // AMRAP) rather than flattening an acronym on the way past.
+//
+// ONE VOCABULARY, ON OLD RECORDS TOO (Dave 2026-10-09, pass-off item 13: a
+// visit is a Workout, never a Session). A workout from scratch was saved
+// under the name "Open Session" until 2026-10-10; it is drawn as "Workout",
+// the name a new one gets, so History and Recent Workouts never print the
+// retired word. Read only: the stored name is left as it was.
 export function workoutTitle(name: string): string {
+  if (name.trim().toLowerCase() === "open session") return "Workout";
   return titleCase(name);
 }
 

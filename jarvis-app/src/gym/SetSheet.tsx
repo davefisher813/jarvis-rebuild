@@ -74,7 +74,10 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
       {kind !== "done" && !entry.drop && (
         <Group>
           <SwitchRow tone="yellow" glyph={<Flame className="ic" />} label="Warm-Up Set" ariaLabel="Warm-up set"
-            meta={warm ? "Not Counted in Records" : "Counts as a Working Set"}
+            // SAYS WHAT IT DOES TO THE COUNT (mockup 5, "clear warm-up
+            // logic"): on, the set leaves the working sets (and the records
+            // with them); off, it is one of the working sets.
+            meta={warm ? "Not a Working Set" : "Counts as a Working Set"}
             on={warm} onToggle={() => setWarm((w) => !w)} />
         </Group>
       )}

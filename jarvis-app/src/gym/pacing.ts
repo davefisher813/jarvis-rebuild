@@ -108,5 +108,5 @@ export function paceLine(p: LiftPace): string {
   // Title Case by the whole rule (2026-09-26, pass-off item 9), the same
   // words the fit sheet prints for a day with no learned lift.
   if (!p.learned) return "Default Pace, Improves as You Log";
-  return p.sessions === 1 ? "Learned from Your Last Session" : `Learned from Your Last ${p.sessions} Sessions`;
+  return p.sessions === 1 ? "Learned from Your Last Workout" : `Learned from Your Last ${p.sessions} Workouts`;
 }

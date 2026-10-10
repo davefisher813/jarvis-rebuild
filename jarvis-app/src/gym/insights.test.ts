@@ -86,7 +86,7 @@ describe("plateauFlag", () => {
     expect(flag).not.toBeNull();
     expect(flag!.flatSessions).toBe(PLATEAU_MIN_SESSIONS);
     expect(flag!.peakValue).toBe(120);
-    const setsRow = flag!.whatChanged.find((r) => r.label === "Sets a Session");
+    const setsRow = flag!.whatChanged.find((r) => r.label === "Sets a Workout");
     expect(setsRow).toBeDefined();
     expect(setsRow!.moving).toBe(5);
     expect(setsRow!.flat).toBe(3);
@@ -103,7 +103,7 @@ describe("plateauFlag", () => {
     h.slice(3).forEach((w) => { w.data.exercises[0]!.sets.push(set({ r: 1 }), set({ r: 1 })); });
     const setsOfMoving = (ws: Workout[]) => {
       const flag = plateauFlag(liftSessions(ws, "Pushups", "reps"), "reps", "Pushups", ws);
-      return flag!.whatChanged.find((r) => r.label === "Sets a Session")!.moving;
+      return flag!.whatChanged.find((r) => r.label === "Sets a Workout")!.moving;
     };
     expect(setsOfMoving(h)).toBe(5);
     // A second session logged onto a day in the moving window. Its two sets

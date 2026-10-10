@@ -87,12 +87,12 @@ describe("planDelete: three situations, counted from the records", () => {
     expect(plan.sessions).toBe(2);
     expect(plan.sets).toBe(7);
     expect(plan.emptied).toBe(1);
-    expect(historyLine(plan)).toBe("2 Sessions, 7 Sets");
+    expect(historyLine(plan)).toBe("2 Workouts, 7 Sets");
   });
 
   it("says 1 session, 1 set in the singular", () => {
     const plan = planDelete({ row: row("Curl", "ek-curl"), workouts: [workout("w", "2026-09-01", [wex("Curl", "ek-curl", 1)])], programs: [] });
-    expect(historyLine(plan)).toBe("1 Session, 1 Set");
+    expect(historyLine(plan)).toBe("1 Workout, 1 Set");
   });
 
   it("skipped sets are not counted as sets", () => {
@@ -122,8 +122,8 @@ describe("the sheet's words come from the plan", () => {
     expect(goesLines(plan)).toEqual([
       "It Leaves Your Exercises List",
       "It Comes Out of 2 Program Days",
-      "It Comes Out of 2 Sessions in Your History",
-      "1 Session Left Empty Is Removed",
+      "It Comes Out of 2 Workouts in Your History",
+      "1 Workout Left Empty Is Removed",
     ]);
   });
 
@@ -139,8 +139,8 @@ describe("the sheet's words come from the plan", () => {
 
   it("a single session reads in the singular", () => {
     const plan = planDelete({ row: row("Curl", "ek-curl"), workouts: [workout("w", "2026-09-01", [wex("Curl", "ek-curl", 1)])], programs: [] });
-    expect(goesLines(plan)).toContain("It Comes Out of 1 Session in Your History");
-    expect(goesLines(plan)).toContain("1 Session Left Empty Is Removed");
+    expect(goesLines(plan)).toContain("It Comes Out of 1 Workout in Your History");
+    expect(goesLines(plan)).toContain("1 Workout Left Empty Is Removed");
   });
 
   it("goals on the exercise are named as staying", () => {

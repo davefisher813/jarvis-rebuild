@@ -207,11 +207,11 @@ export function findings(inp: FindingsInput): Finding[] {
     const w = overview.flagged[0]!;
     out.push({
       id: "duration-" + w.id, kind: "issue", hue: "amber",
-      title: "A Session Duration Needs Review",
+      title: "A Workout Duration Needs Review",
       value: w.data.dayName,
       context: overview.flagged.length === 1
         ? [monthDay(w.data.date)]
-        : [lineCase(`${overview.flagged.length} sessions`)],
+        : [lineCase(`${overview.flagged.length} workouts`)],
       open: { kind: "duration", workoutId: w.id },
     });
   }

@@ -473,7 +473,7 @@ export function sealLine(s: MonthSealData): string {
   const parts: string[] = [];
   if (s.done > 0) parts.push(`finished ${s.done}`);
   if (s.pushed > 0) parts.push(`pushed ${s.pushed}`);
-  if (s.sessions > 0) parts.push(`gym sessions ${s.sessions}`);
+  if (s.sessions > 0) parts.push(`workouts ${s.sessions}`);
   if (s.goalsAchieved > 0) parts.push(`goals achieved ${s.goalsAchieved}`);
   if (s.bandStart !== null && s.bandCount > 0) {
     parts.push(`most done between ${hour12Label(s.bandStart)} and ${hour12Label((s.bandStart + 3) % 24)}`);

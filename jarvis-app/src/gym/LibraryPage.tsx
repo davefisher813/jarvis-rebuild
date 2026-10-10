@@ -182,7 +182,7 @@ export default function LibraryPage({
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
       // A lift never done shows no sub at all: a line that states nothing is
       // not a fact (§AK).
-      .map((r) => ({ id: r.key, label: liftTitle(r.name), ...(r.sessions > 0 ? { sub: lineCase(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) } : {}) }))
+      .map((r) => ({ id: r.key, label: liftTitle(r.name), ...(r.sessions > 0 ? { sub: lineCase(`${r.sessions} ${r.sessions === 1 ? "workout" : "workouts"}`) } : {}) }))
     : [];
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
@@ -216,7 +216,7 @@ export default function LibraryPage({
       {rows.length === 0 ? (
         <div className="empty-state">
           <div className="empty-title">No Exercises Yet</div>
-          <div className="empty-sub">Every exercise you add to a program or log in a session lands here</div>
+          <div className="empty-sub">Every Exercise You Add to a Program or Log in a Workout Lands Here</div>
           {onCreate && <button className="btn btn-primary btn-launch" onClick={openCreate}>Add Exercise</button>}
         </div>
       ) : (
@@ -330,7 +330,7 @@ export default function LibraryPage({
           {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked; and 2026-09-17 before it: "the add exercise option should be at
               the top of the page not the bottom"). It was the first row of the list card, in the same in-list create every
               gym list wore. A section-level action is the head's one capsule, never a row inside the card. */}
-          <div className="sh2 sh2-quiet"><span className="t">Your Lifts</span>
+          <div className="sh2 sh2-quiet"><span className="t">Your Exercises</span>
             {onCreate && !selecting && <button type="button" className="see-all pill-action" onClick={openCreate}>Add Exercise</button>}
           </div>
           <div className="pad-x"><div className="card list-card-ruled">
@@ -384,7 +384,7 @@ export default function LibraryPage({
                             caps, as it is one tap deeper on the lift's own
                             page and on every other "last trained" in the app
                             (§AM F5). A lift never done says nothing here. */}
-                        {r.sessions > 0 && <span className="fact lime">{lineCase(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`)}</span>}
+                        {r.sessions > 0 && <span className="fact lime">{lineCase(`${r.sessions} ${r.sessions === 1 ? "workout" : "workouts"}`)}</span>}
                         {r.lastDate && <span className="fact date">{agoPhrase(r.lastDate, todayIso)}</span>}
                         {flags && <span className="fact">{flags}</span>}
                       </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
 import HeadMenu from "../shared/HeadMenu";
+import { liftTitle } from "../shared/casing";
 import {
   EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL,
   countsFor, asksCount, styleSummary, type Counted, type Equipment, type LoadStyle,
@@ -46,28 +47,37 @@ export default function LoadSheet({ name, initial, onSave, onCancel }: {
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <SheetBar title={name} onCancel={onCancel} saveLabel="Save" onSave={() => onSave(style)} />
+        {/* THE EQUIPMENT SELECTOR (Dave 2026-10-09, mockup 7, "tappable from
+            exercise or set"). Opened from the logging view's header chip and
+            from every row of the workout's exercise list, so the title names
+            the exercise it is answering for and the first eyebrow asks. */}
+        <SheetBar title={liftTitle(name)} onCancel={onCancel} saveLabel="Done" onSave={() => onSave(style)} />
         <div className="sheet-form">
           <div className="grp xs-grp"><div className="eyebrow">Equipment</div></div>
-          <div className="pad-x"><div className="card xs-group">
-            {/* row-tap: chip strip, every inch of it is one of the answer chips */}
-            <div className="row xs-row">
-              <div className="chip-row chip-wrap-row">
-                {EQUIPMENT_KINDS.map((e) => (
-                  <button key={e} type="button" className={"chip" + (style.equipment === e ? " active" : "")}
-                    aria-pressed={style.equipment === e} aria-label={`Equipment ${EQUIPMENT_LABEL[e]}`}
-                    onClick={() => pickEquipment(style.equipment === e ? undefined : e)}>
-                    {EQUIPMENT_LABEL[e]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* The note is the equipment's own plain sentence, which is what
-                makes Plate-Loaded Machine and Selectorized Machine tellable
-                apart by someone standing in front of one of them. */}
-            {style.equipment && EQUIPMENT_NOTE(style.equipment) && (
-              <div className="row xs-row"><div className="row-grow"><div className="conn-meta">{EQUIPMENT_NOTE(style.equipment)}</div></div></div>
-            )}
+          {/* ONE ROW PER EQUIPMENT, A RADIO ON THE PICKED ONE (mockup 7). It
+              was a wrap of chips; a list reads top to bottom with the thumb
+              and says which one is picked the way every other one-of-many
+              list in the app does: the selection mark, never red. Tapping the
+              picked row again clears it, so Not Set stays reachable. */}
+          <div className="pad-x"><div className="card xs-group" role="radiogroup" aria-label="Equipment">
+            {EQUIPMENT_KINDS.map((e) => {
+              const on = style.equipment === e;
+              return (
+                <div key={e} className="row xs-row" role="radio" aria-checked={on} tabIndex={0} aria-label={`Equipment ${EQUIPMENT_LABEL[e]}`}
+                  onClick={() => pickEquipment(on ? undefined : e)}
+                  onKeyDown={(ev) => { if (ev.key === " " || ev.key === "Enter") { ev.preventDefault(); pickEquipment(on ? undefined : e); } }}>
+                  <div className="row-grow">
+                    <div className="conn-name">{EQUIPMENT_LABEL[e]}</div>
+                    {/* The note is the equipment's own plain sentence, under
+                        the picked row only: it is what tells Plate-Loaded
+                        Machine and Selectorized Machine apart for someone
+                        standing in front of one of them. */}
+                    {on && EQUIPMENT_NOTE(e) && <div className="conn-meta">{EQUIPMENT_NOTE(e)}</div>}
+                  </div>
+                  <span className={"radio" + (on ? " on" : "")} aria-hidden="true" />
+                </div>
+              );
+            })}
           </div></div>
 
           {asksCount(style.equipment) && (

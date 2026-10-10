@@ -201,13 +201,13 @@ export default function InsightsPage({
     const path = xy.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
     const ticks = new Set(axisTicks(xs));
     return (
-      <svg viewBox={`0 0 ${CW} ${CH + 16}`} className="ins-chart" role="img" aria-label={`Best set at this rep count over ${pts.length} sessions, in ${unit}`}>
+      <svg viewBox={`0 0 ${CW} ${CH + 16}`} className="ins-chart" role="img" aria-label={`Best set at this rep count over ${pts.length} workouts, in ${unit}`}>
         <line x1={PAD} y1={CH - PAD} x2={CW - PAD} y2={CH - PAD} stroke="currentColor" opacity={0.12} />
         <path d={path} fill="none" stroke="var(--hl-lime)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         {xy.map((p, i) => (
           <g key={pts[i]!.workoutId}>
             <circle cx={p.x} cy={p.y} r={4} fill="var(--hl-lime)" />
-            <circle cx={p.x} cy={p.y} r={11} fill="transparent" role="button" tabIndex={0} aria-label={`${monthDay(pts[i]!.date)}, ${pts[i]!.w} ${unit}, open the session`}
+            <circle cx={p.x} cy={p.y} r={11} fill="transparent" role="button" tabIndex={0} aria-label={`${monthDay(pts[i]!.date)}, ${pts[i]!.w} ${unit}, open the workout`}
               onClick={() => onOpenWorkout(pts[i]!.workoutId)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout(pts[i]!.workoutId); } }} />
             {ticks.has(i) && (
               <text x={p.x} y={CH + 10} className="ins-axis"
@@ -386,7 +386,7 @@ const musclesCard = breakdown.total === 0 ? null : (
         <span className="fact lime">{lineCase(`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`)}</span>
         {/* A count with no state is white (§AM, 2026-09-26), so "Biggest
             gain" above stays the card's one grey. */}
-        <span className="fact"><b>{lineCase(`${headline.sessions} comparable sessions`)}</b></span>
+        <span className="fact"><b>{lineCase(`${headline.sessions} comparable workouts`)}</b></span>
       </div>
       {chart(series, headline.lift.unit ?? "lb")}
       <details className="ins-table">
@@ -405,7 +405,7 @@ const musclesCard = breakdown.total === 0 ? null : (
       <details className="ins-table">
         <summary>What Is Being Compared</summary>
         <div className="facts"><span className="fact">Same Exercise, Same Equipment, Same Unit, Same Rep Count</span></div>
-        <div className="facts"><span className="fact">Spans the Sessions, Not Only This Period</span></div>
+        <div className="facts"><span className="fact">Spans the Workouts, Not Only This Period</span></div>
       </details>
       <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
     </div></div>
@@ -427,7 +427,7 @@ const musclesCard = breakdown.total === 0 ? null : (
         const n = t.filter((r) => inPeriod(r.date, period)).length;
         return (
           <div className="facts">
-            <span className="fact lime">{lineCase(`${n} ${n === 1 ? "session" : "sessions"} in the period`)}</span>
+            <span className="fact lime">{lineCase(`${n} ${n === 1 ? "workout" : "workouts"} in the period`)}</span>
             <span className="fact">{lineCase(`${t.length} recorded in all`)}</span>
           </div>
         );
@@ -439,7 +439,7 @@ const musclesCard = breakdown.total === 0 ? null : (
   const strength = (
     <>
       {lifts.length === 0 ? (
-        <div className="empty-state"><div className="empty-title">No Sets Logged Yet</div><div className="empty-sub">A logged session puts its lifts here</div></div>
+        <div className="empty-state"><div className="empty-title">No Sets Logged Yet</div><div className="empty-sub">A Logged Workout Puts Its Exercises Here</div></div>
       ) : (
         <>
           {/* ONE SELECTOR, NOT A CLOUD (health polish 2026-09-16: "Replace
@@ -482,7 +482,7 @@ const musclesCard = breakdown.total === 0 ? null : (
                 <div className="pad-x"><div className="card ins-card">
                   <div className="ins-head"><span className="ins-dot hue-hl-lime" /><span className="ins-t">{lift.name}</span></div>
                   <div className="facts">
-                    <span className="fact lime">{lineCase(`${inRange.length} ${inRange.length === 1 ? "session" : "sessions"} in the period`)}</span>
+                    <span className="fact lime">{lineCase(`${inRange.length} ${inRange.length === 1 ? "workout" : "workouts"} in the period`)}</span>
                     <span className="fact">{lineCase(`${table.length} recorded in all`)}</span>
                   </div>
                   {g ? (
@@ -492,7 +492,7 @@ const musclesCard = breakdown.total === 0 ? null : (
                         <span className="fact date">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
                         {/* A count with no state is white (§AM, 2026-09-26):
                             "recorded in all" above is the card's one grey. */}
-                        <span className="fact"><b>{lineCase(`${g.sessions} comparable sessions`)}</b></span>
+                        <span className="fact"><b>{lineCase(`${g.sessions} comparable workouts`)}</b></span>
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
                     </>
@@ -501,7 +501,7 @@ const musclesCard = breakdown.total === 0 ? null : (
                       apologise for in a sentence. */}
                   <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(lift)}>Open Exercise Page</button></div>
                 </div></div>
-                <div className="sh2 sh2-quiet"><span className="t">Sessions</span><span className="n">{table.length}</span></div>
+                <div className="sh2 sh2-quiet"><span className="t">Workouts</span><span className="n">{table.length}</span></div>
                 <div className="pad-x"><div className="card list-card-ruled">
                   {table.map((r) => (
                     <div {...pressable(() => onOpenWorkout(r.workoutId))} className="row" key={r.workoutId}>

@@ -98,12 +98,19 @@ describe("the live session", () => {
     />,
   );
 
-  it("Add Exercise is This Session's head capsule and Cancel Workout stands under the list, not inside the card", () => {
+  // AMENDED 2026-10-10 (pass-off items 11 and 12): the capsule says Add
+  // Exercise on its face, and Cancel Workout left the foot over the Log
+  // button for the top bar's leading slot.
+  it("Add Exercise is This Workout's head capsule and Cancel Workout is the top bar's, far from Log", () => {
     const { container } = renderScreen();
     const add = screen.getByRole("button", { name: "Add Exercise" });
-    expect(add.closest(".sh2")).not.toBeNull();
+    expect(add).toHaveTextContent("Add Exercise");
+    expect(add.closest(".sh2")).toHaveTextContent("This Workout");
     expect(add.closest(".card")).toBeNull();
-    expect(screen.getByRole("button", { name: "Cancel Workout" }).closest(".card")).toBeNull();
+    const cancel = screen.getByRole("button", { name: "Cancel Workout" });
+    expect(cancel.closest(".nav-bar")).not.toBeNull();
+    expect(cancel).toHaveTextContent("Cancel");
+    expect(container.querySelector(".btn-danger-text"), "nothing destructive at the foot").toBeNull();
     expect(container.querySelector(".row-create")).toBeNull();
     expect(capsulesInCards(container)).toEqual([]);
   });

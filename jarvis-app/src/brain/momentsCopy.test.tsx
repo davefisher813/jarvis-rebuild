@@ -32,6 +32,6 @@ describe("moment evidence copy", () => {
     const mixed = deriveCompletionWindow([...done(12, 10), ...done(4, 20)])!;
     expect(mixed.sub).toBe("12 Finishes There, Out of Your Last 16");
     const gym = Array.from({ length: 14 }, (_, i) => row({ h: 11, kind: "workout", day: `2026-08-${String(i + 1).padStart(2, "0")}` }));
-    expect(deriveTrainingWindow(gym)!.sub).toBe("14 Sessions in That Window");
+    expect(deriveTrainingWindow(gym)!.sub).toBe("14 Workouts in That Window");
   });
 });

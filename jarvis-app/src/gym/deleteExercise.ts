@@ -312,7 +312,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  *  the second one too ("14 Sets"), which capAfterNumber alone never reached. */
 export function historyLine(plan: DeletePlan): string | null {
   if (plan.sessions === 0) return null;
-  return lineCase(plural(plan.sessions, "session", "sessions") + (plan.sets > 0 ? `, ${plural(plan.sets, "set", "sets")}` : ""));
+  return lineCase(plural(plan.sessions, "workout", "workouts") + (plan.sets > 0 ? `, ${plural(plan.sets, "set", "sets")}` : ""));
 }
 
 /** "Used in 3 Program Days". Absent when it is in none. */
@@ -325,8 +325,8 @@ export function goesLines(plan: DeletePlan): string[] {
   const out = ["It leaves your Exercises list"];
   if (plan.programDays > 0) out.push(`It comes out of ${plural(plan.programDays, "program day", "program days")}`);
   if (plan.tier === "history") {
-    out.push(`It comes out of ${plural(plan.sessions, "session", "sessions")} in your history`);
-    if (plan.emptied > 0) out.push(`${plural(plan.emptied, "session", "sessions")} left empty ${plan.emptied === 1 ? "is" : "are"} removed`);
+    out.push(`It comes out of ${plural(plan.sessions, "workout", "workouts")} in your history`);
+    if (plan.emptied > 0) out.push(`${plural(plan.emptied, "workout", "workouts")} left empty ${plan.emptied === 1 ? "is" : "are"} removed`);
   }
   if (plan.clears.length) out.push(`It also clears ${joinWords(plan.clears)}`);
   // Every line is Title Case (2026-10-05, the catalog gate): a line that opens

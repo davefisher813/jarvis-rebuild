@@ -81,7 +81,7 @@ describe("paceFor", () => {
     expect(p.learned).toBe(true);
     expect(p.secPerSet).toBe(120); // median of [~120s, 180s, 120s]
     expect(p.sessions).toBe(2);
-    expect(paceLine(p)).toBe("Learned from Your Last 2 Sessions");
+    expect(paceLine(p)).toBe("Learned from Your Last 2 Workouts");
   });
 
   it("only the newest PACE_WINDOW sessions teach it: pace drifts with programs", () => {

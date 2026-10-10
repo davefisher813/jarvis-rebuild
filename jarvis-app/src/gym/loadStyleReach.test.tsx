@@ -122,7 +122,7 @@ describe("LoadSheet", () => {
     // exactly what Dave asked to be gone.
     fireEvent.click(screen.getByLabelText("Reps count"));
     fireEvent.click(screen.getByText("Per Side"));
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText("Done"));
     expect(onSave).toHaveBeenCalledWith({ equipment: "dumbbell", counted: undefined, sided: true });
   });
 
@@ -133,7 +133,7 @@ describe("LoadSheet", () => {
     // "Each Hand" on it is not an answer, it is a leftover.
     fireEvent.click(screen.getByLabelText("Equipment Selectorized Machine"));
     expect(screen.queryByLabelText("Counted as Each Hand")).toBeNull();
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText("Done"));
     expect(onSave).toHaveBeenCalledWith({ equipment: "stack", counted: undefined });
   });
 });

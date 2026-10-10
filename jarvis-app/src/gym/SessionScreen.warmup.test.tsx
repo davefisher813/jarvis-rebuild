@@ -116,15 +116,23 @@ describe("the stale dashed ramp rows are gone", () => {
 
   it("draws no Warm-Up row of its own: the Now card and the plan's rows are all there is", () => {
     const { container } = renderScreen();
-    // Two planned working sets: the Now card and one Up Next row. Not six.
-    expect(container.querySelectorAll(".set-chip-ghost")).toHaveLength(2);
+    // AMENDED 2026-10-10 (pass-off item 9): two planned working sets, and the
+    // Now card on its Warm-Up side is a warm-up, so both of the plan's sets
+    // stay under it as Set 1 and Set 2. It used to stand in for Set 1, which
+    // left "Up Next · Set 2" under "0 of 2 Sets". Not six rows either way.
+    expect(container.querySelectorAll(".set-chip-ghost")).toHaveLength(3);
     expect(screen.queryByText("Warm-Up", { selector: ".se-kick" }), "no dashed Warm-Up kicker").toBeNull();
-    expect(screen.getByText("Up Next · Set 2")).toBeInTheDocument();
+    expect(screen.getByText("Now · Warm-Up")).toBeInTheDocument();
+    expect(screen.getByText("Set 1", { selector: ".se-kick" })).toBeInTheDocument();
+    expect(screen.getByText("Set 2", { selector: ".se-kick" })).toBeInTheDocument();
+    // The header and the strip's head say the same count (one exercise in this day).
+    expect(screen.getAllByText("0 of 2 Sets")).toHaveLength(2);
   });
 
   it("does not offer the passed-over 160 and 225 under warm-ups already logged", () => {
     const { container } = renderScreen([warmed(180, 8), warmed(270, 6)]);
     expect(container.querySelectorAll(".set-chip-ghost")).toHaveLength(2);
+    expect(screen.getByText("Now · Set 1")).toBeInTheDocument();
     expect(screen.queryByText(/160 Lb × 5/)).toBeNull();
     expect(screen.queryByText(/225 Lb × 3/)).toBeNull();
     // The logged ones stay put as rows, named for what they are.
@@ -133,7 +141,7 @@ describe("the stale dashed ramp rows are gone", () => {
 
   it("the rows after the Now card keep the WORK's numbers while the card is on Warm-Up", () => {
     renderScreen();
-    const next = screen.getByText("Up Next · Set 2").closest(".set-chip-ghost") as HTMLElement;
+    const next = screen.getByText("Set 2", { selector: ".se-kick" }).closest(".set-chip-ghost") as HTMLElement;
     expect(next).toHaveTextContent("225 Lb × 5");
   });
 });
@@ -209,7 +217,9 @@ describe("the Work | Warm-Up pill", () => {
   it("a warm-up does not move the place in the plan", () => {
     renderScreen([warmed(45, 10)], {}, bench({ ramp: false }));
     expect(screen.getByText("Now · Set 1")).toBeInTheDocument();
-    expect(screen.getByText("Up Next · Set 2")).toBeInTheDocument();
+    expect(screen.getByText("Set 2", { selector: ".se-kick" })).toBeInTheDocument();
+    // The header and the strip's head say the same count (one exercise in this day).
+    expect(screen.getAllByText("0 of 2 Sets")).toHaveLength(2);
   });
 });
 

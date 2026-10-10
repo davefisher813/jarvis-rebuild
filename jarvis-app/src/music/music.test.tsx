@@ -50,7 +50,7 @@ describe("the chip", () => {
     render(<MusicChip context="focus" />);
     fireEvent.click(screen.getByText("Spotify Playlist"));
     expect(open).toHaveBeenCalledWith("https://open.spotify.com/playlist/x", "_blank", "noopener");
-    fireEvent.click(screen.getByText("Change"));
+    fireEvent.click(screen.getByText("Change Music"));
     expect(screen.getByText("Forget")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Forget"));
     expect(musicFor("focus")).toBeNull();

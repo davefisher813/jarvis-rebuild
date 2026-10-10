@@ -352,7 +352,7 @@ describe("Health Settings and Training", () => {
     const { container } = render(<TrainingPage onBack={() => {}} />);
     expect(scan(container)).toEqual([]);
     const note = norm(container.querySelector(".input-hint")!);
-    expect(note).toBe("A lift logged in the other unit is converted both ways");
+    expect(note).toBe("An exercise logged in the other unit is converted both ways");
     expect(note).not.toContain(MIDDOT);
   });
 });

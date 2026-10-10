@@ -61,7 +61,7 @@ describe("trainingLines", () => {
 
   it("states the last session with its date and real minutes", () => {
     const lines = trainingLines({ program: program(), workouts: [w("2026-09-05")], today: T, dow: TUE, rack: RACK });
-    expect(lines).toContain("Last session: Push Day, Sep 5, 51 min");
+    expect(lines).toContain("Last workout: Push Day, Sep 5, 51 min");
   });
 
   it("counts the days trained this week, and never a run of them", () => {

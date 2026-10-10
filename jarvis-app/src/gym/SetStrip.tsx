@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
@@ -6,7 +6,7 @@ import { plateMath, repLabel, type LoadStyle } from "./equipment";
 import { fieldsOf, type SetDraft } from "./nextSet";
 import { lineCase } from "../shared/casing";
 import { useRowMenu } from "../shared/useRowMenu";
-import { setState, setKicker, type SetState } from "./stateWord";
+import { setState, setKicker, workNumbers, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
 import ReorderList from "../shared/ReorderList";
@@ -143,7 +143,25 @@ export default function SetStrip({
   const isLog = ghost !== undefined || !!moveTracking;
   const firstWorkGhost = (ghost ?? []).findIndex((g) => !g.warmup);
   const nowPos = firstWorkGhost < 0 ? -1 : entries.length + firstWorkGhost;
-  const workNoAt = (pos: number) => [...entries, ...(ghost ?? [])].slice(0, pos + 1).filter((s) => !s.warmup && !s.drop).length;
+  // ONE NUMBERING (pass-off item 9): the strip's set numbers come from the
+  // same count the head and the meter read (stateWord.workNumbers). The Now
+  // card on its Warm-Up side is a warm-up, so the plan's Set 1 keeps its name.
+  const numbers = workNumbers([...entries, ...(ghost ?? [])], nowWarm && nowPos >= 0 ? nowPos : -1);
+  const workNoAt = (pos: number) => numbers[pos] ?? 1;
+  // THE NOW ROW IS NEVER LEFT UNDER THE LOG BUTTON (Dave 2026-10-09, pass-off
+  // item 8: "The Log button overlaps the NOW card"). The foot under the list
+  // is the bar's own measured height plus the home indicator (.se-foot), so
+  // the page can always scroll clear; this is the other half: whenever a new
+  // set becomes the Now row (the workout opens, a set lands, the exercise
+  // changes) the row is brought just into view above the bar, by the least
+  // scroll that does it. Its scroll-margin is the bar (ruled.css), so
+  // "nearest" stops above the button, and a row already in view does not move.
+  const nowRef = useRef<HTMLDivElement | null>(null);
+  const live = !!ghost && editableGhosts;
+  useEffect(() => {
+    if (!live) return;
+    nowRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [live, nowPos, entries.length, kind]);
 
   const patch = (id: string, p: Partial<SetEntry>) =>
     onChange(entries.map((e) => (e.id === id ? { ...e, ...p } : e)));
@@ -245,13 +263,14 @@ export default function SetStrip({
             return (
               // row-tap: the Now row is the fields; a tap on its padding must
               // not log a second answer beside them (2026-09-26)
-              <div className={"row set-chip-ghost" + (isNow ? " setrow-now" : "") + (st === "next" ? " se-next" : "")} key={g.id}>
+              <div className={"row set-chip-ghost" + (isNow ? " setrow-now" : "") + (st === "next" ? " se-next" : "")} key={g.id} ref={isNow ? nowRef : undefined}>
                 <div className="row-grow">
                   {/* H-17 / R9 (2026-09-12): the row says its state. The working
                       set the athlete is on says Now and wears the cyan rule;
-                      the rest say Up Next in quiet ink at full strength. */}
+                      the rest say only their name, Set 2, Set 3, in quiet ink
+                      at full strength (pass-off item 9). */}
                   <div className={"se-kick " + st}>{warmNow ? "Now · Warm-Up" : setKicker(st, workNoAt(pos))}
-                    {/* An Up Next row carries last time's reference as the
+                    {/* A planned row carries last time's reference as the
                         same chip a Done row wears, at the kicker's end; on the
                         Now row the reference is the Match line below. */}
                     {!isNow && lastText && <span className="se-chip se-chip-last"><em>Last</em>{lineCase(lastText)}</span>}</div>
@@ -299,6 +318,8 @@ function chipKicker(entry: SetEntry, state: SetState | null, workNo: number): st
   if (state) return setKicker(state, workNo, true);
   if (entry.warmup) return "Warm-Up";
   if (entry.drop) return "Drop";
+  // A skipped set holds no number (pass-off item 9): the next set takes it.
+  if (entry.skipped) return "Skipped Set";
   return `Set ${workNo}`;
 }
 

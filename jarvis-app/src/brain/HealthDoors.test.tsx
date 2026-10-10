@@ -57,7 +57,7 @@ describe("the Health page's three doors", () => {
     render(<HealthBody {...base} onOpenExercises={() => {}} onOpenHistory={() => {}} />);
     expect(screen.getByText("Exercises")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
-    // Two exercises in the program, two program days, one logged session.
+    // Two exercises in the program, two program days, one logged workout.
     //
     // A COUNT SAYS WHAT IT COUNTS (Dave 2026-09-16, the health polish pass:
     // "keep your order, take the better rows"). These were bare numbers under
@@ -65,7 +65,8 @@ describe("the Health page's three doors", () => {
     // their own noun now, through capAfterNumber like every other counted line
     // in the app, and the singular is real rather than "1 sessions".
     const counts = Array.from(document.querySelectorAll(".h-door-n")).map((n) => n.textContent);
-    expect(counts).toEqual(["2 Exercises", "2 Days", "1 Session"]);
+    // One vocabulary (Dave 2026-10-09, item 13): a visit is a Workout.
+    expect(counts).toEqual(["2 Exercises", "2 Days", "1 Workout"]);
   });
 
   it("opens Program and History from their own doors", () => {
@@ -87,11 +88,13 @@ describe("the Health page's three doors", () => {
     expect(document.querySelectorAll(".h-door-k")).toHaveLength(0);
   });
 
-  it("sits under the week and above the next workout", () => {
+  it("sits immediately under the week, which sits under the Start card", () => {
+    // WORKOUT FIRST (Dave 2026-10-09, items 1 and 2): Start Workout is the
+    // first card under the title; the doors still sit straight under the week.
     const { container } = render(<HealthBody {...base} onOpenExercises={() => {}} onOpenHistory={() => {}} />);
     const html = container.innerHTML;
+    expect(html.indexOf("h-hero-card")).toBeLessThan(html.indexOf("h-week-card"));
     expect(html.indexOf("h-week-card")).toBeLessThan(html.indexOf("h-doors"));
-    expect(html.indexOf("h-doors")).toBeLessThan(html.indexOf("h-hero-card"));
   });
 });
 
@@ -304,7 +307,7 @@ describe("the Health page wears the row-action model (2026-10-05)", () => {
     const onAdjustTime = vi.fn();
     render(<HealthBody {...withNext} onStart={onStart} onAdjustTime={onAdjustTime} />);
     expect(screen.queryByText("Adjust Time")).toBeNull();
-    fireEvent.click(document.querySelector(".h-hero")!);
+    fireEvent.click(document.querySelector('.h-hero[role="button"]')!);
     const sheet = document.querySelector(".sheet-scrim")!;
     expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Start Workout");
     const rest = [...sheet.querySelectorAll(".btn-secondary")].map((b) => b.textContent);
