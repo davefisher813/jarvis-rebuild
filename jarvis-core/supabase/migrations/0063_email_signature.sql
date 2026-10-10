@@ -1,5 +1,13 @@
--- Migration 0061: the saved signature (Email v1 spec 2026-10-08, section 6;
--- Dave's locked decision L3). Additive; rollback in rollback/0061_email_signature_down.sql.
+-- Migration 0063: the saved signature (Email v1 spec 2026-10-08, section 6;
+-- Dave's locked decision L3). Additive; rollback in rollback/0063_email_signature_down.sql.
+--
+-- NUMBERED 0063, APPLIED FIRST (2026-10-10). It was written and applied to production as
+-- 0061, then found to share that number with the Phase 0 branch's 0061_vyzn_inbox (Phase 0
+-- holds 0060 to 0062). Renumbered after Phase 0's range so the files never collide. Live, it
+-- landed before Phase 0's three; nothing here touches their objects, so the order is safe
+-- either way. jarvis_draft_fields_bad carries `set search_path = public` below for the same
+-- reason: Phase 0's 0062 sets it, and a create or replace without it would quietly undo that
+-- whenever this file runs after theirs (CI runs the chain in file order).
 --
 -- One saved plain-text signature per provider account. Empty is valid.
 -- Settings reads and writes it through email_signature_set, the only door:
@@ -51,6 +59,7 @@ create or replace function jarvis_draft_fields_bad(p jsonb)
 returns text
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
   k text;

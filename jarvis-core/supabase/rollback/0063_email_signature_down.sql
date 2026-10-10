@@ -1,4 +1,4 @@
--- Rollback of 0061: email_signature_set goes, and the three redefined
+-- Rollback of 0063 (written as 0061; see the migration's header): email_signature_set goes, and the three redefined
 -- functions go back to their pre-signature bodies (0050's originals, plus
 -- 0048's email_accounts). The two signature columns STAY on both tables (no
 -- data is dropped by a rollback); the old bodies simply stop reading or
@@ -22,6 +22,7 @@ create or replace function jarvis_draft_fields_bad(p jsonb)
 returns text
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
   k text;

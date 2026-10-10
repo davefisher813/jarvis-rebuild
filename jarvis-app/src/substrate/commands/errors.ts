@@ -17,7 +17,7 @@ export const COMMAND_ERROR_CODES = [
   "DRAFT_SENT", "DRAFT_CONFLICT", "PROVIDER_SCOPE",
   // Email v1 (migration 0059): a held send no worker reached by its deadline is never sent late.
   "HOLD_EXPIRED",
-  // Email v1, saved signatures (migration 0061, spec L3): the account's signature changed between the read and this save.
+  // Email v1, saved signatures (migration 0063, spec L3): the account's signature changed between the read and this save.
   "SIGNATURE_CONFLICT",
 ] as const;
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number];
