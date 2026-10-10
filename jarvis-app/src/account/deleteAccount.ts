@@ -232,3 +232,17 @@ export async function deleteAccountEverywhere(ctx: ServiceCtx, userId: string, d
   await deleteAuthUser(ctx, userId, doFetch);
   return { files: files.length, revoked: google.revoked, revokeFailed: google.failed };
 }
+
+// UP-DEMO-01 (2026-10-10): a demo tester's account reset in place. Two
+// iPhones carry testers through demo week and get wiped between runs, but
+// they keep signing in with the same login every time -- there is no 404 to
+// fix here, just an admin action that was never built. This is the other two
+// steps of deleteAccountEverywhere (files, then the owned rows) with the
+// Google grant and the auth user both left alone, so the account and
+// whatever it is connected to survive, and only what the tester did with the
+// app during the last run is gone.
+export async function wipeUserData(ctx: ServiceCtx, userId: string, doFetch: FetchLike): Promise<{ files: number }> {
+  const files = await deleteUserFiles(ctx, userId, doFetch);
+  await deleteOwnedRows(ctx, userId, doFetch);
+  return { files: files.length };
+}
