@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseProgramExtract, coerceKind } from "./extract";
+import { parseProgramExtract, coerceKind, cleanPastedText } from "./extract";
 
 // The upload parser is tolerant but never inventive: bad entries drop, numbers
 // clamp, and nothing usable means null, not a fabricated program.
@@ -71,6 +71,26 @@ describe("parseProgramExtract", () => {
     expect(parseProgramExtract("{}")).toBeNull();
     expect(parseProgramExtract(JSON.stringify({ days: [{ name: "D", exercises: [] }] }))).toBeNull();
     expect(parseProgramExtract("{broken json")).toBeNull();
+  });
+});
+
+describe("cleanPastedText", () => {
+  it("strips Apple Notes' checklist and bullet glyphs from the start of a line", () => {
+    const pasted = "☐ Bench 3x8\n☑ Squat 5x5\n• Deadlift 1x5\n- Row 3x10";
+    expect(cleanPastedText(pasted)).toBe("Bench 3x8\nSquat 5x5\nDeadlift 1x5\nRow 3x10");
+  });
+
+  it("normalizes smart quotes and dashes to their plain ASCII form", () => {
+    expect(cleanPastedText("Dave’s “heavy” day – go hard")).toBe("Dave's \"heavy\" day - go hard");
+  });
+
+  it("leaves ordinary pasted text completely unchanged", () => {
+    const plain = "Bench Press\n3 sets of 8 at 135lb\nSquat\n5x5";
+    expect(cleanPastedText(plain)).toBe(plain);
+  });
+
+  it("does not strip a hyphen that is part of a word, only a leading bullet dash", () => {
+    expect(cleanPastedText("- Single-arm row 3x10")).toBe("Single-arm row 3x10");
   });
 });
 

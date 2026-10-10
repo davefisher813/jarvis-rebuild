@@ -26,6 +26,28 @@ export const EXTRACT_PROMPT = [
   "If the program is written as multiple weeks (a wave, a 4-week block), extract only the FIRST week's days here; weeks are added by the athlete afterward.",
 ].join("\n");
 
+// A PASTE FROM APPLE NOTES CARRIES ITS OWN PUNCTUATION (Dave: pasting a
+// workout from Apple Notes into Read and Paste Text did nothing). The
+// extractor has no local parser at all -- every reading comes from the
+// model's reply to EXTRACT_PROMPT -- so the paste went in exactly as copied:
+// smart quotes, en/em dashes, and Apple Notes' checklist/bullet glyphs
+// (a literal checkbox character on every line of a checklist, "•" on a
+// bulleted list) ahead of each exercise name. None of that is illegible to
+// a model, but a checklist's leading glyph is not an exercise name either,
+// and stripping it before the prompt removes the one way that paste could
+// read as noise instead of a plan. Safe on any input: a paste with none of
+// these characters is unchanged.
+const BULLET_PREFIX = /^\s*[•◦▪·‣⁃○●☐☑☒✓✔-]+\s*/;
+export function cleanPastedText(raw: string): string {
+  return raw
+    .split("\n")
+    .map((line) => line.replace(BULLET_PREFIX, ""))
+    .join("\n")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, "-");
+}
+
 let seq = 0;
 const nid = (p: string) => `${p}x${(seq++).toString(36)}${Math.abs(hash(p + seq)) % 1000}`;
 function hash(s: string): number {
