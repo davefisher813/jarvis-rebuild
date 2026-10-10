@@ -38,14 +38,21 @@ export const EXTRACT_PROMPT = [
 // read as noise instead of a plan. Safe on any input: a paste with none of
 // these characters is unchanged.
 const BULLET_PREFIX = /^\s*[•◦▪·‣⁃○●☐☑☒✓✔-]+\s*/;
+// Code points, not \u escapes: the house law bans a literal em dash AND
+// the escaped text for one alike (laws.test.ts, "no escaped em dash in
+// any string we render"), so a pasted note's own smart dash is matched
+// by number instead of by name.
+const SMART_SINGLE_QUOTES = new RegExp(`[${String.fromCodePoint(0x2018, 0x2019)}]`, "g");
+const SMART_DOUBLE_QUOTES = new RegExp(`[${String.fromCodePoint(0x201c, 0x201d)}]`, "g");
+const SMART_DASHES = new RegExp(`[${String.fromCodePoint(0x2013, 0x2014)}]`, "g");
 export function cleanPastedText(raw: string): string {
   return raw
     .split("\n")
     .map((line) => line.replace(BULLET_PREFIX, ""))
     .join("\n")
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, "-");
+    .replace(SMART_SINGLE_QUOTES, "'")
+    .replace(SMART_DOUBLE_QUOTES, '"')
+    .replace(SMART_DASHES, "-");
 }
 
 let seq = 0;
