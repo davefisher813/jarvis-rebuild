@@ -104,14 +104,74 @@ function literals(src: string): { text: string; line: number }[] {
   return out;
 }
 
+/**
+ * The readable text of every JSX text child in a .tsx file: the runs between a
+ * tag's closing `>` and the next `<`, which are not literals and so escape the
+ * tokenizer above (review finding 11: a planted `<div>Saved - Done</div>` left
+ * the law green). `{...}` expressions are replaced by `{}` the way template
+ * expressions are, so `{a - b}` renders as a number here too. Only a run that
+ * follows a tag (`<Name ...>`, `</Name>`, `<>`) counts, and a run carrying `;`
+ * or `=` is code between a generic's `>` and a later `<`, not text.
+ */
+function jsxTexts(src: string): string[] {
+  const out: string[] = [];
+  const n = src.length;
+  let i = 0;
+  while (i < n) {
+    const c = src[i]!;
+    if (c === "/" && src[i + 1] === "/") { const e = src.indexOf("\n", i); i = e === -1 ? n : e; continue; }
+    if (c === "/" && src[i + 1] === "*") { const e = src.indexOf("*/", i + 2); i = e === -1 ? n : e + 2; continue; }
+    if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      for (; j < n && src[j] !== c; j++) if (src[j] === "\\") j++;
+      i = j + 1;
+      continue;
+    }
+    if (c === "<" && /[A-Za-z/>]/.test(src[i + 1] ?? "")) {
+      // Find the tag's own closing `>`, skipping quoted attributes and `{...}`.
+      let j = i + 1, depth = 0, quote = "";
+      for (; j < n; j++) {
+        const d = src[j]!;
+        if (quote) { if (d === quote) quote = ""; continue; }
+        if (d === '"' || d === "'") { quote = d; continue; }
+        if (d === "{") depth++;
+        else if (d === "}") depth--;
+        else if (d === ">" && depth === 0) break;
+      }
+      if (j >= n || src[j - 1] === "/") { i = j + 1; continue; } // self closing: no children
+      let k = j + 1, text = "";
+      for (; k < n && src[k] !== "<"; k++) {
+        if (src[k] === "{") {
+          let d = 0;
+          for (; k < n; k++) { if (src[k] === "{") d++; else if (src[k] === "}") { d--; if (d === 0) break; } }
+          text += "{}";
+          continue;
+        }
+        text += src[k]!;
+      }
+      if (/[A-Za-z]/.test(text) && !/[;=]/.test(text)) out.push(text.replace(/\s+/g, " ").trim());
+      i = k;
+      continue;
+    }
+    i++;
+  }
+  return out;
+}
+
 function spacedHyphens(): string[] {
   const out: string[] = [];
   for (const f of walk(SRC)) {
     const r = relative(SRC, f).replace(/\\/g, "/");
     if (/^(bench|testpanel|laws)\//.test(r)) continue;
     if (TEST_FIXTURES.has(r.slice(r.lastIndexOf("/") + 1))) continue;
-    for (const { text } of literals(readFileSync(f, "utf8"))) {
+    const src = readFileSync(f, "utf8");
+    for (const { text } of literals(src)) {
       if (/ - /.test(text)) out.push(`${r} · ${text.slice(0, 60)}`);
+    }
+    if (f.endsWith(".tsx")) {
+      for (const text of jsxTexts(src)) {
+        if (/ - /.test(text)) out.push(`${r} · ${text.slice(0, 60)}`);
+      }
     }
   }
   return [...new Set(out)];
@@ -134,6 +194,15 @@ describe("LAW: no rendered line carries a spaced hyphen", () => {
       "/* e - f */ const s = 'g - h';",
     ].join("\n")).map((l) => l.text);
     expect(got).toEqual(["x - y", "{} quiet - {}", "g - h"]);
+  });
+
+  it("the JSX reader sees text children, strips expressions, and skips code between a generic's brackets", () => {
+    const got = jsxTexts([
+      'const a = <div className="x - y">Saved - Done<b>{gap - 1} left</b></div>;',
+      "const b: Array<number> = c - d; const e = <p>{x} to go</p>; <Row k={v - 1} />",
+      "const f = <>Plain - text</>; // c - d",
+    ].join("\n"));
+    expect(got).toEqual(["Saved - Done", "{} left", "{} to go", "Plain - text"]);
   });
 
   it("finds literals at all", () => {

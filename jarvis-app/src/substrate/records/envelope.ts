@@ -7,7 +7,8 @@
 // inbox's shape (family/inbox.js buildTask) to records. Nothing here reads the network or the environment;
 // src/push/proxy.ts does the fetching and the deleting around it.
 
-import { LIMITS, type RecordKind, type VyznApp } from "../gateway/protocol";
+import { LIMITS, PARAM_SCHEMAS, type RecordKind, type VyznApp } from "../gateway/protocol";
+import { validate, type Schema } from "../schema";
 
 export const RECORD_PROTOCOL_VERSION = 1;
 
@@ -74,6 +75,48 @@ export interface BackendInboxTask {
 const INBOX_ID = /^inbox_[0-9a-f-]{36}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const TEXT_CAP = 500;
+/** The notes and the priority word are capped before they are folded, so one backend item can never become a
+ *  200 KB proposal (the pull calls records_import directly and bypasses the gateway's byte cap; review finding 3). */
+export const NOTES_CAP = 2000;
+export const PRIO_CAP = 40;
+/** A client_at is sent only for a createdAt that is a real moment: finite, not before the epoch, and not more
+ *  than a day ahead of this clock. 8.64e15 is a legal Date but reads +275760, which the gateway pattern refuses. */
+const CLIENT_AT_SLACK_MS = 86_400_000;
+
+/** A yyyy-mm-dd that names a real calendar day (2026-13-45 matches the regex and is not one). */
+function isCalendarDate(s: string): boolean {
+  if (!DATE.test(s)) return false;
+  const t = Date.parse(s + "T00:00:00Z");
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+
+function clientAtOf(createdAt: unknown, now: number): string | undefined {
+  if (typeof createdAt !== "number" || !Number.isFinite(createdAt)) return undefined;
+  if (createdAt < 0 || createdAt > now + CLIENT_AT_SLACK_MS) return undefined;
+  return new Date(createdAt).toISOString();
+}
+
+/** The one record shape the gateway accepts (PARAM_SCHEMAS["record.push"].fields.records.items), read from the
+ *  protocol so the pull can never send a record record.push would refuse. */
+function recordItemSchema(): Schema {
+  const push = PARAM_SCHEMAS["record.push"];
+  const records = push.type === "object" ? push.fields.records : undefined;
+  if (!records || records.type !== "array") throw new Error("record.push schema no longer carries a records list");
+  return records.items;
+}
+export const RECORD_ITEM_SCHEMA: Schema = recordItemSchema();
+
+/** Pure: every record that the gateway schema would refuse moves to `refused` under its source_record_id, so one
+ *  bad item never stalls the batch it would have shared (the server refuses a batch whole). */
+export function validateRecords(records: readonly VyznRecord[]): Mapped {
+  const ok: VyznRecord[] = [];
+  const refused: string[] = [];
+  for (const r of records) {
+    if (validate(r, RECORD_ITEM_SCHEMA).ok) ok.push(r);
+    else refused.push(r.source_record_id);
+  }
+  return { records: ok, refused };
+}
 
 export interface Mapped { records: VyznRecord[]; refused: string[] }
 
@@ -82,7 +125,7 @@ export interface Mapped { records: VyznRecord[]; refused: string[] }
  *  line; the agent's roster name becomes the source label; createdAt becomes client_at. Every record is
  *  source_app backend-inbox, revision 1, kind task: the backend has no revisions, so a changed item there
  *  is a new id, not a new revision. */
-export function backendInboxToRecords(inbox: unknown): Mapped {
+export function backendInboxToRecords(inbox: unknown, now: number = Date.now()): Mapped {
   const records: VyznRecord[] = [];
   const refused: string[] = [];
   if (!Array.isArray(inbox)) return { records, refused };
@@ -90,13 +133,16 @@ export function backendInboxToRecords(inbox: unknown): Mapped {
     const t = (raw ?? {}) as Partial<BackendInboxTask>;
     const id = typeof t.id === "string" ? t.id : "";
     if (!INBOX_ID.test(id)) { refused.push(id || "(no id)"); continue; }
-    const text = String(t.text ?? t.name ?? "").trim().slice(0, TEXT_CAP);
+    // The text must be a string: an object would read "[object Object]" and land as a 15 character task.
+    const given = t.text ?? t.name;
+    if (typeof given !== "string") { refused.push(id); continue; }
+    const text = given.trim().slice(0, TEXT_CAP);
     if (!text) { refused.push(id); continue; }
     const data: Record<string, unknown> = { text };
-    if (typeof t.due === "string" && DATE.test(t.due)) data.due = t.due;
+    if (typeof t.due === "string" && isCalendarDate(t.due)) data.due = t.due;
     const lines: string[] = [];
-    if (typeof t.notes === "string" && t.notes.trim()) lines.push(t.notes.trim());
-    if (typeof t.prio === "string" && t.prio.trim()) lines.push(`Priority ${t.prio.trim()}`);
+    if (typeof t.notes === "string" && t.notes.trim()) lines.push(t.notes.trim().slice(0, NOTES_CAP));
+    if (typeof t.prio === "string" && t.prio.trim()) lines.push(`Priority ${t.prio.trim().slice(0, PRIO_CAP)}`);
     if (lines.length) data.notes = lines.join("\n");
     const rec: VyznRecord = {
       source_record_id: id,
@@ -105,10 +151,13 @@ export function backendInboxToRecords(inbox: unknown): Mapped {
       data,
       source: { label: `Added by ${agentDisplayName(t.agent)}` },
     };
-    if (typeof t.createdAt === "number" && Number.isFinite(t.createdAt)) rec.client_at = new Date(t.createdAt).toISOString();
+    const clientAt = clientAtOf(t.createdAt, now);
+    if (clientAt) rec.client_at = clientAt;
     records.push(rec);
   }
-  return { records, refused };
+  // The gateway's own schema has the last word, so a record it would refuse is never sent and never stalls a batch.
+  const checked = validateRecords(records);
+  return { records: checked.records, refused: [...refused, ...checked.refused] };
 }
 
 /** Records in batches the server accepts (LIMITS.recordsPerPush). */

@@ -99,7 +99,7 @@ back, the trigger re-derives every link from the JSONB fields as it goes, and
 history starts afresh from the restore: `item_why` on a restored row answers
 from its insert on that day, not from the account it came from. Deleting your
 account deletes all three (`delete_owned`). The bundle version does not move
-for this; nothing in the contract changed.
+for this; nothing in the contract changed. The bundle carries no `created_at` either, so after a restore every row's creation time is the day of the restore; no screen renders it yet.
 
 ## Stability
 

@@ -60,7 +60,7 @@ every property it does not name:
 | `kind` | one of `RECORD_KINDS`: `task`, `event`, `note`, `person` |
 | `data` | a JSON object under `LIMITS.recordBytes` (8192 bytes) |
 | `source` | optional; `{ url?: string (512), label?: string (120) }` and nothing else |
-| `client_at` | optional; an ISO timestamp, `^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})$` |
+| `client_at` | optional; an ISO timestamp, `^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})$`, finite and no later than one day after the server's clock (`INVALID_PAYLOAD`, `detail: client_at`, otherwise) |
 
 Inside `data`, four words are the server's alone and are refused when an app sends them:
 `previous_item`, `destination_id`, `clientId`, `source`. The authority keys (`approved`,
@@ -96,7 +96,10 @@ A batch with one bad record is refused whole and writes nothing. `INVALID_PAYLOA
 - the same `source_record_id` twice in one batch (`detail: duplicate`)
 
 `IDEMPOTENCY_CONFLICT` with the `source_record_id`: a revision received before with different bytes.
-Replays inside a clean batch are answered per record, not refused.
+Replays inside a clean batch are answered per record, not refused. Two pushes of the same new batch at
+the same moment are safe: the one that commits second answers `replay` for the records the first
+landed (and the first's receipt), or `IDEMPOTENCY_CONFLICT` and nothing written when the same key
+carries other bytes; it never surfaces a constraint error.
 
 ## Identity
 
@@ -143,12 +146,15 @@ stays.
   nothing new is written. One evidence row (`type app`, the record's text as excerpt), one action
   `record_<kind>`, one consumed approval, one confirmed receipt with the per field diff. A second tap
   with the same hash replays; a different hash is `IDEMPOTENCY_CONFLICT`; a changed row is
-  `SOURCE_CHANGED`; a dismissed or superseded proposal is `INVALID_PAYLOAD`.
+  `SOURCE_CHANGED`; a dismissed or superseded proposal is `INVALID_PAYLOAD`; a null
+  `p_expected_revision` is `INVALID_PAYLOAD` (`detail: expected_revision`) for approve and dismiss alike.
 - `record_dismiss(p_proposal, p_expected_revision)`: `proposal_dismiss`'s shape on the app surface.
   The same revision pushed again answers `replay` with `status dismissed`; a higher revision is a
   new proposal.
 - `action_undo` removes the item and puts the proposal back to `proposed`, so the inbox row comes
   back exactly as it was. The receipt reads `Removed From Tasks · <Title>` (Schedule, Notes, People).
+  A second tap on that row approves it again (a new action under a new key; a third tap with the same
+  hash replays the second).
 - In Hub > Activity the approval reads `Added to Tasks · <Title>` with `Suggested by Backend Inbox ·
   Approved by You`; Undo and Open are offered (`activity_feed` and `receipt_detail` read `undoable`
   for a `record_%` action; `destinationKindOf` maps `record_task`, `record_event`, `record_note`;
@@ -165,7 +171,9 @@ A newer revision of a saved record never touches the item. At push it becomes a 
 `payload.previous_item` and `payload.previous_updated_at` (`newer_revision_proposed`); at approve,
 `record_approve` refuses any proposal carrying `previous_item` with `DESTINATION_CHANGED` and
 `difference: [{ field, yours, theirs }]` (`yours` is the item's value, `theirs` the record's) and
-writes nothing. A newer revision before any tap marks the older open proposal `superseded`, so a
+writes nothing. One case is not a refusal: when the named item is gone because its approval was
+undone, no row holds the record's key and no later revision was accepted, the tap creates the item
+(there is nothing to overwrite); if a row does hold the key, the difference is taken against that row. A newer revision before any tap marks the older open proposal `superseded`, so a
 stale one can never be approved first. In Phase 0 there is no code path that can change a row Dave
 owns from an app's words. Phase 0.5 names the one that would: `record_take(p_proposal, p_fields,
 p_expected_item_updated_at)`, Dave's own tap on the difference, with a `Took Theirs · <Title>`
@@ -195,9 +203,9 @@ words have one defined meaning:
 
 | mode | meaning |
 |---|---|
-| Read Only | pauses pushes: `record_push` answers `SCOPE_DENIED` |
+| Read Only | pauses pushes: the gateway answers `MODE_CEILING` (403) before `record_push` runs; `record_push` called directly as the service role answers `SCOPE_DENIED` |
 | Help Me | accepts pushes (the mode `vyzn_app_connect` mints) |
-| Just Handle It | refused: `connection_set_mode` answers `SCOPE_DENIED` with `an app only proposes`, which the tap renders |
+| Just Handle It | refused: `connection_set_mode` answers `SCOPE_DENIED` with the detail `an app only proposes`; the tap shows the `SCOPE_DENIED` line, Not Shared With This Assistant, and does not render the detail |
 
 Revoking the connection (Hub > Agents, `connection_revoke`) makes every later push
 `CONNECTION_REVOKED`. The pull does not need the connection row; with the row present a pulled
@@ -252,7 +260,7 @@ new hash lands. No device identity; no admin screen; Dave's SQL editor is the mi
 | `DESTINATION_CHANGED` | 409 | approve of a proposal that names a saved item (never overwrite) |
 | `MISSING_DETAILS` | 422 | `jarvis_capture_valid` named a field (`bill_is_not_a_task` and friends) |
 | `MODULE_UNAVAILABLE` | 503 | the destination kind is not registered |
-| `NOT_FOUND` | 404 | the pull without its flag; a proposal that is not the caller's |
+| `NOT_FOUND` | 404 | a proposal that is not the caller's; the pull without its flag answers a plain 404 `{error: "Not found"}`, not this shape |
 
 ## The curl for the pull
 

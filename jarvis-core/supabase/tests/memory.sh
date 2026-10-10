@@ -4,7 +4,8 @@
 #
 # Usage: eval "$(./local_pg.sh start)"; ./memory.sh
 #
-# What it proves (the 39 checks of PHASE0-DESIGN.md section 3):
+# What it proves (the 39 checks of PHASE0-DESIGN.md section 3, 49 as run; the last three of the
+# history and links sections are the review fixes of 2026-10-10, named in the 0060 header):
 #   every write to item leaves one history row with the changed keys, the values under the four
 #   closed rules, the capture moment and the origin the DATABASE derived (user, function with the
 #   door's name, server, operator); an empty diff writes no row; JSON null and absence are one value
@@ -13,6 +14,9 @@
 #   item_link is a projection of the JSONB pointers: kinds from the registry, the author from the
 #   row's own Source stamp, a kept target beside a resolved one, healed by a recreate, never written
 #   by the browser; the backfill marked what it found
+#   a non finite p_client_at is refused by both patch doors, a far future one is stamped at most five
+#   minutes past now, a past one exactly; a change of entity_type alone writes a history row and
+#   recomputes the links for the new kind
 #   item_why answers typed, rule, function, unknown, and is the owner's alone
 #   readiness carries 0060; delete_owned reaches both tables; the write cost ratio is under 3.0;
 #   every new function is revoked from PUBLIC with a search_path; rollback restores the five bodies
@@ -77,12 +81,22 @@ check "a cleared key reads as null, not absent, and an explicit JSON null is not
 U_BEFORE=$(q -c "select updated_at from item where id='$T1'")
 as_user $A $AUTH "select item_apply_patch('$T1','{\"text\":\"Call the dentist today\"}')" >/dev/null
 check "an empty diff writes no row (updated_at moves, item_change does not)" "t|$N_BEFORE" "$(q -c "select updated_at > '$U_BEFORE' from item where id='$T1'")|$(q -c "select count(*) from item_change where item_id='$T1'")"
-check "item_apply_patch_if_older stamps client_at from p_client_at; a stale patch writes no row" "stale|$N_BEFORE|applied|t" \
-  "$(as_user $A $AUTH "select item_apply_patch_if_older('$T1','{\"text\":\"older name\"}', now() - interval '1 day')")|$(q -c "select count(*) from item_change where item_id='$T1'")|$(as_user $A $AUTH "select item_apply_patch_if_older('$T1','{\"text\":\"newer name\"}', now() + interval '1 hour')")|$(q -c "select client_at - at between interval '59 minutes' and interval '61 minutes' from item_change where item_id='$T1' order by at desc, id desc limit 1")"
+check "item_apply_patch_if_older stamps client_at from p_client_at (inside the five minute clamp); a stale patch writes no row" "stale|$N_BEFORE|applied|t" \
+  "$(as_user $A $AUTH "select item_apply_patch_if_older('$T1','{\"text\":\"older name\"}', now() - interval '1 day')")|$(q -c "select count(*) from item_change where item_id='$T1'")|$(as_user $A $AUTH "select item_apply_patch_if_older('$T1','{\"text\":\"newer name\"}', now() + interval '4 minutes')")|$(q -c "select client_at - at between interval '3 minutes 50 seconds' and interval '4 minutes 10 seconds' from item_change where item_id='$T1' order by at desc, id desc limit 1")"
 as_user $A $AUTH "select item_apply_patch('$T1','{\"text\":\"from the queue\"}','2026-10-10T06:00:00Z')" >/dev/null
 as_user $A $AUTH "select item_apply_patch('$T1','{\"text\":\"live\"}')" >/dev/null
 check "item_apply_patch with a third argument stamps client_at; with two arguments client_at = at" "2026-10-10 06:00:00+00|t" \
   "$(q -c "select client_at from item_change where item_id='$T1' and after->>'text'='from the queue'")|$(q -c "select client_at = at from item_change where item_id='$T1' and after->>'text'='live'")"
+T3=e1000000-0000-0000-0000-000000000003
+as_user $A $AUTH "insert into item (id, owner_id, entity_type, data) values ('$T3','$A','task','{\"text\":\"Clock\",\"category\":\"\",\"done\":false}')" >/dev/null
+N_T3=$(q -c "select count(*) from item_change where item_id='$T3'")
+check "a non finite p_client_at is refused by both doors (false, stale) and nothing is written" "f|stale|$N_T3|Clock" \
+  "$(as_user $A $AUTH "select item_apply_patch('$T3','{\"text\":\"never\"}','infinity')")|$(as_user $A $AUTH "select item_apply_patch_if_older('$T3','{\"text\":\"never\"}','-infinity')")|$(q -c "select count(*) from item_change where item_id='$T3'")|$(q -c "select data->>'text' from item where id='$T3'")"
+as_user $A $AUTH "select item_apply_patch('$T3','{\"text\":\"far\"}','2999-01-01T00:00:00Z')" >/dev/null
+as_user $A $AUTH "select item_apply_patch_if_older('$T3','{\"text\":\"farther\"}','2999-01-01T00:00:00Z')" >/dev/null
+as_user $A $AUTH "select item_apply_patch('$T3','{\"text\":\"then\"}','2026-01-05T10:00:00Z')" >/dev/null
+check "a far future p_client_at is stamped at most five minutes past now through either door; a past one is stored exactly" "t|t|2026-01-05 10:00:00+00" \
+  "$(q -c "select client_at - at between interval '4 minutes 50 seconds' and interval '5 minutes' from item_change where item_id='$T3' and after->>'text'='far'")|$(q -c "select client_at - at between interval '4 minutes 50 seconds' and interval '5 minutes' from item_change where item_id='$T3' and after->>'text'='farther'")|$(q -c "select client_at from item_change where item_id='$T3' and after->>'text'='then'")"
 T2=e1000000-0000-0000-0000-000000000002
 as_user $A $AUTH "insert into item (id, owner_id, entity_type, data, created_at) values ('$T2','$A','task','{\"text\":\"Stretch\",\"category\":\"\",\"done\":false}', now() - interval '1 hour')" >/dev/null
 check "an insert with an explicit created_at (a replayed offline create) reads client_at = created_at before at" "true|true" "$(q -c "select (c.client_at = i.created_at)||'|'||(c.client_at < c.at) from item_change c join item i on i.id=c.item_id where c.item_id='$T2'")"
@@ -169,6 +183,14 @@ check "a pointer at another owner's row lands with to_item null and B reads noth
 LINK1=$(q -c "select id from item_link where from_item='$TL1'")
 check "the browser cannot write item_link, nor run the backfill" "42501|42501|42501|42501" "$(as_user_state $A $AUTH "insert into item_link (owner_id, from_item, from_type, target, kind, path, created_by) values ('$A','$TL1','task','$P2','about','personId','user')")|$(as_user_state $A $AUTH "update item_link set kind='mentions' where id='$LINK1'")|$(as_user_state $A $AUTH "delete from item_link where id='$LINK1'")|$(as_user_state $A $AUTH "select jarvis_link_project_all()")"
 check "the backfill marked what it found" "in|projectId|operator|backfill_0060|project|false|true|$MISSING|0" "$(links $PRE_LINKED)|$(q -c "select (to_item is null)||'|'||target from item_link where from_item='$PRE_DANGLING'")|$(q -c "select jarvis_link_project_all()")"
+
+TLE=e3000000-0000-0000-0000-00000000000e
+as_user $A $AUTH "insert into item (id, owner_id, entity_type, data) values ('$TLE','$A','task','{\"text\":\"Becomes an event\",\"category\":\"\",\"done\":false,\"projectId\":\"$PROJ_A\",\"personId\":\"$P1\"}')" >/dev/null
+BEFORE_E=$(q -c "select string_agg(kind||'|'||path||'|'||from_type, ' ; ' order by path) from item_link where from_item='$TLE'")
+as_user $A $AUTH "update item set entity_type = 'event' where id='$TLE'" >/dev/null
+check "a change of entity_type alone writes a history row with the two type words and recomputes the links for the new kind (from_type follows, a path the new kind lacks goes)" \
+  "about|personId|task ; in|projectId|task|2|update|user|{entity_type}|{\"entity_type\": \"task\"}|{\"entity_type\": \"event\"}|in|projectId|event" \
+  "$BEFORE_E|$(q -c "select count(*) from item_change where item_id='$TLE'")|$(q -c "select op||'|'||origin||'|'||changed_keys::text||'|'||before::text||'|'||after::text from item_change where item_id='$TLE' order by at desc, id desc limit 1")|$(q -c "select string_agg(kind||'|'||path||'|'||from_type, ' ; ' order by path) from item_link where from_item='$TLE'")"
 
 echo "-- item_why"
 check "item_why answers typed for a hand written task" "typed|user|insert" "$(as_user $A $AUTH "select item_why('$TL1')" | py "print(d['answer']+'|'+d['first']['origin']+'|'+d['first']['op'])")"

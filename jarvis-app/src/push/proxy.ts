@@ -148,35 +148,65 @@ export async function handlePush(req: Request, deps: { env: PushEnv; fetchImpl: 
   return json({ error: "Method not allowed" }, 405);
 }
 
-/** The counts a pull answers. `pulled` is what the backend held and the mapping accepted; `refused` is what it did not. */
-export interface PullAnswer { pulled: number; proposed: number; replayed: number; already: number; superseded: number; deleted: number; refused: number }
+/** The counts a pull answers. `pulled` is what the backend held and the mapping accepted; `refused` is what it did
+ *  not (a shape the mapping or the gateway schema refuses, or a batch the server refused whole); `remaining` is
+ *  what the backend still holds beyond INBOX_CAP, left for the next pull. */
+export interface PullAnswer { pulled: number; proposed: number; replayed: number; already: number; superseded: number; deleted: number; refused: number; remaining: number }
+
+/** The most backend items one pull handles: 10 rpc POSTs plus a DELETE per taken item is one edge invocation's worth. */
+export const INBOX_CAP = 500;
 
 /** Taken means Dave accepted or dismissed it (his decision 2, the default): only then is the backend's copy consumed. */
 export function takenByDave(r: RecordOutcome): boolean {
   return r.outcome === "already_saved" || (r.outcome === "replay" && (r.status === "accepted" || r.status === "dismissed"));
 }
 
+/** An upstream body as JSON, or null when it is not JSON at all (a proxy's HTML error page, an empty 2xx). */
+async function readJson(res: FetchResponse): Promise<unknown> {
+  try { return await res.json(); } catch { return null; }
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
 async function pullInbox(req: Request, env: PushEnv, fetchImpl: FetchLike, base: string, secretHeaders: Record<string, string>): Promise<Response> {
   const jwt = (req.headers.get("authorization") || "").slice("Bearer ".length);
   const got = await fetchImpl(`${base}/api/memory/tasks`, { headers: { "x-jarvis-secret": secretHeaders["x-jarvis-secret"]! } });
   if (!got.ok) return json({ error: "The backend inbox did not answer" }, 502);
-  const listed = (await got.json()) as { inbox?: unknown };
-  const { records, refused } = backendInboxToRecords(listed.inbox ?? []);
-  const answer: PullAnswer = { pulled: records.length, proposed: 0, replayed: 0, already: 0, superseded: 0, deleted: 0, refused: refused.length };
+  // A body that is not an object holding an inbox list is the same 502 as no answer: nothing is written or deleted.
+  const listed = await readJson(got);
+  if (!isObject(listed) || !Array.isArray(listed.inbox)) return json({ error: "The backend inbox did not answer" }, 502);
+  const handled = listed.inbox.slice(0, INBOX_CAP);
+  const { records, refused } = backendInboxToRecords(handled);
+  const answer: PullAnswer = { pulled: records.length, proposed: 0, replayed: 0, already: 0, superseded: 0, deleted: 0, refused: refused.length, remaining: listed.inbox.length - handled.length };
   if (records.length === 0) return json(answer);
 
-  for (const batch of batches<VyznRecord>(records)) {
+  // A batch the server refused whole wrote nothing, so nothing is consumed on the backend side for it; it is
+  // counted under refused and the NEXT batch still runs, so one bad record never stalls the rest of the inbox on
+  // every pull. The choice for the status: 422 only when every batch was refused (the pull achieved nothing and
+  // the first refusal says why); otherwise 200 with the counts, because the records the server took are taken.
+  let refusedBatches = 0;
+  let firstRefusal: { error: string; detail?: string } | null = null;
+  const sent = batches<VyznRecord>(records);
+  for (const batch of sent) {
     const r = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/rpc/records_import`, {
       method: "POST",
       headers: { apikey: String(env.SUPABASE_ANON_KEY), Authorization: `Bearer ${jwt}`, "content-type": "application/json" },
       body: JSON.stringify({ p_source_app: "backend-inbox", p_records: batch }),
     });
     if (!r.ok) return json({ ...answer, error: "JARVIS did not take the records" }, 502);
-    const out = (await r.json()) as IngestAnswer | { error: string; detail?: string; source_record_id?: string };
-    // A refused batch wrote nothing, so nothing is consumed on the backend side either.
-    if ("error" in out) return json({ ...answer, error: out.error, ...(out.detail ? { detail: out.detail } : {}) }, 422);
-    for (const res of out.results) {
-      if (res.outcome === "proposed") { answer.proposed += 1; answer.superseded += res.superseded; }
+    // A 2xx whose body is not an answer (null, {}, not JSON) stops the pull with the counts so far: nothing in this
+    // batch is deleted, because nothing says Dave took it.
+    const out = await readJson(r);
+    if (!isObject(out) || (!("error" in out) && !Array.isArray(out.results))) return json({ ...answer, error: "JARVIS did not answer" }, 502);
+    if ("error" in out) {
+      const bad = out as { error: string; detail?: string };
+      refusedBatches += 1;
+      answer.refused += batch.length;
+      firstRefusal ??= { error: bad.error, ...(bad.detail ? { detail: bad.detail } : {}) };
+      continue;
+    }
+    for (const res of (out as unknown as IngestAnswer).results) {
+      if (res.outcome === "proposed") { answer.proposed += 1; answer.superseded += res.superseded ?? 0; }
       else if (res.outcome === "newer_revision_proposed") answer.proposed += 1;
       else if (res.outcome === "replay") answer.replayed += 1;
       else if (res.outcome === "already_saved") answer.already += 1;
@@ -185,5 +215,6 @@ async function pullInbox(req: Request, env: PushEnv, fetchImpl: FetchLike, base:
       if (gone.ok) answer.deleted += 1;
     }
   }
+  if (firstRefusal && refusedBatches === sent.length) return json({ ...answer, ...firstRefusal }, 422);
   return json(answer);
 }

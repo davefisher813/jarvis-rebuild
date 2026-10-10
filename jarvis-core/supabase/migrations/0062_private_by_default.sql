@@ -21,7 +21,7 @@
 --      owner column by design and cannot join.
 --   4. substrate_readiness: the 0060 body with migration '0062' and the phase0.private probe widened
 --      from one table and one role to the four tables and both browser roles.
---   The 45 per row policies are not rewritten (design section 10 item 17). No table, column or policy
+--   The 44 per row policies that call auth.uid() are not rewritten (design section 10 item 17). No table, column or policy
 --   is created or dropped. Forward twice is a no-op.
 --
 -- The api read (design D7: a table a route reaches with the anon key keeps exactly its policy's verbs).

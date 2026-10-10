@@ -5,10 +5,16 @@
 -- production bodies verbatim (jarvis_capture_valid, action_undo, activity_feed and receipt_detail to 0046,
 -- connection_set_mode to 0047, item_why to 0060), and narrows the two tables back ONLY where no row
 -- depends on the wider shape:
---   source_evidence  the three columns STAY (the 0059 precedent: a rollback drops no data); the type check
+--   source_evidence  the three columns STAY (the 0059 precedent: a rollback drops no data), and with them
+--                    their three inline column checks (source_evidence_source_app_check,
+--                    source_evidence_source_record_id_check, source_evidence_source_url_check); the index
+--                    source_evidence_app_record_idx is dropped (an index is derived, not data); the type check
 --                    narrows back to (email, manual, import) only when no `type = 'app'` row exists
 --   proposal         the surface and payload checks tighten back and job_id regains NOT NULL only when no
---                    `surface = 'app'` row exists; otherwise every check stays as 0061 left it
+--                    `surface = 'app'` row exists; otherwise every check stays as 0061 left it. The payload
+--                    check comes back under the name proposal_payload_check, not 0044's auto generated
+--                    proposal_check (0061 dropped that one by its definition and named its replacement);
+--                    the definition is 0044's verbatim, only the name differs
 --
 -- Operator note: the person's inbox rows (proposal.surface = 'app') are data the forward cannot recreate,
 -- and this file never deletes them. Once they are not wanted, run by hand, in this order:
@@ -36,6 +42,8 @@ drop function if exists record_push(uuid, uuid, text, jsonb);
 drop function if exists jarvis_records_ingest(uuid, uuid, text, jsonb, text);
 drop function if exists vyzn_app_connect(uuid, text, text);
 drop function if exists jarvis_vyzn_apps();
+
+drop index if exists source_evidence_app_record_idx;
 
 -- jarvis_capture_valid, exactly as 0046 left it (no note or person branch, no search_path).
 create or replace function jarvis_capture_valid(p_kind text, p_entity_type text, p_data jsonb)
@@ -272,7 +280,8 @@ begin
     when first_row is null then 'unknown'
     when jsonb_typeof(src -> 'inferred') = 'array' and jsonb_array_length(src -> 'inferred') > 0 then 'rule'
     when src ->> 'type' in ('app', 'import', 'google_calendar', 'contacts', 'gmail', 'apple_calendar', 'apple_reminders', 'apple_health')
-      or (it.entity_type = 'person' and it.data ->> 'source' = 'import') then 'import'
+      or (it.entity_type = 'person' and it.data ->> 'source' = 'import')
+      or (it.entity_type like 'money\_%' and it.data ->> 'source' = 'import') then 'import'
     when first_origin = 'user' then 'typed'
     else first_origin end;
 

@@ -4,7 +4,8 @@
 #
 # Usage: eval "$(./local_pg.sh start)"; ./inbox.sh
 #
-# What it proves (the 30 checks of PHASE0-DESIGN.md section 3):
+# What it proves (the 30 checks of PHASE0-DESIGN.md section 3, 35 as run: 12a, 12b, 19a, 26a and 26b
+# are the review fixes of 2026-10-10, named in the 0061 header):
 #   an app is a connection the server mints, with a hashed token, propose only, Help Me; a second mint
 #   rotates the hash and the epoch and writes a second receipt, never a second row
 #   a push writes proposals on the app surface with no job, never an item; the inbox is invisible to
@@ -21,6 +22,10 @@
 #   record_approve refuses with DESTINATION_CHANGED and the difference; a higher revision before any tap
 #   supersedes the lower; dismiss, undo and the two receipt readers know a record
 #   Just Handle It is refused for an app; Read Only pauses pushes; B reads nothing of A's
+#   a client_at that is infinite or more than a day ahead is refused; two sessions pushing the same new
+#   batch at once answer replay, and other bytes under one key refuse the loser whole; a null expected
+#   revision is INVALID_PAYLOAD; Undo then Approve approves again under a new key and a third tap replays
+#   the second; a newer revision whose item was undone is not a dead end
 #   readiness carries phase0.inbox true; every function carries search_path; rollback restores the six
 #   bodies, drops the eight functions, keeps the columns and the person's proposals; forward again
 set -euo pipefail
@@ -63,13 +68,24 @@ ID9=inbox_99999999-9999-4999-8999-999999999999
 IDN=inbox_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
 IDP=inbox_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb
 IDB=inbox_cccccccc-cccc-4ccc-8ccc-cccccccccccc
-rec() { # id revision text [extra data keys]
-  echo "{\"source_record_id\":\"$1\",\"revision\":$2,\"kind\":\"task\",\"data\":{\"text\":\"$3\",\"due\":\"2026-10-01\",\"notes\":\"Priority High\"${4:-}},\"source\":{\"label\":\"Added by Michael Corleone\"},\"client_at\":\"2026-10-09T12:00:00Z\"}"
+IDC=inbox_dddddddd-dddd-4ddd-8ddd-dddddddddddd
+IDR1=inbox_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1
+IDR2=inbox_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2
+IDR3=inbox_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3
+IDR4=inbox_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4
+IDT=inbox_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee5
+IDF=inbox_ffffffff-ffff-4fff-8fff-ffffffffffff
+rec() { # id revision text [extra data keys] [client_at]
+  echo "{\"source_record_id\":\"$1\",\"revision\":$2,\"kind\":\"task\",\"data\":{\"text\":\"$3\",\"due\":\"2026-10-01\",\"notes\":\"Priority High\"${4:-}},\"source\":{\"label\":\"Added by Michael Corleone\"},\"client_at\":\"${5:-2026-10-09T12:00:00Z}\"}"
 }
 BATCH3="[$(rec $ID1 1 'Send the grant letter'),$(rec $ID2 1 'Call the board chair'),$(rec $ID3 1 'Book the venue')]"
 TASK_PREP="{\"destination_kind\":\"task\",\"data\":{\"text\":\"Send the grant letter\",\"category\":\"\",\"done\":false,\"due\":\"2026-10-01\",\"notes\":\"Priority High\",\"projectId\":\"$PROJ_A\",\"source\":{\"type\":\"paste\",\"ts\":1}},\"exact_effect\":\"Added to Tasks · Send the Grant Letter\",\"display_summary\":\"Send the Grant Letter · Due Oct 1\",\"module_version\":\"tasks-service-2026-10-03\"}"
 CAP_PREP='{"destination_kind":"task","data":{"text":"Review transcript","category":"","done":false,"due":"2026-10-09"},"exact_effect":"Added to Tasks · Review transcript","display_summary":"Review transcript · Due Oct 9","module_version":"tasks-2026-10-02"}'
 push() { as_user $A $SVC "select record_push('$A','$FEED','$APP','$1')"; }
+# One session, one transaction, several statements (each -c); the service role's claims are local to it.
+push_tx() { PGOPTIONS="-c client_min_messages=warning" psql -qAt -d "$DB" -c "begin" -c "set local role $SVC" -c "select set_config('request.jwt.claims', '{\"sub\":\"$A\",\"role\":\"$SVC\"}', true)" "$@" -c "commit" 2>&1 | tail -1; }
+# A push held open for three seconds before it commits, in the background: the race partner of a second push.
+push_held() { push_tx -c "select record_push('$A','$FEED','$APP','$1')" -c "select pg_sleep(3)" >/dev/null & sleep 1; }
 approve() { # proposal prepared [who]
   local who=${3:-$A}; local rev hash
   rev=$(q -c "select revision from proposal where id='$1'"); hash=$(q -c "select payload_hash from proposal where id='$1'")
@@ -129,6 +145,21 @@ q -c "update agent_connection set status='connected' where id='$FEED'" >/dev/nul
 check "12. the browser cannot call record_push; a read only or revoked connection cannot push; a connection with provider_key claude cannot push" "42501|SCOPE_DENIED|CONNECTION_REVOKED|SCOPE_DENIED|4" \
   "$(as_user_state $A $AUTH "select record_push('$A','$FEED','$APP','$BATCH3')")|$RO|$RV|$(as_user $A $SVC "select record_push('$A','$CONN','$APP','[$(rec $ID5 1 'Claude')]')" | jget error)|$(app_props $A)"
 
+echo "-- the moment and the race (review fixes 2 and 3)"
+N12=$(app_props $A)
+check "12a. a client_at of infinity, -infinity or the year 9999 is refused with INVALID_PAYLOAD client_at and the record's id, writes nothing; the year 2000 is accepted" "INVALID_PAYLOAD|client_at|$IDC|INVALID_PAYLOAD|client_at|INVALID_PAYLOAD|client_at|$N12|proposed" \
+  "$(push "[$(rec $IDC 1 'When' '' infinity)]" | py "print(d['error']+'|'+d['detail']+'|'+d['source_record_id'])")|$(push "[$(rec $IDC 1 'When' '' -infinity)]" | py "print(d['error']+'|'+d['detail'])")|$(push "[$(rec $IDC 1 'When' '' 9999-12-31T00:00:00Z)]" | py "print(d['error']+'|'+d['detail'])")|$(app_props $A)|$(push "[$(rec $IDC 1 'When' '' 2000-01-01T00:00:00Z)]" | outcomes)"
+RACE1="[$(rec $IDR1 1 'Race one'),$(rec $IDR2 1 'Race two')]"
+push_held "$RACE1"
+R12B=$(push "$RACE1")
+wait
+push_held "[$(rec $IDR3 1 'Race three')]"
+R12C=$(push "[$(rec $IDR4 1 'Innocent'),$(rec $IDR3 1 'Race three, other bytes')]")
+wait
+check "12b. two sessions push the same new batch at once: the second answers replay for both with the first's receipt, one proposal per record; other bytes under one key refuse the loser whole (the innocent record is not written); two pushes inside one transaction answer replay" \
+  "replay,replay|True|2|t|1|1|IDEMPOTENCY_CONFLICT|$IDR3|1|0|replay" \
+  "$(echo "$R12B" | outcomes)|$(echo "$R12B" | py "print(str(d['replay'])+'|'+str(len([1 for r in d['results'] if r['proposal_id']])))")|$(q -c "select '$(echo "$R12B" | jget receipt_id)' = (select r.id::text from receipt_event r join action a on a.id = r.action_id where a.owner_id='$A' and a.idempotency_key = 'records:' || encode(sha256(convert_to('$RACE1'::jsonb::text, 'UTF8')), 'hex'))")|$(q -c "select count(*) from proposal where owner_id='$A' and payload->>'source_record_id'='$IDR1'")|$(q -c "select count(*) from proposal where owner_id='$A' and payload->>'source_record_id'='$IDR2'")|$(echo "$R12C" | py "print(d['error']+'|'+d['source_record_id'])")|$(q -c "select count(*) from proposal where owner_id='$A' and payload->>'source_record_id'='$IDR3'")|$(q -c "select count(*) from proposal where owner_id='$A' and payload->>'source_record_id'='$IDR4'")|$(push_tx -c "select record_push('$A','$FEED','$APP','[$(rec $IDT 1 'Twice')]')" -c "select record_push('$A','$FEED','$APP','[$(rec $IDT 1 'Twice')]')" | outcomes)"
+
 echo "-- the pull: records_import as the person"
 I1=$(as_user $A $AUTH "select records_import('$APP','[$(rec $ID5 1 'Thank the donors')]')")
 PR5=$(echo "$I1" | jget results.0.proposal_id)
@@ -159,6 +190,8 @@ REV1=$(q -c "select revision from proposal where id='$PR1'")
 PR2=$(echo "$P1" | jget results.1.proposal_id)
 check "19. a second tap with the same hash is a replay; a different hash is IDEMPOTENCY_CONFLICT; a wrong revision is SOURCE_CHANGED" "True|$ACT|IDEMPOTENCY_CONFLICT|SOURCE_CHANGED" \
   "$(as_user $A $AUTH "select record_approve('$PR1',$REV1,'$HASH1','k-again','$TASK_PREP')" | py "print(str(d['replay'])+'|'+d['action_id'])")|$(as_user $A $AUTH "select record_approve('$PR1',$REV1,'other-hash','k-other','$TASK_PREP')" | jget error)|$(as_user $A $AUTH "select record_approve('$PR2',99,'$(q -c "select payload_hash from proposal where id='$PR2'")','k-rev','$TASK_PREP')" | jget error)"
+check "19a. a null expected revision is INVALID_PAYLOAD expected_revision for record_approve and record_dismiss, and the row stays proposed" "INVALID_PAYLOAD|expected_revision|INVALID_PAYLOAD|expected_revision|proposed" \
+  "$(as_user $A $AUTH "select record_approve('$PR2',null,'$(q -c "select payload_hash from proposal where id='$PR2'")','k-null','$TASK_PREP')" | py "print(d['error']+'|'+d['detail'])")|$(as_user $A $AUTH "select record_dismiss('$PR2',null)" | py "print(d['error']+'|'+d['detail'])")|$(q -c "select status from proposal where id='$PR2'")"
 PRBILL=$(push "[$(rec $IDB 1 'Con Edison bill' ',"amountCents":14230,"vendor":"Con Edison"')]" | jget results.0.proposal_id)
 ITEMS_B=$(q -c "select count(*) from item where owner_id='$A'")
 check "20. a bill shaped task is MISSING_DETAILS bill_is_not_a_task and writes nothing" "MISSING_DETAILS|[\"bill_is_not_a_task\"]|$ITEMS_B|proposed" \
@@ -207,6 +240,23 @@ UNC=$(as_user $A $AUTH "select action_undo('$(echo "$RC" | jget action_id)','$(e
 check "26. action_undo removes a record task and puts the proposal back to proposed; an undone record note reads Removed From Notes; action_undo still undoes a capture_task exactly as before" \
   "confirmed|Removed From Tasks · Send the grant letter|0|proposed|1|Removed From Notes · Board notes|0|accepted|Removed From Tasks · Review transcript|0|proposed" \
   "$(echo "$UN" | py "print(d['state']+'|'+d['safe_message'])")|$(q -c "select count(*) from item where id='$DEST'")|$(q -c "select status from proposal where id='$PR1'")|$(as_user $A $AUTH "select vyzn_inbox()" | py "print(sum(1 for r in d['rows'] if r['id']=='$PR1'))")|$(echo "$UNN" | jget safe_message)|$(q -c "select count(*) from item where id='$NOTE_ID'")|$(q -c "select status from proposal where id='$PRP'")|$(echo "$UNC" | jget safe_message)|$(q -c "select count(*) from item where id='$(echo "$RC" | jget destination_id)'")|$(q -c "select status from email_candidate where id='$C_TASK'")"
+
+R26A=$(approve $PR1 "$TASK_PREP")
+ACT2=$(echo "$R26A" | jget action_id)
+R26B=$(as_user $A $AUTH "select record_approve('$PR1',$(q -c "select revision from proposal where id='$PR1'"),'$HASH1','k-third','$TASK_PREP')")
+check "26a. Undo then Approve approves the same row again under a new key: a second action, the item made again under its clientId, the row accepted; a third tap with the same hash replays the second action, not the undone one" \
+  "confirmed|False|1|accepted|record:$PR1:1:0,record:$PR1:1:1|True|$ACT2|IDEMPOTENCY_CONFLICT" \
+  "$(echo "$R26A" | py "print(d['state']+'|'+str(d['already']))")|$(q -c "select count(*) from item where owner_id='$A' and data->>'clientId'='$APP:$ID1'")|$(q -c "select status from proposal where id='$PR1'")|$(q -c "select string_agg(idempotency_key, ',' order by created_at) from action where proposal_id='$PR1' and kind like 'record\\_%'")|$(echo "$R26B" | py "print(str(d['replay'])+'|'+d['action_id'])")|$(as_user $A $AUTH "select record_approve('$PR1',$(q -c "select revision from proposal where id='$PR1'"),'other-hash','k-fourth','$TASK_PREP')" | jget error)"
+PF1=$(push "[$(rec $IDF 1 'Paint the fence')]" | jget results.0.proposal_id)
+RF1=$(approve $PF1 "$(echo "$TASK_PREP" | sed 's/Send the grant letter/Paint the fence/')")
+PF2R=$(push "[$(rec $IDF 2 'Paint the fence white')]")
+PF2=$(echo "$PF2R" | jget results.0.proposal_id)
+EF2=$(approve $PF2 "$(echo "$TASK_PREP" | sed 's/Send the grant letter/Paint the fence white/')" | jget error)
+UF1=$(as_user $A $AUTH "select action_undo('$(echo "$RF1" | jget action_id)','$(echo "$RF1" | jget item_updated_at)','k-undo-f')" | jget state)
+RF2=$(approve $PF2 "$(echo "$TASK_PREP" | sed 's/Send the grant letter/Paint the fence white/')")
+check "26b. approve rev 1, push rev 2 (newer_revision_proposed, refused while the item stands), undo rev 1: approving rev 2 creates the item instead of a permanent Item removed; rev 1 is back to proposed, rev 2 accepted" \
+  "confirmed|newer_revision_proposed|DESTINATION_CHANGED|confirmed|confirmed|False|Paint the fence white|$APP:$IDF|1|proposed|accepted" \
+  "$(echo "$RF1" | jget state)|$(echo "$PF2R" | outcomes)|$EF2|$UF1|$(echo "$RF2" | py "print(d['state']+'|'+str(d['already']))")|$(q -c "select (data->>'text')||'|'||(data->>'clientId') from item where id='$(echo "$RF2" | jget destination_id)'")|$(q -c "select count(*) from item where owner_id='$A' and data->>'clientId'='$APP:$IDF'")|$(q -c "select status from proposal where id='$PF1'")|$(q -c "select status from proposal where id='$PF2'")"
 
 echo "-- the mode words for an app"
 FEED_REV=$(q -c "select revision from agent_connection where id='$FEED'")

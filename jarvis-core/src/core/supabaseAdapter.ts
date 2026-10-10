@@ -57,6 +57,18 @@ function toItem(row: ItemRow): Item {
 // supabaseAdapter.test.ts pins the string.
 const ITEM_COLUMNS = "id, owner_id, entity_type, data, updated_at, created_at";
 
+// Review finding 4 (2026-10-10): `new Date(ms).toISOString()` throws RangeError
+// for NaN, Infinity and |ms| > 8.64e15, and Store.drain rethrows anything that
+// is not a duplicate key, so a persisted queue op whose queuedAt is not a
+// real moment would wedge the queue at its head for good. A moment the wire
+// can carry is finite and within the Date range; anything else sends no age
+// and the server stamps now(), exactly as a queue from an older build does.
+const MAX_WIRE_MS = 8.64e15;
+export function wireTime(ms: number | undefined): string | undefined {
+  if (ms === undefined || !Number.isFinite(ms) || ms < 0 || ms > MAX_WIRE_MS) return undefined;
+  return new Date(ms).toISOString();
+}
+
 export class SupabaseAdapter implements DataAdapter {
   constructor(private readonly db: SupabaseClient) {}
 
@@ -78,11 +90,12 @@ export class SupabaseAdapter implements DataAdapter {
     // The owner may set the column (item_insert's with check is owner_id
     // only, migration 0001), and the history trigger in 0060 reads
     // new.created_at as the insert's client_at.
+    const madeAt = wireTime(createdAt);
     const { data: row, error } = await this.db
       .from("item")
       .insert({
         ...(id ? { id } : {}),
-        ...(createdAt !== undefined ? { created_at: new Date(createdAt).toISOString() } : {}),
+        ...(madeAt ? { created_at: madeAt } : {}),
         entity_type: entityType,
         data,
       })
@@ -153,10 +166,11 @@ export class SupabaseAdapter implements DataAdapter {
     // third argument is sent only when the Store has one (a held edit
     // replaying), so a live edit keeps the two argument call shape and the
     // database that has not run 0060 yet keeps resolving it.
+    const at = wireTime(clientAt);
     const { data: applied, error } = await this.db.rpc("item_apply_patch", {
       p_id: id,
       p_patch: patch,
-      ...(clientAt !== undefined ? { p_client_at: new Date(clientAt).toISOString() } : {}),
+      ...(at ? { p_client_at: at } : {}),
     });
     if (error) throw error;
     return applied === true;
@@ -174,10 +188,15 @@ export class SupabaseAdapter implements DataAdapter {
     patch: ItemData,
     clientAt: number
   ): Promise<"applied" | "stale" | "missing"> {
+    // The same guard as apply: an age the wire cannot carry (a corrupted
+    // queuedAt) falls back to the unconditional merge rather than throwing
+    // at the head of the queue, the same path a build without 0032 takes.
+    const at = wireTime(clientAt);
+    if (at === undefined) return (await this.apply(_ownerId, id, patch)) ? "applied" : "missing";
     const { data: outcome, error } = await this.db.rpc("item_apply_patch_if_older", {
       p_id: id,
       p_patch: patch,
-      p_client_at: new Date(clientAt).toISOString(),
+      p_client_at: at,
     });
     if (error) {
       // BEFORE THE MIGRATION IS RUN. Dave pastes migrations into the SQL

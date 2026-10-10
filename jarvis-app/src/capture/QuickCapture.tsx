@@ -448,7 +448,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     <div className="sheet-scrim" onClick={() => { if (phase !== "saving") onClose(); }}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{phase !== "saved" ? "Smart Paste" : saved.every((x) => x.removed) ? "Smart Paste" : savedToastText("Saved", "Filed", pending())}</div></div>
+        <div className="grp"><div className="eyebrow">{phase !== "saved" ? "Smart Paste" : saved.every((x) => x.removed) ? "Smart Paste" : savedToastText("Saved", heldText(), pending())}</div></div>
 
         {phase !== "saved" && (
           <div className="pad-x sheet-form">

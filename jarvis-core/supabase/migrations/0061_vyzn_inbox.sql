@@ -38,7 +38,7 @@
 --   1. record_push and records_import NEVER call jarvis_ai_switch. A deterministic transfer is not
 --      inference; the feed works with AI off, and the proof asserts the contrast with proposal_submit.
 --   2. Nothing partial. A batch with one bad record (shape, an authority key, an unknown kind, a reserved
---      key inside data, an idempotency key reused with a different hash) is refused whole and writes nothing.
+--      key at the top level of data, an idempotency key reused with a different hash) is refused whole and writes nothing.
 --   3. A newer revision of a saved record never touches the item. It becomes a proposal carrying
 --      previous_item, and record_approve refuses that proposal with DESTINATION_CHANGED and a per field
 --      difference. There is no code path in Phase 0 that can overwrite Dave's row.
@@ -64,6 +64,41 @@
 --      and `theirs` as the record's (the app's); the design named the two words without saying which was which.
 --   h. jarvis_records_ingest is SECURITY DEFINER with no grant: as an invoker body it would run under the
 --      pulling person's role, which may only select proposal.
+--
+-- Review fixes (2026-10-10), from the adversarial SQL review of the working tree; each is a change to
+-- a body above the design's wording and is proved by the inbox.sh check named:
+--   1. record_approve's action key is 'record:' || proposal id || ':' || record revision || ':' || the
+--      count of record_% actions the proposal already has, so Undo then Approve of the same row is a
+--      second approval with a new key instead of a 23505 on action(owner_id, idempotency_key); the
+--      status = accepted replay branch finds the latest record_% action of the proposal (created_at
+--      desc), so the hash replay and IDEMPOTENCY_CONFLICT logic are unchanged. action_undo looks the
+--      action up by id and is untouched. (check 26a)
+--   2. jarvis_records_ingest refuses a client_at that is not finite (infinity, -infinity) or later than
+--      now() + interval '1 day' with INVALID_PAYLOAD, detail client_at and the source_record_id, so a
+--      record can never reach record_approve's epoch arithmetic with a value it cannot convert;
+--      record_approve itself falls back to now() for an unreadable or infinite stamp. (check 10a)
+--   3. jarvis_records_ingest survives a concurrent push of the same new batch: the per record insert
+--      catches unique_violation (proposal_idempotency_idx) and re-reads the row the other push
+--      committed, answering replay for the same bytes and IDEMPOTENCY_CONFLICT for other bytes; the
+--      second pass is one subtransaction, so a refusal rolls back every write of the pass (nothing
+--      partial still holds); the arrival receipt catches the same conflict on action(owner_id,
+--      idempotency_key) and re-uses the receipt that stands. Proved (check 7a) by two real sessions:
+--      one holds its push open while the other pushes the same batch (replay, replay) and, with other
+--      bytes under one key, is refused whole with the untouched record not written; and by two pushes
+--      inside one transaction answering replay. Not proved: the receipt conflict branch, which no
+--      ordering of two sessions reaches (an identical batch that loses the race writes nothing and so
+--      writes no receipt; a different batch has a different key); it is defensive only.
+--   4. record_approve, on a payload carrying previous_item whose item is gone: if a row holds the
+--      record's clientId that row is the destination and the answer is DESTINATION_CHANGED with the
+--      difference against it; if none does and no accepted later revision exists, the tap falls
+--      through to the create path instead of a permanent "Item removed", so a pending newer revision
+--      after Undo is not a dead end. (check 26b)
+--   5. record_approve and record_dismiss answer INVALID_PAYLOAD, detail expected_revision, for a null
+--      p_expected_revision; before, a null skipped the optimistic revision check (SQL null never
+--      compares unequal). capture_approve and connection_set_mode carry the same pre-existing pattern
+--      and are out of this file's scope. (check 19a)
+--   9. Header notes, no body change: vyzn_app_connect's gate is its EXECUTE grant (see the function);
+--      jarvis_records_ingest's reserved key refusal is top level of data only (see the function).
 --
 -- Forward twice is a no-op. Rollback: rollback/0061_vyzn_inbox_down.sql. Rehearsed by tests/inbox.sh.
 
@@ -151,6 +186,12 @@ grant execute on function jarvis_vyzn_apps() to anon, authenticated, service_rol
 -- existing agent_connection_verify, and writes one connect receipt keyed per
 -- rotation. A second call rotates the hash and the epoch and writes a second
 -- receipt; it never writes a second row. Never granted to a browser role.
+-- The gate is the EXECUTE grant alone: jarvis_is_server() is always true
+-- inside a SECURITY DEFINER body (0044 says so), so the first line below
+-- refuses nothing by itself. The only roles that may execute this function
+-- are the SQL editor (postgres, the owner) and service_role; anon and
+-- authenticated are revoked and a call from either is 42501 before the body
+-- runs (inbox.sh checks 2 and 3).
 create or replace function vyzn_app_connect(p_owner uuid, p_app text, p_token_hash text)
 returns jsonb
 language plpgsql
@@ -302,6 +343,7 @@ declare
   act action%rowtype;
   aid uuid;
   actor_kind text;
+  raced boolean;
 begin
   if p_owner is null then return jsonb_build_object('error', 'AUTH_REQUIRED'); end if;
   if p_source_app is null or not (p_source_app = any(jarvis_vyzn_apps())) then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'source_app'); end if;
@@ -337,6 +379,10 @@ begin
     if jsonb_typeof(rdata) <> 'object' or octet_length(rdata::text) > 8192 then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'data', 'source_record_id', sid); end if;
     if not jarvis_payload_clean(rdata) then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'authority', 'source_record_id', sid); end if;
     -- Words the server would believe: the destination, the identity and the stamp are the server's alone.
+    -- Top level of data only, and that is enough: record_approve reads nothing authoritative from
+    -- payload.data (only the per field diff and the excerpt text); the item's data comes from p_prepared,
+    -- which the person's own adapter built, with clientId and source overwritten by the server. A nested
+    -- previous_item or destination_id is inert text.
     if rdata ?| array['previous_item', 'destination_id', 'clientId', 'source'] then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'data', 'source_record_id', sid); end if;
     if rec ? 'source' and jsonb_typeof(rec -> 'source') <> 'null' then
       src := rec -> 'source';
@@ -354,6 +400,10 @@ begin
       exception when others then
         return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'client_at', 'source_record_id', sid);
       end;
+      -- A moment, not a word: finite, and no later than a day past this clock (record_approve turns it into epoch milliseconds).
+      if cat is null or not isfinite(cat) or cat > now() + interval '1 day' then
+        return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'client_at', 'source_record_id', sid);
+      end if;
     end if;
     ckey := p_source_app || ':' || sid;
     idem := ckey || ':' || (rec ->> 'revision');
@@ -362,7 +412,10 @@ begin
     if found and existing.payload_hash <> h then return jsonb_build_object('error', 'IDEMPOTENCY_CONFLICT', 'source_record_id', sid); end if;
   end loop;
 
-  -- Second pass: per record.
+  -- Second pass: per record. The whole pass is one subtransaction: a concurrent push that landed the
+  -- same key with other bytes between the two passes refuses this batch whole, and every write of this
+  -- pass is rolled back with it (review fix 3).
+  begin
   for rec in select * from jsonb_array_elements(p_records) loop
     sid := rec ->> 'source_record_id';
     rev := (rec ->> 'revision')::integer;
@@ -383,6 +436,7 @@ begin
 
     item_id := null;
     select i.id, i.updated_at into item_id, item_rev from item i where i.owner_id = p_owner and i.data ->> 'clientId' = ckey limit 1;
+    raced := false;
     if item_id is not null then
       -- The record is saved. At or below the highest accepted revision: nothing to do. Above it: a proposal
       -- that names the item it would change, which record_approve refuses; the item is never touched here.
@@ -392,34 +446,63 @@ begin
         results := results || jsonb_build_object('source_record_id', sid, 'revision', rev, 'outcome', 'already_saved', 'item_id', item_id);
         continue;
       end if;
-      insert into proposal (owner_id, job_id, agent_id, surface, type, payload, payload_hash, created_by, origin_taint, idempotency_key)
-      values (p_owner, null, p_connection, 'app', 'capture', pl || jsonb_build_object('previous_item', item_id, 'previous_updated_at', item_rev), h, p_created_by, 'untrusted_suggestion', idem)
-      returning id into pid;
-      wrote := wrote + 1;
-      results := results || jsonb_build_object('source_record_id', sid, 'revision', rev, 'outcome', 'newer_revision_proposed', 'proposal_id', pid, 'item_id', item_id);
-      continue;
+      begin
+        insert into proposal (owner_id, job_id, agent_id, surface, type, payload, payload_hash, created_by, origin_taint, idempotency_key)
+        values (p_owner, null, p_connection, 'app', 'capture', pl || jsonb_build_object('previous_item', item_id, 'previous_updated_at', item_rev), h, p_created_by, 'untrusted_suggestion', idem)
+        returning id into pid;
+      exception when unique_violation then
+        raced := true;
+      end;
+      if not raced then
+        wrote := wrote + 1;
+        results := results || jsonb_build_object('source_record_id', sid, 'revision', rev, 'outcome', 'newer_revision_proposed', 'proposal_id', pid, 'item_id', item_id);
+        continue;
+      end if;
+    else
+      begin
+        -- No item. Older open revisions of the same record step aside so a stale one can never be approved first.
+        update proposal set status = 'superseded'
+         where owner_id = p_owner and surface = 'app' and status = 'proposed' and payload ->> 'client_id' = ckey and (payload ->> 'revision')::integer < rev;
+        get diagnostics sup = row_count;
+        insert into proposal (owner_id, job_id, agent_id, surface, type, payload, payload_hash, created_by, origin_taint, idempotency_key)
+        values (p_owner, null, p_connection, 'app', 'capture', pl, h, p_created_by, 'untrusted_suggestion', idem)
+        returning id into pid;
+      exception when unique_violation then
+        raced := true;
+      end;
+      if not raced then
+        wrote := wrote + 1;
+        results := results || jsonb_build_object('source_record_id', sid, 'revision', rev, 'outcome', 'proposed', 'proposal_id', pid, 'superseded', sup);
+        continue;
+      end if;
     end if;
 
-    -- No item. Older open revisions of the same record step aside so a stale one can never be approved first.
-    update proposal set status = 'superseded'
-     where owner_id = p_owner and surface = 'app' and status = 'proposed' and payload ->> 'client_id' = ckey and (payload ->> 'revision')::integer < rev;
-    get diagnostics sup = row_count;
-    insert into proposal (owner_id, job_id, agent_id, surface, type, payload, payload_hash, created_by, origin_taint, idempotency_key)
-    values (p_owner, null, p_connection, 'app', 'capture', pl, h, p_created_by, 'untrusted_suggestion', idem)
-    returning id into pid;
-    wrote := wrote + 1;
-    results := results || jsonb_build_object('source_record_id', sid, 'revision', rev, 'outcome', 'proposed', 'proposal_id', pid, 'superseded', sup);
+    -- A concurrent push committed this key (proposal_idempotency_idx) after the first pass looked. The same
+    -- bytes are a replay of that row; other bytes refuse the batch whole, through the handler below.
+    select * into existing from proposal where owner_id = p_owner and idempotency_key = idem;
+    if not found or existing.payload_hash <> h then
+      raise exception using errcode = 'JV001', message = sid;
+    end if;
+    results := results || jsonb_build_object('source_record_id', sid, 'revision', rev, 'outcome', 'replay', 'proposal_id', existing.id, 'status', existing.status);
   end loop;
+  exception when sqlstate 'JV001' then
+    return jsonb_build_object('error', 'IDEMPOTENCY_CONFLICT', 'source_record_id', sqlerrm);
+  end;
 
-  -- One arrival receipt per batch that wrote anything; a whole replay finds the first.
+  -- One arrival receipt per batch that wrote anything; a whole replay finds the first. A concurrent
+  -- identical batch that committed first holds the receipt's key: its receipt is the answer.
   h_batch := encode(sha256(convert_to(p_records::text, 'UTF8')), 'hex');
   select * into act from action where owner_id = p_owner and idempotency_key = 'records:' || h_batch;
   if found then
     aid := act.id;
   elsif wrote > 0 then
-    aid := jarvis_record(p_owner, 'record_push', actor_kind, p_connection,
-                         left(format('Received %s %s From %s', wrote, case wrote when 1 then 'Record' else 'Records' end, display), 200),
-                         'system', 'confirmed', h_batch, 'records:' || h_batch, display, 'verified_jarvis');
+    begin
+      aid := jarvis_record(p_owner, 'record_push', actor_kind, p_connection,
+                           left(format('Received %s %s From %s', wrote, case wrote when 1 then 'Record' else 'Records' end, display), 200),
+                           'system', 'confirmed', h_batch, 'records:' || h_batch, display, 'verified_jarvis');
+    exception when unique_violation then
+      select id into aid from action where owner_id = p_owner and idempotency_key = 'records:' || h_batch;
+    end;
   end if;
   return jsonb_build_object('received', n, 'written', wrote, 'results', results,
                             'receipt_id', (select id from receipt_event where action_id = aid order by sequence limit 1),
@@ -551,18 +634,23 @@ begin
   if p_idempotency_key is null or length(p_idempotency_key) not between 1 and 128 then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'idempotency_key'); end if;
   if jsonb_typeof(p_prepared) <> 'object' or length(p_prepared::text) > 32768 then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'prepared'); end if;
   if p_shown_payload_hash is null or length(p_shown_payload_hash) not between 1 and 128 then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'payload_hash'); end if;
+  if p_expected_revision is null then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'expected_revision'); end if;
 
   select * into p from proposal where id = p_proposal and owner_id = owner for update;
   if not found then return jsonb_build_object('error', 'NOT_FOUND'); end if;
   if p.surface <> 'app' then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'surface'); end if;
   kind := p.payload ->> 'kind';
   client_id := p.payload ->> 'client_id';
-  idem := 'record:' || p.id::text || ':' || coalesce(p.payload ->> 'revision', '0');
+  -- One key per approval attempt: an undone approval keeps its key, so the count of record_% actions this
+  -- proposal already has makes the next tap's key new (review fix 1). Replays are found by proposal, below.
+  idem := 'record:' || p.id::text || ':' || coalesce(p.payload ->> 'revision', '0') || ':'
+          || (select count(*) from action a where a.owner_id = owner and a.proposal_id = p.id and a.kind like 'record\_%')::text;
 
   if p.status = 'accepted' then
     -- Already landed, by this device or another. The same hash is the first tap's answer; a different
-    -- hash means this device was looking at an older row than the one that was approved.
-    select * into existing from action where owner_id = owner and idempotency_key = idem;
+    -- hash means this device was looking at an older row than the one that was approved. The latest
+    -- record_% action of this proposal is the approval that stands (an undone one is older).
+    select a.* into existing from action a where a.owner_id = owner and a.proposal_id = p.id and a.kind like 'record\_%' order by a.created_at desc, a.id desc limit 1;
     if not found then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'accepted'); end if;
     if existing.payload_hash <> p_shown_payload_hash then
       return jsonb_build_object('error', 'IDEMPOTENCY_CONFLICT', 'action_id', existing.id, 'destination_id', existing.destination_id);
@@ -575,21 +663,38 @@ begin
   end if;
 
   -- The structural never overwrite: a newer revision of a saved record names the item it would change,
-  -- and the answer is the difference, field by field. Nothing is written.
+  -- and the answer is the difference, field by field. Nothing is written. When the named item is gone
+  -- (the earlier approval was undone) the row that holds the record's key, if any, is the one it would
+  -- change; when none does and no later revision was accepted, nothing stands in the way and the tap
+  -- creates the item below (review fix 4).
   if p.payload ? 'previous_item' then
     select * into prev from item where id = (p.payload ->> 'previous_item')::uuid and owner_id = owner;
-    select coalesce(jsonb_agg(jsonb_build_object('field', kv.k, 'yours', prev.data -> kv.k, 'theirs', kv.v) order by kv.k), '[]'::jsonb) into diff
-      from jsonb_each(p.payload -> 'data') as kv(k, v)
-     where prev.id is null or (prev.data -> kv.k) is distinct from kv.v;
-    return jsonb_build_object('error', 'DESTINATION_CHANGED', 'item_id', p.payload -> 'previous_item', 'item_updated_at', prev.updated_at, 'difference', diff,
-                              'detail', case when prev.id is null then 'Item removed' else 'newer revision' end);
+    if prev.id is null then
+      select * into prev from item i where i.owner_id = owner and i.data ->> 'clientId' = client_id limit 1;
+    end if;
+    if prev.id is not null
+       or exists (select 1 from proposal q where q.owner_id = owner and q.surface = 'app' and q.status = 'accepted'
+                    and q.payload ->> 'client_id' = client_id and (q.payload ->> 'revision')::integer > (p.payload ->> 'revision')::integer) then
+      select coalesce(jsonb_agg(jsonb_build_object('field', kv.k, 'yours', prev.data -> kv.k, 'theirs', kv.v) order by kv.k), '[]'::jsonb) into diff
+        from jsonb_each(p.payload -> 'data') as kv(k, v)
+       where prev.id is null or (prev.data -> kv.k) is distinct from kv.v;
+      return jsonb_build_object('error', 'DESTINATION_CHANGED', 'item_id', coalesce(to_jsonb(prev.id), p.payload -> 'previous_item'), 'item_updated_at', prev.updated_at, 'difference', diff,
+                                'detail', case when prev.id is null then 'Item removed' else 'newer revision' end);
+    end if;
   end if;
 
   dest_kind := p_prepared ->> 'destination_kind';
   if dest_kind is null or not exists (select 1 from entity_type where key = dest_kind) then return jsonb_build_object('error', 'MODULE_UNAVAILABLE', 'destination', dest_kind); end if;
   if dest_kind <> kind then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'destination'); end if;
   if jsonb_typeof(p_prepared -> 'data') <> 'object' then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'data'); end if;
-  cat := coalesce(nullif(p.payload ->> 'client_at', '')::timestamptz, now());
+  -- The stamp's moment: the record's client_at (ingest admits only a finite one, at most a day ahead),
+  -- else the approval moment; an unreadable or infinite value can never reach the epoch arithmetic.
+  begin
+    cat := nullif(p.payload ->> 'client_at', '')::timestamptz;
+  exception when others then
+    cat := null;
+  end;
+  if cat is null or not isfinite(cat) then cat := now(); end if;
   cap_data := (p_prepared -> 'data') - 'source'
               || jsonb_build_object('clientId', client_id,
                                     'source', jsonb_build_object('type', 'app', 'ref', client_id, 'ts', (extract(epoch from cat) * 1000)::bigint));
@@ -656,6 +761,7 @@ declare
   new_rev integer;
 begin
   if owner is null then return jsonb_build_object('error', 'AUTH_REQUIRED'); end if;
+  if p_expected_revision is null then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'expected_revision'); end if;
   select * into pr from proposal where id = p_proposal and owner_id = owner for update;
   if not found then return jsonb_build_object('error', 'NOT_FOUND'); end if;
   if pr.surface <> 'app' then return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'surface'); end if;
@@ -877,7 +983,8 @@ begin
     when first_row is null then 'unknown'
     when jsonb_typeof(src -> 'inferred') = 'array' and jsonb_array_length(src -> 'inferred') > 0 then 'rule'
     when src ->> 'type' in ('app', 'import', 'google_calendar', 'contacts', 'gmail', 'apple_calendar', 'apple_reminders', 'apple_health')
-      or (it.entity_type = 'person' and it.data ->> 'source' = 'import') then 'import'
+      or (it.entity_type = 'person' and it.data ->> 'source' = 'import')
+      or (it.entity_type like 'money\_%' and it.data ->> 'source' = 'import') then 'import'
     when first_origin = 'user' then 'typed'
     else first_origin end;
 

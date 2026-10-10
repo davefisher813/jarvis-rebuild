@@ -222,12 +222,19 @@ async function aiImprove(line: string, deps: PasteDeps): Promise<AiAnswer> {
   } catch {
     return { kind: "refused" };
   }
-  const parsed = parseCapture(raw);
-  if (!parsed) return { kind: "unreadable" };
-  // Created titles get the convention; the model does not get to invent
-  // casing any more than the heuristics do.
-  parsed.title = titleCase(parsed.title);
-  return { kind: "parsed", result: parsed };
+  // The model answered; whatever cannot be read is unreadable, never a throw
+  // out of saveEntities (review finding 12: a non string answer used to throw
+  // at raw.replace once the parse moved outside the try).
+  try {
+    const parsed = parseCapture(raw);
+    if (!parsed) return { kind: "unreadable" };
+    // Created titles get the convention; the model does not get to invent
+    // casing any more than the heuristics do.
+    parsed.title = titleCase(parsed.title);
+    return { kind: "parsed", result: parsed };
+  } catch {
+    return { kind: "unreadable" };
+  }
 }
 
 // The paste stamp. Behind memory_v1 it names the fields a rule guessed

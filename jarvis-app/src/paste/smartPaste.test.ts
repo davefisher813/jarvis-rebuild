@@ -39,6 +39,8 @@ const aiOff: Ai = { available: false, complete: async () => { throw new Error("A
 const gated: Ai = { available: true, complete: async () => { throw new Error("AI is off"); } };
 const non2xx: Ai = { available: true, complete: async () => { throw new Error("AI request failed (502)."); } };
 const unreadable: Ai = { available: true, complete: async () => "not json" };
+// A double that resolves to something that is not a string (AIService.complete is typed string; the parse must not throw).
+const notAString: Ai = { available: true, complete: (async () => undefined) as unknown as Ai["complete"] };
 const reads: Ai = { available: true, complete: async () => JSON.stringify({ kind: "task", title: "Follow Up with Mike", personId: "mike" }) };
 
 function rig(ai: Ai) {
@@ -97,6 +99,14 @@ describe("memory_v1 on: refused leaves the deterministic reading standing", () =
     expect(n?.source).toEqual({ type: "paste", ts: n!.source!.ts });
   });
 
+  it("an answer that is not a string is unreadable: the honest note, never a throw out of the save", async () => {
+    const { deps, notes } = rig(notAString);
+    const [s] = await smartPasteSave(MIKE, deps);
+    expect(s!.kind).toBe("note");
+    expect(s!.personId).toBeUndefined();
+    expect(await notes.note(s!.id)).toBeTruthy();
+  });
+
   it("the model's own reading is the model's: nothing on it is stamped as the rule's guess", async () => {
     const { deps, tasks } = rig(reads);
     const [s] = await smartPasteSave(MIKE, deps);
@@ -125,6 +135,15 @@ describe("memory_v1 on: refused leaves the deterministic reading standing", () =
 describe("memory_v1 off: today's branch, byte for byte", () => {
   it("offline, the Mike line is a note with no personId, stamped madeBy(paste) alone", async () => {
     const { deps, notes } = rig(offline);
+    const [s] = await smartPasteSave(MIKE, deps);
+    expect(s!.kind).toBe("note");
+    expect(s!.personId).toBeUndefined();
+    const n = await notes.note(s!.id);
+    expect(n?.source).toEqual({ type: "paste", ts: n!.source!.ts });
+  });
+
+  it("an answer that is not a string is today's note too, stamped madeBy(paste) alone", async () => {
+    const { deps, notes } = rig(notAString);
     const [s] = await smartPasteSave(MIKE, deps);
     expect(s!.kind).toBe("note");
     expect(s!.personId).toBeUndefined();

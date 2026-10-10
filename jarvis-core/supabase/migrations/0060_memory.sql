@@ -23,13 +23,20 @@
 --      SQL editor, psql, a migration's own statements).
 --   2. client_at is the capture moment: an insert's created_at (an offline create replays with its
 --      own time), and for a patch the `jarvis.client_at` setting the two patch functions set from
---      their p_client_at, else now(). item_apply_patch is dropped and recreated with a third,
---      defaulted parameter in this one transaction so the live app's two argument call keeps
+--      their p_client_at, else now(). The two functions refuse a p_client_at that is not finite
+--      (item_apply_patch answers false, item_apply_patch_if_older answers 'stale', nothing is
+--      written) and stamp at most now() + interval '5 minutes', so a caller's clock can claim an
+--      earlier moment but never a far future one. item_apply_patch is dropped and recreated with a
+--      third, defaulted parameter in this one transaction so the live app's two argument call keeps
 --      resolving (a second overload would give PostgREST two candidates).
 --   3. Values are recorded for changed keys only, with JSON null and absence treated as one value,
 --      under four closed rules: NOISE_KEYS keep the name and never the value; BULK_KEYS and any
 --      value over 2048 bytes are recorded as {"_omitted": "bulk", "bytes": n}; EXCLUDED_KINDS keep
---      keys and never values. An update whose normalised diff is empty writes no row.
+--      keys and never values. The 2048 is octet_length of the value's JSON text, quotes included: a
+--      string of 2046 ASCII characters is kept, one of 2047 is omitted. An update whose normalised
+--      diff is empty writes no row. A change of entity_type alone is a change: the row carries
+--      changed_keys {entity_type} with the two type words as before and after, and the links are
+--      recomputed for the new kind (from_type follows).
 --   4. Deleting an item erases every value in its history and writes a keys only delete row:
 --      history holds small values while the record lives and only facts once it is gone.
 --   5. item_change is append only by trigger: the only update it accepts is an erasure, and only
@@ -55,8 +62,18 @@
 -- set_monotonic_updated_at, substrate_readiness, delete_owned).
 -- Rollback: supabase/rollback/0060_memory_down.sql (the exact inverse; the two tables are derived
 -- records and are dropped; copy them out first if the history is wanted).
--- Proof: supabase/tests/memory.sh on the local Postgres (forward twice, 39 checks, rollback,
+-- Proof: supabase/tests/memory.sh on the local Postgres (forward twice, 49 checks, rollback,
 -- forward again). Rehearsed by supabase/tests/rehearsal.sh.
+--
+-- Review fixes (2026-10-10), from the adversarial SQL review of the working tree:
+--   6. item_apply_patch and item_apply_patch_if_older refuse a non finite p_client_at (false / 'stale',
+--      the functions' own refusal shapes) and clamp the recorded moment to now() + interval '5 minutes'
+--      (rule 2). rollback/0060_memory_down.sql restores the 0031 and 0032 bodies, which carry no
+--      client_at at all, so it needs no mirror; 0061 and its rollback never touch these two bodies.
+--   7. jarvis_item_memory treats old.entity_type <> new.entity_type as a change (rule 3): a history
+--      row with changed_keys {entity_type}, and the links recomputed for the new kind with from_type
+--      updated, where before such an update wrote no row and left item_link stale.
+--   9. Header note, no body change: the 2048 byte value cap counts JSON text bytes, quotes included (rule 3).
 
 -- ---------------------------------------------------------------------------
 -- 1. item_change: history beside the record.
@@ -318,6 +335,10 @@ begin
     select coalesce(array_agg(ks.k order by ks.k), '{}') into v_keys
       from (select k from jsonb_object_keys(v_old) k union select k from jsonb_object_keys(v_new) k) ks
      where coalesce(v_old -> ks.k, 'null'::jsonb) is distinct from coalesce(v_new -> ks.k, 'null'::jsonb);
+    -- The kind itself is a key: a row that becomes another kind has changed.
+    if old.entity_type <> new.entity_type then
+      select array_agg(distinct x.k order by x.k) into v_keys from unnest(v_keys || 'entity_type'::text) as x(k);
+    end if;
     if cardinality(v_keys) = 0 then
       return new;
     end if;
@@ -333,6 +354,10 @@ begin
         into v_after
         from unnest(v_keys) k cross join lateral (select coalesce(v_new -> k, 'null'::jsonb) as v) x
        where not (k = any(NOISE_KEYS));
+      if old.entity_type <> new.entity_type then
+        v_before := v_before || jsonb_build_object('entity_type', old.entity_type);
+        v_after := v_after || jsonb_build_object('entity_type', new.entity_type);
+      end if;
     end if;
     insert into item_change (owner_id, item_id, entity_type, op, changed_keys, before, after, revision, client_at, origin, via)
     values (new.owner_id, new.id, new.entity_type, 'update', v_keys, v_before, v_after, new.updated_at, v_client_at, v_origin, v_via);
@@ -355,10 +380,12 @@ begin
     update item_link set to_item = new.id, to_type = new.entity_type
      where owner_id = new.owner_id and target = new.id and to_item is null;
   else
-    -- Only when a changed key is the root of a registry path for this kind.
+    -- Only when a changed key is the root of a registry path for this kind, or the kind itself changed.
     select array_agg(distinct regexp_replace(split_part(r.path, '.', 1), '\[\]$', ''))
       into v_roots from jarvis_link_paths() r where r.entity_type = new.entity_type;
-    if v_roots is not null and v_keys && v_roots then
+    if (v_roots is not null and v_keys && v_roots) or old.entity_type <> new.entity_type then
+      update item_link set from_type = new.entity_type
+       where owner_id = new.owner_id and from_item = new.id and from_type <> new.entity_type;
       insert into item_link (owner_id, from_item, from_type, target, to_item, to_type, kind, path, created_by, via)
       select new.owner_id, new.id, new.entity_type, l.target, t.id, t.entity_type, l.kind, l.path,
              case when v_via = 'record_approve' then 'import' else v_origin end, v_via
@@ -504,7 +531,9 @@ as $$
 declare
   n int;
 begin
-  perform set_config('jarvis.client_at', coalesce(p_client_at::text, ''), true);
+  -- A moment, not a word: a non finite stamp is refused, a far future one is clamped (rule 2).
+  if p_client_at is not null and not isfinite(p_client_at) then return false; end if;
+  perform set_config('jarvis.client_at', case when p_client_at is null then '' else least(p_client_at, now() + interval '5 minutes')::text end, true);
   update item
      set data = jsonb_strip_nulls(data || p_patch)
    where id = p_id;
@@ -525,7 +554,9 @@ declare
   cur timestamptz;
   n int;
 begin
-  perform set_config('jarvis.client_at', coalesce(p_client_at::text, ''), true);
+  -- A moment, not a word: a non finite stamp is refused, a far future one is clamped (rule 2).
+  if p_client_at is not null and not isfinite(p_client_at) then return 'stale'; end if;
+  perform set_config('jarvis.client_at', case when p_client_at is null then '' else least(p_client_at, now() + interval '5 minutes')::text end, true);
   select updated_at into cur from item where id = p_id;
   if cur is null then
     return 'missing';
@@ -600,7 +631,8 @@ begin
     when first_row is null then 'unknown'
     when jsonb_typeof(src -> 'inferred') = 'array' and jsonb_array_length(src -> 'inferred') > 0 then 'rule'
     when src ->> 'type' in ('app', 'import', 'google_calendar', 'contacts', 'gmail', 'apple_calendar', 'apple_reminders', 'apple_health')
-      or (it.entity_type = 'person' and it.data ->> 'source' = 'import') then 'import'
+      or (it.entity_type = 'person' and it.data ->> 'source' = 'import')
+      or (it.entity_type like 'money\_%' and it.data ->> 'source' = 'import') then 'import'
     when first_origin = 'user' then 'typed'
     else first_origin end;
 

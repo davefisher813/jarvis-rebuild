@@ -3,7 +3,7 @@
 Written 2026-10-10 (Phase 0, design D1, D2 and D9). The question a developer
 asks of one row, and where the database keeps the answer. The code is
 `jarvis-core/supabase/migrations/0060_memory.sql`; the proof is
-`jarvis-core/supabase/tests/memory.sh` (39 checks on the local Postgres). Phase 0
+`jarvis-core/supabase/tests/memory.sh` (46 checks on the local Postgres). Phase 0
 ships no screen for any of this: the read is `select item_why('<id>')`.
 
 Where this page and PHASE0-DESIGN.md differ, this page describes the SQL as
@@ -248,4 +248,4 @@ standing instead of turning the line into a note with no person. The trigger
 then projects one `about` link with `created_by rule`, and `item_why` answers
 `rule` (proven on the stored shape). The task is kept, not confident: the
 unanchored opener that would make it confident is Phase 0.5, after a golden
-set run (AUTOFILL-SPEC.md). Flag off, the line becomes today's note.
+set run (AUTOFILL-SPEC.md). Flag off, on a configured backend, the line becomes today's note.

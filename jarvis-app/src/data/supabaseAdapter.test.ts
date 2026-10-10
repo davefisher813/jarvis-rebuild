@@ -65,6 +65,18 @@ describe("SupabaseAdapter (mock client, no network)", () => {
     expect(find(plain.calls, "insert")![1][0]).not.toHaveProperty("created_at");
   });
 
+  // Review finding 4 (2026-10-10): an age that is not a real moment is omitted, never a RangeError at the head of the queue.
+  it("create and apply with NaN, Infinity or 9e15 send no age and do not throw", async () => {
+    for (const bad of [NaN, Infinity, 9e15]) {
+      const c = mockClient({ data: { id: "r1" }, error: null });
+      await expect(new SupabaseAdapter(c as never).create("u1", "note", { title: "X" }, "r1", bad)).resolves.toBe("r1");
+      expect(find(c.calls, "insert")![1][0]).toEqual({ id: "r1", entity_type: "note", data: { title: "X" } });
+      const a = mockClient({ data: true, error: null });
+      await expect(new SupabaseAdapter(a as never).apply("u1", "r1", { title: "Y" }, undefined, bad)).resolves.toBe(true);
+      expect(find(a.calls, "rpc")![1]).toEqual(["item_apply_patch", { p_id: "r1", p_patch: { title: "Y" } }]);
+    }
+  });
+
   it("apply with clientAt sends p_client_at, and without it sends the two arguments it always did", async () => {
     const made = Date.parse("2026-05-19T09:00:00Z");
     const c = mockClient({ data: true, error: null });

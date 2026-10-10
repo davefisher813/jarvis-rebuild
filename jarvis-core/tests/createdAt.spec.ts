@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { InMemoryAdapter } from "../src/core/inMemoryAdapter.js";
 import { Store } from "../src/core/store.js";
+import { SupabaseAdapter, wireTime } from "../src/core/supabaseAdapter.js";
+import type { QueuedOp } from "../src/core/types.js";
 
 // Phase 0 D8 (2026-10-10): the row has carried created_at since migration
 // 0001 and no reader ever asked for it. Item.createdAt is now the one place
@@ -71,5 +73,70 @@ describe("Phase 0 D8: createdAt on an Item", () => {
     expect(pending?.createdAt).toBeGreaterThanOrEqual(before);
     // The pending copy and the queued op share one number (D1 change 2).
     expect(pending?.createdAt).toBe(pending?.serverTime);
+  });
+});
+
+// Review finding 4 (2026-10-10): an age the wire cannot carry is omitted, never
+// thrown. The mock client is the same chainable stand-in
+// jarvis-app/src/data/supabaseAdapter.test.ts uses: every builder method
+// records its call and returns itself; awaiting resolves the preset answer.
+type Call = [string, unknown[]];
+function mockClient(result: unknown) {
+  const calls: Call[] = [];
+  const chain = () => {
+    const q: Record<string, unknown> = {};
+    for (const m of ["insert", "select", "eq", "maybeSingle", "single", "delete", "update", "order", "range", "limit"]) {
+      q[m] = (...a: unknown[]) => { calls.push([m, a]); return q; };
+    }
+    (q as { then: unknown }).then = (res: (v: unknown) => void) => res(result);
+    return q;
+  };
+  return {
+    calls,
+    from(t: string) { calls.push(["from", [t]]); return chain(); },
+    rpc(n: string, a: unknown) { calls.push(["rpc", [n, a]]); return chain(); },
+  };
+}
+const find = (calls: Call[], name: string) => calls.find((c) => c[0] === name);
+
+describe("an age the wire cannot carry is omitted, never thrown", () => {
+  const BAD = [NaN, Infinity, -Infinity, 9e15, -1];
+
+  it("wireTime answers an ISO string for a real moment and undefined for anything else", () => {
+    expect(wireTime(1_700_000_000_000)).toBe("2023-11-14T22:13:20.000Z");
+    expect(wireTime(0)).toBe("1970-01-01T00:00:00.000Z");
+    expect(wireTime(undefined)).toBeUndefined();
+    for (const b of BAD) expect(wireTime(b)).toBeUndefined();
+  });
+
+  it("create with NaN, Infinity or 9e15 sends no created_at and does not throw", async () => {
+    for (const b of BAD) {
+      const c = mockClient({ data: { id: "r1" }, error: null });
+      await expect(new SupabaseAdapter(c as never).create("u1", "note", { title: "X" }, "r1", b)).resolves.toBe("r1");
+      expect(find(c.calls, "insert")![1][0]).toEqual({ id: "r1", entity_type: "note", data: { title: "X" } });
+    }
+  });
+
+  it("apply with NaN, Infinity or 9e15 sends the two arguments it always did, and applyIfOlder falls back to the plain merge", async () => {
+    for (const b of BAD) {
+      const c = mockClient({ data: true, error: null });
+      await expect(new SupabaseAdapter(c as never).apply("u1", "r1", { title: "Y" }, undefined, b)).resolves.toBe(true);
+      expect(find(c.calls, "rpc")![1]).toEqual(["item_apply_patch", { p_id: "r1", p_patch: { title: "Y" } }]);
+      const older = mockClient({ data: true, error: null });
+      await expect(new SupabaseAdapter(older as never).applyIfOlder("u1", "r1", { title: "Y" }, b)).resolves.toBe("applied");
+      expect(find(older.calls, "rpc")![1][0]).toBe("item_apply_patch");
+    }
+  });
+
+  it("a Store whose persisted queue holds a create with queuedAt NaN drains without throwing", async () => {
+    const c = mockClient({ data: { id: "held-1" }, error: null });
+    const queue: QueuedOp[] = [{ op: "create", id: "held-1", ownerId: "u1", entityType: "task", data: { text: "held" }, queuedAt: NaN }];
+    const persistence = { load: () => queue, save: (q: QueuedOp[]) => { queue.splice(0, queue.length, ...q); } };
+    const store = new Store(new SupabaseAdapter(c as never), persistence);
+    expect(store.pending()).toBe(true);
+    await expect(store.reconnect()).resolves.toBeUndefined();
+    expect(store.pending()).toBe(false);
+    expect(queue).toEqual([]);
+    expect(find(c.calls, "insert")![1][0]).toEqual({ id: "held-1", entity_type: "task", data: { text: "held" } });
   });
 });

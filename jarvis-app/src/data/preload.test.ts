@@ -4,7 +4,7 @@
 // mutations write through so a flow always reads its own writes, and
 // pre-generation is capped, cache-first, and gated by AI Control.
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { InMemoryAdapter, type DataAdapter, type Item, type ItemData, type ServerTime } from "@core";
 import { CachedAdapter, KNOWN_TYPES } from "./CachedAdapter";
 import { ALL_ENTITY_TYPES } from "../backup/entityRegistry";
@@ -37,6 +37,23 @@ describe("preload cache", () => {
     expect(readPreload(U, "task")).toBeNull();
     expect(readPreload(U, "note")).toBeNull();
     expect(localStorage.getItem("jarvis.appearance")).toBe("keep");
+  });
+
+  // Review finding 5 (2026-10-10): the v1 family an earlier build left behind
+  // is gone after the first read, not only after Clear Local Data. A fresh
+  // module instance, because the sweep runs once per session.
+  it("a v1 entry present before the first read is gone after it, and the live family is untouched", async () => {
+    localStorage.setItem("jarvis.preload.v1.task", JSON.stringify({ owner: U, items: [] }));
+    localStorage.setItem("jarvis.preload.v1.note", "{}");
+    localStorage.setItem("jarvis.appearance", "keep");
+    vi.resetModules();
+    const fresh = await import("./preloadCache");
+    fresh.writePreload(U, "task", []);
+    expect(fresh.readPreload(U, "task")).toEqual([]);
+    expect(localStorage.getItem("jarvis.preload.v1.task")).toBeNull();
+    expect(localStorage.getItem("jarvis.preload.v1.note")).toBeNull();
+    expect(localStorage.getItem("jarvis.appearance")).toBe("keep");
+    expect(fresh.readPreload(U, "task")).toEqual([]);
   });
 
   it("an oversized list is not cached at all, never truncated", () => {

@@ -724,7 +724,7 @@ describe("QuickCapture: the sheet reads field, aids, Capture, Cancel", () => {
 // THE TRUST CHECKPOINT (Phase 0 D4, 2026-10-10). Dave, 2026-09-28: "a filing
 // never says Saved before it reaches the server". Behind trust_v1 this door
 // reads the Store through useStore(); while it is pending (offline, or a
-// queue still on the phone) the receipt's eyebrow says Filed and the Done
+// queue still on the phone) the receipt eyebrow says Filed · Will Sync and the Done
 // toast says Will Sync. The offline Store is passed through NotesProvider's
 // test seam (store prop), built on the same InMemoryAdapter and held offline.
 import { Store, InMemoryAdapter } from "@core";
@@ -764,7 +764,7 @@ describe("QuickCapture: the trust checkpoint (trust_v1)", () => {
 
   it("offline, the receipt says Filed and Done says Filed · Will Sync", async () => {
     const got = await captureAndDone("Renew the domain", offlineStore());
-    expect(got.eyebrow).toBe("Filed");
+    expect(got.eyebrow).toBe("Filed · Will Sync");
     expect(got.toast).toBe("Filed · Will Sync");
   });
 
