@@ -38,7 +38,8 @@ import type { RowAction } from "../shared/RowActionSheet";
 import { noteSwiped } from "../shared/swipeTeach";
 import RowCtxAction from "../shared/RowCtxAction";
 import { usePeekOnce } from "./usePeekOnce";
-import type { ReactNode } from "react";
+import { Burst, useBurst } from "../shared/Burst";
+import { useRef, useState, type ReactNode } from "react";
 import type { StateWord } from "../schedule/stateWord";
 
 /** One verb in a row's swipe tray. The first in the list is the quickest one and sits where the finger lands first. */
@@ -200,19 +201,37 @@ export default function MoveHeadliner({
   ];
   // ITS MOMENT HAS COME (spec section 3): late, or a block that is up. Never before.
   const due = facts.urgency?.kind === "late" || !!facts.over;
+  // THE CHECK-OFF, THE SAME AS EVERY TASK ROW (premium feel, Dave 2026-10-09,
+  // pass-off item 17). This check used to hand the tap straight to onToggle,
+  // which dealt the next task into the row at once, so the first task on Today
+  // was the one completion in the app with no moment at all. It now does what
+  // TodayPage's TaskRow does: the box fills and its tick draws on (the
+  // stylesheet's .just-done check-off), the Expressive accent plays, and the
+  // record is written once the moment has landed. The write is never dropped:
+  // a hold cut short by the page going away still completes the task.
+  const [bursting, fireBurst] = useBurst();
+  const [ticked, setTicked] = useState(false);
+  const pending = useRef(false);
+  const tick = onToggle ? () => {
+    if (pending.current) return; // one completion per tap, however fast the second tap comes
+    pending.current = true;
+    setTicked(true);
+    fireBurst();
+    setTimeout(() => { pending.current = false; setTicked(false); onToggle(); }, 600);
+  } : undefined;
   return (
     <div className="pad-x hl">
       <SwipeShell
         actions={actions}
         menuTitle={title}
-        {...(onToggle ? { onRight: onToggle } : {})}
+        {...(tick ? { onRight: tick } : {})}
         className="card notice-card-row notice-card-uniform"
       >
         {/* THE WHOLE ROW IS THE DOOR (Dave 2026-09-15, photographed: "How is
             the first thing that renders on the app not clickable?"). The
             check stops its own tap so it keeps its verb. */}
         <div
-          className="row"
+          className={"row" + (ticked ? " just-done" : "")}
           role={onOpen ? "button" : undefined}
           tabIndex={onOpen ? 0 : undefined}
           aria-label={onOpen ? "Open " + title : undefined}
@@ -222,9 +241,10 @@ export default function MoveHeadliner({
           {/* The column is reserved whether or not there is a check in it,
               so the words line up with the rows below on a page that mounts
               this without a toggle, which is what the running block does. */}
-          {onToggle ? (
-            <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
-              <div className="task-check" />
+          {tick ? (
+            <div className="task-check-tap" role="checkbox" aria-checked={ticked} aria-label="Mark done" onClick={(e) => { e.stopPropagation(); tick(); }}>
+              <div className={"task-check" + (ticked ? " done" : "")} />
+              <Burst show={bursting} />
             </div>
           ) : (
             <div className="task-check-tap" />
