@@ -49,9 +49,13 @@ function fire(kind: HapticKind): void {
   }
 }
 
-// The completion tap is a choice, off until chosen (Feedback Style, Dave
-// 2026-10-04) and silent all day under Quiet Today. The other kinds are the
-// controls' own feel (a switch, a row) and are not part of that choice.
+// The completion tap (the success pattern) is a choice, off until chosen
+// (Feedback Style, Dave 2026-10-04) and silent all day under Quiet Today. The
+// other kinds are the controls' own feel (a switch, a row) and are not part of
+// that choice. DAVE'S RULING, 2026-10-10: a completion is never silent. When
+// the success pattern is not chosen, a completion still gets the light confirm
+// (encourage/effects playCompletion). The 10-04 silent completion is retired;
+// do not restore it.
 const completionAllowed = (): boolean => readFeedback().haptics && !isQuietToday(todayISO());
 
 export const haptics = {

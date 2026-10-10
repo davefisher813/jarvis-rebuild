@@ -10,7 +10,10 @@ import { Head, Card, Menu, Row, Switch, Foot } from "./kit";
 // FEEDBACK STYLE (ADHD Reward Design Brief, Dave-approved 2026-10-04).
 //
 // Good defaults and nothing to set up: Celebration Gentle, Motion follows the
-// phone, no sound, no haptics, brief factual words, private. Every control
+// phone, no sound, no haptics, brief factual words, private. "No haptics"
+// means no success pattern: since Dave's ruling of 2026-10-10 every
+// completion still gives the light confirm tap whatever this switch says
+// (shared/haptics.ts); the switch adds the richer reward. Every control
 // here is independent of the others, and none of them can switch off the
 // plain sentence that says what just changed, because that sentence is not a
 // celebration, it is the state.
