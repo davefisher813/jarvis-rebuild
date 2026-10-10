@@ -3,49 +3,54 @@ import type { BurstSize } from "./completion";
 import { useFeedback } from "../encourage/FeedbackProvider";
 import { currentCelebrationForm } from "../encourage/effects";
 
-// The completion micro-burst: 8 good-green dots radiating from the checkbox
-// for 420ms (RDB, Dave 2026-07-29). Render <Burst show={bursting} /> inside a
-// .task-check-tap; directions and timing live in components.css.
-// The moment scales with what it was (dopamine layer, 2026-08-20): ticking a
-// loose task and clearing the last task of a six-month project are not the
-// same event, so they must not feel the same. Same 8 dots, further and longer.
-// Expressive only (Feedback Style): the default, Gentle, answers a tick with
-// the checkmark and one short pulse instead, and Off or Quiet Today with
-// neither. See styles/components.css, html[data-celebrate].
+// THE EXPRESSIVE ACCENT. Render <Burst show={bursting} /> inside the check's
+// tap target (a .task-check-tap or a .cb); everything it draws lives in
+// components.css, CELEBRATION FORMS.
 //
-// THE BURST VARIES (Dave 2026-10-05). It is one of three forms, chosen once
-// per completion by encourage/effects (data-cv on the root) so the same one
-// does not play every time: the dots, a ring that opens round the box while
-// its checkmark draws itself on, and a spark of diamonds that lifts the row.
-// The tick and the lift are the stylesheet's (they act on the row, which this
-// span sits inside); this component only names the form. Each is under a
-// second, and each is gone under Reduced Motion because a reduced person gets
-// no Burst at all (eff.burst is false), and the stylesheet gates them again.
-// The dots are the base look (.burst itself); the other two are modifiers.
-const FORMS = ["", " burst-ring", " burst-spark"] as const;
+// PREMIUM FEEL (Dave 2026-10-09: the reward moments "look terrible"; take them
+// to "as high end of a feel as possible", never childish; no stock confetti,
+// no cartoon bounce, nothing over 500 ms). This used to throw eight green
+// dots 34px out of the box, and its other two forms were a ring and a spray of
+// spinning diamonds that lifted the row. It is now one quiet accent on top of
+// the check-off every level shares (the box fills, the tick draws itself on):
+//   ring   a hairline ring opens from the box and fades
+//   bloom  a soft glow blooms off the box's edge and fades
+//   wash   a light band of the done tint crosses the row once, and the box
+//          gives off a faint halo
+// Each is gone by --dur-celebrate (440 ms). The form still changes from one
+// completion to the next (Dave 2026-10-05, "celebrations that vary"), chosen
+// once per completion by encourage/effects and published on the root as
+// data-cv, so the stylesheet (Gentle) and this span (Expressive) read one
+// choice. The moment still scales with what it was (dopamine layer,
+// 2026-08-20): a big one reaches further in the same time.
+//
+// Expressive only (Feedback Style). Gentle, the default, answers a tick with
+// the check-off alone, and Off, Quiet Today or Reduce Motion (the phone's or
+// the app's own) draw no Burst at all (eff.burst is false), and the
+// stylesheet gates it again.
+const BURST_FORMS = ["burst-ring", "burst-bloom", "burst-wash"] as const;
 
 export function Burst({ show, size = "small" }: { show: boolean; size?: BurstSize }) {
   const { eff } = useFeedback();
   // Read when the burst starts, not on every render, so it cannot change form
-  // halfway through its own half second.
+  // halfway through its own moment.
   const form = useMemo(() => (show ? currentCelebrationForm() : 0), [show]);
   if (!show || !eff.burst) return null;
   return (
-    <span className={"burst" + (size === "big" ? " burst-big" : "") + FORMS[form]} aria-hidden="true">
-      <i /><i /><i /><i /><i /><i /><i /><i />
-    </span>
+    <span className={"burst " + BURST_FORMS[form] + (size === "big" ? " burst-big" : "")} aria-hidden="true" />
   );
 }
 
 // Local burst state with auto-clear, so call sites stay one-liners:
 // const [bursting, fireBurst] = useBurst(); ... onClick={() => { if (!done) fireBurst(); toggle(); }}
+// The span is held a little past the accent's 440 ms so it is never cut off.
 export function useBurst(): [boolean, () => void] {
   const [on, setOn] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fire = () => {
     setOn(false);
     if (timer.current) clearTimeout(timer.current);
-    // re-arm on the next frame so back-to-back completions each burst
+    // re-arm on the next frame so back-to-back completions each play
     requestAnimationFrame(() => {
       setOn(true);
       timer.current = setTimeout(() => setOn(false), 500);

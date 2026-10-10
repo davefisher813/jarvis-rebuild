@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Burst } from "./Burst";
 import { haptics } from "./haptics";
+import { Check } from "./icons";
 import { lineCase } from "./casing";
 
 // The moment you finish something big.
@@ -15,6 +16,11 @@ import { lineCase } from "./casing";
 //   - It is a moment, not a screen to manage: one way out, no decisions.
 //   - No streaks, no comparisons to other weeks, no next-goal upsell. The
 //     thing you finished is the whole subject.
+//   - Premium, never childish (Dave 2026-10-09). A green disc whose tick
+//     draws itself on, the words rising a few pixels into place behind it,
+//     all at rest by 420 ms (components.css, the payoff block); Expressive
+//     adds its one accent round the disc. No confetti, and the way out is
+//     "Done", not a word of praise. The tap is the success tap it always was.
 export default function Payoff({
   kind,
   title,
@@ -30,13 +36,13 @@ export default function Payoff({
   return (
     <div className="screen payoff">
       <div className="payoff-body">
-        <div className="payoff-burst"><Burst show /></div>
+        <div className="payoff-mark" aria-hidden="true"><Check className="ic" /><Burst show size="big" /></div>
         <div className="eyebrow">{kind === "goal" ? "Goal Achieved" : "Project Done"}</div>
         <div className="payoff-title">{title}</div>
         {line && <div className="payoff-line">{line}</div>}
       </div>
       <div className="pad-x conn-action">
-        <button className="btn btn-primary btn-block btn-lg" onClick={onDone}>Nice</button>
+        <button className="btn btn-primary btn-block btn-lg" onClick={onDone}>Done</button>
       </div>
     </div>
   );

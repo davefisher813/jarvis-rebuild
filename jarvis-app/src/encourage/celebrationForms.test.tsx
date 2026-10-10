@@ -62,23 +62,35 @@ function Probe({ forms }: { forms?: boolean }) {
 }
 
 describe("the Burst wears the form that was chosen", () => {
-  const cases: Array<[number, string]> = [[0, "burst"], [1, "burst-ring"], [2, "burst-spark"]];
+  // PREMIUM FEEL (Dave 2026-10-09): no confetti. Each form is ONE quiet accent
+  // drawn by the stylesheet on an empty span: a ring, a bloom, or a wash.
+  const cases: Array<[number, string]> = [[0, "burst-ring"], [1, "burst-bloom"], [2, "burst-wash"]];
   for (const [form, cls] of cases) {
-    it(`form ${form} draws ${cls}, always with the eight directions the stylesheet knows`, () => {
+    it(`form ${form} draws ${cls}, one accent and no thrown pieces`, () => {
       html.dataset.cv = String(form);
       const { container } = render(<FeedbackProvider><Probe forms /></FeedbackProvider>);
       fireEvent.click(screen.getByText("expressive"));
       const b = container.querySelector(".burst")!;
       expect(b).not.toBeNull();
       expect(b.classList.contains(cls), cls).toBe(true);
-      // exactly one form modifier, and none for the dots
-      expect([...b.classList].filter((c) => c === "burst-ring" || c === "burst-spark").length).toBe(form === 0 ? 0 : 1);
-      expect(b.querySelectorAll("i").length, "nth-child 1 to 8 are the directions").toBe(8);
-      // nothing but the eight sits inside, so the nth-child directions are 1 to 8
-      expect(b.children.length).toBe(8);
+      // exactly one form modifier
+      expect([...b.classList].filter((c) => /^burst-(ring|bloom|wash)$/.test(c)).length).toBe(1);
+      // the eight confetti dots are gone for good: the span is empty
+      expect(b.children.length, "no dots, no diamonds").toBe(0);
       expect(b).toHaveAttribute("aria-hidden", "true");
     });
   }
+
+  it("a big moment reaches further with the same form", () => {
+    html.dataset.cv = "0";
+    function Big() {
+      const f = useFeedback();
+      return <div><button onClick={() => f.apply({ celebration: "expressive" })}>expressive</button><Burst show size="big" /></div>;
+    }
+    const { container } = render(<FeedbackProvider><Big /></FeedbackProvider>);
+    fireEvent.click(screen.getByText("expressive"));
+    expect(container.querySelector(".burst")).toHaveClass("burst-ring", "burst-big");
+  });
 
   it("under Reduce Motion there is no Burst at all, whatever the form", () => {
     const real = window.matchMedia;
@@ -107,10 +119,22 @@ const forms = css.slice(start, end).replace(/\/\*[\s\S]*?\*\//g, "");
 describe("the celebration forms stylesheet block", () => {
   it("is found", () => { expect(start).toBeGreaterThan(-1); expect(end).toBeGreaterThan(start); });
 
-  it("every form is under a second", () => {
-    const ms = [...forms.matchAll(/animation:[^;]*?(\d+(?:\.\d+)?)(m?s)\b/g)].map((m) => Number(m[1]) * (m[2] === "s" ? 1000 : 1));
-    expect(ms.length).toBeGreaterThanOrEqual(6);
-    for (const d of ms) { expect(d).toBeGreaterThan(0); expect(d).toBeLessThan(1000); }
+  // Every duration in the block, a token resolved through the design system.
+  const DS = readFileSync(join(__dirname, "..", "styles", "jarvis-design-system.css"), "utf8");
+  const ms = (v: string): number => {
+    const tok = /^var\((--[a-z-]+)\)$/.exec(v);
+    if (tok) { const m = new RegExp(tok[1]! + ":\\s*([\\d.]+m?s)").exec(DS); return m ? ms(m[1]!) : NaN; }
+    const m = /^([\d.]+)(m?s)$/.exec(v);
+    return m ? Number(m[1]) * (m[2] === "s" ? 1000 : 1) : NaN;
+  };
+
+  it("every form is over by 500 ms (Dave 2026-10-09: nothing over 500 ms)", () => {
+    const durs = [...forms.matchAll(/animation:\s*([^;]+);/g)]
+      .flatMap((m) => m[1]!.split(",").map((part) => part.trim().split(/\s+/)))
+      .filter((w) => w[0] !== "none")
+      .map((w) => w.slice(1).filter((x) => /^(var\(--dur-[a-z-]+\)|[\d.]+m?s)$/.test(x)).reduce((t, x) => t + ms(x), 0));
+    expect(durs.length).toBeGreaterThanOrEqual(6);
+    for (const d of durs) { expect(d).toBeGreaterThan(0); expect(d).toBeLessThanOrEqual(500); }
   });
 
   it("every animation that MOVES lives inside prefers-reduced-motion: no-preference, and the reduced query collapses the rest", () => {
@@ -121,16 +145,24 @@ describe("the celebration forms stylesheet block", () => {
     const moving = forms.slice(0, open).replace(/@keyframes[^{]+\{(?:[^{}]|\{[^}]*\})*\}/g, "");
     expect(moving, "only the resting look is declared outside the query").not.toMatch(/animation\s*:\s*(?!none)/);
     const inside = forms.slice(open, reduce);
-    expect(inside).toContain("cvRing"); expect(inside).toContain("cvSpark");
-    expect(inside).toContain("cvLift"); expect(inside).toContain("cvTick"); expect(inside).toContain("cvHalo");
+    for (const k of ["cvRing", "cvBloom", "cvHalo", "cvWash"]) expect(inside).toContain(k);
     expect(inside, "the app's own Reduce Motion setting is honoured as well as the phone's").toContain('[data-motion="reduce"]');
     expect(forms.slice(reduce)).toMatch(/animation: none/);
   });
 
-  it("the card lift uses the translate property, so a swiped row's inline transform is never overwritten", () => {
-    const lift = /@keyframes cvLift \{(?:[^{}]|\{[^}]*\})*\}/.exec(forms)?.[0] ?? "";
-    expect(lift).toMatch(/translate: 0 -2px/);
-    expect(lift).not.toMatch(/transform/);
+  it("nothing in the forms swells, spins or is thrown: the ring and the bloom only open outward from the box and fade", () => {
+    for (const k of ["cvSpark", "cvLift", "burstFly", "checkPop", "rotate("]) expect(forms, k).not.toContain(k);
+    const kf = [...forms.matchAll(/@keyframes (\w+) \{((?:[^{}]|\{[^}]*\})*)\}/g)];
+    expect(kf.length).toBeGreaterThanOrEqual(4);
+    for (const [, name, body] of kf) {
+      // a keyframe that scales starts no bigger than the box and ends faded out
+      if (/scale\(/.test(body!)) {
+        expect(body, name).toMatch(/100% \{[^}]*opacity: 0/);
+        expect(body, name).toMatch(/0% \{ transform: scale\((1|0\.\d+)\)/);
+      }
+      // the row itself never moves
+      expect(body, name).not.toMatch(/translate/);
+    }
   });
 
   it("Gentle has its own forms too, so the default also varies", () => {

@@ -1025,7 +1025,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    beside it or the red Delete. */
 .sched-act[data-verb] { background-color: var(--capsule-fill); color: var(--tint); }
 [data-theme="light"] .sched-act[data-verb] { color: var(--on-light-red); }
-.sched-swipe-wrap .sched-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.sched-swipe-wrap .sched-row { position: relative; background: var(--bg); transition: transform var(--dur-swipe) var(--ease-spring); touch-action: pan-y; }
 .sched-swipe-wrap .sched-row.swiping { transition: none; }
 /* A swipe row must stay OPAQUE in every state. The shared hover rule paints
    rgba(255,255,255,0.06) over the row, and a translucent row sitting on top
@@ -1194,16 +1194,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    no touches. */
 .visually-hidden-input { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); opacity: 0; pointer-events: none; }
 
-/* Completion animation (task check-off): JARVIS punch + success flash */
-@keyframes taskDoneFlash { 0% { background: var(--good-tint); } 100% { background: transparent; } }
-@keyframes checkPop { 0% { transform: scale(1); } 40% { transform: scale(1.32); } 100% { transform: scale(1); } }
-.task-row.just-done { animation: taskDoneFlash var(--dur-slow) var(--ease-out); }
-.task-row.just-done .task-check { animation: checkPop 0.42s var(--ease-out); }
-
-/* Completion micro-burst (RDB, Dave 2026-07-29): 8 good-green dots radiate
-   from the checkbox for 420ms on completion. Directions are fixed per dot via
-   nth-child custom properties; no inline styles at call sites. Anchors: task
-   checkboxes and note checklist boxes (audit 2026-07-30). */
+/* THE CHECK-OFF (premium feel, Dave 2026-10-09: the old moment "looks
+   terrible"; take it to "as high end of a feel as possible", never
+   childish). The row's green flash and the box that swelled to 1.32 are gone.
+   What a completion does now lives in the FEEDBACK STYLE block: the box fills,
+   the tick draws itself on as one pen stroke, the title's ink settles. Nothing
+   scales and nothing bounces. */
 .task-check-tap { position: relative; }
 .cb { position: relative; }
 /* B1 (2026-08-23): THE 44px RULE, applied to the last box that missed it.
@@ -1220,20 +1216,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    `.burst` is `pointer-events: none`, so the celebration inside the box does
    not eat the tap this creates. */
 .cb::after { content: ""; position: absolute; inset: -11px; }
-.cb.on.just-checked { animation: checkPop 0.42s var(--ease-out); }
+/* The Expressive accent (shared/Burst.tsx) is one span centred on the check,
+   drawing one soft shape that leaves it (see CELEBRATION FORMS). It takes no
+   taps: the 44px target above stays the box's. The eight confetti dots it
+   used to throw are gone (premium feel, 2026-10-10). */
 .burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
-/* Sized to actually register (Dave 2026-07-30: original 5px/22px read as
-   "minimal"): 7px dots, 34px throw, full brightness for the first 60%. */
-.burst i { position: absolute; left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--good-fill); animation: burstFly 480ms var(--ease-out) forwards; }
-.burst i:nth-child(1) { --bx: 0px;   --by: -34px; }
-.burst i:nth-child(2) { --bx: 24px;  --by: -24px; }
-.burst i:nth-child(3) { --bx: 34px;  --by: 0px; }
-.burst i:nth-child(4) { --bx: 24px;  --by: 24px; }
-.burst i:nth-child(5) { --bx: 0px;   --by: 34px; }
-.burst i:nth-child(6) { --bx: -24px; --by: 24px; }
-.burst i:nth-child(7) { --bx: -34px; --by: 0px; }
-.burst i:nth-child(8) { --bx: -24px; --by: -24px; }
-@keyframes burstFly { 0% { transform: none; opacity: 1; } 60% { opacity: 1; } 100% { transform: translate(var(--bx), var(--by)) scale(0.4); opacity: 0; } }
 
 /* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
    due-today tasks complete; pops once full. Hidden when nothing is due. */
@@ -1268,10 +1255,21 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .card .dring > div { background: var(--surface-1); }
 .dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
 .dring span { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
-.dring.done { animation: ringPop 480ms var(--ease-spring); }
 .dring[role="button"] { cursor: pointer; }
 .dring[role="button"]:active { opacity: 0.85; }
-@keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+/* THE RING MOVES WITH THE DAY (premium feel, 2026-10-10). --pct is
+   registered, so a tick glides the arc to its new share instead of jumping;
+   and reaching the whole day lets one quiet halo leave the ring, where it
+   used to swell to 1.18 on a spring. The ring's own Burst is not drawn: the
+   halo is its moment. Celebration Off and Reduce Motion keep it still. */
+@property --pct { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+.dring .burst { display: none; }
+@keyframes dringHalo { 0% { box-shadow: 0 0 0 1px var(--divider), 0 0 0 0 var(--good-tint); }
+  100% { box-shadow: 0 0 0 1px var(--divider), 0 0 0 12px transparent; } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) .dring { transition: --pct var(--dur-settle) var(--ease-out); }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .dring.done { animation: dringHalo var(--dur-celebrate) var(--ease-out); }
+}
 
 /* Skeleton building blocks for loading screens (pairs with .skel-line etc.).
    All sizing lives here so SkeletonScreen.tsx carries no inline styles. */
@@ -1302,7 +1300,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 [data-theme="dark"] .today-hero.hero-morning { background: linear-gradient(180deg, rgba(255,159,10,0.07), transparent 85%); }
 [data-theme="dark"] .today-hero.hero-evening { background: linear-gradient(180deg, rgba(94,155,255,0.06), transparent 85%); }
 
-@media (prefers-reduced-motion: reduce) { .burst i, .dring.done { animation: none; } }
 
 /* Tap/press feedback on interactive rows + buttons. Press uses press-5 so the
    highlight actually reads on OLED dark (press-3 was invisible; RDB, Dave
@@ -1320,17 +1317,16 @@ a.row.person-reach { color: inherit; text-decoration: none; }
   .chip[role="button"]:hover:not(.active):not(.on):not(.chip-on) { background: var(--press-5); }
   .row[role="button"], .plan-pick, .chip[role="button"] { cursor: pointer; }
 }
-.btn { transition: transform var(--dur-fast) var(--ease-out); }
-.btn:active { transform: scale(0.97); }
+/* ONE PRESS (premium feel, 2026-10-10). A second, older press lived here: a
+   transform of 0.97 stacked on the token press's scale of 0.97, so a button
+   went to 0.94, and snapped there because the newer rule's transition list
+   had no transform in it. The press is the design system's alone now
+   (PRESS FEEDBACK in jarvis-design-system.css). */
 
 /* List enter cascade: REMOVED (RDB, Dave 2026-07-29). Cards replaying their
    entrance on every tab visit read as jank next to native iOS, where content
    never re-animates on a tab switch. Completion animations above stay. */
 
-@media (prefers-reduced-motion: reduce) {
-  .task-row.just-done, .task-row.just-done .task-check { animation: none; }
-  .btn:active { transform: none; }
-}
 
 /* Sheet present motion: scrim fade + spring slide-up */
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1347,11 +1343,14 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    transform none, so fixed/sheet descendants are unaffected once settled. */
 @keyframes screenPushIn { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes screenPopSettle { from { transform: translateX(-24%); opacity: 0.55; } to { transform: none; opacity: 1; } }
-.screen-push { animation: screenPushIn 340ms var(--ease-spring) both; box-shadow: var(--shadow-float); }
-.screen-pop { animation: screenPopSettle 300ms var(--ease-spring) both; }
+.screen-push { animation: screenPushIn var(--dur-nav) var(--ease-spring) both; box-shadow: var(--shadow-float); }
+.screen-pop { animation: screenPopSettle var(--dur-nav-back) var(--ease-spring) both; }
 
-/* Selection transitions (chips, segmented) */
-.chip, .segmented .seg { transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+/* Selection transitions (chips, segmented). A mode change crossfades the
+   picked segment's lift (its ring) with its fill, so the pick moves as one
+   piece rather than the fill arriving before its edge. */
+.chip, .segmented .seg { transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+  box-shadow var(--dur-fast) var(--ease-out); }
 
 /* Tab bar polish: press + active-icon emphasis */
 .tab { transition: color var(--dur-fast) var(--ease-out); }
@@ -1699,7 +1698,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* V4 full-bleed law (Dave 2026-08-18, "revise the email visuals... layout"):
    swipeable rows sit on the PAGE background, not a grey band; the opaque bg
    still hides the swipe reveal. Lists read as one surface again. */
-.task-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.task-row { position: relative; background: var(--bg); transition: transform var(--dur-swipe) var(--ease-spring); touch-action: pan-y; }
 /* A shell wraps a .row that carries its own padding and tap height, so the
    shell must add neither: the shared rule above gives .task-row 12px padding
    and a 44px floor because in TASKS it is the row itself. Stacked on a mail
@@ -1715,7 +1714,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    It's way too hard to delete stuff especially"). shared/SwipeDelete wraps a
    row that carries its own padding and height, exactly as .swipe-shell does,
    so this adds the ground, the slide and the pan-y and nothing else. */
-.swipe-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.swipe-row { position: relative; background: var(--bg); transition: transform var(--dur-swipe) var(--ease-spring); touch-action: pan-y; }
 .swipe-row.dragging { transition: none; }
 .task-row.swiping { transition: none; }
 .task-check-tap { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
@@ -1750,6 +1749,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* A toast floats, so in light it is the warm near-white chrome lifted by the one shadow (2026-10-05):
    its Undo is the action red as words, 5.2:1 here and 4.22 on the raised grey. */
 [data-theme="light"] .toast { background: var(--chrome-bg); }
+/* A toast arrives: it fades in and rises 8px into place, once per message
+   (ToastHost keys each one). It uses translate, so the dock's own transform
+   that lifts it over the capture bar is never overwritten. */
+@keyframes toastIn { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) .toast { animation: toastIn var(--dur-normal) var(--ease-out); }
+}
 .toast-msg { flex: 1; min-width: 0; font-size: var(--t-body); color: var(--tx-1); text-wrap: balance; overflow-wrap: anywhere; }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
 
@@ -1857,7 +1863,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* THE ROW IS A SWIPE SURFACE (Dave 2026-10-05: swipe left is its one verb, swipe right completes). Each row rides in its own
    .task-swipe, so the moving element takes the ground, the snap-back and the pan-y the strip's .rem-row has always had, and
    the hairline between two rows follows the swipe wrappers, not the rows. */
-.task-swipe > .rem-card { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.task-swipe > .rem-card { position: relative; background: var(--bg); transition: transform var(--dur-swipe) var(--ease-spring); touch-action: pan-y; }
 .task-swipe > .rem-card.swiping { transition: none; }
 .ruled .card .task-swipe > .rem-card { background: transparent; }
 .rem-page .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
@@ -2680,7 +2686,23 @@ button {
 .payoff { display: flex; flex-direction: column; justify-content: center; }
 .payoff-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: var(--s-2); padding: var(--s-6) var(--s-4); text-align: center; }
-.payoff-burst { position: relative; width: 64px; height: 64px; margin-bottom: var(--s-3); }
+/* PREMIUM FEEL (2026-10-10): the empty box of dots becomes a green disc with
+   the white tick every done check wears; the tick draws itself on and the
+   words rise 6px into place behind it, all at rest by 420ms. Off and Reduce
+   Motion show it finished and still. */
+.payoff-mark { position: relative; width: 56px; height: 56px; border-radius: var(--r-circle); background: var(--good-fill); color: #fff;
+  display: flex; align-items: center; justify-content: center; margin-bottom: var(--s-3); }
+.payoff-mark .ic { width: 28px; height: 28px; }
+@keyframes payoffRise { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+@keyframes payoffMarkIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .payoff-mark { animation: payoffMarkIn var(--dur-normal) var(--ease-out) both; }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .payoff-mark > .ic { animation: checkReveal var(--dur-check) var(--ease-draw) 100ms both; }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .payoff-body > :not(.payoff-mark) { animation: payoffRise var(--dur-enter) var(--ease-out) both; }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .payoff-body > :nth-child(2) { animation-delay: 80ms; }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .payoff-body > :nth-child(3) { animation-delay: 120ms; }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .payoff-body > :nth-child(4) { animation-delay: 160ms; }
+}
 .payoff-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.02em; }
 .payoff-line { font-size: var(--t-sub); color: var(--tx-3); }
 /* The category picker opening inside the Connections card. */
@@ -2797,10 +2819,12 @@ button {
    which is exactly the photo. `.momentum-row` is now a `.task-row` like
    every other row on this screen: one pill (Start), and Not Now moved
    behind the swipe every other dismiss action already lives behind. */
-@keyframes momentumIn { 0% { opacity: 0; transform: translateX(32px); background: var(--good-tint); }
-  60% { opacity: 1; transform: none; background: var(--good-tint); }
+/* Premium feel (2026-10-10): a shorter glide (12px, not 32) inside the
+   settle time, the tint already cooling as it lands. */
+@keyframes momentumIn { 0% { opacity: 0; transform: translateX(12px); background: var(--good-tint); }
+  55% { opacity: 1; transform: none; background: var(--good-tint); }
   100% { opacity: 1; transform: none; background: transparent; } }
-.momentum-row { animation: momentumIn 0.5s var(--ease-spring); }
+.momentum-row { animation: momentumIn var(--dur-settle) var(--ease-spring); }
 /* Reused by MessagesFlow's waiting card (wait-card-acts) as a plain
    right-aligned action row; not exclusive to the Momentum Chain. */
 .momentum-actions { display: flex; gap: var(--s-2); flex-shrink: 0; margin-left: auto; }
@@ -3458,7 +3482,7 @@ button {
    and leaves vertical scrolling alone, plus the same snap-back transition
    every other swipeable row uses. */
 .rem-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); min-height: var(--tap-min);
-  position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+  position: relative; background: var(--bg); transition: transform var(--dur-swipe) var(--ease-spring); touch-action: pan-y; }
 /* The divider follows the house rule too: it starts where the TEXT starts,
    past the leading control, the same as .task-row:has(.task-check). A rule
    drawn edge to edge under an indented row cuts the card in half instead of
@@ -4330,19 +4354,10 @@ button {
    person always get through" actually gets asked. */
 .msg-vip { color: var(--yellow, #FFD60A); font-size: var(--t-caption); line-height: 1; flex-shrink: 0; margin-left: var(--s-0h); }
 
-/* THE ESCALATED BURST (dopamine layer, 2026-08-20). The evidence says the
-   reward has to land ON the action and has to scale with what the action
-   actually was. Same eight dots, thrown twice as far over twice as long, so
-   clearing a project reads as a bigger event than ticking a loose task. */
-.burst-big i { width: 9px; height: 9px; animation-duration: 760ms; }
-.burst-big i:nth-child(1) { --bx: 0px;   --by: -72px; }
-.burst-big i:nth-child(2) { --bx: 51px;  --by: -51px; }
-.burst-big i:nth-child(3) { --bx: 72px;  --by: 0px; }
-.burst-big i:nth-child(4) { --bx: 51px;  --by: 51px; }
-.burst-big i:nth-child(5) { --bx: 0px;   --by: 72px; }
-.burst-big i:nth-child(6) { --bx: -51px; --by: 51px; }
-.burst-big i:nth-child(7) { --bx: -72px; --by: 0px; }
-.burst-big i:nth-child(8) { --bx: -51px; --by: -51px; }
+/* THE ESCALATED BURST (dopamine layer, 2026-08-20) still scales with what the
+   action was, but it is no longer sixteen dots thrown 72px over 760ms: a big
+   moment's accent reaches further in the same time (.burst.burst-big,
+   CELEBRATION FORMS; premium feel, 2026-10-10). */
 
 /* ============================================================
    FIELD NOTES (Dave 2026-08-28: "replace the editorial version with
@@ -7514,24 +7529,42 @@ span.row-star { cursor: default; }
 .match-row .task-title { min-width: 0; }
 
 /* === FEEDBACK STYLE (v1) ===================================================
-   Acknowledgment on the working surface and the Gentle effects. Gentle is the
-   default: one 200ms local pulse on the check, nothing else moves. Expressive
-   keeps the older 420ms pop and the burst. Off and reduced motion draw the
-   same state with nothing moving. html[data-celebrate] and html[data-motion]
-   are set by FeedbackProvider; the media query is the fallback for a first
-   paint before the provider has run. */
-@keyframes fbPulse { 0% { transform: scale(1); } 50% { transform: scale(1.14); } 100% { transform: scale(1); } }
-html[data-celebrate="gentle"] .task-row.just-done { animation: none; }
-html[data-celebrate="gentle"] .task-row.just-done .task-check,
-html[data-celebrate="gentle"] .cb.on.just-checked { animation: fbPulse 200ms var(--ease-out); }
-html[data-celebrate="off"] .task-row.just-done,
-html[data-celebrate="off"] .task-row.just-done .task-check,
-html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
+   Acknowledgment on the working surface, and the check-off itself.
+   THE CHECK-OFF (premium feel, Dave 2026-10-09: the old moment "looks
+   terrible"; "as high end of a feel as possible", never childish). Gentle, the
+   default, and Expressive share it: the box's green fades in, then the tick
+   draws itself on as one pen stroke, the short arm and then the long one,
+   landing by 300ms. Nothing swells, nothing bounces, the row does not flash.
+   Expressive adds one accent that leaves the check (CELEBRATION FORMS below).
+   Off and Reduce Motion (the phone's or the app's own) draw the same finished
+   state with nothing moving. html[data-celebrate] and html[data-motion] are
+   set by FeedbackProvider. The tap that goes with it is the one already there
+   (encourage/effects playCompletion: the light confirm, or the success tap
+   when chosen); motion adds no buzz of its own.
+   The tick is a rotated corner (.task-check.done::before), so the stroke is a
+   clip in the corner's own frame: the bottom edge is the short arm and the
+   right edge the long one. On a .cb the tick is an icon, revealed left to
+   right, which is the way its path runs. */
+@keyframes checkFill { from { background-color: transparent; border-color: var(--tx-4); } }
+@keyframes checkDraw {
+  0% { clip-path: polygon(-20% 120%, -20% 120%, -20% 70%, -20% 70%, -20% 70%, -20% 70%); }
+  40% { clip-path: polygon(-20% 120%, 120% 120%, 120% 70%, 60% 70%, 60% 70%, -20% 70%); }
+  100% { clip-path: polygon(-20% 120%, 120% 120%, 120% -20%, 60% -20%, 60% 70%, -20% 70%); }
+}
+@keyframes checkReveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .task-row.just-done .task-check.done,
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .cb.on.just-checked { animation: checkFill var(--dur-normal) var(--ease-out); }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .task-row.just-done .task-check.done::before {
+    animation: checkDraw var(--dur-check) var(--ease-draw) 80ms both; }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .cb.on.just-checked > .ic {
+    animation: checkReveal var(--dur-check) var(--ease-draw) 80ms both; }
+}
 
 .fb-progress { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) 0; }
 .fb-track { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
 .fb-fill { height: 100%; width: calc(var(--p, 0) * 1%); border-radius: var(--r-pill); background: var(--good-fill);
-  transition: width 260ms var(--ease-out); }
+  transition: width var(--dur-settle) var(--ease-out); }
 /* The count is a facts line (2026-10-05): the size, weight and ink come from
    the facts primitives and its white <b>, so this class is layout only. It
    used to state --tx-2 and a size of its own, a second grey. */
@@ -7541,8 +7574,9 @@ html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
    sits in the flow, and never covers the button that comes next. */
 .fb-ack { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2h) var(--s-3);
   margin: var(--s-1) 0 var(--s-2); border-radius: var(--r-md); background: var(--good-tint); color: var(--tx-1);
-  animation: fbAckIn 200ms var(--ease-out); }
-@keyframes fbAckIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+  animation: fbAckIn var(--dur-normal) var(--ease-out); }
+/* The line arrives: a fade and a 4px rise, the same arrival as a toast. */
+@keyframes fbAckIn { 0% { opacity: 0; translate: 0 4px; } 100% { opacity: 1; translate: 0 0; } }
 .fb-check { width: 18px; height: 18px; flex-shrink: 0; color: var(--good); }
 .fb-ack-line { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-medium); line-height: var(--lh-snug); }
 .fb-editor { gap: var(--s-3); }
@@ -7554,52 +7588,89 @@ html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
 .fb-support { flex-wrap: wrap; row-gap: var(--s-1); }
 .fb-editor-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
-html[data-motion="reduce"] .task-row.just-done,
-html[data-motion="reduce"] .task-row.just-done .task-check,
-html[data-motion="reduce"] .cb.on.just-checked,
 html[data-motion="reduce"] .fb-ack { animation: none; }
 html[data-motion="reduce"] .fb-fill { transition: none; }
 @media (prefers-reduced-motion: reduce) {
-  html:not([data-motion="full"]) .task-row.just-done,
-  html:not([data-motion="full"]) .task-row.just-done .task-check,
-  html:not([data-motion="full"]) .cb.on.just-checked,
   html:not([data-motion="full"]) .fb-ack { animation: none; }
   html:not([data-motion="full"]) .fb-fill { transition: none; }
 }
 /* === END FEEDBACK STYLE === */
 
-/* === CELEBRATION FORMS (Dave 2026-10-05, the craft playbook) ================
-   The reward is always certain and only its FORM varies, so the same one does
-   not play every time. encourage/effects chooses one of three per completion
-   and publishes it as html[data-cv]; the Burst (Expressive) reads it as a
-   class, and Gentle reads it here. Every form is under a second, and all of
-   it sits inside no-preference: under Reduce Motion (the phone's, or the
-   Feedback Style setting) there is no transform, no clip and no ring, only
-   the tick in its place.
-   GENTLE   0 the pulse (above)   1 the tick draws itself on   2 a soft ring
-   EXPRESSIVE  0 dots   1 a ring opens and the tick draws on   2 diamonds and a lift */
-@keyframes cvTick { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
-@keyframes cvHalo { 0% { box-shadow: 0 0 0 0 var(--good-tint); } 100% { box-shadow: 0 0 0 9px transparent; } }
-@keyframes cvRing { 0% { transform: scale(0.55); opacity: 0.9; } 100% { transform: scale(2.1); opacity: 0; } }
-@keyframes cvSpark { 0% { transform: rotate(45deg); opacity: 1; } 60% { opacity: 1; }
-  100% { transform: translate(var(--bx), var(--by)) rotate(225deg) scale(0.4); opacity: 0; } }
-@keyframes cvLift { 0% { translate: 0 0; } 30% { translate: 0 -2px; } 100% { translate: 0 0; } }
-.burst-ring i { display: none; }
-.burst-ring::before { content: ""; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px;
-  border-radius: var(--r-md); border: 2px solid var(--good-fill); opacity: 0; }
-.burst-spark i { width: 6px; height: 6px; left: -3px; top: -3px; border-radius: var(--r-xxs); transform: rotate(45deg); background: var(--good-fill); }
-.burst-spark i:nth-child(even) { background: var(--mint); }
+/* A NUMBER THAT ROLLS (shared/RollingNumber, premium feel 2026-10-10). A
+   change of a few slides the new figure 0.35em into place, up for a rise and
+   down for a fall, with a fade: the iOS numeric-text move. It uses translate,
+   so nothing that positions the number is overwritten, and it is an
+   inline-block only while it rolls. */
+.num-roll { display: inline-block; }
+@keyframes numRollUp { from { opacity: 0; translate: 0 0.35em; } to { opacity: 1; translate: 0 0; } }
+@keyframes numRollDown { from { opacity: 0; translate: 0 -0.35em; } to { opacity: 1; translate: 0 0; } }
 @media (prefers-reduced-motion: no-preference) {
-  html:not([data-motion="reduce"]) .burst-ring::before { animation: cvRing 520ms var(--ease-out) forwards; }
-  html:not([data-motion="reduce"]) .task-row:has(.burst-ring) .task-check.done::before { animation: cvTick 260ms var(--ease-out) 40ms both; }
-  html:not([data-motion="reduce"]) .burst-spark i { animation: cvSpark 520ms var(--ease-out) forwards; }
-  html:not([data-motion="reduce"]) .task-row:has(.burst-spark) { animation: cvLift 460ms var(--ease-out); }
-  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) .task-row.just-done .task-check { animation: none; }
-  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) .task-row.just-done .task-check.done::before { animation: cvTick 240ms var(--ease-out); }
-  html[data-celebrate="gentle"][data-cv="2"]:not([data-motion="reduce"]) .task-row.just-done .task-check { animation: cvHalo 360ms var(--ease-out); }
+  html:not([data-motion="reduce"]) .num-roll-up { animation: numRollUp var(--dur-enter) var(--ease-out); }
+  html:not([data-motion="reduce"]) .num-roll-down { animation: numRollDown var(--dur-enter) var(--ease-out); }
+}
+
+/* === CELEBRATION FORMS (Dave 2026-10-05, the craft playbook; refined for the
+   premium feel, 2026-10-10) ==================================================
+   The reward is always certain and only its FORM varies, so the same one does
+   not play every time. encourage/effects chooses one of three per completion,
+   in a fixed order, and publishes it as html[data-cv]; the Burst (Expressive)
+   reads it as a class, and Gentle reads it here. Every form is one quiet
+   accent on top of the check-off: nothing scales the row or the box, nothing
+   spins, nothing is thrown, and every one is gone by --dur-celebrate (440ms).
+   All of it sits inside no-preference: under Reduce Motion (the phone's, or
+   the Feedback Style setting) there is no Burst at all and nothing here moves.
+   GENTLE      0 the check-off alone   1 a faint halo leaves the box
+               2 a light wash passes once across the row
+   EXPRESSIVE  0 a hairline ring opens from the box and fades
+               1 a soft glow blooms off the box's edge and fades
+               2 the wash, with the halo
+   The accent is drawn at the check's own size (--cv-size) and travels
+   --cv-reach times it; a big moment (the last task of a project) reaches
+   further in the same time. Hosts that are not a 22px box set their own size:
+   the payoff's disc and the focus screen's centre. */
+@keyframes cvRing { 0% { transform: scale(1); opacity: 0.75; } 100% { transform: scale(var(--cv-reach)); opacity: 0; } }
+@keyframes cvBloom { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(var(--cv-reach)); opacity: 0; } }
+@keyframes cvHalo { 0% { box-shadow: 0 0 0 0 var(--good-tint); } 100% { box-shadow: 0 0 0 8px transparent; } }
+/* The wash is a band of the done tint that crosses the row once. Everything
+   it needs is in the keyframes, so no row's own ground (a card's white, the
+   ruled list's clear) can outrank it while it plays, and it leaves nothing
+   behind when it ends. */
+@keyframes cvWash {
+  from { background-image: linear-gradient(100deg, transparent 35%, var(--good-tint) 50%, transparent 65%);
+    background-size: 300% 100%; background-repeat: no-repeat; background-position: 100% 0; }
+  to { background-image: linear-gradient(100deg, transparent 35%, var(--good-tint) 50%, transparent 65%);
+    background-size: 300% 100%; background-repeat: no-repeat; background-position: 0% 0; }
+}
+.burst { --cv-size: 22px; --cv-reach: 1.9; }
+.burst.burst-big { --cv-reach: 2.6; }
+/* Where there is no row to wash (the payoff's disc, the focus screen), the
+   wash form draws the ring instead, so every completion there has its accent. */
+.burst-ring::before, .burst-bloom::before, .payoff-mark .burst-wash::before, .focus-screen ~ .burst-wash::before {
+  content: ""; position: absolute; box-sizing: border-box;
+  left: calc(var(--cv-size) / -2); top: calc(var(--cv-size) / -2); width: var(--cv-size); height: var(--cv-size); opacity: 0; }
+.burst-ring::before, .payoff-mark .burst-wash::before, .focus-screen ~ .burst-wash::before { border-radius: var(--r-sm); border: 1.5px solid var(--good-fill); }
+/* The bloom is a glow round the box's edge, never a fill over it: an outer
+   shadow is not drawn inside its own box, so the tick stays crisp under it. */
+.burst-bloom::before { border-radius: var(--r-sm); box-shadow: 0 0 12px var(--good-fill); }
+/* Hosts with their own size. The payoff's disc is 56; on the focus screen the
+   accent opens from the middle of the card, wide and slow to fade. */
+.payoff-mark .burst { --cv-size: 56px; --cv-reach: 1.6; }
+.payoff-mark :is(.burst-ring, .burst-bloom, .burst-wash)::before { border-radius: var(--r-circle); }
+.focus-screen ~ .burst { z-index: 51; --cv-size: 160px; --cv-reach: 1.35; }
+.focus-screen ~ :is(.burst-ring, .burst-bloom, .burst-wash)::before { border-radius: var(--r-circle); }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) :is(.burst-ring, .payoff-mark .burst-wash, .focus-screen ~ .burst-wash)::before { animation: cvRing var(--dur-celebrate) var(--ease-out) forwards; }
+  html:not([data-motion="reduce"]) .burst-bloom::before { animation: cvBloom var(--dur-celebrate) var(--ease-out) forwards; }
+  html:not([data-motion="reduce"]) :is(.task-row, .rem-row, .rem-card):has(.burst-wash) { animation: cvWash var(--dur-celebrate) var(--ease-out); }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) :is(.task-row, .rem-row, .rem-card):has(.burst-wash) :is(.task-check.done, .cb.on) {
+    animation: checkFill var(--dur-normal) var(--ease-out), cvHalo var(--dur-celebrate) var(--ease-out); }
+  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) :is(.task-row.just-done .task-check.done, .cb.on.just-checked) {
+    animation: checkFill var(--dur-normal) var(--ease-out), cvHalo var(--dur-celebrate) var(--ease-out); }
+  html[data-celebrate="gentle"][data-cv="2"]:not([data-motion="reduce"]) :is(.task-row.just-done, .rem-row:has(.cb.just-checked), .rem-card:has(.cb.just-checked)) {
+    animation: cvWash var(--dur-celebrate) var(--ease-out); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .burst-ring::before, .burst-spark i { animation: none; }
+  .burst::before { animation: none; }
 }
 /* === END CELEBRATION FORMS === */
 

@@ -178,6 +178,25 @@
   --ease-press: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-press: 160ms;
   --dur-enter: 260ms;
+  /* THE MOTION VOCABULARY (Dave 2026-10-09, "as high end of a feel as
+     possible", never childish; the bar is Apple, Linear, Arc and Things 3).
+     Every moment in the app takes its time and its curve from here, and none
+     runs past 500 ms (laws/motion.test.ts). Nothing swells, bounces or throws
+     confetti: a completion is a crisp tick drawn on and a quiet fade, and the
+     loudest thing Expressive adds is one soft accent that leaves the check.
+       --dur-check      the tick drawing itself, one pen stroke
+       --dur-swipe      a swiped row settling back or committing
+       --dur-nav        a drill-in sliding over; --dur-nav-back the settle home
+       --dur-settle     a done title, a number, a progress fill coming to rest
+       --dur-celebrate  the Expressive accent, the longest moment in the app
+       --ease-draw      a pen's stroke: gathers, then lands */
+  --dur-check: 220ms;
+  --dur-swipe: 280ms;
+  --dur-nav: 340ms;
+  --dur-nav-back: 300ms;
+  --dur-settle: 360ms;
+  --dur-celebrate: 440ms;
+  --ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* Category colors are the neutral palette slots (--cat-red/sky/.../graphite),
      defined with the slot classes in components.css. */
@@ -1187,6 +1206,16 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+/* THE APP'S OWN MOTION SETTING WINS TOO (premium feel, 2026-10-10). Feedback
+   Style > Motion: Reduced sets html[data-motion="reduce"], and until now only
+   the completion and press blocks read it, so sheets, drill-ins, banners and
+   swipes still moved for someone who had asked the app to keep still. The
+   same rule as the phone's, keyed on the app's attribute. The TV guide's
+   ticker is left to its own rules, as it always was (CLAUDE.md, frozen). */
+html[data-motion="reduce"] *:not(.ticker-track), html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important; transition-delay: 0s !important;
+}
 
 /* ============================================================
    iOS SYSTEMIC FOUNDATIONS (safe areas + 44pt hit targets)
@@ -1301,8 +1330,16 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
      shrink, so a row takes a third of that, and a card lifts onto the one
      shadow as it gives. :has() keeps a press on a control INSIDE the row from
      squeezing the whole row. */
+  /* The row's swipe settle rides along: this rule outranks each row's own
+     transform transition, so without it a swiped row let go of jumped home
+     instead of gliding (premium feel, 2026-10-10). While the finger is on it
+     nothing transitions, so the row tracks the finger exactly. */
   html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"] {
-    transition: scale var(--dur-press) var(--ease-press), background-color var(--dur-fast) var(--ease-out);
+    transition: scale var(--dur-press) var(--ease-press), background-color var(--dur-fast) var(--ease-out),
+      transform var(--dur-swipe) var(--ease-spring);
+  }
+  html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"]:is(.swiping, .dragging) {
+    transition: none;
   }
   html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"]:active:not(:has(:is(button, .cb, .task-check-tap, a):active)) {
     scale: 0.985;
