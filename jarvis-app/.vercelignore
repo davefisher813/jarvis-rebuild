@@ -1,0 +1,5 @@
+# Test files under api/ are not functions. Vercel deploys every non-underscore
+# file under api/ as one; a test declares no runtime, so each became a Node.js
+# function, and the Hobby plan allows 12. The 13th (api/admin/users.test.ts,
+# 2026-10-10) failed every build from then on. See src/laws/apiFunctionBudget.test.ts.
+api/**/*.test.ts
