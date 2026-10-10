@@ -3543,10 +3543,19 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     // colour that is not its own.
     expect(src, "the row no longer paints the whole joined line one colour")
       .not.toMatch(/className=\{"eyebrow cat-fg-" \+ catColor\(t\.category\)\}/);
-    expect(src, "the parent's glyph carries the colour")
-      .toMatch(/<ParentLineGlyph p=\{parent\} \/>/);
+    // AMENDED 2026-10-09 (Dave, the pass-off, item 14, "all of it now": the category appears as a small chip with the project
+    // name right next to it, replacing the colour dot). The colour is ONE chip, drawn by the shared CatChipLine, for ONE area:
+    // the first named one (categoriesOf puts the primary first), found with .find, never a joined list. The project's name
+    // beside it is the line's plain grey. The row itself still names no cat-fg- class: the chip is the one coloured thing.
+    expect(src, "the shared chip carries the colour")
+      .toMatch(/<CatChipLine category=\{chipCat\} text=\{chipWords\} \/>/);
+    expect(src, "and it names one area, the first that has a name")
+      .toMatch(/const chipCat = \[\.\.\.categoriesOf\(t\), parent\?\.cat\]\.find\(/);
     expect(src, "no category word is coloured").not.toMatch(/cat-fg-/);
     expect(src, "the old bar is gone").not.toMatch(/r-bar/);
+    const chip = read(join(SRC, "shared/CatChipLine.tsx"));
+    expect(chip.match(/cat-fg-/g)?.length, "the chip line paints exactly one chip").toBe(1);
+    expect(chip, "and the words beside it wear no category colour").toMatch(/<span className="r-goal-t"[^>]*>\{words\}<\/span>/);
   });
 
   it("categoriesOf puts the primary first, which is what the index-0 rule leans on", async () => {
@@ -6215,7 +6224,10 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
     // All four wore .r-goal.r-cat, which is one class saying "quiet grey
     // subtext". Four kinds of thing cannot share one word for what they are.
     expect(PAGE).toMatch(/className="r-goal r-person"/);
-    expect(PAGE).toMatch(/className="r-goal r-est"/);
+    // AMENDED 2026-10-09 (Dave, the pass-off, item 15: "Remove time estimates from task rows. I honestly don't think people
+    // will use that feature all that much anyways"). The estimate is no longer a fact on this line; it stays on the task and
+    // in its sheet.
+    expect(PAGE, "no estimate on the task row").not.toMatch(/className="r-goal r-est"/);
     expect(PAGE).toMatch(/className="r-goal r-rec"/);
     expect(PAGE, "and nothing on this line is glued on with a middle dot")
       .not.toMatch(/"\\u00b7 " \+/);
@@ -6268,7 +6280,9 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
     // §5: "Numbers inside meta text take extra weight and sometimes colour."
     // Nums is the one renderer for that, already used by the goal and review
     // rows, so the task row does not invent a second one.
-    expect(PAGE).toMatch(/<Nums text=\{durLabel\(t\.estimateMin\)\} \/>/);
+    // AMENDED 2026-10-09 (Dave, item 15): the task row prints no estimate at all now, so it renders no duration through
+    // Nums or any other way. The emphasis below still governs every number inside a task row's meta text.
+    expect(PAGE, "the row prints no estimate").not.toMatch(/estimateMin/);
     // AMENDED 2026-09-22 (§AM, the Colour Key). This pinned --tx-2, and
     // --tx-2 is the SAME HEX as --tx-3, so what it actually pinned was the
     // row's one grey made heavier -- the exact thing §AK V5.2 outlawed that
@@ -6283,8 +6297,14 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
     // §4.1: "a task that moves nothing says the category name, plain." The
     // branch is on the KIND of parent, never on the name or the colour value
     // (lint rules 10 and 11).
-    const glyphs = read(join(SRC, "shared/glyphs.tsx"));
-    expect(glyphs).toMatch(/p\.kind === "category" \? " r-parent-plain" : ""/);
+    // AMENDED 2026-10-09 (Dave, the unified chip): the category is the chip now, and the chip is the line's one coloured
+    // thing; it is not words with a colour. What sits beside it (the project, goal or event, or a note's first line) is the
+    // line's plain grey at regular weight whatever its kind, so the branch on kind that set a class is gone with the glyph.
+    const chipLine = read(join(SRC, "shared/CatChipLine.tsx"));
+    expect(chipLine, "the chip is drawn for an area, never for a name or a colour value")
+      .toMatch(/className=\{"cat-chip cat-fg-" \+ area\.slot\}/);
+    expect(inkOf(".ruled .r-goal.r-parent .r-goal-t"))
+      .toEqual({ color: "var(--tx-3)", weight: "var(--w-normal)" });
     expect(inkOf(".ruled .r-goal.r-parent.r-parent-plain .r-goal-t"))
       .toEqual({ color: "var(--tx-3)", weight: "var(--w-normal)" });
   });
@@ -7100,7 +7120,10 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
     // they are the swipe, the sheet and the long-press menu. What the slot holds now, in order of claim: the row's one
     // quiet verb once its moment has come (RowCtxAction, text only, the same verb as the swipe), then the count of a
     // task already underway, then, for a caller with no Start, the urgency label. The count still beats the date.
-    const order = ["RowCtxAction", "hasUnfinishedSteps(steps)", "URGENCY_CLASS"];
+    // AMENDED 2026-10-09 (Dave, the pass-off, item 16: "Subtask count ('1 of 5') moves to the title line"). The count left
+    // this slot for the title line, beside the name it counts; the slot keeps the quiet verb, then the urgency label. The
+    // count's own rule is unchanged: only an unfinished list earns it, and a done row says nothing.
+    const order = ["RowCtxAction", "URGENCY_CLASS"];
     let last = -1;
     for (const mark of order) {
       const at = slot.indexOf(mark);
@@ -7108,17 +7131,21 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
       expect(at, mark + " comes after " + (order[order.indexOf(mark) - 1] ?? "the top")).toBeGreaterThan(last);
       last = at;
     }
-    // A done row says nothing in this slot, the count included.
-    expect(slot).toMatch(/!shownDone && hasUnfinishedSteps\(steps\)/);
+    expect(slot, "the count is not in the trailing slot").not.toMatch(/StepCount|hasUnfinishedSteps/);
+    // A done row says nothing on its title line either, the count included.
+    expect(PAGE).toMatch(/const showSteps = !selecting && !shownDone && hasUnfinishedSteps\(steps\);/);
+    expect(PAGE, "the count sits on the title line, after the name")
+      .toMatch(/showSteps \? \([\s\S]*?<div className="task-line1">\s*<span className="task-name">\{title\}<\/span>\s*<StepCount \{\.\.\.steps\} \/>/);
     // And no pill came back: nothing in the slot is a capsule.
     expect(slot, "no capsule in the right slot").not.toMatch(/pill-act|row-act|btn-sm|onStart\(item\.id\)|action\.onClick/);
   });
 
   it("the slot is the quiet verb and exactly one of the count or the date", () => {
-    // Lint rule 7, right-slot arity, restated for the new slot. Three elements, one fragment: the quiet verb
-    // (RowCtxAction), then ONE arm of the chain (the StepCount, or the urgency span). No wrapper, no list.
+    // Lint rule 7, right-slot arity, restated for the new slot. Two elements, one fragment: the quiet verb
+    // (RowCtxAction), then the urgency span. No wrapper, no list. (AMENDED 2026-10-09: the StepCount arm moved to the
+    // title line, Dave's item 16.)
     const opens = slot.match(/<[A-Za-z]+/g) ?? [];
-    expect(opens, "RowCtxAction, StepCount and the urgency span, one per arm").toEqual(["<RowCtxAction", "<StepCount", "<span"]);
+    expect(opens, "RowCtxAction and the urgency span").toEqual(["<RowCtxAction", "<span"]);
     expect(slot.match(/<>/g)?.length ?? 0, "one fragment: the verb and the one thing after it").toBe(1);
     expect(slot, "no keyed fragment smuggling more in").not.toMatch(/<React\.Fragment/);
     expect(slot, "and nothing mapped into it").not.toMatch(/\.map\(/);

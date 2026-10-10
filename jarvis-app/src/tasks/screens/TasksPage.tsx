@@ -23,14 +23,13 @@ import Provenance from "../../shared/ProvenanceLine";
 import { rowSource, type Source, type SourceType } from "../../shared/provenance";
 import { lineCase, titleCase } from "../../shared/casing";
 import { cueLine } from "../ifThen";
-import { durLabel } from "../../schedule/durations";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import HeadMenu from "../../shared/HeadMenu";
 import { useRowMenu } from "../../shared/useRowMenu";
-import { ParentLineGlyph, EnvelopeGlyph } from "../../shared/glyphs";
+import { EnvelopeGlyph } from "../../shared/glyphs";
+import CatChipLine from "../../shared/CatChipLine";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
-import { Nums } from "../../bigger/GoalRowRuled";
 import { parentForTask, type ParentLine, type ParentIndex } from "../../life/parent";
 import { originLabel } from "../origin";
 
@@ -250,6 +249,11 @@ export function TaskRow({
   // other row does, its dot ahead of its name, through the same parentForTask
   // the flows use.
   const parent = callerParent ?? areaLine(item, inArea);
+  // THE CHIP (Dave 2026-10-09, the unified chip): the task's own first named area, else the area its project or event lives in,
+  // and never the area whose page this row is listed on (the round-2 review above). The words beside it are the project or
+  // event; a category parent IS the chip, so it adds no words.
+  const chipCat = [...categoriesOf(t), parent?.cat].find((id): id is string => !!id && id !== inArea && !!catName(id)) ?? null;
+  const chipWords = parent && parent.kind !== "category" ? parent.name : null;
   // With `dueFact` the day is a fact on the row's own line (below), so the trailing urgency fallback is not drawn: `u` is
   // the fallback's alone, and `soon` is what the fact says.
   const soon = urgencyFor(t, today);
@@ -294,6 +298,8 @@ export function TaskRow({
   const [localDone, setLocalDone] = useState(false);
   const pendingDone = useRef(false);
   const shownDone = t.done || localDone;
+  // Only while it is underway and not ticked off: a fully ticked list hands the line back, as it always handed back the slot.
+  const showSteps = !selecting && !shownDone && hasUnfinishedSteps(steps);
   // Open tasks also reveal a "tomorrow" action; BILLS DO NOT (Money v1):
   // pushing rent to tomorrow in one gesture is exactly the ADHD-tax move the
   // money track exists to stop. Delete stays; deferral needs the sheet.
@@ -484,6 +490,13 @@ export function TaskRow({
                 }}
               />
             </div>
+          ) : showSteps ? (
+            /* THE COUNT IS ON THE TITLE LINE (Dave 2026-10-09, the pass-off, item 16): "1 of 5" sits beside the name it
+               counts, not in the trailing slot. */
+            <div className="task-line1">
+              <span className="task-name">{title}</span>
+              <StepCount {...steps} />
+            </div>
           ) : (
             <span className="task-name">{title}</span>
           )}
@@ -494,7 +507,11 @@ export function TaskRow({
               target, the category dot) and the parent's full name in one
               quiet grey. The vertical bar is gone; the glyph is the colour.
               The old caps eyebrow, the urgency chip that sat beside it, and
-              the row-tags line they shared are gone; this line is all three. */}
+              the row-tags line they shared are gone; this line is all three.
+              AMENDED 2026-10-09 (Dave, the unified chip): where it lives is the
+              area as a small chip in its own colour with the project or event
+              right next to it (shared/CatChipLine, the same piece the note rows
+              use). It replaces the dot and the glyph; no area, no chip. */}
           {/* DEFECT 6 (Dave 2026-09-06, on his phone: "tasks have too much
               grey when you add info like time and people. Think of another way
               to render that info so it all doesn't blend in").
@@ -544,7 +561,7 @@ export function TaskRow({
                   {kicker && <span className={kickerTone === "stalled" ? "r-goal r-cat r-stalled" : "fact date"}>{kicker}</span>}
                 </>
               : parent
-              ? <ParentLineGlyph p={parent} />
+              ? <CatChipLine category={chipCat} text={chipWords} />
               : originLabel(t)
               /* WHERE IT CAME FROM WEARS A MARK (§AK, 2026-09-21, Dave's
                  Anytime screenshot: "Email" in bare grey under one task and
@@ -583,9 +600,9 @@ export function TaskRow({
             {person && (person.onOpen
               ? <span className="r-goal r-person" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); person.onOpen!(); }}>{person.name}</span>
               : <span className="r-goal r-person">{person.name}</span>)}
-            {/* UP-CORE-02 (2026-09-05): how long he said this one takes,
-                where he is deciding what to pick up. A fact, only when set. */}
-            {t.estimateMin ? <span className="r-goal r-est"><Nums text={durLabel(t.estimateMin)} /></span> : null}
+            {/* NO ESTIMATE ON THE ROW (Dave 2026-10-09, the pass-off, item 15: "I honestly don't think people will use that
+                feature all that much anyways"). UP-CORE-02's estimate stays on the task and in its sheet; the row no longer
+                prints it. */}
             {t.recurrence && <span className="r-goal r-rec">{lineCase(t.recurrence)}</span>}
             {/* Provenance Line (addendum item 8): auto-created rows say where
                 they came from; hand-made rows render nothing here. */}
@@ -616,18 +633,15 @@ export function TaskRow({
         </div>
         {/* NO PILL ON A ROW (Dave 2026-10-05). The slot holds, in order of
             claim: the row's verb as one quiet word once its moment has come (it
-            is overdue; the same verb as the swipe), then the count of a task
-            already underway ("2 of 5": information, not an action; a fully
-            ticked list is not underway, hasUnfinishedSteps carries the
-            reasoning), then, for a caller with no Start, the urgency label
-            (never beside a verb: it is the same fact the chip above says). Done
-            is the check on the left, so it is never surfaced as words. */}
+            is overdue; the same verb as the swipe), then, for a caller with no
+            Start, the urgency label (never beside a verb: it is the same fact
+            the chip above says). Done is the check on the left, so it is never
+            surfaced as words. The count of a task underway left this slot for
+            the title line (Dave 2026-10-09, item 16). */}
         {selecting ? null : (
           <>
             <RowCtxAction when={!!verb && verb !== "Done" && !shownDone && dist?.kind === "late"} label={verb ?? ""} ariaLabel={verb + " " + title} onAct={runVerb} />
-            {!shownDone && hasUnfinishedSteps(steps)
-              ? <StepCount {...steps} />
-              : !onStart && u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+            {!onStart && u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
           </>
         )}
       </div>

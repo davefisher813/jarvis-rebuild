@@ -3,7 +3,9 @@ import { onPressKey } from "../../shared/pressable";
 import type { TaskItem } from "../../tasks/TasksService";
 import { originLabel } from "../../tasks/origin";
 import { distanceFor, todayISO } from "../../tasks/grouping";
-import { ParentLineGlyph } from "../../shared/glyphs";
+import CatChipLine from "../../shared/CatChipLine";
+import { categoriesOf } from "../../tasks/categories";
+import { catName } from "../../shared/categories";
 import type { ParentLine } from "../../life/parent";
 import { useSwipe } from "../../shared/useSwipe";
 import type { RowAction } from "../../shared/RowActionSheet";
@@ -117,6 +119,10 @@ function AnytimeItem({ it, parent, today, onToggle, onSchedule, onDelete, onOpen
   onDragStart?: (id: string, label: string, e: RPointerEvent) => void;
 }) {
   const title = titleCase(it.data.text);
+  // THE CHIP (Dave 2026-10-09, the unified chip): the task's own first named area, else its project's or event's, with the
+  // project or event beside it. The same piece every task row and note row uses.
+  const chipCat = [...categoriesOf(it.data), parent?.cat].find((id): id is string => !!id && !!catName(id)) ?? null;
+  const chipWords = parent && parent.kind !== "category" ? parent.name : null;
   const dist = distanceFor(it.data, today);
   const droppable = !!onSchedule;
   const completable = !!onToggle;
@@ -182,7 +188,7 @@ function AnytimeItem({ it, parent, today, onToggle, onSchedule, onDelete, onOpen
           <span className="task-name">{title}</span>
           <div className="r-k">
             {parent
-              ? <ParentLineGlyph p={parent} />
+              ? <CatChipLine category={chipCat} text={chipWords} />
               : originLabel(it.data)
                 ? <span className="r-goal r-cat">{originLabel(it.data)}</span>
                 : null}

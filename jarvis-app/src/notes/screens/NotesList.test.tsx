@@ -57,19 +57,29 @@ describe("NotesList", () => {
   // AMENDED 2026-09-26 (pass-off): the day is said once, above the group
   // (catalog §B). Under Today and Yesterday the row repeats no date; under
   // Earlier the date is the row's own.
-  it("the second line is the area's dot and name, then when; unfiled names no area", () => {
+  // AMENDED 2026-10-09 (Dave, the pass-off, item 14: the unified chip, "same format on notes: the note preview sits next to
+  // the chip. Rows with no category show no chip at all"). The area is a small chip in its colour, which replaces the dot,
+  // and the note's own first line sits right next to it; the same piece a task row draws its area and project with.
+  it("the second line is the area's chip with the note's first line beside it, then when; unfiled shows no chip", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const { container } = render(<NotesList notes={notes} />);
       const rows = container.querySelectorAll(".note-row");
-      expect(rows[0]!.querySelector(".r-parent .r-pg")).toHaveClass("cat-fg-blue");
-      expect(rows[0]!.querySelector(".r-parent .r-goal-t")).toHaveTextContent("Work");
+      // A filed note with no body: the chip alone.
+      expect(rows[0]!.querySelector(".r-parent .cat-chip")).toHaveClass("cat-fg-blue");
+      expect(rows[0]!.querySelector(".r-parent .cat-chip")).toHaveTextContent("Work");
+      expect(rows[0]!.querySelector(".r-parent .r-goal-t"), "no words to put beside it").toBeNull();
+      expect(rows[0]!.querySelector(".r-pg, .r-pdot"), "the dot is gone").toBeNull();
       expect(rows[0]!.querySelector(".r-when"), "the Today head already says it").toBeNull();
-      expect(rows[1]!.querySelector(".r-parent")).toBeNull();
+      // An unfiled note: no chip, its first line stands alone.
+      expect(rows[1]!.querySelector(".cat-chip")).toBeNull();
+      expect(rows[1]!.querySelector(".r-parent .r-goal-t")).toHaveTextContent("Base week.");
       expect(rows[1]!.querySelector(".r-when"), "the Yesterday head already says it").toBeNull();
-      // An unfiled note edited yesterday has nothing left to say under it.
-      expect(rows[1]!.querySelector(".r-k")).toBeNull();
       expect(rows[1]!.textContent).not.toMatch(/Not Filed/);
+      // A filed note with a body: the chip, then its first line right next to it, then the date.
+      const line = rows[2]!.querySelector(".r-k")!;
+      expect([...line.children].map((c) => c.className)).toEqual(["r-goal r-parent", "r-goal r-cat r-when"]);
+      expect([...line.querySelector(".r-parent")!.children].map((c) => c.textContent)).toEqual(["Family", "Tents and tables"]);
       expect(rows[2]!.querySelector(".r-when"), "under Earlier the date is the row's own").toHaveTextContent("Aug 28");
       expect(rows[3]!.querySelector(".r-when")).toBeNull();
       expect(rows[3]!.querySelector(".r-k")).toBeNull();

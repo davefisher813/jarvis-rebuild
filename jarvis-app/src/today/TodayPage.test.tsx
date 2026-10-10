@@ -514,3 +514,39 @@ describe("TodayPage avatar: honest when there is no name", () => {
     expect(container.querySelector(".today-av")!.textContent).not.toContain("JV");
   });
 });
+
+// THE TASK ROWS ON TODAY (Dave 2026-10-09, the pass-off, items 14 and 16), the evening's Still Open list: the area is the unified chip with the project
+// right next to it, and the checklist count sits on the title line beside the name, not in the trailing slot.
+describe("Today's task rows", () => {
+  it("chip and project on the second line, the count on the title line", () => {
+    const t: TaskItem = { id: "pack", data: { text: "Pack the Van", category: "orgB", done: false, due: "2026-05-20",
+      steps: [{ text: "Chairs", done: true }, { text: "Cooler", done: false }] } as TaskItem["data"] };
+    const { container } = render(
+      <TodayPage {...base} evening={{ doneDue: 1, dueTotal: 3, eventsLeft: 0, openCount: 3, thingsDone: 2 }} tasks={[...base.tasks, t]} parentOf={() => ({ kind: "project", name: "Beach Weekend", tone: "cat-fg-sky", pct: 50, cat: "orgB" })} />,
+    );
+    const row = [...container.querySelectorAll(".task-row")].find((r) => r.textContent?.includes("Pack the Van"))!;
+    const line1 = row.querySelector(".task-title > .task-line1")!;
+    expect([...line1.children].map((c) => c.className)).toEqual(["task-name", "tr-steps"]);
+    expect(line1.querySelector(".tr-steps")).toHaveTextContent("1 of 2");
+    expect(row.querySelector(":scope > .tr-steps"), "not in the trailing slot").toBeNull();
+    const chipLine = row.querySelector(".r-k > .r-parent")!;
+    expect(chipLine.querySelector(".cat-chip")).toHaveTextContent("Ridgeley");
+    expect(chipLine.querySelector(".r-goal-t")).toHaveTextContent("Beach Weekend");
+  });
+});
+
+// The heads-up rows for tomorrow's weeklies are task rows too (Dave 2026-10-09, item 14): the area is the same chip, and a
+// row with no named area shows no chip at all.
+describe("Tomorrow's task rows", () => {
+  it("chip the area, and a row with no area shows none", () => {
+    const weekly: TaskItem = { id: "w", data: { text: "Water the Plants", category: "family", done: false, due: "2026-05-21", recurrence: "weekly" } };
+    const loose: TaskItem = { id: "l", data: { text: "Take Out Bins", category: "", done: false, due: "2026-05-21", recurrence: "weekly" } };
+    const { container } = render(<TodayPage {...base} tomorrowTasks={[weekly, loose]} />);
+    const rows = [...container.querySelectorAll(".sched-row-bare")];
+    const w = rows.find((r) => r.textContent?.includes("Water the Plants"))!;
+    expect(w.querySelector(".sched-cat .cat-chip.cat-fg-pink")).toHaveTextContent("Family");
+    expect(w.querySelector(".cat-dot"), "the dot is gone").toBeNull();
+    const l = rows.find((r) => r.textContent?.includes("Take Out Bins"))!;
+    expect(l.querySelector(".sched-cat, .cat-chip")).toBeNull();
+  });
+});
