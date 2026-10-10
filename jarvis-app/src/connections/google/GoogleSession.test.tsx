@@ -720,3 +720,51 @@ describe("foreground refresh follows the expiry the server gave", () => {
     expect(into.current.connectionOf("a@x.com").connected).toBe(true); // a temporary problem does not sign anyone out
   });
 });
+
+// PREPARED SIGN-INS (2026-10-10, the Sign In Again that did nothing). warmReconnect does the network work before the tap;
+// reconnect then calls the prepared launch synchronously, inside the tap, so the browser lets Google's window open.
+function PrepHost({ broker }: { broker: TokenBroker }) {
+  const profile = useProfile();
+  const [seeded, setSeeded] = useState(false);
+  useEffect(() => {
+    const seed: { email: string; mail: boolean; cal: boolean; scopes?: string }[] = [{ email: "old@x.com", mail: true, cal: true, scopes: GOOGLE_SCOPES }];
+    void profile.save({ googleAccounts: seed }).then(() => setSeeded(true));
+  }, [profile]);
+  if (!seeded) return null;
+  return (
+    <GoogleSessionProvider broker={broker} makeApi={() => makeFakeGoogleApi({ getProfile: async () => ({ emailAddress: "old@x.com" }) })}>
+      <PrepInner />
+    </GoogleSessionProvider>
+  );
+}
+function PrepInner() {
+  const g = useGoogle();
+  return (
+    <div>
+      <button onClick={() => g.warmReconnect("old@x.com", { consent: true })}>warm</button>
+      <button onClick={() => { void g.reconnect("old@x.com", { consent: true }); }}>tap</button>
+    </div>
+  );
+}
+
+describe("prepared sign-ins", () => {
+  it("Sign In Again prepares before the tap, then opens Google synchronously in the tap, never via the silent path", async () => {
+    const order: string[] = [];
+    const broker: TokenBroker = {
+      authorize: async () => { order.push("authorize"); return { token: "t", email: "old@x.com", expiresAt: Date.now() + 3600e3, remembered: true }; },
+      silent: async () => { order.push("silent"); return bad("GOOGLE_REFRESH_UNAVAILABLE", "old@x.com", 503); },
+      prepare: async (opts) => {
+        order.push("prepare:" + String(opts.reconnect));
+        return { expiresAt: Date.now() + 60e3, launch: () => { order.push("launch"); return Promise.resolve({ token: "t2", email: "old@x.com", expiresAt: Date.now() + 3600e3, remembered: true }); } };
+      },
+    };
+    render(<NotesProvider userId={"prep-" + Math.random()}><PrepHost broker={broker} /></NotesProvider>);
+    fireEvent.click(await screen.findByText("warm"));
+    await waitFor(() => expect(order).toContain("prepare:old@x.com"));
+    const before = order.length;
+    fireEvent.click(screen.getByText("tap"));
+    // Synchronously after the tap: the prepared window was asked for, and nothing else ran first.
+    expect(order.slice(before)).toEqual(["launch"]);
+    expect(order).not.toContain("authorize");
+  });
+});

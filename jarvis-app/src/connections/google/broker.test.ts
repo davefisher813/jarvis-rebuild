@@ -6,7 +6,8 @@ import { GOOGLE_CODES, googleFailure as serverFailure } from "../../../api/_goog
 // The two ways of getting a code are the browser's and the phone's, and
 // neither runs here: what these tests hold is what the broker does with the
 // server's answer to the exchange.
-vi.mock("./gis", () => ({ requestGoogleCode: async () => "code-1" }));
+const gisCalls: string[] = [];
+vi.mock("./gis", () => ({ preloadGoogleSignIn: async () => { gisCalls.push("preload"); }, startGoogleCode: async () => { gisCalls.push("start"); return "code-1"; } }));
 vi.mock("./nativeAuth", () => ({
   nativeGoogleAvailable: () => false,
   requestGoogleCodeNative: async () => ({ code: "code-1", verifier: "v", redirectUri: "r" }),
@@ -216,7 +217,7 @@ describe("serverBroker authorize, reconnecting: the window closes or Google refu
   it("closing the window is reported to the server as cancelled and leaves nothing pending", async () => {
     vi.resetModules();
     const calls: Array<Record<string, unknown>> = [];
-    vi.doMock("./gis", () => ({ requestGoogleCode: async () => { const { ReconnectCancelled: C } = await import("./reconnect"); throw new C(); } }));
+    vi.doMock("./gis", () => ({ preloadGoogleSignIn: async () => {}, startGoogleCode: async () => { const { ReconnectCancelled: C } = await import("./reconnect"); throw new C(); } }));
     vi.doMock("./nativeAuth", () => ({ nativeGoogleAvailable: () => false, requestGoogleCodeNative: async () => ({ code: "", verifier: "", redirectUri: "" }) }));
     const { serverBroker: sb } = await import("./broker");
     const rc = await import("./reconnect");
@@ -232,7 +233,7 @@ describe("serverBroker authorize, reconnecting: the window closes or Google refu
   it("Google refusing is reported with its reason, and is not the same as closing", async () => {
     vi.resetModules();
     const calls: Array<Record<string, unknown>> = [];
-    vi.doMock("./gis", () => ({ requestGoogleCode: async () => { const { ReconnectDenied: D } = await import("./reconnect"); throw new D("admin_policy_enforced"); } }));
+    vi.doMock("./gis", () => ({ preloadGoogleSignIn: async () => {}, startGoogleCode: async () => { const { ReconnectDenied: D } = await import("./reconnect"); throw new D("admin_policy_enforced"); } }));
     vi.doMock("./nativeAuth", () => ({ nativeGoogleAvailable: () => false, requestGoogleCodeNative: async () => ({ code: "", verifier: "", redirectUri: "" }) }));
     const { serverBroker: sb } = await import("./broker");
     const rc = await import("./reconnect");
@@ -244,3 +245,45 @@ describe("serverBroker authorize, reconnecting: the window closes or Google refu
     void ReconnectCancelled; void ReconnectDenied;
   });
 });
+
+// THE RECONNECT THAT DID NOTHING (2026-10-10). Every network step of a sign-in happens in prepare(), before the tap; launch()
+// opens Google synchronously, inside the tap, because a browser refuses a window opened after the tap's handler has awaited.
+describe("serverBroker prepare and launch", () => {
+  it("prepare does every network step and opens nothing; launch opens Google before it returns", async () => {
+    gisCalls.length = 0; localStorage.clear();
+    const seen: Array<Record<string, unknown>> = [];
+    const f = (async (_u: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      seen.push(body);
+      return { ok: true, status: 200, json: async () => ("reconnectStart" in body ? { state: "rc1.s.s", loginHint: "dave@gmail.com" } : { accessToken: "tok", email: "dave@gmail.com", remembered: true, reconnect: { status: "verified" } }) };
+    }) as unknown as Fetch;
+    const b = serverBroker(() => "t", f, () => NOW);
+    const p = await b.prepare!({ reconnect: "dave@gmail.com", loginHint: "dave@gmail.com" });
+    expect(seen).toEqual([{ reconnectStart: "dave@gmail.com" }]);
+    expect(gisCalls).toEqual(["preload"]);
+    expect(p.expiresAt).toBeGreaterThan(NOW);
+    const pending = p.launch();
+    // Synchronously, before anything is awaited: the window was asked for inside the call.
+    expect(gisCalls).toEqual(["preload", "start"]);
+    expect(await pending).toMatchObject({ token: "tok", email: "dave@gmail.com" });
+    expect(seen[1]).toMatchObject({ code: "code-1", state: "rc1.s.s" });
+  });
+
+  it("a window the browser refused leaves nothing pending and is not reported as the person cancelling", async () => {
+    vi.resetModules();
+    const calls: Array<Record<string, unknown>> = [];
+    vi.doMock("./gis", () => ({ preloadGoogleSignIn: async () => {}, startGoogleCode: async () => { const { SignInBlocked: B } = await import("./reconnect"); throw new B(); } }));
+    vi.doMock("./nativeAuth", () => ({ nativeGoogleAvailable: () => false, requestGoogleCodeNative: async () => ({ code: "", verifier: "", redirectUri: "" }) }));
+    const { serverBroker: sb } = await import("./broker");
+    const rc = await import("./reconnect");
+    localStorage.clear();
+    const f = (async (_u: string, init?: RequestInit) => { const b = JSON.parse(String(init?.body)) as Record<string, unknown>; calls.push(b); return { ok: true, status: 200, json: async () => ("reconnectStart" in b ? { state: "rc1.s.s" } : { ok: true }) }; }) as unknown as Fetch;
+    const err = await sb(() => "t", f, () => NOW).authorize({ reconnect: "dave@gmail.com" }).catch((e) => e);
+    expect(err).toBeInstanceOf(rc.SignInBlocked);
+    expect(err.message).toBe("Google Sign-In Was Blocked · Allow Pop-Ups and Tap Again");
+    expect(calls).toHaveLength(1);
+    expect(rc.readPending()).toBeNull();
+    vi.doUnmock("./gis"); vi.doUnmock("./nativeAuth");
+  });
+});
+

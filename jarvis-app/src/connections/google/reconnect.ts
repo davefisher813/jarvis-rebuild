@@ -221,6 +221,19 @@ export class ReconnectDenied extends Error {
   }
 }
 
+/** The browser would not open Google's window (a pop-up blocker, or a tap whose permission to open a window had lapsed). Said plainly, with the one fix. */
+export class SignInBlocked extends Error {
+  constructor() { super("Google Sign-In Was Blocked · Allow Pop-Ups and Tap Again"); this.name = "SignInBlocked"; }
+}
+
+/** Google's window opened and never answered (it was closed where the page could not see it, or the phone lost it). The tap is released, never left spinning. */
+export class SignInTimedOut extends Error {
+  constructor() { super("Google Sign-In Didn't Finish · Tap to Try Again"); this.name = "SignInTimedOut"; }
+}
+
+/** How long Google's window may stay open with no answer before the tap is released. Consent takes seconds; this is the backstop. */
+export const SIGN_IN_TIMEOUT_MS = 3 * 60e3;
+
 /** The server ran the checks and one of them did not pass. Carries the words, so every screen says the same thing. */
 export class ReconnectOutcomeError extends Error {
   readonly status: AttemptStatus;

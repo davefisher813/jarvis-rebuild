@@ -9,6 +9,7 @@ import { GoogleSessionProvider } from "./google/GoogleSession";
 import { makeFakeGoogleApi } from "./google/fakeApi";
 import ConnectionsPage, { SIGNED_OUT_HELP } from "./ConnectionsPage";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+import type { TokenOpts } from "./google/gis";
 
 // The build flag is a module constant, so the unified-Email case is reached by
 // answering for it here; every other flag keeps its real answer.
@@ -207,5 +208,63 @@ describe("ConnectionsPage, a signed-out account", () => {
     // Reconnect All is the head's, never at the foot of the list.
     const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
     expect(within(head).getByText("Reconnect All")).toBeInTheDocument();
+  });
+});
+
+// THE RECONNECT THAT DID NOTHING (2026-10-10, live on build 93175ec). Sign In Again was a silent no-op whenever an earlier sign-in
+// had left the page busy, and a Google window that never answered left Add Account on "Connecting" forever.
+describe("ConnectionsPage sign-ins never stick", () => {
+  beforeEach(() => localStorage.clear());
+
+  function hanging() {
+    const calls: TokenOpts[] = [];
+    let answer: "hang" | "tok" = "hang";
+    const requestToken = (opts?: TokenOpts) => {
+      calls.push(opts ?? {});
+      return answer === "hang" ? new Promise<string>(() => {}) : Promise.resolve("tok");
+    };
+    return { calls, requestToken, answer: (a: "hang" | "tok") => { answer = a; } };
+  }
+  function wrapWith(requestToken: (o?: TokenOpts) => Promise<string>, node: React.ReactNode) {
+    return (
+      <NotesProvider userId="u1">
+        <GoogleSessionProvider requestToken={requestToken} makeApi={() => api}>{node}</GoogleSessionProvider>
+      </NotesProvider>
+    );
+  }
+
+  it("a Google window that never answers shows Cancel, and Cancel releases Connecting at once", async () => {
+    const h = hanging();
+    render(wrapWith(h.requestToken, <ConnectionsPage configured />));
+    const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
+    fireEvent.click(within(head).getByRole("button", { name: "Connect Google" }));
+    expect(within(head).getByRole("button", { name: "Connecting" })).toBeDisabled();
+    fireEvent.click(within(head).getByRole("button", { name: "Cancel" }));
+    expect(within(head).getByRole("button", { name: "Connect Google" })).toBeEnabled();
+    expect(within(head).queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it("Sign In Again goes straight to Google for that account, and works even while an earlier sign-in hangs", async () => {
+    const h = hanging();
+    h.answer("tok");
+    render(wrapWith(h.requestToken, <ConnectionsPage configured />));
+    const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
+    fireEvent.click(within(head).getByRole("button", { name: "Connect Google" }));
+    await waitFor(() => expect(screen.getByText("me@example.com")).toBeInTheDocument());
+    await waitFor(() => expect(within(head).getByRole("button", { name: "Add Account" })).toBeEnabled());
+
+    // The first Sign In Again hangs in Google's window.
+    h.answer("hang");
+    fireEvent.click(screen.getByText("me@example.com"));
+    fireEvent.click(await screen.findByText("Sign In Again"));
+    expect(h.calls).toHaveLength(2);
+    expect(h.calls[1]).toMatchObject({ loginHint: "me@example.com" });
+    expect(within(head).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    // Tapping Sign In Again again is never a silent no-op: the hung one is released and Google is asked again.
+    fireEvent.click(screen.getByText("me@example.com"));
+    fireEvent.click(await screen.findByText("Sign In Again"));
+    expect(h.calls).toHaveLength(3);
+    expect(h.calls[2]).toMatchObject({ loginHint: "me@example.com" });
   });
 });
