@@ -17,7 +17,7 @@ import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT } from "../money/ledger/types";
 //
 // PHASE 0 (2026-10-10, PHASE0-DESIGN.md section 4): laws 3 and 4 read one
 // migration, 0044, so the three Phase 0 migrations (item_change and
-// item_link in 0060, the VYZN inbox in 0061, private by default in 0062)
+// item_link in 0060, the VYZN inbox in 0062, private by default in 0063)
 // would have landed a table with no revoke line and nothing would have said
 // so (refutations 1.3 and 2.4). Both laws now run per migration over the
 // files that exist, so a migration is covered the moment it lands; the size
@@ -29,8 +29,8 @@ const SRC = join(process.cwd().replace(/\\/g, "/"), "src");
 const MIG_DIR = join(process.cwd().replace(/\\/g, "/"), "../jarvis-core/supabase/migrations");
 const MIGRATION = join(MIG_DIR, "0044_jarvis_unified_substrate.sql");
 // The substrate's migrations, in order, filtered to the files that exist
-// today: 0060 to 0062 are Phase 0 steps 2 and 6, and each is read the moment it lands.
-const MIGRATIONS = ["0044_jarvis_unified_substrate.sql", "0060_memory.sql", "0061_vyzn_inbox.sql", "0062_private_by_default.sql"]
+// today: 0060 to 0063 are Phase 0 steps 2 and 6, and each is read the moment it lands.
+const MIGRATIONS = ["0044_jarvis_unified_substrate.sql", "0060_memory.sql", "0062_vyzn_inbox.sql", "0063_private_by_default.sql"]
   .filter((f) => existsSync(join(MIG_DIR, f)));
 const read = (f: string) => readFileSync(f, "utf8");
 // A migration's comments explain the revoke lines they sit beside; only the

@@ -2,7 +2,7 @@
 
 Shared between JARVIS and the apps that hand it records: the agent backend's inbox today
 (jarvis-backend `family/`), Bridge and Tucci reserved. Written 2026-10-10 (Phase 0, design D5 and
-D6). The database is `jarvis-core/supabase/migrations/0061_vyzn_inbox.sql`; the gateway method is
+D6). The database is `jarvis-core/supabase/migrations/0062_vyzn_inbox.sql`; the gateway method is
 `jarvis-app/src/substrate/gateway/protocol.ts` and `handler.ts`; the pull is
 `jarvis-app/src/push/proxy.ts` with `src/substrate/records/envelope.ts`; the proof is
 `jarvis-core/supabase/tests/inbox.sh` (30 checks). If an app's shape changes, the proof and the

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Real-Postgres proof for migration 0061 (the VYZN feed: the app proposal surface, record_push,
+# Real-Postgres proof for migration 0062 (the VYZN feed: the app proposal surface, record_push,
 # records_import, record_approve; Phase 0 design D5 and D6, 2026-10-10).
 #
 # Usage: eval "$(./local_pg.sh start)"; ./inbox.sh
 #
 # What it proves (the 30 checks of PHASE0-DESIGN.md section 3, 35 as run: 12a, 12b, 19a, 26a and 26b
-# are the review fixes of 2026-10-10, named in the 0061 header):
+# are the review fixes of 2026-10-10, named in the 0062 header):
 #   an app is a connection the server mints, with a hashed token, propose only, Help Me; a second mint
 #   rotates the hash and the epoch and writes a second receipt, never a second row
 #   a push writes proposals on the app surface with no job, never an item; the inbox is invisible to
@@ -92,12 +92,12 @@ approve() { # proposal prepared [who]
   as_user $who $AUTH "select record_approve('$1',$rev,'$hash','k-$1','$2')"
 }
 
-echo "-- forward: stub + chain 0001..0061, fixtures, then 0061 twice"
+echo "-- forward: stub + chain 0001..0062, fixtures, then 0062 twice"
 q -f "$here/stub_supabase.sql" >/dev/null
-for f in $(ls "$here"/../migrations/*.sql | sort | grep -v '/0062_'); do q -f "$f" >/dev/null; done
+for f in $(ls "$here"/../migrations/*.sql | sort | grep -v '/0063_'); do q -f "$f" >/dev/null; done
 q -f "$here/fixtures/substrate_fixtures.sql" >/dev/null
 COUNTS1=$(counts)
-check "1. 0061 forwards twice (idempotent)" "ok|$COUNTS1|1|1" "$(q -f "$here/../migrations/0061_vyzn_inbox.sql" >/dev/null && echo ok)|$(counts)|$(q -c "select count(*) from pg_constraint where conrelid='proposal'::regclass and conname='proposal_app_job_check'")|$(q -c "select count(*) from pg_constraint where conrelid='source_evidence'::regclass and conname='source_evidence_app_fields_check'")"
+check "1. 0062 forwards twice (idempotent)" "ok|$COUNTS1|1|1" "$(q -f "$here/../migrations/0062_vyzn_inbox.sql" >/dev/null && echo ok)|$(counts)|$(q -c "select count(*) from pg_constraint where conrelid='proposal'::regclass and conname='proposal_app_job_check'")|$(q -c "select count(*) from pg_constraint where conrelid='source_evidence'::regclass and conname='source_evidence_app_fields_check'")"
 
 echo "-- the app's connection: minted by the server, a hash only, rotated on a second mint"
 M1=$(as_user $A $SVC "select vyzn_app_connect('$A','$APP','hash-feed')")
@@ -277,8 +277,8 @@ check "29. readiness carries phase0.inbox true; every new function carries searc
 
 echo "-- rollback, then forward again"
 N_APP=$(app_props $A)
-q -f "$here/../rollback/0061_vyzn_inbox_down.sql" >/dev/null
+q -f "$here/../rollback/0062_vyzn_inbox_down.sql" >/dev/null
 check "30. rollback restores the six bodies, drops the eight functions, keeps the columns and the person's proposals; forward again" "0|f|f|f|f|f|t|3|$N_APP|f|none|$COUNTS1|$N_APP" \
-  "$(q -c "select count(*) from pg_proc where proname in ('jarvis_vyzn_apps','vyzn_app_connect','jarvis_records_ingest','record_push','records_import','vyzn_inbox','record_approve','record_dismiss')")|$(q -c "select pg_get_functiondef('action_undo'::regproc) like '%record\\_%'")|$(q -c "select pg_get_functiondef('jarvis_capture_valid'::regproc) like '%person%'")|$(q -c "select pg_get_functiondef('activity_feed'::regproc) like '%record\\_%'")|$(q -c "select pg_get_functiondef('receipt_detail'::regproc) like '%record\\_%'")|$(q -c "select pg_get_functiondef('connection_set_mode'::regproc) like '%jarvis_vyzn_apps%'")|$(q -c "select pg_get_functiondef('item_why'::regproc) like '%null::text%'")|$(q -c "select count(*) from information_schema.columns where table_name='source_evidence' and column_name in ('source_app','source_record_id','source_url')")|$(app_props $A)|$(q -c "select attnotnull from pg_attribute where attrelid='proposal'::regclass and attname='job_id'")|$(q -c "select coalesce(proconfig::text,'none') from pg_proc where proname='jarvis_capture_valid'")|$(q -f "$here/../migrations/0061_vyzn_inbox.sql" >/dev/null && counts)|$(app_props $A)"
+  "$(q -c "select count(*) from pg_proc where proname in ('jarvis_vyzn_apps','vyzn_app_connect','jarvis_records_ingest','record_push','records_import','vyzn_inbox','record_approve','record_dismiss')")|$(q -c "select pg_get_functiondef('action_undo'::regproc) like '%record\\_%'")|$(q -c "select pg_get_functiondef('jarvis_capture_valid'::regproc) like '%person%'")|$(q -c "select pg_get_functiondef('activity_feed'::regproc) like '%record\\_%'")|$(q -c "select pg_get_functiondef('receipt_detail'::regproc) like '%record\\_%'")|$(q -c "select pg_get_functiondef('connection_set_mode'::regproc) like '%jarvis_vyzn_apps%'")|$(q -c "select pg_get_functiondef('item_why'::regproc) like '%null::text%'")|$(q -c "select count(*) from information_schema.columns where table_name='source_evidence' and column_name in ('source_app','source_record_id','source_url')")|$(app_props $A)|$(q -c "select attnotnull from pg_attribute where attrelid='proposal'::regclass and attname='job_id'")|$(q -c "select coalesce(proconfig::text,'none') from pg_proc where proname='jarvis_capture_valid'")|$(q -f "$here/../migrations/0062_vyzn_inbox.sql" >/dev/null && counts)|$(app_props $A)"
 
 [ "$fail" = 0 ] && echo "ALL OK" || { echo "FAILURES"; exit 1; }

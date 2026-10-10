@@ -1,7 +1,7 @@
--- Rollback of 0061 (the VYZN feed: the app proposal surface, record_push, records_import, record_approve).
+-- Rollback of 0062 (the VYZN feed: the app proposal surface, record_push, records_import, record_approve).
 -- Not a migration: it lives outside supabase/migrations so nothing applies it by accident.
 --
--- What it does: drops the eight functions 0061 added, puts the six replaced functions back to their
+-- What it does: drops the eight functions 0062 added, puts the six replaced functions back to their
 -- production bodies verbatim (jarvis_capture_valid, action_undo, activity_feed and receipt_detail to 0046,
 -- connection_set_mode to 0047, item_why to 0060), and narrows the two tables back ONLY where no row
 -- depends on the wider shape:
@@ -11,9 +11,9 @@
 --                    source_evidence_app_record_idx is dropped (an index is derived, not data); the type check
 --                    narrows back to (email, manual, import) only when no `type = 'app'` row exists
 --   proposal         the surface and payload checks tighten back and job_id regains NOT NULL only when no
---                    `surface = 'app'` row exists; otherwise every check stays as 0061 left it. The payload
+--                    `surface = 'app'` row exists; otherwise every check stays as 0062 left it. The payload
 --                    check comes back under the name proposal_payload_check, not 0044's auto generated
---                    proposal_check (0061 dropped that one by its definition and named its replacement);
+--                    proposal_check (0062 dropped that one by its definition and named its replacement);
 --                    the definition is 0044's verbatim, only the name differs
 --
 -- Operator note: the person's inbox rows (proposal.surface = 'app') are data the forward cannot recreate,

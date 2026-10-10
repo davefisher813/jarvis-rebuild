@@ -1,4 +1,5 @@
--- Migration 0062: private by default (Phase 0 design D7; PHASE0-DESIGN.md section 3, 2026-10-10).
+-- Migration 0063: private by default (Phase 0 design D7; PHASE0-DESIGN.md section 3, 2026-10-10).
+-- Renumbered 2026-10-10 from 0062: the live project already holds 0061_email_signature (Email v1), so the VYZN feed moved to 0062 and this file to 0063.
 --
 -- Four tables the app's own files call "service role only" have been reachable by the browser roles
 -- since the day they were made: Supabase hands every new table in public to anon, authenticated and
@@ -19,7 +20,7 @@
 --   3. delete_owned: the 0060 body plus ai_budget, ai_budget_reservation (0043), device_token (0054) and
 --      google_reconnect_attempt (0058), all by user_id, before the item line. client_error (0053) has no
 --      owner column by design and cannot join.
---   4. substrate_readiness: the 0060 body with migration '0062' and the phase0.private probe widened
+--   4. substrate_readiness: the 0060 body with migration '0063' and the phase0.private probe widened
 --      from one table and one role to the four tables and both browser roles.
 --   The 44 per row policies that call auth.uid() are not rewritten (design section 10 item 17). No table, column or policy
 --   is created or dropped. Forward twice is a no-op.
@@ -43,7 +44,7 @@
 --   (src/settings/FeedbackSheet.tsx posts to /api/feedback; src/ai/tokenLog.ts sums what /api/ai-usage
 --   returned). So no table keeps a verb: the revoke is the full posture for all four.
 --
--- The function list, derived on the local rehearsal database after 0001 to 0061 (stub_supabase.sql
+-- The function list, derived on the local rehearsal database after 0001 to 0062 (stub_supabase.sql
 -- mirrors the live default privileges) with:
 --   select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'
 --     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -61,7 +62,7 @@
 --   jarvis_draft_fields_bad(p jsonb)                                    0050  plpgsql immutable
 --   jarvis_payload_clean(p jsonb)                                       0044  sql immutable
 --   jarvis_policy_rule_ok(rule jsonb)                                   0044  sql immutable
--- None of the ten is defined or redefined by 0060 or 0061, so this file never rewrites a Phase 0 object.
+-- None of the ten is defined or redefined by 0060 or 0062, so this file never rewrites a Phase 0 object.
 -- None of the ten names an object outside pg_catalog and public, so search_path = public changes what
 -- none of them resolves. "Mutable" is the advisor's word (function_search_path_mutable: no search_path
 -- in proconfig), not provolatile: the eight immutable helpers are on the advisor's list and are set here.
@@ -69,23 +70,23 @@
 -- Compared with the live advisor's list of 2026-10-10T03:34Z (13 names, scratchpad map
 -- follow-production-state-versus-the-repo-chain): the eight jarvis_ names above are on it;
 -- set_monotonic_updated_at, item_apply_patch and item_apply_patch_if_older are fixed by 0060 and
--- jarvis_capture_valid by 0061 (excluded here); jarvis_legacy_account_state(text) is the stray
+-- jarvis_capture_valid by 0062 (excluded here); jarvis_legacy_account_state(text) is the stray
 -- 0055_email_connection_truth, live only, and is left alone (design section 10 item 17: no action on the
 -- stray 0055), so the live advisor keeps exactly that one finding after this file. The two 0037 names are
 -- on the local list only because the repo chain applies 0037; live, where 0037 was never applied, the
 -- guard skips them and nothing is created.
 --
--- Deviations from PHASE0-DESIGN.md section 3 "0062_private_by_default.sql", each stated:
+-- Deviations from PHASE0-DESIGN.md section 3 "0063_private_by_default.sql", each stated:
 --   a. ai_tokens_id_seq is revoked beside the table (not in the design; the 0053 precedent, reason above).
 --   b. substrate_readiness is redefined. The design says the readiness "gains phase0.private true"; 0060
 --      already carried a probe (authenticated select on feedback alone) that flips true on the revoke, so
---      the gain needed no body change. The body changes anyway so the migration word reads '0062' and the
+--      the gain needed no body change. The body changes anyway so the migration word reads '0063' and the
 --      probe covers what this file actually closes (four tables, two roles, four verbs). The rollback
 --      restores the 0060 body verbatim.
 --   c. The grants are reissued to service_role on every forward, which is a no-op on a project where the
 --      default privilege already granted them, and the stated posture where it did not.
 --
--- Rollback: supabase/rollback/0062_private_by_default_down.sql (delete_owned and substrate_readiness back
+-- Rollback: supabase/rollback/0063_private_by_default_down.sql (delete_owned and substrate_readiness back
 -- to their 0060 bodies; search_path reset on the ten, guarded the same way; the four grants are NOT
 -- restored, nor the sequence's: a rollback never reopens a table to a browser role).
 -- Proof: supabase/tests/posture.sh on the local Postgres (forward twice, the checks, rollback, forward
@@ -218,7 +219,7 @@ set search_path = public
 as $$
   select jsonb_build_object(
     'schema_version', 1,
-    'migration', '0062',
+    'migration', '0063',
     'registered', (
       select coalesce(jsonb_agg(key order by key), '[]'::jsonb)
       from entity_type

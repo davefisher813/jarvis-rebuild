@@ -133,7 +133,7 @@ describe("the agent gateway handler", () => {
     expect((await handleAgentRequest(post({ protocol_version: 1, method: "action.status", params: { action_id: CONN } }), rig().deps)).body).toMatchObject({ state: "confirmed" });
   });
 
-  // THE VYZN FEED (PHASE0-DESIGN.md D6; migration 0061). record.push is the one method an outside app has:
+  // THE VYZN FEED (PHASE0-DESIGN.md D6; migration 0062). record.push is the one method an outside app has:
   // behind the vyzn_sync_v1 flag, propose only, every record and its data read for authority words first,
   // and the function asked with the connection the token resolved to and nothing from the request.
   describe("record.push", () => {

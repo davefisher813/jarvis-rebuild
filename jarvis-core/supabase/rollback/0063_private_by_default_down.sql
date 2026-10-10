@@ -1,17 +1,17 @@
--- Rollback of 0062 (private by default: the four revokes, the search_path on ten functions, delete_owned
+-- Rollback of 0063 (private by default: the four revokes, the search_path on ten functions, delete_owned
 -- over the four user_id tables, the readiness word). Not a migration: it lives outside supabase/migrations
 -- so nothing applies it by accident.
 --
--- What it does: puts delete_owned and substrate_readiness back to their 0060 bodies verbatim (0061 touched
+-- What it does: puts delete_owned and substrate_readiness back to their 0060 bodies verbatim (0062 touched
 -- neither: its closing note says so, and inbox.sh check 29 reads the 0060 word), and resets search_path on
--- each of the ten functions 0062 set it on, guarded by to_regprocedure the same way, so a name the project
+-- each of the ten functions 0063 set it on, guarded by to_regprocedure the same way, so a name the project
 -- does not have is skipped and never created.
 --
 -- What it does NOT do, on purpose: the four grants are not restored, nor the sequence's. A rollback never
 -- reopens a table to a browser role. email_opens, google_tokens, ai_tokens and feedback were "service role
 -- only" in their own files from the day they were made (0017, 0018, 0026, 0035); the default privilege
--- that had the browser roles on them was the accident, and undoing 0062 does not mean restoring an
--- accident. Every reader of the four carries the service key (the 0062 header lists each file and line),
+-- that had the browser roles on them was the accident, and undoing 0063 does not mean restoring an
+-- accident. Every reader of the four carries the service key (the 0063 header lists each file and line),
 -- so nothing in the app changes with the grants absent. If a browser grant is ever wanted it is a new
 -- migration with a policy, not this file.
 --

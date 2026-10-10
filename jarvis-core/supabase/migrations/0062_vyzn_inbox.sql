@@ -1,4 +1,5 @@
--- Migration 0061: the VYZN feed (Phase 0 design D5 and D6; PHASE0-DESIGN.md section 3, 2026-10-10).
+-- Migration 0062: the VYZN feed (Phase 0 design D5 and D6; PHASE0-DESIGN.md section 3, 2026-10-10).
+-- Renumbered 2026-10-10 from 0061: the live project already holds 0061_email_signature (Email v1), so the VYZN feed is 0062.
 --
 -- An outside app (the backend inbox today; bridge and tucci reserved) hands JARVIS records. Every
 -- record lands as a PROPOSAL on a new surface, `app`, with no job: an app proposes and never commits,
@@ -45,7 +46,7 @@
 --   4. An app never writes items. Only record_approve, on the person's tap, inserts into item.
 --   5. Every function here, new or replaced, carries `set search_path = public`.
 --
--- Deviations from PHASE0-DESIGN.md section 3 "0061_vyzn_inbox.sql", each stated:
+-- Deviations from PHASE0-DESIGN.md section 3 "0062_vyzn_inbox.sql", each stated:
 --   a. The approve action's idempotency key is 'record:' || proposal id || ':' || the RECORD's revision
 --      (payload ->> 'revision'), not the proposal row's revision: jarvis_touch_revision bumps the row's
 --      revision when status moves to accepted, so a key built on it could never be found again on a replay.
@@ -100,7 +101,7 @@
 --   9. Header notes, no body change: vyzn_app_connect's gate is its EXECUTE grant (see the function);
 --      jarvis_records_ingest's reserved key refusal is top level of data only (see the function).
 --
--- Forward twice is a no-op. Rollback: rollback/0061_vyzn_inbox_down.sql. Rehearsed by tests/inbox.sh.
+-- Forward twice is a no-op. Rollback: rollback/0062_vyzn_inbox_down.sql. Rehearsed by tests/inbox.sh.
 
 -- ---------------------------------------------------------------------------
 -- 1. proposal: the app surface, with no job.

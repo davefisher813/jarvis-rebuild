@@ -69,7 +69,7 @@
 --   6. item_apply_patch and item_apply_patch_if_older refuse a non finite p_client_at (false / 'stale',
 --      the functions' own refusal shapes) and clamp the recorded moment to now() + interval '5 minutes'
 --      (rule 2). rollback/0060_memory_down.sql restores the 0031 and 0032 bodies, which carry no
---      client_at at all, so it needs no mirror; 0061 and its rollback never touch these two bodies.
+--      client_at at all, so it needs no mirror; 0062 and its rollback never touch these two bodies.
 --   7. jarvis_item_memory treats old.entity_type <> new.entity_type as a change (rule 3): a history
 --      row with changed_keys {entity_type}, and the links recomputed for the new kind with from_type
 --      updated, where before such an update wrote no row and left item_link stale.
@@ -601,7 +601,7 @@ revoke all on function set_monotonic_updated_at() from public, anon, authenticat
 -- 7. "Why does JARVIS know this?" for one item, for the developer and the
 --    exit test. SECURITY INVOKER: row level security scopes every join, so
 --    another owner's item answers null. evidence.source_app and
---    source_record_id are null constants here; 0061 redefines item_why with
+--    source_record_id are null constants here; 0062 redefines item_why with
 --    the real columns, and the same for proposals.source_app.
 -- ---------------------------------------------------------------------------
 create or replace function item_why(p_item uuid)
