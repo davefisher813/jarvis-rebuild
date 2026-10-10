@@ -71,6 +71,10 @@ export const PUT_BACK = "Put Back in Inbox";
 export const RESTORED = "Restored from Trash";
 export const OPEN_GMAIL_EXACT = "Open in Gmail";
 export const OPEN_GMAIL_GENERIC = "Open Gmail";
+// Astra's bottom-sheet design (2026-10-10): the sheet's own kind picker behind
+// Add to JARVIS. Track This reuses PRIMARY.waiting ("Track This") from
+// candidates.ts rather than a second constant for the same word.
+export const ADD_TO_JARVIS = "Add to JARVIS";
 export const GENERIC_WHY = "Gmail Gave No Link for This Message · Opening Your Inbox Instead";
 export const READ_CONFLICT = "Read Status Updated in Gmail";
 export const READ_FAILED = "Couldn't Mark as Read";

@@ -248,6 +248,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sec-ico { width: 28px; height: 28px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
 .sec-ico .ic { width: 16px; height: 16px; }
 .ico-accent { background: var(--accent); } .ico-blue { background: var(--blue); }
+/* Astra's Message sheet (2026-10-10): Track This, Archive and Open in Gmail's
+   own chips. Tokens only, same as every other .ico-*. */
+.ico-teal { background: var(--teal); } .ico-warn { background: var(--warn); } .ico-violet { background: var(--hl-violet); }
 
 /* Today home hero: slim avatar bar + greeting + day briefing (homepage feel). */
 .today-bar { display: flex; align-items: center; justify-content: flex-end; padding: var(--s-3) var(--s-4) 0; }
@@ -707,6 +710,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    nothing had been told it was the scroller. Same three rules .sheet-form has
    always carried, on the element that actually holds the rows. */
 .sheet-scrim .sheet-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+/* Astra's Message sheet (2026-10-10): the handle's own row, back to Email on
+   the left (the old push-nav back, re-presented), More on the right. Its own
+   class rather than .nav-bar, which also carries --safe-top padding for a
+   page's own top bar -- wrong here, inside a sheet that already sits below
+   the notch. */
+.msg-sheet-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--s-2) 0 var(--s-1); min-height: 44px; flex-shrink: 0; }
 
 /* Category color + icon pickers (Category sheet). Tokens only. */
 /* BROWSER-F-08 (2026-09-05): --s-6, not --s-3. The swatch paints 24px, so a
@@ -5950,6 +5960,9 @@ body.selecting .voice-dock { display: none; }
 /* A row action that cannot run yet but still answers a tap with the reason
    (AI Hub's Preview Shared Context, 2026-10-04): the same dim, the same rule. */
 .row-act.dim { opacity: 0.4; }
+/* A sec-ico row offered but not available right now (Message sheet's
+   Archive, 2026-10-10): the same dim, said in its own row's text. */
+.row.dim { opacity: 0.4; }
 .sheet-bar-title { flex: 1; min-width: 0; text-align: center; font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

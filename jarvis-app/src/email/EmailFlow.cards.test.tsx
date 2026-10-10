@@ -16,10 +16,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EmailFlow from "./EmailFlow";
-import { EMAIL_CHANGED, REVIEW_LATEST, SHOW_DISMISSED, RESTORE, UNDO, CAPTURE_TITLE, CAPTURE_KIND, VIEW_RECEIPT } from "./copy";
+import { ADD_TO_JARVIS, EMAIL_CHANGED, REVIEW_LATEST, SHOW_DISMISSED, RESTORE, UNDO, CAPTURE_TITLE, CAPTURE_KIND, NOT_SAVED_YET, VIEW_RECEIPT } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import { EXTRACTOR_VERSION } from "../substrate/extract";
-import type { Candidate } from "./candidates";
+import { KIND_WORD, PRIMARY, type Candidate } from "./candidates";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 
 const NOW = new Date("2026-10-03T15:00:00Z");
@@ -324,5 +324,55 @@ describe("E24: manual capture, with every AI off", () => {
     expect(r.world.items).toEqual([]);
     await waitFor(() => expect(cardFor("bill")).toHaveTextContent("Con Edison NY"));
     expect(cardFor("bill")).toHaveTextContent("Not Saved Yet");
+  });
+});
+
+// Astra's bottom-sheet design (approved 2026-10-10): Add to JARVIS and Track
+// This are new doors onto the SAME manual-capture mechanism E24 above already
+// proves (candidate_propose with origin: "manual", then CaptureSheet, then
+// capture_approve) -- these two tests check only the new doors, not the
+// mechanism a second time.
+describe("Astra's Message sheet: Add to JARVIS and Track This", () => {
+  it("Add to JARVIS opens a kind picker; Task opens a blank candidate, and Save commits through the real capture door", async () => {
+    const r = rig({ rows: [rows[2]!] });
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(1));
+    fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
+    await waitFor(() => expect(screen.getByText(ADD_TO_JARVIS)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(ADD_TO_JARVIS));
+    fireEvent.click(screen.getByText(KIND_WORD.task!));
+    await waitFor(() => expect(screen.getAllByText(`${KIND_WORD.task} · ${NOT_SAVED_YET}`).length).toBeGreaterThan(0));
+    const manual = r.world.cands.find((c) => c.origin === "manual")!;
+    expect(manual).toMatchObject({ kind: "task", status: "needs_details", missing_fields: ["title"] });
+    const saveBar = () => document.querySelector(".sheet-bar-save") as HTMLButtonElement;
+    expect(saveBar().className).toContain("dim");
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Follow up on the summary" } });
+    await waitFor(() => expect(saveBar().className).not.toContain("dim"));
+    fireEvent.click(saveBar());
+    await waitFor(() => expect(r.world.items.length).toBe(1));
+    expect(r.calls.find((c) => c.fn === "candidate_edit")!.args).toMatchObject({ p_candidate: manual.id, p_user_fields: ["title"] });
+    expect(r.world.items[0]).toMatchObject({ entity_type: "task", data: { text: "Follow up on the summary", done: false } });
+    // No kind picker left open, and Track This's own row is still there, unused.
+    expect(screen.queryByText(KIND_WORD.bill!)).toBeNull();
+  });
+
+  it("Track This skips the kind picker and goes straight to a blank Waiting candidate, saved the same way", async () => {
+    const r = rig({ rows: [rows[2]!] });
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(1));
+    fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
+    await waitFor(() => expect(screen.getByText(PRIMARY.waiting)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(PRIMARY.waiting));
+    await waitFor(() => expect(screen.getAllByText(`${KIND_WORD.waiting} · ${NOT_SAVED_YET}`).length).toBeGreaterThan(0));
+    const manual = r.world.cands.find((c) => c.origin === "manual")!;
+    expect(manual).toMatchObject({ kind: "waiting", status: "needs_details" });
+    expect(manual.missing_fields).toEqual(["title", "waiting_for"]);
+    const saveBar = () => document.querySelector(".sheet-bar-save") as HTMLButtonElement;
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "A reply from Wei" } });
+    fireEvent.change(screen.getByLabelText("Waiting For"), { target: { value: "the updated numbers" } });
+    await waitFor(() => expect(saveBar().className).not.toContain("dim"));
+    fireEvent.click(saveBar());
+    await waitFor(() => expect(r.world.items.length).toBe(1));
+    expect(r.world.items[0]!.entity_type).toBe("waiting");
   });
 });

@@ -185,7 +185,7 @@ describe("M2: the message", () => {
     await waitFor(() => expect(subjects().length).toBe(4));
     expect(rowLabels()[0]).toMatch(/Unread$/);
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
-    await waitFor(() => expect(screen.getByText("Subject m3")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Subject m3", { selector: ".email-subject" })).toBeInTheDocument());
     const frame = await waitFor(() => document.querySelector("iframe.mail-html") as HTMLIFrameElement);
     const doc = frame.getAttribute("srcdoc")!;
     expect(doc).not.toMatch(/<script/i);
@@ -196,7 +196,7 @@ describe("M2: the message", () => {
     await waitFor(() => expect(document.querySelector("iframe.mail-html")!.getAttribute("srcdoc")).toMatch(/https:\/\/t\.example\/pixel\.gif/));
     await waitFor(() => expect(r.posts.find((p) => p.path.endsWith("/api/email/message") && p.body.op === "read")).toBeTruthy());
     expect(r.posts.find((p) => p.body.op === "read")!.body).toEqual({ email: DAVE, id: "m3", op: "read" });
-    fireEvent.click(screen.getByText("Email"));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
     await waitFor(() => expect(rowLabels()[0]).not.toMatch(/Unread$/));
   });
 
@@ -207,7 +207,7 @@ describe("M2: the message", () => {
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
     await waitFor(() => expect(screen.getByText(new RegExp(READ_FAILED))).toBeInTheDocument());
     expect(screen.getByText("Retry")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Email"));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
     await waitFor(() => expect(rowLabels()[0]).toMatch(/Unread$/));
 
     cleanup();
@@ -224,8 +224,8 @@ describe("M2: the message", () => {
     mount(r);
     await waitFor(() => expect(subjects().length).toBe(4));
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
-    await waitFor(() => expect(screen.getByText("Subject m3")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    await waitFor(() => expect(screen.getByText("Subject m3", { selector: ".email-subject" })).toBeInTheDocument());
+    // Astra's sheet (2026-10-10): Archive is one of the sheet's own four visible rows now, not behind More.
     fireEvent.click(screen.getByText("Archive"));
     await waitFor(() => expect(subjects()).toEqual(["m2", "m1", "m0"]));
     expect(r.posts.find((p) => p.body.op === "archive")!.body).toEqual({ email: DAVE, id: "m3", op: "archive" });
@@ -238,15 +238,20 @@ describe("M2: the message", () => {
     expect(r.calls.some((c) => /^(capture_approve|action_undo|decision_save|exploration_keep)$/.test(c.fn))).toBe(false);
   });
 
-  it("archive and trash are offered only when the account can do them", async () => {
+  it("archive is offered only when the account can do it, said on its own row; trash still needs the More menu", async () => {
     const r = rig({ accounts: [account({ capabilities: { read: true } }), accounts[1]!] });
     mount(r);
     await waitFor(() => expect(subjects().length).toBe(4));
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
-    await waitFor(() => expect(screen.getByText("Subject m3")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Subject m3", { selector: ".email-subject" })).toBeInTheDocument());
+    const archiveRow = screen.getByText(new RegExp(`Archive · ${UNSUPPORTED_ACTION}`)).closest(".row")!;
+    expect(archiveRow).toHaveClass("dim");
+    fireEvent.click(archiveRow);
+    expect(subjects()).toEqual(["m3", "m2", "m1", "m0"]);
+    expect(r.posts.find((p) => p.body.op === "archive")).toBeUndefined();
     fireEvent.click(screen.getByRole("button", { name: "More" }));
-    const archive = screen.getByText(new RegExp(`Archive · ${UNSUPPORTED_ACTION}`));
-    expect(archive.closest("button")).toBeDisabled();
+    const trash = screen.getByText(new RegExp(`Move to Trash · ${UNSUPPORTED_ACTION}`));
+    expect(trash.closest("button")).toBeDisabled();
   });
 
   it("Open in Gmail is exact for a Gmail thread id and says Open Gmail, with why, when the id is not Gmail's", async () => {
@@ -259,7 +264,7 @@ describe("M2: the message", () => {
     await waitFor(() => expect(screen.getByText(OPEN_GMAIL_EXACT)).toBeInTheDocument());
     fireEvent.click(screen.getByText(OPEN_GMAIL_EXACT));
     expect(open).toHaveBeenCalledWith("https://mail.google.com/mail/?authuser=dave%40example.test#all/18f2a9c4e1b7d3a3", "_blank");
-    fireEvent.click(screen.getByText("Email"));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
     await waitFor(() => expect(subjects().length).toBe(4));
     fireEvent.click(screen.getAllByRole("button").filter((b) => b.className.includes("mrow"))[2]!);
     await waitFor(() => expect(screen.getByText(OPEN_GMAIL_GENERIC)).toBeInTheDocument());
@@ -293,8 +298,8 @@ describe("M8: search", () => {
     expect(r.calls.find((c) => c.fn === "email_search_cached")!.args).toMatchObject({ p_q: "Subject m3", p_accounts: null });
     expect(r.posts.find((p) => p.path.endsWith("/api/email/search"))!.body).toEqual({ q: "Subject m3" });
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
-    await waitFor(() => expect(screen.getByText("Subject m3")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Email"));
+    await waitFor(() => expect(screen.getByText("Subject m3", { selector: ".email-subject" })).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
     await waitFor(() => expect(screen.getByPlaceholderText("Search Mail")).toHaveValue("Subject m3"));
   });
 
@@ -435,11 +440,11 @@ describe("E21, E22, E28: accounts and states", () => {
     expect(screen.getByText(/^Didn't Refresh · work@example.test/)).toBeInTheDocument();
     const m0 = screen.getAllByRole("button").filter((b) => b.className.includes("mrow"))[3]!;
     fireEvent.click(m0);
-    await waitFor(() => expect(screen.getByText("Subject m0")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Subject m0", { selector: ".email-subject" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(screen.getByText("File Under"));
     fireEvent.click(screen.getByText("Sport"));
-    fireEvent.click(screen.getByText("Email"));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
     await waitFor(() => expect(screen.getByRole("button", { name: /^Sport/ })).toHaveTextContent("Sport 1"));
     fireEvent.click(screen.getByRole("button", { name: /^Sport/ }));
     expect(subjects()).toEqual(["m0"]);

@@ -1,19 +1,31 @@
-// ONE MESSAGE (docs/jarvis-unified, slice 05; IMPLEMENTATION-SPEC.md 08 E05,
-// E06, E20, E22, E23, E29; 09 M2; 13). The sender's words, inert: the HTML
-// goes through the app's sanitiser into a frame that runs nothing, the text
-// is drawn as text. Opening marks the message read through a user-origin
-// provider command; the badge comes back and Retry shows if Gmail refused.
-// Archive and Move to Trash are explicit taps in the More menu, offered only
-// when the account can do them, each with a receipt and an Undo that is
-// itself a verified provider command. Open in Gmail is exact when the thread
-// id is Gmail's; otherwise the button says Open Gmail and says why. Nothing
-// here captures, extracts or infers; a card is slice 06's.
-
+// ONE MESSAGE, AS A BOTTOM SHEET (Astra's design, approved 2026-10-10; docs/
+// jarvis-unified, slice 05; IMPLEMENTATION-SPEC.md 08 E05, E06, E20, E22, E23,
+// E29; 09 M2; 13; CLAUDE.md "Row actions, warm neutrals and the perfect bar").
+// The message opens as a sheet over the dimmed inbox, never a full-screen
+// push: the handle, the subject, the sender and date, the body, its
+// attachments, the candidate cards, four visible rows (Add to JARVIS, Track
+// This, Archive, Open in Gmail) and ONE prominent primary (Reply) at the
+// foot, Reply All a quieter control beside it. Everything else -- headers,
+// Copy Message Id, Forward in Gmail, File Under, Mark Read/Unread, Trash --
+// lives in the More overflow, the same RowActionSheet every other row uses.
+//
+// The sender's words stay inert: the HTML goes through the app's sanitiser
+// into a frame that runs nothing, the text is drawn as text. Opening marks
+// the message read through a user-origin provider command; the badge comes
+// back and Retry shows if Gmail refused. Archive and Trash are explicit
+// taps, offered only when the account can do them, each with a receipt and
+// an Undo that is itself a verified provider command. Open in Gmail is exact
+// when the thread id is Gmail's; otherwise the row says Open Gmail and says
+// why. Add to JARVIS and Track This hand off to the existing manual-capture
+// door (EmailFlow's startCapture, the same candidate_propose -> CaptureSheet
+// path the More menu's own Capture entry already uses): nothing here
+// captures, extracts or infers on its own.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import PageHeader, { BarAction } from "../shared/PageHeader";
+import { createPortal } from "react-dom";
+import { BarAction } from "../shared/PageHeader";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 import SkeletonRows from "../shared/SkeletonRows";
-import { MoreHorizontal } from "../shared/icons";
+import { Archive as ArchiveIcon, Hourglass, Mail, MoreHorizontal, Sparkles } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
 import { showToast } from "../shared/toast";
 import { saveFile } from "../shared/saveFile";
@@ -22,9 +34,10 @@ import { lineFor, type CommandFailure } from "../substrate/commands/errors";
 import MailHtmlView from "../messages/MailHtmlView";
 import { openExternal } from "../messages/openExternal";
 import type { Category } from "../categories/types";
+import type { CaptureKind } from "../substrate/contracts";
 import {
-  ARCHIVE, ATTACHMENTS, ATTACHMENT_FAILED, ATTACHMENT_SAVED, ATTACHMENT_SHARED, ATTACHMENT_TOO_BIG, BODY_PENDING, COPIED_ID, COPY_ID, DOWNLOADING,
-  EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MESSAGE_TITLE, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
+  ADD_TO_JARVIS, ARCHIVE, ATTACHMENTS, ATTACHMENT_FAILED, ATTACHMENT_SAVED, ATTACHMENT_SHARED, ATTACHMENT_TOO_BIG, BODY_PENDING, COPIED_ID, COPY_ID, DOWNLOADING,
+  EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
   IMAGES_OFF, PUT_BACK, READ_CONFLICT, READ_FAILED, RESTORED, RETRY, SHOW_HEADERS, SHOW_IMAGES, SOURCE_GONE, TRASH, UNREAD_FAILED, UNSUPPORTED_ACTION,
   FORWARD_IN_GMAIL, FORWARD_WHY, REPLY, REPLY_ALL,
 } from "./copy";
@@ -32,10 +45,12 @@ import { attachmentBlob, downloadAttachment, gmailLink, labelMessage, openMessag
 import { loadMessage, saveMessage } from "./deviceCache";
 import { hasRemoteImages, senderOf, sizeLine, whenFacts, type EmailFact } from "./format";
 import EmailFacts from "./EmailFacts";
-import { textOf } from "./candidates";
+import { KIND_WORD, PRIMARY, textOf } from "./candidates";
 
 const MAX_ATTACHMENT = 20 * 1024 * 1024;
 const COPY_FAILED = "Couldn't Copy";
+/** The kind picker behind Add to JARVIS: every capture kind but Waiting, which Track This goes to directly. */
+const ADD_KINDS: readonly CaptureKind[] = ["bill", "receipt", "task", "event"];
 
 /** Somebody besides the person and the sender was on the message: Reply All has a reason to exist. */
 export function othersOn(m: Pick<MessageDetail, "from_address" | "to_addresses" | "cc_addresses">, account: Pick<EmailAccount, "address"> | null): boolean {
@@ -52,16 +67,17 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, moreActions, onBodyText, onReply }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, moreActions, onBodyText, onReply, onCapture }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
-  /** The list's row, so the header draws before the read lands. */
+  /** The list's row, so the sheet draws before the read lands. */
   row: InboxRow;
   account: EmailAccount | null;
   offline: boolean;
   categories: Category[];
   categoryId: string | null;
+  /** Close the sheet, back to the dimmed inbox underneath. */
   onBack: () => void;
   /** The list follows the provider: read state, labels. */
   onRowChanged: (patch: Partial<InboxRow> & { id: string }) => void;
@@ -76,6 +92,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
   onBodyText?: (text: string) => void;
   /** Reply and Reply All (slice 07): the composer opens with the message's own headers. */
   onReply?: (m: MessageDetail, all: boolean) => void;
+  /** Add to JARVIS and Track This: a blank candidate of the chosen kind, through the same manual-capture door the More menu's Capture entry already opens. */
+  onCapture?: (kind: CaptureKind) => void;
 }) {
   const [detail, setDetail] = useState<MessageDetail | null>(() => loadMessage(userId, row.id));
   const [loading, setLoading] = useState(true);
@@ -86,6 +104,7 @@ export default function MessageScreen({ client, token, userId, row, account, off
   const [headers, setHeaders] = useState(false);
   const [more, setMore] = useState(false);
   const [filing, setFiling] = useState(false);
+  const [addingKind, setAddingKind] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [attachmentLine, setAttachmentLine] = useState<string | null>(null);
@@ -220,14 +239,18 @@ export default function MessageScreen({ client, token, userId, row, account, off
     openExternal(link.href);
   };
 
+  // Headers, Copy Id, Forward and File Under stay in the overflow: the four
+  // rows the sheet shows on its own face (Add to JARVIS, Track This, Archive,
+  // Open in Gmail) are the ones Astra's design calls out by name. Archive
+  // left this list for the sheet face; Trash stays here on purpose.
   const actions: RowAction[] = [
     { label: m?.read === false ? MARK_READ : MARK_UNREAD, onPick: () => void toggleUnread(), disabled: !token || offline || !m },
     { label: FILE_UNDER, onPick: () => setFiling(true), disabled: categories.length === 0 },
-    { label: ARCHIVE, onPick: () => void leave("archive"), disabled: !can("archive") || !token || offline || !m },
     { label: TRASH, onPick: () => void leave("trash"), disabled: !can("trash") || !token || offline || !m, destructive: true },
     { label: COPY_ID, onPick: () => void copyId() },
     // Forwarding and rich formatting stay in Gmail (11): the honest door, said so.
     { label: FORWARD_IN_GMAIL, onPick: () => { showToast({ message: FORWARD_WHY }); openGmail(); } },
+    { label: headers ? HIDE_HEADERS : SHOW_HEADERS, onPick: () => setHeaders((h) => !h) },
     ...(moreActions ?? []),
   ];
 
@@ -240,95 +263,137 @@ export default function MessageScreen({ client, token, userId, row, account, off
     ...(area ? [{ text: area.name, cat: area.color }] : []),
   ];
 
-  return (
-    <div className="screen ruled">
-      <PageHeader title={MESSAGE_TITLE} back={EMAIL_TITLE} onBack={onBack}
-        actions={<BarAction label={MORE_LABEL} onClick={() => setMore(true)}><MoreHorizontal className="ic" /></BarAction>} />
+  const archiveDisabled = !can("archive") || !token || offline || !m;
+  const archiveLabel = can("archive") ? ARCHIVE : `${ARCHIVE} · ${UNSUPPORTED_ACTION}`;
+  const openGmailLabel = link.exact ? OPEN_GMAIL_EXACT : OPEN_GMAIL_GENERIC;
+  const replyDisabled = offline || !account || account.state !== "connected";
 
-      <div className="email-head">
-        <div className="email-subject">{(m?.subject ?? row.subject).trim() || "(No Subject)"}</div>
-        {/* 2026-10-05: ONE line of facts under the subject (it was two grey lines, each a string joined by middle dots,
-            and the first held a time with a dot of its own). The sender is the one grey, the day and time and the
-            mailbox are small caps, the area is a dot and its name. It wraps: nothing on it may be cut. */}
-        <EmailFacts wrap facts={headFacts} />
-        <button className="quiet-action" onClick={() => setHeaders((h) => !h)}>{headers ? HIDE_HEADERS : SHOW_HEADERS}</button>
-      </div>
-      {onReply && m && !m.deleted && (
-        <div className="email-reply-acts">
-          <button className="btn-primary" onClick={() => onReply(m, false)} disabled={offline || !account || account.state !== "connected"}>{REPLY}</button>
-          {othersOn(m, account) && <button className="quiet-action" onClick={() => onReply(m, true)} disabled={offline || !account || account.state !== "connected"}>{REPLY_ALL}</button>}
+  return createPortal(
+    <div className="sheet-scrim" onClick={onBack}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="msg-sheet-bar">
+          <button className="nav-back" onClick={onBack}>{EMAIL_TITLE}</button>
+          <BarAction label={MORE_LABEL} onClick={() => setMore(true)}><MoreHorizontal className="ic" /></BarAction>
         </div>
-      )}
-      {headers && m && (
-        <dl className="email-headers">
-          <dt>From</dt><dd>{m.from_name ? `${m.from_name} <${m.from_address}>` : m.from_address}</dd>
-          {/* 2026-10-05: no To means no row, not a "(None)" placeholder. */}
-          {m.to_addresses.length > 0 && <><dt>To</dt><dd>{m.to_addresses.map((a) => a.address).join(", ")}</dd></>}
-          {m.cc_addresses.length > 0 && <><dt>Cc</dt><dd>{m.cc_addresses.map((a) => a.address).join(", ")}</dd></>}
-          <dt>Date</dt><dd>{new Date(m.internal_date).toLocaleString()}</dd>
-          <dt>Account</dt><dd>{m.account}</dd>
-          <dt>Id</dt><dd>{m.provider_id}</dd>
-        </dl>
-      )}
 
-      {readLine && (
-        <div className="email-note quiet">
-          <span>{readLine}</span>
-          {readRetry && <button className="quiet-action" onClick={readRetry}>{RETRY}</button>}
-        </div>
-      )}
-      {m?.deleted && <div className="email-note quiet"><span>{SOURCE_GONE}</span></div>}
-      {cards}
-
-      {loading && !m && !error && <SkeletonRows rows={3} />}
-      {error && !m && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="row-grow"><div className="conn-name">{lineFor(error)}</div></div></div>
-          <button className="row row-act" onClick={() => { setError(null); onBack(); }}>{EMAIL_TITLE}</button>
-        </div></div>
-      )}
-
-      {m && (
-        m.html ? (
-          <>
-            {hasRemoteImages(m.html) && !showImages && (
-              <div className="email-note quiet"><span>{IMAGES_OFF}</span><button className="quiet-action" onClick={() => setShowImages(true)}>{SHOW_IMAGES}</button></div>
-            )}
-            <div className="pad-x"><MailHtmlView html={m.html} remoteImages={showImages} /></div>
-          </>
-        )
-          : m.text ? <div className="email-body">{m.text}</div>
-            : fetchingBody ? <div className="email-note quiet"><span>{BODY_PENDING}</span></div>
-              : !m.has_body ? <div className="email-note quiet"><span>{offline || !token ? NO_BODY_OFFLINE : m.snippet}</span></div>
-                : <div className="email-body">{m.snippet}</div>
-      )}
-
-      {attachments.length > 0 && (
-        <div className="pad-x">
-          <div className="sh2 sh2-quiet"><span className="t">{ATTACHMENTS}</span><span className="n">{attachments.length}</span></div>
-          <div className="card list-card-ruled">
-            {attachments.map((a) => (
-              <div className="row" key={a.attachmentId} {...rowDoor(() => void download(a))} aria-label={`${a.filename} · ${sizeLine(a.size)}`}>
-                <div className="row-grow">
-                  <div className="conn-name truncate">{a.filename}</div>
-                  {/* 2026-10-05: the size is a white number and the row's only fact; the file type repeated the name's own extension, and two greys were the old line. */}
-                  <EmailFacts facts={[{ text: sizeLine(a.size), strong: true }, ...(downloading === a.attachmentId ? [{ text: DOWNLOADING }] : [])]} />
-                </div>
-              </div>
-            ))}
+        <div className="pad-x sheet-list">
+          <div className="email-head">
+            <div className="email-subject">{(m?.subject ?? row.subject).trim() || "(No Subject)"}</div>
+            {/* 2026-10-05: ONE line of facts under the subject (it was two grey lines, each a string joined by middle dots,
+                and the first held a time with a dot of its own). The sender is the one grey, the day and time and the
+                mailbox are small caps, the area is a dot and its name. It wraps: nothing on it may be cut. */}
+            <EmailFacts wrap facts={headFacts} />
           </div>
-          {attachmentLine && <div className="email-note quiet"><span>{attachmentLine}</span></div>}
+
+          {headers && m && (
+            <dl className="email-headers">
+              <dt>From</dt><dd>{m.from_name ? `${m.from_name} <${m.from_address}>` : m.from_address}</dd>
+              {/* 2026-10-05: no To means no row, not a "(None)" placeholder. */}
+              {m.to_addresses.length > 0 && <><dt>To</dt><dd>{m.to_addresses.map((a) => a.address).join(", ")}</dd></>}
+              {m.cc_addresses.length > 0 && <><dt>Cc</dt><dd>{m.cc_addresses.map((a) => a.address).join(", ")}</dd></>}
+              <dt>Date</dt><dd>{new Date(m.internal_date).toLocaleString()}</dd>
+              <dt>Account</dt><dd>{m.account}</dd>
+              <dt>Id</dt><dd>{m.provider_id}</dd>
+            </dl>
+          )}
+
+          {readLine && (
+            <div className="email-note quiet">
+              <span>{readLine}</span>
+              {readRetry && <button className="quiet-action" onClick={readRetry}>{RETRY}</button>}
+            </div>
+          )}
+          {m?.deleted && <div className="email-note quiet"><span>{SOURCE_GONE}</span></div>}
+
+          {loading && !m && !error && <SkeletonRows rows={3} />}
+          {error && !m && (
+            <div className="card list-card-ruled">
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineFor(error)}</div></div></div>
+              <button className="row row-act" onClick={() => { setError(null); onBack(); }}>{EMAIL_TITLE}</button>
+            </div>
+          )}
+
+          {m && (
+            m.html ? (
+              <>
+                {hasRemoteImages(m.html) && !showImages && (
+                  <div className="email-note quiet"><span>{IMAGES_OFF}</span><button className="quiet-action" onClick={() => setShowImages(true)}>{SHOW_IMAGES}</button></div>
+                )}
+                <MailHtmlView html={m.html} remoteImages={showImages} />
+              </>
+            )
+              : m.text ? <div className="email-body">{m.text}</div>
+                : fetchingBody ? <div className="email-note quiet"><span>{BODY_PENDING}</span></div>
+                  : !m.has_body ? <div className="email-note quiet"><span>{offline || !token ? NO_BODY_OFFLINE : m.snippet}</span></div>
+                    : <div className="email-body">{m.snippet}</div>
+          )}
+
+          {attachments.length > 0 && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">{ATTACHMENTS}</span><span className="n">{attachments.length}</span></div>
+              <div className="card list-card-ruled">
+                {attachments.map((a) => (
+                  <div className="row" key={a.attachmentId} {...rowDoor(() => void download(a))} aria-label={`${a.filename} · ${sizeLine(a.size)}`}>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{a.filename}</div>
+                      {/* 2026-10-05: the size is a white number and the row's only fact; the file type repeated the name's own extension, and two greys were the old line. */}
+                      <EmailFacts facts={[{ text: sizeLine(a.size), strong: true }, ...(downloading === a.attachmentId ? [{ text: DOWNLOADING }] : [])]} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {attachmentLine && <div className="email-note quiet"><span>{attachmentLine}</span></div>}
+            </>
+          )}
+
+          {cards}
+
+          {/* Astra's design, approved 2026-10-10: four visible rows, not a More
+              menu. Add to JARVIS and Track This hand off to the same manual-
+              capture door the More menu's own Capture entry already opens
+              (EmailFlow's startCapture); Archive and Open in Gmail are the
+              message's own provider commands, promoted off the overflow. */}
+          <div className="card list-card-ruled">
+            {onCapture && (
+              <div className="row" {...rowDoor(() => setAddingKind(true))}>
+                <div className="sec-ico ico-blue" aria-hidden="true"><Sparkles className="ic" /></div>
+                <div className="row-grow"><div className="conn-name">{ADD_TO_JARVIS}</div></div>
+              </div>
+            )}
+            {onCapture && (
+              <div className="row" {...rowDoor(() => onCapture("waiting"))}>
+                <div className="sec-ico ico-teal" aria-hidden="true"><Hourglass className="ic" /></div>
+                <div className="row-grow"><div className="conn-name">{PRIMARY.waiting}</div></div>
+              </div>
+            )}
+            <div className={"row" + (archiveDisabled ? " dim" : "")} {...(archiveDisabled ? {} : rowDoor(() => void leave("archive")))}>
+              <div className="sec-ico ico-warn" aria-hidden="true"><ArchiveIcon className="ic" /></div>
+              <div className="row-grow"><div className="conn-name">{archiveLabel}</div></div>
+            </div>
+            <div className="row" {...rowDoor(openGmail)}>
+              <div className="sec-ico ico-violet" aria-hidden="true"><Mail className="ic" /></div>
+              <div className="row-grow"><div className="conn-name">{openGmailLabel}</div></div>
+            </div>
+          </div>
+          {gmailWhy && !link.exact && <div className="email-note quiet"><span>{GENERIC_WHY}</span></div>}
+          <div className="xs-foot" />
         </div>
-      )}
 
-      {/* 2026-10-05 (rule 12, a card holding nothing but an action is not drawn): the capsule stands by itself, the same
-          capsule New Event and Add All to Calendar are. The why is a note under it, not a plate round it. */}
-      <div className="notice-clear-row"><button className="row-act" onClick={openGmail}>{link.exact ? OPEN_GMAIL_EXACT : OPEN_GMAIL_GENERIC}</button></div>
-      {gmailWhy && !link.exact && <div className="email-note quiet"><span>{GENERIC_WHY}</span></div>}
-      <div className="screen-foot" />
+        {onReply && m && !m.deleted && (
+          <div className="pad-x sheet-actions">
+            <button className="btn btn-primary btn-launch btn-block" onClick={() => onReply(m, false)} disabled={replyDisabled}>{REPLY}</button>
+            {othersOn(m, account) && <button className="quiet-action" onClick={() => onReply(m, true)} disabled={replyDisabled}>{REPLY_ALL}</button>}
+          </div>
+        )}
+      </div>
 
-      {more && <RowActionSheet title={MORE_LABEL} actions={actions.map((a) => ({ ...a, label: a.disabled && (a.label === ARCHIVE || a.label === TRASH) && !can(a.label === ARCHIVE ? "archive" : "trash") ? `${a.label} · ${UNSUPPORTED_ACTION}` : a.label }))} onCancel={() => setMore(false)} />}
+      {more && <RowActionSheet title={MORE_LABEL} actions={actions.map((a) => ({ ...a, label: a.disabled && a.label === TRASH && !can("trash") ? `${a.label} · ${UNSUPPORTED_ACTION}` : a.label }))} onCancel={() => setMore(false)} />}
       {filing && <RowActionSheet title={FILE_UNDER} actions={categories.map((c) => ({ label: c.data.name, onPick: () => onFileUnder(row, c.id) }))} onCancel={() => setFiling(false)} />}
-    </div>
+      {addingKind && onCapture && (
+        <RowActionSheet title={ADD_TO_JARVIS} actions={ADD_KINDS.map((k) => ({ label: KIND_WORD[k], onPick: () => onCapture(k) }))} onCancel={() => setAddingKind(false)} />
+      )}
+    </div>,
+    document.body,
   );
 }

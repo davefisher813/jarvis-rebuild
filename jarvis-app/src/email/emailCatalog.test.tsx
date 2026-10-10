@@ -414,21 +414,27 @@ const ROW_: InboxRow = { id: "m1", account_id: "a", account: "dave@example.test"
 const AREA: Category = { id: "c1", data: { name: "Money", color: "green", order: 0 } } as Category;
 
 describe("The message head and its attachments", () => {
-  const message = () => render(
-    <MessageScreen client={noClient} token={null} userId="u-head" row={ROW_} account={null} offline categories={[AREA]} categoryId="c1" onBack={noop} onRowChanged={noop} onLeftInbox={noop} onFileUnder={noop} />,
-  );
+  // Astra's bottom-sheet design (2026-10-10): MessageScreen portals its sheet
+  // to document.body (over the dimmed inbox underneath), so it never lands
+  // inside render()'s own container -- document.body is where to look.
+  const message = () => {
+    render(
+      <MessageScreen client={noClient} token={null} userId="u-head" row={ROW_} account={null} offline categories={[AREA]} categoryId="c1" onBack={noop} onRowChanged={noop} onLeftInbox={noop} onFileUnder={noop} />,
+    );
+    return document.body;
+  };
   it("the head is ONE wrapping line under the subject: the sender is the one grey, the day, time and mailbox small caps, the area a dot and its name", () => {
-    const { container } = message();
-    const head = container.querySelector(".email-head")!;
+    const body = message();
+    const head = body.querySelector(".email-head")!;
     expect(head.querySelectorAll(".conn-meta").length).toBe(1);
     expect(texts(head, ".fact")).toEqual(["Coach Miller", "Today", "9:12 AM", "dave@example.test", "Money"]);
     expect(head.querySelector(".fact.cat .cd")).toBeTruthy();
     expect(head.querySelector(".email-meta")).toBeNull();
-    expect(catalogViolations(container)).toEqual([]);
+    expect(catalogViolations(body)).toEqual([]);
   });
   it("an attachment row is its name, then its size as a white number: no second grey for the mime type", () => {
-    const { container } = message();
-    const row = [...container.querySelectorAll(".row")].find((r) => r.textContent?.includes("roster.pdf"))!;
+    const body = message();
+    const row = [...body.querySelectorAll(".row")].find((r) => r.textContent?.includes("roster.pdf"))!;
     expect(texts(row, ".fact")).toEqual(["240 KB"]);
     expect(row.querySelector(".fact b")).toHaveTextContent("240 KB");
     expect(row).not.toHaveTextContent("application/pdf");

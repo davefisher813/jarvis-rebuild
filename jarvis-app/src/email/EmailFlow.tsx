@@ -218,9 +218,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [reviewOnly, setReviewOnly] = useState(false);
   /** Today's count, read once when the review focus opens: the loaded pages may not hold all of it. */
   const [reviewTotal, setReviewTotal] = useState<number | null>(null);
-  const depth = screen.kind === "root" ? 0
-    : screen.kind === "receipt" || screen.kind === "review" || screen.kind === "outcome" || screen.kind === "drafts" ? 2
-      : screen.kind === "compose" && screen.from.kind !== "root" ? 2 : 1;
+  // The message is a sheet over whichever screen it opened from (Astra's
+  // bottom-sheet design, 2026-10-10), not a push: its depth is its parent's,
+  // so the dimmed inbox or search list underneath never slides.
+  const depth = screen.kind === "message" ? (screen.from === "search" ? 1 : 0)
+    : screen.kind === "root" ? 0
+      : screen.kind === "receipt" || screen.kind === "review" || screen.kind === "outcome" || screen.kind === "drafts" ? 2
+        : screen.kind === "compose" && screen.from.kind !== "root" ? 2 : 1;
   const pushCls = usePushDepth(depth);
   const now = nowFn();
 
@@ -697,31 +701,39 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         onBack={() => setScreen(from)} onChanged={() => { const ids = Object.keys(cards); if (ids.length) void loadCards(ids); }} onOpenItem={onOpenEntity} />
     </div>;
   }
-  if (screen.kind === "message" && client) {
-    const row = screen.row;
-    const current = rows.find((r) => r.id === row.id) ?? row;
-    const more: RowAction[] = [
-      { label: FIND_DETAILS, onPick: () => void (async () => { const n = await readBody(current, bodyText.current[row.id] ?? current.snippet, true); showToast({ message: foundLine(n) }); })(), disabled: offline },
-      { label: CAPTURE_TITLE, onPick: () => setCapturing({ row: current, text: bodyText.current[row.id] }), disabled: offline },
-      { label: showDismissed ? HIDE_DISMISSED : SHOW_DISMISSED, onPick: () => setShowDismissed((v) => !v) },
-    ];
-    return <div className={pushCls}>
-      <MessageScreen client={client} token={token} userId={userId} row={current} account={accountOf(row)} offline={offline}
-        categories={categories} categoryId={catOf(row)}
-        onBack={() => setScreen(screen.from === "search" ? { kind: "search" } : { kind: "root" })}
+  // The message, as a sheet layered over whichever screen it was opened from
+  // (Astra's bottom-sheet design, approved 2026-10-10, "Build it, test it,
+  // and keep everything moving"): the inbox or the search results stay
+  // mounted and dimmed underneath; only the message's own card floats, and
+  // onCapture hands Add to JARVIS / Track This to the same manual-capture
+  // door (startCapture) the More menu's own Capture entry already opens.
+  const messageScreen = screen.kind === "message" ? screen : null;
+  const messageCurrent = messageScreen ? (rows.find((r) => r.id === messageScreen.row.id) ?? messageScreen.row) : null;
+  const messageMore: RowAction[] = messageScreen && messageCurrent ? [
+    { label: FIND_DETAILS, onPick: () => void (async () => { const n = await readBody(messageCurrent, bodyText.current[messageCurrent.id] ?? messageCurrent.snippet, true); showToast({ message: foundLine(n) }); })(), disabled: offline },
+    { label: CAPTURE_TITLE, onPick: () => setCapturing({ row: messageCurrent, text: bodyText.current[messageCurrent.id] }), disabled: offline },
+    { label: showDismissed ? HIDE_DISMISSED : SHOW_DISMISSED, onPick: () => setShowDismissed((v) => !v) },
+  ] : [];
+  const messageOverlay = messageScreen && messageCurrent && client ? (
+    <>
+      <MessageScreen client={client} token={token} userId={userId} row={messageCurrent} account={accountOf(messageScreen.row)} offline={offline}
+        categories={categories} categoryId={catOf(messageScreen.row)}
+        onBack={() => setScreen(messageScreen.from === "search" ? { kind: "search" } : { kind: "root" })}
         onRowChanged={patchRow}
         onLeftInbox={leftInbox}
         onFileUnder={(r, c) => void onFileUnder(r, c)}
-        cards={cardsFor(current)} moreActions={more} onBodyText={(text) => void readBody(current, text)}
-        onReply={(m, all) => startReply(m, all, screen)} />
+        cards={cardsFor(messageCurrent)} moreActions={messageMore} onBodyText={(text) => void readBody(messageCurrent, text)}
+        onReply={(m, all) => startReply(m, all, messageScreen)}
+        onCapture={(kind) => void startCapture(messageCurrent, kind, bodyText.current[messageCurrent.id])} />
       {sheetEl}{captureEl}
-    </div>;
-  }
-  if (screen.kind === "search" && client) {
+    </>
+  ) : null;
+  if ((screen.kind === "search" || (messageScreen?.from === "search")) && client) {
     return <div className={pushCls}>
       <SearchScreen client={client} token={token} accounts={accounts} labels={labels} offline={offline} state={search} onState={setSearch}
         categories={categories} categoryOf={catOf} categoryId={searchChip} onCategory={setSearchChip} now={now}
         onBack={() => setScreen({ kind: "root" })} onOpen={(row) => { setScreen({ kind: "message", row, from: "search" }); void loadCards([row.id]); }} />
+      {messageOverlay}
     </div>;
   }
   if (screen.kind === "accounts") {
@@ -868,7 +880,10 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       )}
       {client && segment === "inbox" && visible.length > 0 && (
         <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
-          onOpen={openInboxRow} renderBelow={cardsFor} />
+          onOpen={openInboxRow}
+          // The open message owns its own cards inside the sheet; the dimmed
+          // row behind it does not draw them a second time.
+          renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
       )}
       <div className="screen-foot" />
 
@@ -877,7 +892,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
           actions={[{ label: REMEMBER, onPick: () => void answer(question, true) }, { label: NOT_NOW, onPick: () => void answer(question, false) }]}
           onCancel={() => void answer(question, false)} />
       )}
-      {sheetEl}{captureEl}
+      {!messageScreen && sheetEl}{!messageScreen && captureEl}
+      {messageOverlay}
     </div>
   );
 }

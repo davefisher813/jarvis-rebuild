@@ -132,6 +132,14 @@ export const CAPSULE_HOMES = [
   ".sheet-bar, .sheet-foot, .sheet-actions, .bar", // a sheet's own bar and foot
   ".action-sheet", // the long-press menu and its kin
   ".notice-card, .notice-actions, .notice-clear-row, .promo-card, .promo-actions", // a card with its own words and its own action
+  // 2026-10-10: the Email tab's own cards, the same shape as .notice-card --
+  // own words beside own actions -- surfaced here only now that Astra's
+  // Message sheet wraps the whole screen in one .card, which a candidate
+  // card (.email-card, its saved receipt .email-receipt-line) and the
+  // screen's one-line notice (.email-note: Remote Images Off, a failed
+  // mark-read's Retry, an attachment over the size cap) never sat inside
+  // before.
+  ".email-note, .email-card, .email-receipt-line",
   ".toast, .toast-dock", // a toast and its Undo
   ".dec-outcome-acts, .xs-strip, .send-hold, .msg-summary, .wait-card-acts", // cards with their own words and actions
   ".rest-acts", // a live control card, the rest timer
