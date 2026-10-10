@@ -141,3 +141,23 @@ describe("AnytimeRow: clean rows, the action is the gesture", () => {
     expect(Array.from(container.querySelectorAll(".task-name")).map((n) => n.textContent)).toEqual(["Get New Car Insurance", "Clear Up Allstate w AI"]);
   });
 });
+
+// THE UNIFIED CHIP (Dave 2026-10-09, the pass-off, item 14): an Anytime row draws its area the way every task row does, a
+// small chip in the area's colour with the project right next to it, and no chip when there is no area.
+describe("AnytimeRow: the area is the unified chip", () => {
+  it("chips the area with the project beside it, and draws no chip for a row with no area", async () => {
+    const { setCategoryRegistry } = await import("../../shared/categories");
+    setCategoryRegistry([{ id: "fam", name: "Family", color: "pink" }]);
+    const filed = { id: "a", data: { text: "Book the Hall", category: "fam", projectId: "p1" } } as unknown as TaskItem;
+    const loose = { id: "b", data: { text: "Call the Bank" } } as unknown as TaskItem;
+    const { container } = render(
+      <AnytimeRow items={[filed, loose]} parentOf={(t) => (t.id === "a" ? { kind: "project", name: "Reunion", tone: "cat-fg-pink", pct: 20, cat: "fam" } : null)} />,
+    );
+    const rows = container.querySelectorAll(".anytime-row");
+    const line = rows[0]!.querySelector(".r-k > .r-parent")!;
+    expect(line.querySelector(".cat-chip.cat-fg-pink")).toHaveTextContent("Family");
+    expect(line.querySelector(".r-goal-t")).toHaveTextContent("Reunion");
+    expect(rows[0]!.querySelector(".r-pg, .r-pdot"), "the dot and the glyph are gone").toBeNull();
+    expect(rows[1]!.querySelector(".cat-chip")).toBeNull();
+  });
+});

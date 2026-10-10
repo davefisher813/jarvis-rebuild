@@ -28,7 +28,7 @@ describe("parentForTask", () => {
   const idx = () => buildParentIndex(projects, goals, tasks);
 
   it("a filed task wears its project, with the project's progress and category colour", () => {
-    expect(parentForTask(idx(), tasks[0]!)).toEqual({ kind: "project", name: "Kitchen remodel", tone: "cat-fg-sky", pct: 50 });
+    expect(parentForTask(idx(), tasks[0]!)).toEqual({ kind: "project", name: "Kitchen remodel", tone: "cat-fg-sky", pct: 50, cat: "work" });
   });
   // CORRECTED 2026-09-06. This case used to expect the goal, which is the
   // bug Dave reported from his phone: "unlabeled tasks randomly go into
@@ -39,7 +39,7 @@ describe("parentForTask", () => {
   // anyone made, and a task carries no goalId, so this branch could never
   // once have been right. The row says where the task lives: its area.
   it("a task in an area a goal merely watches wears the area, not the goal", () => {
-    expect(parentForTask(idx(), tasks[2]!)).toEqual({ kind: "category", name: "Money", tone: "cat-fg-yellow", pct: null });
+    expect(parentForTask(idx(), tasks[2]!)).toEqual({ kind: "category", name: "Money", tone: "cat-fg-yellow", pct: null, cat: "money" });
   });
   // The screenshot, as a test: a goal watching a broad area must not adopt
   // unrelated work in it. Submit job apps is not apartment work.
@@ -47,7 +47,7 @@ describe("parentForTask", () => {
     const broad = [{ id: "g2", data: { title: "Make apartment aesthetic", state: "on_track", tags: ["work"] } }] as unknown as Goal[];
     const jobApps = task("apps", { category: "work" });
     const p = parentForTask(buildParentIndex([], broad, [jobApps]), jobApps);
-    expect(p).toEqual({ kind: "category", name: "Work", tone: "cat-fg-sky", pct: null });
+    expect(p).toEqual({ kind: "category", name: "Work", tone: "cat-fg-sky", pct: null, cat: "work" });
     expect(p!.name).not.toBe("Make apartment aesthetic");
   });
   // And the link a person DID make still wins, unchanged.
@@ -55,7 +55,7 @@ describe("parentForTask", () => {
     expect(parentForTask(idx(), tasks[0]!)?.kind).toBe("project");
   });
   it("a task that moves nothing wears its category", () => {
-    expect(parentForTask(idx(), tasks[3]!)).toEqual({ kind: "category", name: "Work", tone: "cat-fg-sky", pct: null });
+    expect(parentForTask(idx(), tasks[3]!)).toEqual({ kind: "category", name: "Work", tone: "cat-fg-sky", pct: null, cat: "work" });
   });
   it("a task with nothing at all says nothing, so the row can say No category", () => {
     expect(parentForTask(idx(), tasks[4]!)).toBeNull();
@@ -90,6 +90,16 @@ describe("the event a task belongs to", () => {
     const proj = { id: "p1", data: { title: "Season Ops", category: "sport" } } as never;
     const t = { id: "t1", data: { text: "Print the roster", category: "sport", done: false, eventId: "e1", projectId: "p1" } } as never;
     expect(parentForTask(buildParentIndex([proj], [], [t]), t)!.kind).toBe("project");
+  });
+
+  // THE UNIFIED CHIP (Dave 2026-10-09): the parent carries its own area, so a task with none of its own can still chip the
+  // area its event or project lives in.
+  it("an event or a project parent carries the area it lives in", () => {
+    const proj = { id: "p1", data: { title: "Season Ops", category: "sport" } } as never;
+    const t = { id: "t1", data: { text: "Print the roster", category: "", done: false, eventId: "e1" } } as never;
+    expect(parentForTask(buildParentIndex([], [], [t], EV), t)!.cat).toBe("sport");
+    const u = { id: "t2", data: { text: "Order shirts", category: "", done: false, projectId: "p1" } } as never;
+    expect(parentForTask(buildParentIndex([proj], [], [u]), u)!.cat).toBe("sport");
   });
 
   it("an eventId pointing at nothing is not a parent, it is no parent", () => {

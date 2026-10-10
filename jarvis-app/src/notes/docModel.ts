@@ -128,12 +128,20 @@ export function nodePlainText(n: JSONContent): string {
 
 /** The first line with words in it, for a note whose title is not typed
  *  yet. Empty when the note has none. */
+// A LIST'S FIRST LINE IS ITS FIRST ITEM (2026-10-09, the unified chip). The note rows now print this line beside the area
+// chip, and a list read whole glued its items with no space between them ("Tents and tablesSponsor banners"). An item is a
+// line of its own, so a list answers with its first item that has words in it.
+const LISTS = new Set(["bulletList", "orderedList", "taskList"]);
 export function firstLineOf(doc: Doc | undefined): string {
-  for (const n of doc?.content ?? []) {
-    const t = nodePlainText(n).replace(/\s+/g, " ").trim();
-    if (t) return t.length > 80 ? t.slice(0, 79).trimEnd() + "…" : t;
-  }
-  return "";
+  const lines = (nodes: JSONContent[]): string => {
+    for (const n of nodes) {
+      const t = LISTS.has(n.type ?? "") ? lines(n.content ?? []) : nodePlainText(n).replace(/\s+/g, " ").trim();
+      if (t) return t;
+    }
+    return "";
+  };
+  const t = lines(doc?.content ?? []);
+  return t.length > 80 ? t.slice(0, 79).trimEnd() + "…" : t;
 }
 
 /** What a note is called wherever it is named: its title, or its first line

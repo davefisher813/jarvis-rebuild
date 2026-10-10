@@ -31,7 +31,9 @@ import HeadMore from "../shared/HeadMore";
 
 import { lineCase, titleCase } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
-import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
+import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph } from "../shared/glyphs";
+import CatChipLine, { chipArea } from "../shared/CatChipLine";
+import { categoriesOf } from "../tasks/categories";
 import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
 import { originLabel } from "../tasks/origin";
@@ -109,6 +111,10 @@ function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }:
   // string cut up and printed inside a .r-k line. If a reason ever returns it
   // arrives as separate facts, never a string to split.
   const name = titleCase(t.data.text);
+  // THE CHIP (Dave 2026-10-09, the unified chip): the task's own first named area, else its project's or event's; the
+  // project or event is the words beside it. The same piece the Tasks list and the notes use.
+  const chipCat = [...categoriesOf(t.data), parent?.cat].find((id): id is string => !!id && !!catName(id)) ?? null;
+  const chipWords = parent && parent.kind !== "category" ? parent.name : null;
   const canTick = !!onToggle && !done;
   const late = dist?.kind === "late" && !done;
   return (
@@ -129,7 +135,14 @@ function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }:
         <Burst show={bursting} size={burstSize} />
       </div>
       <div className="task-title">
-        <span className="task-name">{name}</span>
+        {/* THE COUNT IS ON THE TITLE LINE (Dave 2026-10-09, the pass-off, item 16): "1 of 5" beside the name it counts
+            (TRACE-02, 2026-09-07), not in the trailing slot. */}
+        {steps.total > 0 ? (
+          <div className="task-line1">
+            <span className="task-name">{name}</span>
+            <StepCount {...steps} />
+          </div>
+        ) : <span className="task-name">{name}</span>}
         {/* THE SECOND LINE ANSWERS THE PAGE'S QUESTION (Dave 2026-09-01,
             "Together" catalog, on the row he hated). Bar first, so the
             category mark sits at one x on every row. Chip next, so it sits
@@ -141,21 +154,17 @@ function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }:
         <div className="r-k">
           {dist && !done && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
           {parent
-            ? <ParentLineGlyph p={parent} />
+            ? <CatChipLine category={chipCat} text={chipWords} />
             : originLabel(t.data)
               ? <span className="r-goal r-cat">{originLabel(t.data)}</span>
               : null}
         </div>
       </div>
       {/* THE RIGHT SLOT HOLDS ONE THING (contract 4.1, lint rule 7): the
-          row's one quiet verb once it is late, else the checklist count
-          (TRACE-02, 2026-09-07), else nothing. No zeros, no placeholder
-          (4.11). */}
-      {late && canTick ? (
-        <RowCtxAction when label="Done" onAct={tap} />
-      ) : steps.total > 0 ? (
-        <StepCount {...steps} />
-      ) : null}
+          row's one quiet verb once it is late, else nothing. The checklist
+          count moved to the title line (Dave 2026-10-09). No zeros, no
+          placeholder (4.11). */}
+      {late && canTick ? <RowCtxAction when label="Done" onAct={tap} /> : null}
     </div>
     </SwipeShell>
     </div>
@@ -759,8 +768,9 @@ export default function TodayPage({
               <div className="sched-time" />
               <div className="sched-body">
                 <div className="sched-title"><span className="sched-t">{titleCase(t.data.text)}</span></div>
-                {catName(t.data.category) && (
-                  <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</div>
+                {/* The area is the unified chip on a task (Dave 2026-10-09), as on every other task row. */}
+                {chipArea(t.data.category) && (
+                  <div className="sched-cat"><CatChipLine category={t.data.category} /></div>
                 )}
               </div>
               <span className="pill pill-subdued">{titleCase(t.data.recurrence ?? "")}</span>

@@ -274,19 +274,6 @@ export function PulseGlyph({ className = "ic" }: { className?: string }) {
 // The target the Goals page already wears, at kicker size, in goal green,
 // before a goal's name on a task row. Shape says "goal" before the words
 // do; a category on the same line wears nothing and reads plainer for it.
-// THE EVENT MARK (2026-09-09, when events became first-class). A task filed
-// to an event leads its parent line with a calendar, drawn here rather than
-// imported so it sits on the same 24-box, the same stroke and the same
-// currentColor as the goal target and the project pie beside it. One glyph
-// per kind, learned once.
-export function EventMark() {
-  return (
-    <svg className="r-gm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M8 3v4M16 3v4M3.5 10.5h17" />
-    </svg>
-  );
-}
-
 export function GoalMark() {
   // The same filled centre as TargetGlyph (2026-09-26), at the inline size.
   return (
@@ -322,35 +309,10 @@ export function ProjectPie({ pct, className = "pp" }: { pct: number | null; clas
   );
 }
 
-// THE PARENT LINE'S GLYPH (The Row and Health, Dave 2026-09-02). The second
-// line of a task row opens with the glyph of whatever the task belongs to,
-// in that parent's category colour, then the parent's name.
-// Same pie as the Projects page, same target as the Goals page, same dot as
-// the category head: one glyph per kind, learned once.
-//
-// DEFECT 6 (2026-09-06): the name's ink follows §4.1, which draws the line at
-// what the task MOVES. A project or a goal is a thing this task advances, so
-// its name reads in --tx-2 at medium; a category is only where the task
-// lives, and the contract says a task that moves nothing "says the category
-// name, plain". The class carries the kind so the sheet never has to know a
-// category's name or its colour.
-export function ParentLineGlyph({ p }: { p: { kind: "event" | "project" | "goal" | "category"; name: string; tone: string; pct: number | null } }) {
-  return (
-    <span className={"r-goal r-parent" + (p.kind === "category" ? " r-parent-plain" : "")}>
-      <span className={"r-pg " + p.tone}>
-        {/* EVENTS ARE FIRST-CLASS (2026-09-09): a task filed to an event
-            leads with the calendar mark, in the event's own category colour,
-            the same law every other kind on this line already follows. One
-            glyph per kind, learned once. */}
-        {p.kind === "event" ? <EventMark />
-          : p.kind === "project" ? <ProjectPie pct={p.pct} className="pp pp-sm" />
-          : p.kind === "goal" ? <GoalMark />
-          : <span className="r-pdot" />}
-      </span>
-      <span className="r-goal-t">{p.name}</span>
-    </span>
-  );
-}
+// THE PARENT LINE'S GLYPH AND THE EVENT MARK ARE GONE (Dave 2026-10-09, the
+// unified chip): a task row's area is a small chip in its own colour with the
+// project, goal or event right next to it, and a note row's is the same chip
+// beside its first line. One piece draws both, shared/CatChipLine.
 
 export function PhoneGlyph({ className = "ic" }: { className?: string }) {
   return (
