@@ -7,7 +7,7 @@ const row = (id: string, iso: string): InboxRow => ({
   id, account_id: "a", account: "dave@example.test", provider_id: id, thread_id: id, internal_date: iso, from_address: "x@y.test", from_name: "",
   subject: "s", snippet: "", has_body: false, attachment_metadata: [], provider_labels: ["INBOX"], source_hash: "h", read: true,
 });
-const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "a", address: "dave@example.test", state: "connected", last_sync_at: null, sync_error: null, capabilities: {}, connected_at: NOW.toISOString(), scopes: [], cached: 0, ...o });
+const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "a", address: "dave@example.test", state: "connected", last_sync_at: null, sync_error: null, capabilities: {}, connected_at: NOW.toISOString(), scopes: [], cached: 0, signature_text: "", signature_revision: 1, ...o });
 
 describe("the sender", () => {
   it("is the name, else the address, else a plain word", () => {

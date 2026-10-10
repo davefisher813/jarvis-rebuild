@@ -17,6 +17,8 @@ export const COMMAND_ERROR_CODES = [
   "DRAFT_SENT", "DRAFT_CONFLICT", "PROVIDER_SCOPE",
   // Email v1 (migration 0059): a held send no worker reached by its deadline is never sent late.
   "HOLD_EXPIRED",
+  // Email v1, saved signatures (migration 0061, spec L3): the account's signature changed between the read and this save.
+  "SIGNATURE_CONFLICT",
 ] as const;
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number];
 
@@ -55,6 +57,7 @@ export const COMMAND_LINES: Record<CommandErrorCode, string> = {
   DRAFT_CONFLICT: "Edited on Another Device · Choose Which Draft to Keep",
   PROVIDER_SCOPE: "Gmail Needs Permission to Send · Reconnect in Connections",
   HOLD_EXPIRED: "Not Sent · Held Too Long · Review It Again",
+  SIGNATURE_CONFLICT: "Signature Changed Elsewhere · Reload and Try Again",
 };
 
 export interface CommandFailure {

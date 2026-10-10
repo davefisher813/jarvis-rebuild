@@ -4,25 +4,37 @@
 // and the one place connecting happens: Settings, Connections, where the
 // sign-in has always lived (api/google.ts). Nothing here holds a token.
 
+import { useState } from "react";
 import PageHeader from "../shared/PageHeader";
 import ListFloor from "../shared/ListFloor";
 import { rowDoor } from "../shared/rowDoor";
-import { ACCOUNTS_TITLE, ADD_GMAIL, DRAFTS_AND_SENT, EMAIL_TITLE, EMPTY_ACCOUNTS, MAILBOXES, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
+import RowActionSheet from "../shared/RowActionSheet";
+import RowMenuButton from "../shared/RowMenuButton";
+import { ACCOUNTS_TITLE, ADD_GMAIL, DRAFTS_AND_SENT, EDIT_SIGNATURE, EMAIL_TITLE, EMPTY_ACCOUNTS, MAILBOXES, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
 import EmailFacts from "./EmailFacts";
 import { updatedFacts, type EmailFact } from "./format";
 import type { EmailAccount } from "./emailClient";
 import type { ClientView } from "../connections/connectionStatus";
+import type { RpcClient } from "../substrate/commands/errors";
 import EmptyState from "./EmptyState";
+import SignatureSheet from "./SignatureSheet";
 
-export default function AccountsScreen({ accounts, views, onBack, onOpenConnections, onOpenDrafts }: {
+export default function AccountsScreen({ accounts, views, client, userId, onBack, onOpenConnections, onOpenDrafts, onSignatureSaved }: {
   accounts: EmailAccount[];
   /** The proven status of each mailbox (Foundation Fix Spec 1), keyed by lowercase address. When there is one it speaks for the mailbox; the cache row's own state is only the answer until the first proof arrives. */
   views?: ReadonlyMap<string, ClientView>;
+  /** The session's client, for the signature editor's one RPC. No client, no menu: a row with no working door to open is not offered one. */
+  client?: RpcClient | null;
+  userId?: string;
   onBack: () => void;
   onOpenConnections: () => void;
   /** Drafts and what was sent from JARVIS (slice 07), reached from the mailbox picker as section 09 says. */
   onOpenDrafts?: () => void;
+  /** The saved signature changed (Email v1 spec L3), so the caller's own copy of this account can be updated without a full reload. */
+  onSignatureSaved?: (accountId: string, text: string, revision: number) => void;
 }) {
+  const [menuFor, setMenuFor] = useState<EmailAccount | null>(null);
+  const [editing, setEditing] = useState<EmailAccount | null>(null);
   const needsReauth = views && views.size > 0 ? [...views.values()].some((v) => v.offerReconnect) : accounts.some((a) => a.state === "reauth");
   return (
     <div className="screen ruled">
@@ -66,6 +78,9 @@ export default function AccountsScreen({ accounts, views, onBack, onOpenConnecti
                       <EmailFacts wrap facts={line} />
                       {a.sync_error && a.state !== "disconnected" && <EmailFacts wrap facts={[{ text: a.sync_error, tone: "warn" }]} />}
                     </div>
+                    {/* 2026-10-10: a quiet trailing door, never the row's own tap target (that still opens
+                        Connections). No client, no menu: a row with nothing that can work is not offered one. */}
+                    {client && <RowMenuButton what={a.address} onMenu={() => setMenuFor(a)} />}
                   </div>
                 );
               })}
@@ -76,6 +91,13 @@ export default function AccountsScreen({ accounts, views, onBack, onOpenConnecti
         </>
       )}
       <div className="screen-foot" />
+      {menuFor && (
+        <RowActionSheet title={menuFor.address} actions={[{ label: EDIT_SIGNATURE, onPick: () => setEditing(menuFor) }]} onCancel={() => setMenuFor(null)} />
+      )}
+      {editing && client && (
+        <SignatureSheet client={client} userId={userId ?? ""} account={editing} onClose={() => { setEditing(null); setMenuFor(null); }}
+          onSaved={(accountId, text, revision) => onSignatureSaved?.(accountId, text, revision)} />
+      )}
     </div>
   );
 }

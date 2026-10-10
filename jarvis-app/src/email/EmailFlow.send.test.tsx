@@ -35,7 +35,7 @@ vi.mock("../substrate/flags", async (orig) => {
 const NOW = new Date("2026-10-03T15:00:00Z");
 const USER = "user-1";
 const DAVE = "dave@example.test";
-const account = (o: Partial<EmailAccount> = {}): EmailAccount => ({ id: "acct-dave", address: DAVE, state: "connected", last_sync_at: "2026-10-03T14:50:00Z", sync_error: null, capabilities: { archive: true, trash: true, read: true }, connected_at: "2026-09-01T00:00:00Z", scopes: [], cached: 2, ...o });
+const account = (o: Partial<EmailAccount> = {}): EmailAccount => ({ id: "acct-dave", address: DAVE, state: "connected", last_sync_at: "2026-10-03T14:50:00Z", sync_error: null, capabilities: { archive: true, trash: true, read: true }, connected_at: "2026-09-01T00:00:00Z", scopes: [], cached: 2, signature_text: "", signature_revision: 1, ...o });
 const row = (id: string, iso: string, o: Partial<InboxRow> = {}): InboxRow => ({
   id: `u-${id}`, account_id: "acct-dave", account: DAVE, provider_id: id, thread_id: `thr-${id}`, internal_date: iso, from_address: "coach@example.test", from_name: "Coach Miller",
   subject: "Peña transcript", snippet: "I'll get it over to you.", has_body: true, attachment_metadata: [], provider_labels: ["INBOX"], source_hash: "sh-1", read: true, ...o,
@@ -53,7 +53,7 @@ interface Rig { client: RpcClient; calls: Array<{ fn: string; args: Record<strin
 
 const fieldsIn = (a: Record<string, unknown>): DraftFields => a.p_fields as DraftFields;
 const rowOf = (id: string, accountId: string, f: DraftFields, revision: number, savedAt: string, o: Partial<DraftRow> = {}): DraftRow => ({
-  id, account_id: accountId, account: DAVE, thread_id: f.thread_id, to_addresses: f.to_addresses, cc_addresses: f.cc_addresses, bcc_addresses: f.bcc_addresses, subject: f.subject, body_text: f.body_text, attachment_refs: f.attachment_refs, reply_headers: f.reply_headers,
+  id, account_id: accountId, account: DAVE, thread_id: f.thread_id, to_addresses: f.to_addresses, cc_addresses: f.cc_addresses, bcc_addresses: f.bcc_addresses, subject: f.subject, body_text: f.body_text, attachment_refs: f.attachment_refs, reply_headers: f.reply_headers, signature_revision: f.signature_revision,
   send_state: "draft", saved_at: savedAt, revision, updated_at: savedAt, sent_action_id: null, provider_message_id: null, action_state: null, action_verb: null, outbox_state: null, error_code: null, provider_ack: null, ...o,
 });
 
@@ -342,7 +342,7 @@ describe("E22: offline sends nothing and queues nothing", () => {
 
 describe("E16, 11: a reload keeps the latest words; two devices get a choice", () => {
   it("a draft saved on this device and never on the server is listed under Drafts as On This Device and opens with its words", async () => {
-    saveLocalDraft(USER, { key: "local:abc", draft_id: null, account_id: "acct-dave", fields: { thread_id: null, to_addresses: ["coach@example.test"], cc_addresses: [], bcc_addresses: [], subject: "Before the reload", body_text: "Half a sentence", attachment_refs: [], reply_headers: { in_reply_to: null, references: [], thread_id: null } }, revision: null, saved_at: "2026-10-03T14:58:00Z", server_saved_at: null });
+    saveLocalDraft(USER, { key: "local:abc", draft_id: null, account_id: "acct-dave", fields: { thread_id: null, to_addresses: ["coach@example.test"], cc_addresses: [], bcc_addresses: [], subject: "Before the reload", body_text: "Half a sentence", attachment_refs: [], reply_headers: { in_reply_to: null, references: [], thread_id: null }, signature_revision: null }, revision: null, saved_at: "2026-10-03T14:58:00Z", server_saved_at: null });
     const r = rig();
     mount(r);
     await waitFor(() => expect(screen.getByText(/Updated Today/)).toBeInTheDocument());

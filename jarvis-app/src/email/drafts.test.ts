@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { badAddresses, canonicalFields, clearLocalDraft, emptyFields, isAddress, loadLocalDrafts, normalizeAddress, outcomeOf, replyFields, reviewExpired, sameFields, saveLocalDraft, splitAddresses, unsavedLocal, type DraftFields, type DraftRow, type LocalDraft } from "./drafts";
-import type { MessageDetail } from "./emailClient";
+import {
+  badAddresses, canonicalFields, clearLocalDraft, emptyFields, hasManagedSignature, isAddress, loadLocalDrafts, normalizeAddress, outcomeOf, replaceSignature, replyFields, reviewExpired, sameFields,
+  saveLocalDraft, signatureUntouched, splitAddresses, stripSignature, unsavedLocal, withSignature, type DraftFields, type DraftRow, type LocalDraft,
+} from "./drafts";
+import type { EmailAccount, MessageDetail } from "./emailClient";
 
 const mem = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); }, removeItem: (k: string) => { m.delete(k); } }; };
 
@@ -74,6 +77,53 @@ describe("the local store (11, E22: a reload never loses the latest words)", () 
     expect(sameFields(a, b)).toBe(true);
     expect(sameFields(a, { ...a, bcc_addresses: ["me@example.test"] })).toBe(false);
     expect(canonicalFields(a).reply_headers).toEqual({ in_reply_to: null, references: [], thread_id: null });
+  });
+});
+
+describe("the saved signature (Email v1 spec L3, AC17 to AC19)", () => {
+  const acct = (o: Partial<EmailAccount> = {}): EmailAccount => ({
+    id: "acct-dave", address: "dave@example.test", state: "connected", last_sync_at: null, sync_error: null, capabilities: {}, connected_at: "2026-10-08T00:00:00Z", scopes: [],
+    cached: 0, signature_text: "Dave Fisher", signature_revision: 1, ...o,
+  });
+
+  it("appends a non-empty signature as its own block, once; an empty signature appends nothing", () => {
+    expect(withSignature("On it.", "Dave Fisher")).toBe("On it.\n\n-- \nDave Fisher");
+    expect(withSignature("On it.", "")).toBe("On it.");
+    expect(withSignature("", "Dave Fisher")).toBe("\n\n-- \nDave Fisher");
+  });
+
+  it("knows the exact block from anything else at the end of the body", () => {
+    expect(hasManagedSignature("On it.\n\n-- \nDave Fisher", "Dave Fisher")).toBe(true);
+    expect(hasManagedSignature("On it.\n\n-- \nDave Fisher, edited", "Dave Fisher")).toBe(false);
+    expect(hasManagedSignature("On it.", "Dave Fisher")).toBe(false);
+    // Empty text is never a block to find: there is nothing a fresh compose would have appended.
+    expect(hasManagedSignature("On it.", "")).toBe(false);
+  });
+
+  it("strips only the exact block, and only when it is really there", () => {
+    expect(stripSignature("On it.\n\n-- \nDave Fisher", "Dave Fisher")).toBe("On it.");
+    expect(stripSignature("On it.", "Dave Fisher")).toBe("On it.");
+    expect(stripSignature("On it.\n\n-- \nDave Fisher", "")).toBe("On it.\n\n-- \nDave Fisher");
+  });
+
+  it("replaces the old untouched block with the new one, or drops it when the new signature is empty", () => {
+    expect(replaceSignature("On it.\n\n-- \nDave Fisher", "Dave Fisher", "Dave F., Work")).toBe("On it.\n\n-- \nDave F., Work");
+    expect(replaceSignature("On it.\n\n-- \nDave Fisher", "Dave Fisher", "")).toBe("On it.");
+    // Nothing to strip: the new one is simply appended.
+    expect(replaceSignature("On it.", "", "Dave F., Work")).toBe("On it.\n\n-- \nDave F., Work");
+  });
+
+  it("AC19: a draft's managed block is untouched only when it was ever inserted, the account's signature has not changed since, and the words still match exactly", () => {
+    const body = "On it.\n\n-- \nDave Fisher";
+    expect(signatureUntouched(body, 1, acct())).toBe(true);
+    // Never inserted (a fresh draft, or the account's signature was empty at compose time).
+    expect(signatureUntouched(body, null, acct())).toBe(false);
+    // The account's signature moved on since insertion: the text it was inserted with is not known here.
+    expect(signatureUntouched(body, 1, acct({ signature_revision: 2 }))).toBe(false);
+    // The person edited the block.
+    expect(signatureUntouched("On it.\n\n-- \nDave Fisher, Esq.", 1, acct())).toBe(false);
+    // No account at all (an id that no longer resolves).
+    expect(signatureUntouched(body, 1, null)).toBe(false);
   });
 });
 

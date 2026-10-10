@@ -25,7 +25,7 @@ import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 const NOW = new Date("2026-10-03T15:00:00Z");
 const USER = "user-1";
 const DAVE = "dave@example.test";
-const account = (): EmailAccount => ({ id: "acct-dave", address: DAVE, state: "connected", last_sync_at: "2026-10-03T14:50:00Z", sync_error: null, capabilities: { archive: true, trash: true, read: true }, connected_at: "2026-09-01T00:00:00Z", scopes: [], cached: 2 });
+const account = (): EmailAccount => ({ id: "acct-dave", address: DAVE, state: "connected", last_sync_at: "2026-10-03T14:50:00Z", sync_error: null, capabilities: { archive: true, trash: true, read: true }, connected_at: "2026-09-01T00:00:00Z", scopes: [], cached: 2, signature_text: "", signature_revision: 1 });
 const row = (id: string, iso: string, o: Partial<InboxRow> = {}): InboxRow => ({
   id: `u-${id}`, account_id: "acct-dave", account: DAVE, provider_id: id, thread_id: "t-a2", internal_date: iso, from_address: "coach@example.test", from_name: "Coach Miller",
   subject: "Re: Peña transcript", snippet: "I'll get Peña's transcript over to you once the school sends it to me.", has_body: true, attachment_metadata: [], provider_labels: ["INBOX"], source_hash: "sh-1", read: true, ...o,

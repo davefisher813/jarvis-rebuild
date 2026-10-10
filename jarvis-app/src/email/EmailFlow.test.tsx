@@ -29,7 +29,7 @@ const USER = "user-1";
 const DAVE = "dave@example.test";
 const WORK = "work@example.test";
 
-const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "acct-dave", address: DAVE, state: "connected", last_sync_at: "2026-10-03T14:50:00Z", sync_error: null, capabilities: { archive: true, trash: true, read: true }, connected_at: "2026-09-01T00:00:00Z", scopes: [], cached: 4, ...o });
+const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "acct-dave", address: DAVE, state: "connected", last_sync_at: "2026-10-03T14:50:00Z", sync_error: null, capabilities: { archive: true, trash: true, read: true }, connected_at: "2026-09-01T00:00:00Z", scopes: [], cached: 4, signature_text: "", signature_revision: 1, ...o });
 const accounts: EmailAccount[] = [account({}), account({ id: "acct-work", address: WORK, last_sync_at: "2026-10-03T14:40:00Z", cached: 1 })];
 
 const row = (id: string, iso: string, o: Partial<InboxRow> = {}): InboxRow => ({

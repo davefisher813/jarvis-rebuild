@@ -77,7 +77,7 @@ import { useReconnect } from "./useReconnect";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
 import { bannerModels, recoveryNotes } from "../connections/incidentView";
-import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
+import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
 import { localDate, reviewCount, threadsLatest, type EmailFocus, type LatestInThread } from "./waiting";
@@ -601,9 +601,17 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // ---- compose, review, send (slice 07) ------------------------------------
   const canCompose = accounts.some((a) => a.state === "connected");
   const defaultAccountId = () => (accounts.find((a) => a.state === "connected") ?? accounts[0])?.id ?? "";
+  // Every call here starts a FRESH compose or reply, never resumes one (openDraft and openLocal bypass this
+  // entirely): the one place the account's saved signature is inserted, once, as its own block (spec L3, AC17).
+  // Empty signature means nothing is appended, not an empty block, and nothing here is recorded as a managed
+  // insertion either, so a later account switch has nothing stale to compare against.
   const startCompose = (fields: DraftFields, accountId: string, from: Screen, extra: Partial<ComposeStart> = {}) => {
     setSendFailure(null);
-    setScreen({ kind: "compose", start: { localKey: newLocalKey(nowFn), draftId: null, accountId, fields, revision: null, ...extra }, from });
+    const acct = accounts.find((a) => a.id === accountId);
+    const signed: DraftFields = acct && acct.signature_text
+      ? { ...fields, body_text: withSignature(fields.body_text, acct.signature_text), signature_revision: acct.signature_revision }
+      : fields;
+    setScreen({ kind: "compose", start: { localKey: newLocalKey(nowFn), draftId: null, accountId, fields: signed, revision: null, ...extra }, from });
   };
   const startReply = (m: MessageDetail, all: boolean, from: Screen) => {
     const acct = accounts.find((a) => a.id === m.account_id);
@@ -737,8 +745,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     </div>;
   }
   if (screen.kind === "accounts") {
+    const onSignatureSaved = (accountId: string, text: string, revision: number) => setAccounts((prev) => {
+      const next = prev.map((a) => (a.id === accountId ? { ...a, signature_text: text, signature_revision: revision } : a));
+      persist(next, rows);
+      return next;
+    });
     return <div className={pushCls}>
-      <AccountsScreen accounts={accounts} views={conn.views} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
+      <AccountsScreen accounts={accounts} views={conn.views} client={client} userId={userId} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} onSignatureSaved={onSignatureSaved} />
     </div>;
   }
   if (screen.kind === "waiting" && client) {

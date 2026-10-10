@@ -33,6 +33,10 @@ export interface EmailAccount {
   connected_at: string;
   scopes: string[];
   cached: number;
+  /** The one saved plain-text signature for this account (spec L3). Empty is a valid, explicit save. */
+  signature_text: string;
+  /** Bumped on every signature save; the optimistic-concurrency check for email_signature_set, and what a draft's own signature_revision is compared against. */
+  signature_revision: number;
 }
 
 /** One inbox row as email_inbox returns it: the provider's facts, nothing derived. */
@@ -110,6 +114,11 @@ export function searchCached(client: RpcClient, q: string, accounts: string[] | 
 }
 
 export interface RuleShape { sender_exact: string; account_id: string; category_id: string }
+
+/** Save the account's one signature (spec L3): email_signature_set. Empty text is a valid, explicit save. p_expected_revision null skips the conflict check. */
+export function setSignature(client: RpcClient, ownerId: string, accountId: string, text: string, expectedRevision: number | null = null): Promise<CommandResult<{ account_id: string; signature_text: string; signature_revision: number }>> {
+  return callCommand(client, "email_signature_set", { p_owner: ownerId, p_account: accountId, p_text: text, p_expected_revision: expectedRevision });
+}
 
 export function offerSuggestion(client: RpcClient, rule: RuleShape, tapIds: string[]): Promise<CommandResult<{ suggestion_id: string; status: string; replay: boolean }>> {
   return callCommand(client, "policy_suggestion_offer", { p_rule: rule, p_evidence_tap_ids: tapIds });

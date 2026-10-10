@@ -8,7 +8,7 @@
 // stands. Nothing here calls Gmail; nothing here queues a send for later.
 
 import { callCommand, type CommandResult, type RpcClient } from "../substrate/commands/errors";
-import { apiPost, type Fetch, type MessageDetail } from "./emailClient";
+import { apiPost, type EmailAccount, type Fetch, type MessageDetail } from "./emailClient";
 import { ACCOUNT_PREFIX } from "../messages/mailCache";
 import { mailAccountKey } from "../messages/mailIdentity";
 import { replySubject } from "../connections/google/map";
@@ -26,6 +26,8 @@ export interface DraftFields {
   body_text: string;
   attachment_refs: AttachmentRef[];
   reply_headers: ReplyHeaders;
+  /** Which account-signature-revision was last inserted into body_text as the managed signature block; null means no managed block has ever been inserted (spec L3). */
+  signature_revision: number | null;
 }
 export interface DraftRow extends DraftFields {
   id: string;
@@ -45,7 +47,51 @@ export interface DraftRow extends DraftFields {
 }
 export interface Saved { draft_id: string; revision: number; saved_at: string; send_state: SendState }
 
-export const emptyFields = (): DraftFields => ({ thread_id: null, to_addresses: [], cc_addresses: [], bcc_addresses: [], subject: "", body_text: "", attachment_refs: [], reply_headers: { in_reply_to: null, references: [], thread_id: null } });
+export const emptyFields = (): DraftFields => ({ thread_id: null, to_addresses: [], cc_addresses: [], bcc_addresses: [], subject: "", body_text: "", attachment_refs: [], reply_headers: { in_reply_to: null, references: [], thread_id: null }, signature_revision: null });
+
+// ---- the saved signature (slice: Email v1 spec section 6, Dave's locked decision L3) --------------------------------
+
+/** The classic RFC 3676 sig-dashes convention: a distinct block, never baked into the words above it. */
+export const SIGNATURE_DELIM = "\n\n-- \n";
+
+/** The account's signature as the block startCompose appends, for a non-empty signature only. */
+export const signatureBlock = (text: string): string => SIGNATURE_DELIM + text;
+
+/** Appends the account's current signature as a distinct block, unless it is empty (spec: "skip the whole block entirely"; nothing is appended, not an empty block). */
+export function withSignature(body: string, text: string): string {
+  return text ? body + signatureBlock(text) : body;
+}
+
+/** True when body_text's very end is exactly the managed block for this signature text: present and untouched. Empty text never counts as a block to find (there is nothing a fresh compose would have appended). */
+export function hasManagedSignature(body: string, text: string): boolean {
+  return !!text && body.endsWith(signatureBlock(text));
+}
+
+/** Strips the exact managed block for oldText from the end of body, if it is there; otherwise body is returned unchanged. Callers must already know the block is untouched before calling this (hasManagedSignature, or signatureUntouched for an account switch). */
+export function stripSignature(body: string, oldText: string): string {
+  if (!oldText) return body;
+  const block = signatureBlock(oldText);
+  return body.endsWith(block) ? body.slice(0, -block.length) : body;
+}
+
+/** The idempotent replace at the heart of AC19: swap the old account's untouched managed block for the new one (or drop it, when the new account's signature is empty). Only ever called once signatureUntouched has said the block is still exactly what was inserted. */
+export function replaceSignature(body: string, oldText: string, newText: string): string {
+  return withSignature(stripSignature(body, oldText), newText);
+}
+
+/**
+ * Whether the draft's managed signature block, if any, is still exactly what was inserted: the only case AC19 lets
+ * the account switch replace in silence. False whenever there is nothing to compare (no managed block was ever
+ * inserted), the old account's signature has changed since insertion (its current revision no longer matches what
+ * the draft recorded, so its text at insertion time is not known here), or the block in body_text does not match
+ * byte for byte (the person edited it). A caller that gets false must offer an explicit Keep or Replace choice
+ * instead of touching the body.
+ */
+export function signatureUntouched(body: string, draftSignatureRevision: number | null, account: Pick<EmailAccount, "signature_text" | "signature_revision"> | null): boolean {
+  if (draftSignatureRevision === null || !account) return false;
+  if (draftSignatureRevision !== account.signature_revision) return false;
+  return hasManagedSignature(body, account.signature_text);
+}
 
 export function saveDraft(client: RpcClient, draftId: string | null, accountId: string, fields: DraftFields, expectedRevision?: number | null): Promise<CommandResult<Saved>> {
   return callCommand<Saved>(client, "draft_save", { p_draft: draftId, p_account: accountId, p_fields: fields, p_expected_revision: expectedRevision ?? null });
@@ -182,6 +228,7 @@ export function replyFields(m: MessageDetail, own: readonly string[], all: boole
     body_text: "",
     attachment_refs: [],
     reply_headers: { in_reply_to: mid, references: refs, thread_id: m.thread_id || null },
+    signature_revision: null,
   };
 }
 
@@ -243,11 +290,12 @@ export function canonicalFields(f: DraftFields): DraftFields {
     subject: f.subject, body_text: f.body_text,
     attachment_refs: f.attachment_refs.map((r) => ({ storage_id: r.storage_id, filename: r.filename, size_bytes: r.size_bytes, sha256: r.sha256, mime_type: r.mime_type })),
     reply_headers: { in_reply_to: f.reply_headers.in_reply_to || null, references: [...f.reply_headers.references], thread_id: f.reply_headers.thread_id || null },
+    signature_revision: f.signature_revision ?? null,
   };
 }
 
 /** The fields of a server row, as the composer edits them. */
-export const fieldsOf = (d: DraftRow): DraftFields => canonicalFields({ thread_id: d.thread_id, to_addresses: d.to_addresses, cc_addresses: d.cc_addresses, bcc_addresses: d.bcc_addresses, subject: d.subject, body_text: d.body_text, attachment_refs: d.attachment_refs, reply_headers: d.reply_headers ?? { in_reply_to: null, references: [], thread_id: null } });
+export const fieldsOf = (d: DraftRow): DraftFields => canonicalFields({ thread_id: d.thread_id, to_addresses: d.to_addresses, cc_addresses: d.cc_addresses, bcc_addresses: d.bcc_addresses, subject: d.subject, body_text: d.body_text, attachment_refs: d.attachment_refs, reply_headers: d.reply_headers ?? { in_reply_to: null, references: [], thread_id: null }, signature_revision: d.signature_revision });
 
 export const MAX_ATTACHMENTS_BYTES = 20 * 1024 * 1024;
 export const attachmentsBytes = (refs: readonly AttachmentRef[]): number => refs.reduce((n, r) => n + r.size_bytes, 0);

@@ -119,6 +119,14 @@ export function messagesWord(n: number): string {
   return `${n} ${n === 1 ? "Message" : "Messages"}`;
 }
 
+// The saved signature (Email v1 spec section 6, Dave's locked decision L3): one per account, empty is valid.
+export const EDIT_SIGNATURE = "Edit Signature";
+export const SIGNATURE_LABEL = "Signature";
+export const SIGNATURE_NOTE = "Appears Once, at the End of New Messages and Replies from This Account";
+export const SIGNATURE_SAVED = "Signature Saved";
+export const USE_SAVED_SIGNATURE = "Use Saved Signature";
+export const SIGNATURE_OFFER_NOTE = "This Account's Signature Isn't in This Draft";
+
 /** "2 Accounts", "1 Account". */
 export function accountsWord(n: number): string {
   return `${n} ${n === 1 ? "Account" : "Accounts"}`;

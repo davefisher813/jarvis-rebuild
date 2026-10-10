@@ -334,7 +334,7 @@ describe("a waiting record is a table of labelled values, with no placeholder an
 // ---------------------------------------------------------------------------
 // ACCOUNTS, DRAFTS, SEARCH, THE MESSAGE
 // ---------------------------------------------------------------------------
-const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "a", address: "dave@example.test", state: "connected", last_sync_at: "2026-10-05T09:12:00", sync_error: null, capabilities: {}, connected_at: "2026-09-01T00:00:00", scopes: [], cached: 12, ...o });
+const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "a", address: "dave@example.test", state: "connected", last_sync_at: "2026-10-05T09:12:00", sync_error: null, capabilities: {}, connected_at: "2026-09-01T00:00:00", scopes: [], cached: 12, signature_text: "", signature_revision: 1, ...o });
 
 describe("Accounts: one facts line per mailbox, never four stacked greys", () => {
   const screen_ = (accounts: EmailAccount[]) => render(<AccountsScreen accounts={accounts} onBack={noop} onOpenConnections={noop} onOpenDrafts={noop} />);
