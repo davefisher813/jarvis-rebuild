@@ -43,6 +43,7 @@ import { voiceToText } from "../ai/context";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import type { Person } from "../people/types";
 import ChatMessageRow from "./ChatMessageRow";
+import { haptics } from "../shared/haptics";
 import FilingSheet from "../ai/FilingSheet";
 import { chatFilingText } from "./filingText";
 
@@ -584,6 +585,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           return;
         }
         logAnswered("capture");
+        haptics.confirm();
         const first = saved[0]!;
         await say(
           "jarvis",

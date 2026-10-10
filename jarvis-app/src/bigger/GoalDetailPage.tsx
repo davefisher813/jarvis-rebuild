@@ -187,7 +187,7 @@ export default function GoalDetailPage({
   // clickable"). A milestone has no page of its own, so its row does its one
   // reversible verb, the tick; the key path only answers the row itself, so
   // Enter on an inner control is that control's.
-  const tick = (id: string, done: boolean) => { haptics.selection(); onMilestoneDone?.(id, done); };
+  const tick = (id: string, done: boolean) => { if (done) haptics.confirm(); else haptics.selection(); onMilestoneDone?.(id, done); };
   const rowKey = (fn: () => void) => (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(fn)(e); };
   const commitMs = () => { const v = msDraft.trim(); if (v && onAddMilestone) onAddMilestone(v); setMsDraft(""); setAddingMs(false); };
   // C-37: only where nothing can be measured and nothing is being worked.

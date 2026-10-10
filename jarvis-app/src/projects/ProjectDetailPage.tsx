@@ -291,7 +291,7 @@ export default function ProjectDetailPage({
                     role="checkbox"
                     aria-checked={false}
                     aria-label="Mark done"
-                    onClick={(e) => { e.stopPropagation(); haptics.selection(); onToggleStep?.(t.id); }}
+                    onClick={(e) => { e.stopPropagation(); onToggleStep?.(t.id); }}
                   >
                     <div className={"task-check " + (hasCat ? "cat-bd-" + catColor(data.category!) : "cat-bd-graphite")} />
                   </div>

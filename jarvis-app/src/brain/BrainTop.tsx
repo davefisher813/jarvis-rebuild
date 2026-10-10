@@ -148,9 +148,9 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
   // a receipt. The row leaves the band because the fact is no longer faded.
   const confirm = async (s: Strand) => {
     if (!svc) return;
-    haptics.selection();
     const ok = await attemptWrite(() => svc.confirm(s, today));
     if (!ok) return;
+    haptics.confirm(); // after the write, never the tap
     await reload();
     showToast({ message: "Confirmed" });
   };
@@ -159,7 +159,6 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
   // channel and the rule is marked announced; the row leaves.
   const confirmWriting = async (p: WritingProposal) => {
     if (!svc || !rulesSvc) return;
-    haptics.selection();
     let id: string | null = null;
     const ok = await attemptWrite(async () => {
       id = await svc.add(p.text, "writing", today, "influence", "pattern");
@@ -168,6 +167,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
     });
     if (!ok) return;
     if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
+    haptics.confirm();
     showToast({ message: "Saved to Writing" });
     setTick((t) => t + 1);
   };
@@ -176,7 +176,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
   // two rest or close the question on this device.
   const answerPrincipleWith = async (d: Derived, answer: "right" | "sometimes" | "never") => {
     if (!svc) return;
-    haptics.selection();
+    if (answer !== "right") haptics.selection();
     if (answer === "right") {
       let outcome: string | null = null;
       const ok = await attemptWrite(async () => {
@@ -185,6 +185,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
         if (r.outcome === "created") { const made = (await svc.list()).find((s) => s.id === r.id); if (made) await svc.setType(made, "principle"); }
       });
       if (!ok) return;
+      if (outcome !== "full") haptics.confirm();
       showToast({ message: outcome === "full" ? "The Brain Is Full · Prune It in What JARVIS Knows" : "Saved to Values" });
     } else {
       answerPrinciple(d.strandText, answer, today);
