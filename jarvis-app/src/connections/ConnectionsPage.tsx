@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSchedule, useProfile } from "../data/NotesProvider";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { useConnectionStatus } from "./useConnectionStatus";
 import { useGoogle } from "./google/GoogleSession";
+import { ReconnectCancelled } from "./google/reconnect";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
 import { Mail, CalendarDays, Link2, RotateCcw } from "../shared/icons";
@@ -62,6 +63,25 @@ export default function ConnectionsPage({
   // THE ACCOUNT'S SHEET (Dave 2026-10-05, locked: tap a row, its sheet holds every action; no chip or pill on a row).
   // Email and Calendar are switches (state, not commands), Reconnect and Disconnect are its action rows.
   const [sheetEmail, setSheetEmail] = useState<string | null>(null);
+  // A sign-in in flight (2026-10-10). One at a time; Cancel releases the page at once, and an answer that arrives after a cancel
+  // still keeps the sign-in (the session stores it) but no longer moves this page.
+  const authOp = useRef(0);
+  const [authBusy, setAuthBusy] = useState(false);
+
+  // READY BEFORE THE TAP (2026-10-10, the Sign In Again that did nothing): Google's window may only open inside the tap, so the
+  // work that used to run first (a token refresh, the server's reconnect attempt, loading Google's script) runs now instead.
+  const { warmAdd, warmReconnect } = g;
+  const signedOutKey = g.accounts.filter((a) => !g.tokenEmails.includes(a.email)).map((a) => a.email).join(",");
+  useEffect(() => { if (configured) warmAdd(); }, [configured, warmAdd]);
+  useEffect(() => {
+    if (!configured) return;
+    for (const email of signedOutKey ? signedOutKey.split(",") : []) warmReconnect(email);
+  }, [configured, signedOutKey, warmReconnect]);
+  useEffect(() => {
+    if (!configured || !sheetEmail) return;
+    // The sheet's button: Reconnect for a signed-out account (silent first), Sign In Again otherwise (straight to consent).
+    warmReconnect(sheetEmail, { consent: g.tokenEmails.includes(sheetEmail) });
+  }, [configured, sheetEmail, warmReconnect, g.tokenEmails]);
 
   const run = async (work: () => Promise<string | null>) => {
     setError(null);
@@ -122,16 +142,48 @@ export default function ConnectionsPage({
     return parts.length > 0 ? " \u00b7 " + parts.join(" \u00b7 ") : "";
   };
 
-  const addAccount = () => run(async () => {
+  // A sign-in: Google's window opens inside the call (the session prepared it), so this must run straight from the tap with
+  // nothing awaited before work(). It never sticks: Cancel releases it, and the session's own backstop ends a window that
+  // never answers.
+  const runAuth = (work: () => Promise<string | null>) => {
+    const op = ++authOp.current;
+    setError(null);
+    setStatus(null);
+    setBusy(true);
+    setAuthBusy(true);
+    const pending = work();
+    void pending.then(
+      (line) => { if (authOp.current === op) setStatus(line); },
+      (e: unknown) => {
+        if (authOp.current !== op) return;
+        // A window the person closed is their choice, not an error.
+        if (e instanceof ReconnectCancelled) return;
+        setError((e as Error).message || "Something Went Wrong");
+      },
+    ).finally(() => {
+      if (authOp.current !== op) return;
+      setBusy(false);
+      setAuthBusy(false);
+    });
+  };
+
+  const cancelAuth = () => {
+    authOp.current++;
+    setBusy(false);
+    setAuthBusy(false);
+    setError(null);
+    setStatus(null);
+  };
+
+  const addAccount = () => runAuth(async () => {
     const { api, email } = await g.addAccount();
     return email + " Connected" + importLine(await importCalendar(api, schedule));
   });
 
-  // Reconnect one account: silent first, so on an account that is already
-  // signed in it just refreshes the sign-in. Shared by the Reconnect chip and
-  // the account row.
-  const reconnectOne = (email: string, signedOut: boolean) => run(async () => {
-    await g.reconnect(email);
+  // Reconnect one account. A signed-out account tries the stored sign-in first (no window when it still works); Sign In Again
+  // on a signed-in account goes straight to Google's consent screen, which is what the person asked for (2026-10-10).
+  const reconnectOne = (email: string, signedOut: boolean) => runAuth(async () => {
+    await g.reconnect(email, { consent: !signedOut });
     return email + (signedOut ? " Reconnected" : " Connected");
   });
 
@@ -167,6 +219,7 @@ export default function ConnectionsPage({
           <span className="sec-left">
             {!g.hasToken && <button className="see-all pill-action" disabled={busy} onClick={reconnectAll}>Reconnect All</button>}
             <button className="see-all pill-action" disabled={!configured || busy} onClick={addAccount}>{busy ? "Connecting" : "Add Account"}</button>
+            {authBusy && <button className="see-all pill-action" onClick={cancelAuth}>Cancel</button>}
           </span>
         )}
         {/* THE ONE CAPSULE OF AN EMPTY SCREEN IS THE HEAD'S (D9, the round 2 review): with no account yet, Connect Google is the way in, drawn in the head
@@ -174,6 +227,7 @@ export default function ConnectionsPage({
         {/* ... AND IT IS THERE BEFORE SIGN-IN OPENS TOO (the ship-blocker review, 2026-10-05: "a dead-end empty state with no action"). The
             capsule is drawn whether or not this build has a Google client; with none, its tap answers in one warm line instead of opening a
             sign-in that cannot work, so the screen always shows its one verb and never a blank. */}
+        {g.accounts.length === 0 && authBusy && <button className="see-all pill-action" onClick={cancelAuth}>Cancel</button>}
         {g.accounts.length === 0 && (
           <button className="see-all pill-action" disabled={busy}
             onClick={configured ? addAccount : () => { setError(null); setStatus(SIGN_IN_SOON); }}>
@@ -228,7 +282,7 @@ export default function ConnectionsPage({
                 {!signedOut && !g.connectionOf(a.email).durable && <div className="facts"><span className="fact warn">Temporary</span></div>}
               </div>
               {/* ITS MOMENT HAS COME (Dave 2026-10-05): a signed-out account quietly shows its one verb, as text. */}
-              <RowCtxAction when={signedOut && !busy} label="Reconnect" ariaLabel={"Reconnect " + a.email} onAct={() => void reconnectOne(a.email, true)} />
+              <RowCtxAction when={signedOut && !busy} label="Reconnect" ariaLabel={"Reconnect " + a.email} onAct={() => reconnectOne(a.email, true)} />
             </div>
             );
           })}
@@ -241,7 +295,16 @@ export default function ConnectionsPage({
           <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">Calendar Import</div>
+            {/* SAYS ONLY WHAT IT KNOWS (2026-10-10): this row read as "Connected" beside an account whose mail could not be read, and
+                both were true. Calendar import runs on the phone's own Google sign-in; the mail check is the server's. So the row marks
+                a source whose sign-in is gone as paused, and claims nothing about mail. */}
             <div className="conn-meta">Events Flow Into Schedule</div>
+            {/* Only a paused source is named: with every sign-in live the row says no more than it did. No typed dot (the facts row draws them). */}
+            {g.accounts.some((a) => a.cal && !g.tokenEmails.includes(a.email)) && (
+              <div className="facts">
+                {g.accounts.filter((a) => a.cal && !g.tokenEmails.includes(a.email)).map((a) => <span className="fact warn" key={a.email}>Paused for {a.email}</span>)}
+              </div>
+            )}
           </div>
         </div></div></div>
       )}
@@ -282,7 +345,12 @@ export default function ConnectionsPage({
             </Group>
             <Group className="xs-actions">
               <SheetRow tone="blue" glyph={<RotateCcw className="ic" />} label={signedOut ? "Reconnect" : "Sign In Again"} chev
-                onClick={() => { if (!busy) { setSheetEmail(null); void reconnectOne(a.email, signedOut); } }} />
+                onClick={() => {
+                  // Never a silent no-op (2026-10-10): a sign-in left hanging is released and this one starts, inside the tap.
+                  if (authBusy) cancelAuth(); else if (busy) return;
+                  setSheetEmail(null);
+                  reconnectOne(a.email, signedOut);
+                }} />
             </Group>
             {/* Armed two-tap (2026-08-09): disconnect sat one accidental tap away, styled like the harmless toggles beside it. */}
             <Group className="xs-actions">
