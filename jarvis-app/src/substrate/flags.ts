@@ -2,18 +2,14 @@
 // slices behind flags"). Read from one public build variable so a slice can
 // land on main inert and be switched on per deploy. Unset means every flagged
 // surface is off and the app is exactly what it was.
+//
+// Phase 0 (2026-10-10): the roster and the parser moved to flagList.ts, which
+// reads no environment, so a law or a script can know the flags without
+// Vite. This file is the one env read plus the two readers the app uses.
 
-export const FLAGS = ["substrate_v1", "email_intake_v1", "verified_agent_adapters", "email_hold_v1"] as const;
-export type Flag = (typeof FLAGS)[number];
+import { FLAGS, parseFlags, type Flag } from "./flagList";
 
-export function parseFlags(raw: string | undefined): ReadonlySet<Flag> {
-  const on = new Set<Flag>();
-  for (const part of (raw ?? "").split(",")) {
-    const name = part.trim();
-    if ((FLAGS as readonly string[]).includes(name)) on.add(name as Flag);
-  }
-  return on;
-}
+export { FLAGS, parseFlags, type Flag };
 
 const BUILD_FLAGS = parseFlags(import.meta.env.VITE_JARVIS_FLAGS as string | undefined);
 

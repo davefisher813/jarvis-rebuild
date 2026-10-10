@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { handleAgentRequest, type GatewayDeps, type RpcResult } from "./handler";
 import { sha256Hex } from "../canonical";
+import { parseFlags } from "../flagList";
 
 const TOKEN = "jarvis_agent_" + "a".repeat(43);
 const CONN = "50000000-0000-0000-0000-00000000000a";
@@ -21,6 +24,7 @@ function rig(over: Partial<Record<string, (args: Record<string, unknown>) => Rpc
     draft_submit: () => ({ data: { draft_id: "f2000000-0000-0000-0000-00000000000a", revision: 1 }, error: null }),
     review_link: () => ({ data: { path: "/hub/review/x" }, error: null }),
     action_status: () => ({ data: { state: "confirmed", exact_verb: "Read 1 record in Summer travel" }, error: null }),
+    record_push: () => ({ data: { received: 1, written: 1, results: [{ source_record_id: "inbox_1", revision: 1, outcome: "proposed", proposal_id: "d0000000-0000-0000-0000-00000000000b", superseded: 0 }], receipt_id: "f0000000-0000-0000-0000-00000000000c", replay: false }, error: null }),
     ...over,
   };
   const deps: GatewayDeps = {
@@ -127,5 +131,97 @@ describe("the agent gateway handler", () => {
     expect((await handleAgentRequest(post({ protocol_version: 1, method: "draft.submit", params: { package_id: PKG, draft: { account_id: OWNER, to: ["a@example.test"], html: "<b>" } } }), drafter())).status).toBe(422);
     expect((await handleAgentRequest(post({ protocol_version: 1, method: "connection.revoke", params: { connection_id: CONN } }), rig().deps)).status).toBe(403);
     expect((await handleAgentRequest(post({ protocol_version: 1, method: "action.status", params: { action_id: CONN } }), rig().deps)).body).toMatchObject({ state: "confirmed" });
+  });
+
+  // THE VYZN FEED (PHASE0-DESIGN.md D6; migration 0061). record.push is the one method an outside app has:
+  // behind the vyzn_sync_v1 flag, propose only, every record and its data read for authority words first,
+  // and the function asked with the connection the token resolved to and nothing from the request.
+  describe("record.push", () => {
+    const RECORD = { source_record_id: "inbox_11111111-1111-4111-8111-111111111111", revision: 1, kind: "task", data: { text: "Send the grant letter", due: "2026-10-01" }, source: { label: "Added by Michael Corleone" }, client_at: "2026-10-09T12:00:00.000Z" };
+    const push = (records: unknown[] = [RECORD], source_app = "backend-inbox") => post({ protocol_version: 1, method: "record.push", params: { source_app, records } });
+    const on = parseFlags("vyzn_sync_v1");
+
+    it("answers 503 UNAVAILABLE with the flag off, and the function is never called", async () => {
+      const off = rig();
+      const r = await handleAgentRequest(push(), off.deps);
+      expect(r.status).toBe(503);
+      expect((r.body as { code: string }).code).toBe("UNAVAILABLE");
+      expect(off.calls.map((c) => c.fn)).not.toContain("record_push");
+      const other = rig(); other.deps.flags = parseFlags("memory_v1,trust_v1");
+      expect((await handleAgentRequest(push(), other.deps)).status).toBe(503);
+    });
+    it("a smuggled status inside a record's data is INVALID_PAYLOAD before any function runs", async () => {
+      const { deps, calls } = rig(); deps.flags = on;
+      const r = await handleAgentRequest(push([RECORD, { ...RECORD, source_record_id: "inbox_2", data: { text: "x", status: "accepted" } }]), deps);
+      expect(r.status).toBe(422);
+      expect(calls.map((c) => c.fn)).not.toContain("record_push");
+      // And at the record level, where the schema already refuses an unknown property.
+      const top = await handleAgentRequest(push([{ ...RECORD, approved: true }]), deps);
+      expect(top.status).toBe(422);
+      const shape = await handleAgentRequest(push([{ ...RECORD, kind: "bill" }]), deps);
+      expect(shape.status).toBe(422);
+      const app = await handleAgentRequest(push([RECORD], "notion"), deps);
+      expect(app.status).toBe(422);
+      expect(calls.map((c) => c.fn)).not.toContain("record_push");
+    });
+    it("a read only connection is MODE_CEILING, refused before the function with the safe denied receipt", async () => {
+      const ro = rig({}, "connected", "read_only"); ro.deps.flags = on;
+      const r = await handleAgentRequest(push(), ro.deps);
+      expect(r.status).toBe(403);
+      expect((r.body as { code: string }).code).toBe("MODE_CEILING");
+      expect(ro.calls.map((c) => c.fn)).not.toContain("record_push");
+      expect(ro.calls.find((c) => c.fn === "access_denied_record")?.args).toEqual({ p_owner: OWNER, p_connection: CONN, p_method: "record.push", p_code: "MODE_CEILING" });
+      expect(JSON.stringify(ro.calls)).not.toContain("grant letter");
+      const unverified = rig({}, "connected", "help_me", ["read_context"]); unverified.deps.flags = on;
+      expect((await handleAgentRequest(push(), unverified.deps)).body).toMatchObject({ code: "CAPABILITY_UNVERIFIED" });
+    });
+    it("a first push is 201 and calls record_push with the owner and connection the token resolved to", async () => {
+      const { deps, calls } = rig(); deps.flags = on;
+      const r = await handleAgentRequest(push(), deps);
+      expect(r.status).toBe(201);
+      expect(r.body).toMatchObject({ protocol_version: 1, received: 1, results: [{ outcome: "proposed" }] });
+      const call = calls.find((c) => c.fn === "record_push")!;
+      expect(call.args).toEqual({ p_owner: OWNER, p_connection: CONN, p_source_app: "backend-inbox", p_records: [RECORD] });
+      // Nothing from the request names the owner or the connection: a forged one is not even a field.
+      expect((await handleAgentRequest(post({ protocol_version: 1, method: "record.push", params: { source_app: "backend-inbox", records: [RECORD], p_owner: "x" } }), deps)).status).toBe(422);
+    });
+    it("a whole batch replay is 200; a function refusal is the protocol's error", async () => {
+      const replay = rig({ record_push: () => ({ data: { received: 1, written: 0, results: [{ source_record_id: "inbox_1", revision: 1, outcome: "replay", proposal_id: "p", status: "proposed" }], receipt_id: "r", replay: true }, error: null }) });
+      replay.deps.flags = on;
+      expect((await handleAgentRequest(push(), replay.deps)).status).toBe(200);
+      const denied = rig({ record_push: () => ({ data: { error: "SCOPE_DENIED", detail: "read only" }, error: null }) }); denied.deps.flags = on;
+      const d = await handleAgentRequest(push(), denied.deps);
+      expect(d.status).toBe(403);
+      expect(d.body).toEqual({ code: "SCOPE_DENIED", safe_message: "This context wasn't shared with this assistant.", retryable: false, correlation_id: "corr-1" });
+      const conflict = rig({ record_push: () => ({ data: { error: "IDEMPOTENCY_CONFLICT", source_record_id: "inbox_1" }, error: null }) }); conflict.deps.flags = on;
+      expect((await handleAgentRequest(push(), conflict.deps)).status).toBe(409);
+    });
+    it("handler.ts and everything it imports never load substrate/flags (import.meta.env would throw at the cold start of api/agent.ts)", () => {
+      const here = dirname(new URL(import.meta.url).pathname);
+      const resolve = (from: string, spec: string): string | null => {
+        if (!spec.startsWith(".")) return null;
+        const base = join(dirname(from), spec).replace(/\.(js|ts|tsx)$/, "");
+        for (const c of [base + ".ts", base + ".tsx", base + "/index.ts"]) { try { if (statSync(c).isFile()) return c; } catch { /* next */ } }
+        return null;
+      };
+      const seen = new Set<string>();
+      const specs: string[] = [];
+      const queue = [join(here, "handler.ts")];
+      while (queue.length) {
+        const f = queue.shift()!;
+        if (seen.has(f)) continue;
+        seen.add(f);
+        const src = readFileSync(f, "utf8").replace(/\b(?:import|export)\s+type\s+[^;]*;/g, "");
+        for (const m of src.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"'\n]+)["']/g)) {
+          specs.push(m[1]!);
+          const to = resolve(f, m[1]!);
+          if (to) queue.push(to);
+        }
+      }
+      expect(seen.size).toBeGreaterThan(3);
+      expect(specs.filter((s) => /(^|\/)flags$/.test(s))).toEqual([]);
+      const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
+      expect([...seen].filter((f) => /import\.meta\.env/.test(code(readFileSync(f, "utf8"))))).toEqual([]);
+    });
   });
 });

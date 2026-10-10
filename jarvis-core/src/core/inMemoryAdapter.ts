@@ -31,10 +31,21 @@ export class InMemoryAdapter implements DataAdapter {
       entityType: item.entityType,
       data: structuredClone(item.data),
       serverTime: item.serverTime,
+      // Phase 0 D8 (2026-10-10): copied, not recomputed, so a read answers
+      // the same createdAt the create stamped. Spread only when present so a
+      // row without one reads with no key, the same as the Supabase row's
+      // absence would.
+      ...(item.createdAt !== undefined ? { createdAt: item.createdAt } : {}),
     };
   }
 
-  async create(ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string> {
+  async create(
+    ownerId: string,
+    entityType: string,
+    data: ItemData,
+    id?: string,
+    createdAt?: number
+  ): Promise<string> {
     // H-51 (Health Push F, 2026-09-13): a queued write replayed after a lost
     // answer carries the clientId it was stamped with. The row that already
     // landed under it, for this owner, IS the answer. Same contract the
@@ -52,6 +63,10 @@ export class InMemoryAdapter implements DataAdapter {
       entityType,
       data: structuredClone(data),
       serverTime: this.tick(),
+      // Phase 0 D8 / D1 change 2 (2026-10-10): the same rule as the real
+      // column's default. A given createdAt (a replayed offline create) wins;
+      // otherwise the server's clock, which here is the injectable wall.
+      createdAt: createdAt ?? this.now(),
     });
     this.wall.set(useId, this.now());
     return useId;
@@ -59,6 +74,8 @@ export class InMemoryAdapter implements DataAdapter {
 
   async createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
     const ids: string[] = [];
+    // Each row is stamped by create(), so createdAt is this.now() per row,
+    // matching one INSERT whose created_at defaults to now() for every row.
     for (const data of datas) ids.push(await this.create(ownerId, entityType, data));
     return ids;
   }
@@ -72,8 +89,13 @@ export class InMemoryAdapter implements DataAdapter {
     ownerId: string,
     id: string,
     patch: ItemData,
-    serverTime?: ServerTime
+    serverTime?: ServerTime,
+    clientAt?: number
   ): Promise<boolean> {
+    // Phase 0 D1 change 2 (2026-10-10): clientAt dates the change in the
+    // server's history table; it never decides whether the patch applies,
+    // and this adapter keeps no history, so there is nothing to do with it.
+    void clientAt;
     const r = this.db.get(id);
     if (!r || r.ownerId !== ownerId) return false; // D6 isolation, D9 missing id
 
@@ -115,7 +137,8 @@ export class InMemoryAdapter implements DataAdapter {
     return (await this.apply(ownerId, id, patch)) ? "applied" : "missing";
   }
 
-  async del(ownerId: string, id: string): Promise<void> {
+  async del(ownerId: string, id: string, clientAt?: number): Promise<void> {
+    void clientAt; // dates the history row on the server; no history here
     const r = this.db.get(id);
     if (r && r.ownerId === ownerId) { this.db.delete(id); this.wall.delete(id); } // hard delete, no tombstone
   }

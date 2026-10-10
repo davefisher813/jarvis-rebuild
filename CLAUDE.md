@@ -133,3 +133,10 @@ touches an exception. Read a block's time for a date ONLY through
 `blockForDate` / `protectedRangesOn` in `src/routine/types.ts`; the dow-only
 `protectedRangesFor` does not see exceptions. Past dates are inert and pruned
 on the next write.
+
+## item_link is a projection (Phase 0, 2026-10-10)
+
+item_link is a projection; write the JSONB field, never the table. The
+`item_memory` trigger (migration 0060) derives every link row from the
+registered id paths in `item.data`; the browser cannot write the table, and
+a link written any other way would not survive the offline queue or a restore.

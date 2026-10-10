@@ -4,6 +4,8 @@ import { todayISO, addDays } from "../../schedule/calendar";
 import { findTwin, twinsToHeal, userWork } from "../../schedule/eventTwins";
 import type { GoogleApi } from "./api";
 import { mapGoogleEvent, type MappedEvent } from "./map";
+import { madeBy } from "../../shared/provenance";
+import { flagOn } from "../../substrate/flags";
 
 // Keeps the Schedule tab in step with Google for the events that came from
 // Google: new ones arrive, changed ones change, cancelled ones leave.
@@ -273,6 +275,12 @@ export async function importCalendar(
       attendees: m.attendees,
       gcalId: m.gcalId,
       gcalHash: hashOf(m),
+      // Phase 0 D3 (2026-10-10): the import earns "From Google Calendar".
+      // Until now the create wrote gcalId and no source, so every imported
+      // event read as hand drawn. Behind memory_v1 because 105 live events
+      // would start rendering the line the moment it is on; the create path
+      // only, since an update keeps whatever the row already carries.
+      ...(flagOn("memory_v1") ? { source: madeBy("google_calendar", m.gcalId) } : {}),
       // UP-MIND-24 (2026-09-05): who else is on it, kept rather than dropped.
       // Deliberately NOT part of gcalHash: the hash is the five fields the
       // field-by-field merge protects from being clobbered, and an attendee

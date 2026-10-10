@@ -18,6 +18,10 @@
 
 import { AUTHORITY_KEYS, carriesAuthority, validate } from "../schema";
 import { authorize, type Operation } from "../authz/engine";
+// The flag TYPE only, from the pure roster: substrate/flags.ts reads import.meta.env at load and must never
+// be reached from api/ (laws.test.ts, the serverless import.meta.env law). api/agent.ts parses the flags
+// with parseFlags from flagList and hands the set in.
+import type { Flag } from "../flagList";
 import type { AgentCapability, AgentMode } from "../contracts";
 import {
   LIMITS, PARAM_SCHEMAS, PROTOCOL_ERRORS, PROTOCOL_VERSION, REQUEST_SCHEMA, isErrorCode, protocolError,
@@ -35,6 +39,8 @@ export interface GatewayDeps {
   encrypt?: (plain: string) => Promise<string>;
   correlationId: () => string;
   now?: () => Date;
+  /** The build flags this deploy has on. Absent means none: record.push answers UNAVAILABLE. */
+  flags?: ReadonlySet<Flag>;
 }
 
 export interface GatewayRequest {
@@ -94,7 +100,9 @@ export async function handleAgentRequest(req: GatewayRequest, deps: GatewayDeps)
   // 4. The params, strictly, and no authority anywhere in a payload.
   const pv = validate(params, PARAM_SCHEMAS[method]);
   if (!pv.ok) return fail("INVALID_PAYLOAD", cid);
-  const smuggled = carriesAuthority((params as { payload?: unknown }).payload) ?? carriesAuthority((params as { draft?: unknown }).draft);
+  // Every record of a push and its data count as a payload: a `status` or `approved` anywhere inside is refused whole.
+  const smuggled = carriesAuthority((params as { payload?: unknown }).payload) ?? carriesAuthority((params as { draft?: unknown }).draft)
+    ?? carriesAuthority((params as { records?: unknown }).records);
   if (smuggled) return fail("INVALID_PAYLOAD", cid);
 
   // 4b. The ceiling, from what the token resolved to. The database asks the
@@ -166,6 +174,15 @@ export async function handleAgentRequest(req: GatewayRequest, deps: GatewayDeps)
       const r = await deps.rpc("draft_submit", { p_owner: owner, p_connection: conn, p_package: p.package_id, p_draft: p.draft });
       return answer(r, cid, 201);
     }
+    case "record.push": {
+      // The feed is behind vyzn_sync_v1: off, the method answers 503 and nothing is written. The function
+      // asks the connection's questions again (owner, connected, propose, not read only, an app) and never
+      // consults the AI switch: a deterministic transfer is not inference. A whole batch replay answers
+      // `replay: true`, which `answer` reads as 200; a first push is 201.
+      if (!deps.flags?.has("vyzn_sync_v1")) return fail("UNAVAILABLE", cid);
+      const r = await deps.rpc("record_push", { p_owner: owner, p_connection: conn, p_source_app: p.source_app, p_records: p.records });
+      return answer(r, cid, 201);
+    }
     case "review.link": {
       const r = await deps.rpc("review_link", { p_owner: owner, p_connection: conn, p_proposal: p.proposal_id });
       return answer(r, cid);
@@ -186,6 +203,8 @@ function operationOf(method: AgentMethod, surface: unknown): Operation | null {
     case "context.preview":
     case "context.issue": return "read_context";
     case "proposal.submit": return surface === "email" ? "suggest_candidate" : "propose";
+    // An app proposes; it never commits (family/README.md: Dave's input always wins).
+    case "record.push": return "propose";
     case "draft.submit": return "write_inert_draft";
     default: return null;
   }

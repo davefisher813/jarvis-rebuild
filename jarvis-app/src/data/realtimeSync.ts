@@ -31,6 +31,8 @@ interface ItemRow {
   entity_type?: unknown;
   data?: unknown;
   updated_at?: unknown;
+  // Phase 0 D8 (2026-10-10): the row's creation moment, read when present.
+  created_at?: unknown;
 }
 
 export interface RealtimeChange {
@@ -57,6 +59,10 @@ function rowToItem(r: ItemRow, ownerId: string): Item | null {
     entityType: r.entity_type,
     data: r.data as Item["data"],
     serverTime: epoch(r.updated_at),
+    // Phase 0 D8: a row that carries created_at keeps it, so a live arrival
+    // reads the same as the list that follows; a payload without it leaves
+    // the field off rather than inventing a time.
+    ...(r.created_at !== undefined && r.created_at !== null ? { createdAt: epoch(r.created_at) } : {}),
   };
 }
 

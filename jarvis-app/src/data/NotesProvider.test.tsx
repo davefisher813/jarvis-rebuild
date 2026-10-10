@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { NotesProvider, useHealth } from "./NotesProvider";
+import { Store, InMemoryAdapter } from "@core";
+import { NotesProvider, useHealth, useStore } from "./NotesProvider";
 import { queueHealthLog, readPending } from "../health/offlineQueue";
 import type { HealthService } from "../health/HealthService";
 
@@ -33,5 +34,45 @@ describe("NotesProvider: the health queue drains at mount", () => {
     render(<NotesProvider userId="u1"><div /></NotesProvider>);
     await new Promise((r) => setTimeout(r, 20));
     expect(readPending()).toHaveLength(1);
+  });
+});
+
+// Phase 0 D4 (2026-10-10): the trust checkpoint's doors read
+// useStore()?.pending(). Proving the offline path needs a Store built on an
+// adapter the test controls, so the provider takes one when given and builds
+// its own (makeStore) otherwise. Production never passes it.
+describe("NotesProvider: the store prop is a test seam", () => {
+  function grabStore() {
+    let got: Store | null | undefined;
+    function Grab() { got = useStore(); return null; }
+    return { Grab, store: () => got };
+  }
+
+  it("a store passed in is the store every hook sees", () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const mine = new Store(new InMemoryAdapter());
+    const { Grab, store } = grabStore();
+    render(<NotesProvider userId="u1" store={mine}><Grab /></NotesProvider>);
+    expect(store()).toBe(mine);
+  });
+
+  it("without the prop, the provider builds its own", () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const notMine = new Store(new InMemoryAdapter());
+    const { Grab, store } = grabStore();
+    render(<NotesProvider userId="u1"><Grab /></NotesProvider>);
+    expect(store()).not.toBeNull();
+    expect(store()).not.toBe(notMine);
+  });
+
+  it("a store held offline answers pending through the hook, which is what the doors read", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const mine = new Store(new InMemoryAdapter());
+    mine.goOffline();
+    const { Grab, store } = grabStore();
+    render(<NotesProvider userId="u1" store={mine}><Grab /></NotesProvider>);
+    expect(store()!.pending()).toBe(true);
+    await mine.reconnect();
+    expect(store()!.pending()).toBe(false);
   });
 });

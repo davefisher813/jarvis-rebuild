@@ -25,6 +25,8 @@ export default async function handler(req: Request): Promise<Response> {
       JARVIS_BACKEND_URL: process.env.JARVIS_BACKEND_URL,
       SUPABASE_URL: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
       SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+      // The build flags, for the backend inbox pull (POST /api/push?inbox=pull is 404 without vyzn_sync_v1).
+      FLAGS: process.env.VITE_JARVIS_FLAGS,
     },
     fetchImpl: (url, init) => fetch(url, init),
   });

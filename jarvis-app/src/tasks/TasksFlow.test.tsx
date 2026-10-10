@@ -8,7 +8,18 @@ import type { TasksService } from "./TasksService";
 import type { NotesService } from "../notes/NotesService";
 import TasksFlow from "./TasksFlow";
 import { todayISO } from "./grouping";
-import { subscribeToast } from "../shared/toast";
+import { subscribeToast, resetToasts } from "../shared/toast";
+import { Store, InMemoryAdapter } from "@core";
+
+// Phase 0 D4 (2026-10-10): trust_v1 decides what the New Task sheet's toast
+// says while the Store is pending. One switch, on the seam every flagged
+// test uses (connections/google/sync.test.ts); off by default, so every
+// other test here runs against the build's own answer.
+const flags = vi.hoisted(() => ({ trustOn: false }));
+vi.mock("../substrate/flags", async (orig) => {
+  const real = await orig<typeof import("../substrate/flags")>();
+  return { ...real, flagOn: (f: Parameters<typeof real.flagOn>[0]) => (f === "trust_v1" ? flags.trustOn : real.flagOn(f)) };
+});
 
 // UP-MIND-01 class (2026-09-07): MessageDraftSheet has accepted `voice`
 // since PeopleFlow started passing it; this door (a task's own "Text
@@ -386,5 +397,73 @@ describe("TasksFlow: a tap opens the sheet that holds the row's actions", () => 
     fireEvent.click(screen.getByText("Move to Tomorrow"));
     await waitFor(async () => { expect((await moveRef!.svc.task(moveRef!.id))?.due).toBe(localTomorrow()); });
     await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
+  });
+});
+
+// THE TRUST CHECKPOINT ON THE NEW TASK SHEET (Phase 0 D4, 2026-10-10). Dave,
+// 2026-09-28: "a filing never says Saved before it reaches the server". The
+// sheet said "Saved to <Filter>" the moment the Store accepted the write, and
+// said nothing at all when the row landed in the filter on screen. Behind
+// trust_v1, with the Store pending, the first becomes "Filed to <Filter> ·
+// Will Sync" and the second becomes "Filed · Will Sync", because a row
+// appearing in the list with no word is the lie the checkpoint names. The
+// offline Store comes through NotesProvider's test seam (store prop).
+function offlineStore(): Store {
+  const s = new Store(new InMemoryAdapter());
+  s.goOffline();
+  return s;
+}
+
+async function saveNewTask(opts: { userId: string; store?: Store; openFilter?: string }): Promise<string[]> {
+  const toasts: string[] = [];
+  // The toast store is one module: an action toast left showing by an earlier
+  // case (Set Aside's Undo) would hold a plain toast in its queue (SHARED-F-09).
+  resetToasts();
+  const stop = subscribeToast((t) => { if (t) toasts.push(t.message); });
+  const r = render(
+    <NotesProvider userId={opts.userId} {...(opts.store ? { store: opts.store } : {})}>
+      <TasksFlow openFilter={opts.openFilter} />
+    </NotesProvider>,
+  );
+  try {
+    const add = await screen.findAllByRole("button", { name: "New Task" });
+    fireEvent.click(add[0]!);
+    fireEvent.change(await screen.findByLabelText("Task"), { target: { value: "Email the roster" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(rowNamed("Email the Roster")).toBeInTheDocument());
+    // The toast fires after the reload the row appeared on; give the queue one turn.
+    await new Promise((res) => setTimeout(res, 0));
+  } finally {
+    stop();
+    r.unmount();
+  }
+  return toasts;
+}
+
+describe("TasksFlow: the New Task sheet's toast tells the truth about where the row is (trust_v1)", () => {
+  it("online, a moved filter says Saved to <Filter>, as today", async () => {
+    flags.trustOn = true;
+    // Viewing All, the sheet prefills today, so the row lands on Today and the filter moves.
+    const toasts = await saveNewTask({ userId: "trust-online", openFilter: "all" });
+    expect(toasts).toEqual(["Saved to Today"]);
+  });
+
+  it("pending, a moved filter says Filed to <Filter> · Will Sync", async () => {
+    flags.trustOn = true;
+    const toasts = await saveNewTask({ userId: "trust-moved", store: offlineStore(), openFilter: "all" });
+    expect(toasts).toEqual(["Filed to Today · Will Sync"]);
+  });
+
+  it("pending, a filter that did not move still says Filed · Will Sync", async () => {
+    flags.trustOn = true;
+    // Viewing Today, the sheet prefills today, so the row lands where the person is looking.
+    const toasts = await saveNewTask({ userId: "trust-still", store: offlineStore() });
+    expect(toasts).toEqual(["Filed · Will Sync"]);
+  });
+
+  it("flag off, an offline Store changes nothing: Saved to <Filter>, and silence when the filter stays", async () => {
+    flags.trustOn = false;
+    expect(await saveNewTask({ userId: "trust-off-moved", store: offlineStore(), openFilter: "all" })).toEqual(["Saved to Today"]);
+    expect(await saveNewTask({ userId: "trust-off-still", store: offlineStore() })).toEqual([]);
   });
 });

@@ -83,10 +83,10 @@ const PROTECTED_SAMPLE = [
 describe("clearLocalData", () => {
   it("removes every cache, preload and dismissal key it claims to", () => {
     for (const k of SAFE_SAMPLE) localStorage.setItem(k, "x");
-    localStorage.setItem("jarvis.preload.v1.task", JSON.stringify({ owner: "u", items: [] }));
+    localStorage.setItem("jarvis.preload.v2.task", JSON.stringify({ owner: "u", items: [] }));
     clearLocalData();
     for (const k of SAFE_SAMPLE) expect(localStorage.getItem(k)).toBeNull();
-    expect(localStorage.getItem("jarvis.preload.v1.task")).toBeNull();
+    expect(localStorage.getItem("jarvis.preload.v2.task")).toBeNull();
   });
 
   it("never touches a queue or a real user decision", () => {

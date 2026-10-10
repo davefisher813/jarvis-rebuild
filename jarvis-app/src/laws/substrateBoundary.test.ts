@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
 import { ALL_ENTITY_TYPES } from "../backup/entityRegistry";
 import { DESTINATION_OF } from "../substrate/destinations/types";
@@ -14,11 +14,28 @@ import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT } from "../money/ledger/types";
 // table has row security and every function is locked down; no credential
 // sits in a public table. Each is a line below, read from the migration and
 // the source rather than remembered.
+//
+// PHASE 0 (2026-10-10, PHASE0-DESIGN.md section 4): laws 3 and 4 read one
+// migration, 0044, so the three Phase 0 migrations (item_change and
+// item_link in 0060, the VYZN inbox in 0061, private by default in 0062)
+// would have landed a table with no revoke line and nothing would have said
+// so (refutations 1.3 and 2.4). Both laws now run per migration over the
+// files that exist, so a migration is covered the moment it lands; the size
+// check and the jarvis_private assertions stay on 0044, the one migration
+// that creates the private schema.
 
 const { join } = posix;
 const SRC = join(process.cwd().replace(/\\/g, "/"), "src");
-const MIGRATION = join(process.cwd().replace(/\\/g, "/"), "../jarvis-core/supabase/migrations/0044_jarvis_unified_substrate.sql");
+const MIG_DIR = join(process.cwd().replace(/\\/g, "/"), "../jarvis-core/supabase/migrations");
+const MIGRATION = join(MIG_DIR, "0044_jarvis_unified_substrate.sql");
+// The substrate's migrations, in order, filtered to the files that exist
+// today: 0060 to 0062 are Phase 0 steps 2 and 6, and each is read the moment it lands.
+const MIGRATIONS = ["0044_jarvis_unified_substrate.sql", "0060_memory.sql", "0061_vyzn_inbox.sql", "0062_private_by_default.sql"]
+  .filter((f) => existsSync(join(MIG_DIR, f)));
 const read = (f: string) => readFileSync(f, "utf8");
+// A migration's comments explain the revoke lines they sit beside; only the
+// statements count, so a commented out revoke is a missing revoke.
+const statements = (sql: string) => sql.replace(/--[^\n]*/g, "");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -35,6 +52,8 @@ const CONTROL_PLANE = [
   "agent_connection", "scope_grant", "policy_suggestion", "job", "context_package", "proposal", "approval", "action",
   "receipt_event", "source_evidence", "decision_version", "decision_dependency", "email_account", "email_message",
   "email_message_body", "email_candidate", "email_draft",
+  // Phase 0 (0060): the memory and the link projection are derived from item, never written as one.
+  "item_change", "item_link",
 ];
 
 describe("SUBSTRATE law 1: a candidate is not an item", () => {
@@ -77,51 +96,77 @@ describe("SUBSTRATE law 2: a bill is never a task", () => {
 });
 
 describe("SUBSTRATE law 3: every table has row security, every function is locked down", () => {
-  const sql = read(MIGRATION);
-  const tables = [...sql.matchAll(/create table if not exists ([a-z_.]+)/g)].map((m) => m[1]!);
-  const functions = [...sql.matchAll(/create or replace function ([a-z_]+)\(/g)].map((m) => m[1]!);
-
-  it("finds the schema at all", () => {
-    expect(tables.length).toBeGreaterThan(15);
-    expect(functions.length).toBeGreaterThan(5);
+  it("reads the migrations that exist, 0044 first", () => {
+    expect(MIGRATIONS[0]).toBe("0044_jarvis_unified_substrate.sql");
   });
 
-  it("row level security is enabled on every table the migration creates", () => {
-    const missing = tables.filter((t) => !sql.includes(`alter table ${t} enable row level security`));
-    expect(missing).toEqual([]);
-  });
+  for (const file of MIGRATIONS) {
+    describe(file, () => {
+      const sql = statements(read(join(MIG_DIR, file)));
+      const tables = [...sql.matchAll(/create table if not exists ([a-z_.]+)/g)].map((m) => m[1]!);
+      const functions = [...sql.matchAll(/create or replace function ([a-z_]+)\(/g)].map((m) => m[1]!);
 
-  it("every table is revoked from the browser roles and granted back explicitly", () => {
-    const missing = tables.filter((t) => !sql.includes(`revoke all on table ${t} from anon, authenticated`));
-    expect(missing).toEqual([]);
-  });
+      if (file.startsWith("0044")) {
+        it("finds the schema at all", () => {
+          expect(tables.length).toBeGreaterThan(15);
+          expect(functions.length).toBeGreaterThan(5);
+        });
+      }
 
-  it("every function is revoked from PUBLIC", () => {
-    const missing = functions.filter((fn) => !new RegExp(`revoke all on function ${fn}\\(`).test(sql));
-    expect(missing).toEqual([]);
-  });
+      it("row level security is enabled on every table the migration creates", () => {
+        const missing = tables.filter((t) => !sql.includes(`alter table ${t} enable row level security`));
+        expect(missing).toEqual([]);
+      });
+
+      it("every table is revoked from the browser roles and granted back explicitly", () => {
+        const missing = tables.filter((t) => !sql.includes(`revoke all on table ${t} from anon, authenticated`));
+        expect(missing).toEqual([]);
+      });
+
+      it("every function is revoked from PUBLIC", () => {
+        const missing = functions.filter((fn) => !new RegExp(`revoke all on function ${fn}\\(`).test(sql));
+        expect(missing).toEqual([]);
+      });
+    });
+  }
 
   it("the only server-created rows the browser may never insert are the ones the spec names", () => {
-    for (const t of ["approval", "receipt_event", "action", "context_package", "scope_grant", "proposal", "decision_version", "email_account", "email_message"]) {
+    const sql = MIGRATIONS.map((f) => statements(read(join(MIG_DIR, f)))).join("\n");
+    for (const t of [
+      "approval", "receipt_event", "action", "context_package", "scope_grant", "proposal", "decision_version", "email_account", "email_message",
+      // Phase 0 (0060): the trigger writes both; the browser reads and never inserts.
+      "item_change", "item_link",
+    ]) {
       expect(sql, t + " must have no browser insert policy").not.toMatch(new RegExp(`create policy ${t}_insert on ${t}`));
     }
   });
 });
 
 describe("SUBSTRATE law 4: no credential in a public table", () => {
-  it("token, secret and credential columns live only in jarvis_private", () => {
-    const sql = read(MIGRATION);
-    const blocks = [...sql.matchAll(/create table if not exists ([a-z_.]+) \(([\s\S]*?)\n\);/g)];
-    expect(blocks.length).toBeGreaterThan(15);
-    const leaks: string[] = [];
-    for (const [, name, body] of blocks) {
-      if (name!.startsWith("jarvis_private.")) continue;
-      for (const line of body!.split("\n")) {
-        const col = /^\s+([a-z_]+)\s+(text|jsonb|bytea)/.exec(line)?.[1];
-        if (col && /token|secret|credential|password/.test(col)) leaks.push(name + "." + col);
+  const blocksOf = (sql: string) => [...sql.matchAll(/create table if not exists ([a-z_.]+) \(([\s\S]*?)\n\);/g)];
+
+  for (const file of MIGRATIONS) {
+    it(`${file}: token, secret and credential columns live only in jarvis_private`, () => {
+      const sql = statements(read(join(MIG_DIR, file)));
+      const blocks = blocksOf(sql);
+      // A table written in a shape this scanner cannot read would pass for
+      // free, so the count of blocks is held to the count of create lines.
+      expect(blocks.length).toBe([...sql.matchAll(/create table if not exists /g)].length);
+      const leaks: string[] = [];
+      for (const [, name, body] of blocks) {
+        if (name!.startsWith("jarvis_private.")) continue;
+        for (const line of body!.split("\n")) {
+          const col = /^\s+([a-z_]+)\s+(text|jsonb|bytea)/.exec(line)?.[1];
+          if (col && /token|secret|credential|password/.test(col)) leaks.push(name + "." + col);
+        }
       }
-    }
-    expect(leaks).toEqual([]);
+      expect(leaks).toEqual([]);
+    });
+  }
+
+  it("0044 creates the private schema's two credential tables", () => {
+    const sql = read(MIGRATION);
+    expect(blocksOf(sql).length).toBeGreaterThan(15);
     expect(sql).toMatch(/create table if not exists jarvis_private\.email_credential/);
     expect(sql).toMatch(/create table if not exists jarvis_private\.agent_credential/);
   });

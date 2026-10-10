@@ -126,10 +126,10 @@ export class BrainMemoryService {
 
   // Whether the last write is still on this phone: offline, or queued behind
   // a dropped connection. A filing toast says "Will Sync" instead of "Saved"
-  // until it has reached the server (Dave 2026-09-28).
+  // until it has reached the server (Dave 2026-09-28). Phase 0 D4 (2026-10-10):
+  // the Store answers this itself now, so the four lines live once.
   pending(): boolean {
-    const s = this.store.syncState();
-    return !s.online || s.queued > 0;
+    return this.store.pending();
   }
 
   // Undo of a capped replacement: the new row goes away and the replaced

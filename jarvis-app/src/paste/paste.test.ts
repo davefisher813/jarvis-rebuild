@@ -656,6 +656,45 @@ describe("capture reads reminders, repeats, bills and people", () => {
     expect(classifyLine("order tile", TODAY, { projects }).projectId).toBeUndefined();
   });
 
+  // Phase 0 D11 (2026-10-10): an alias is a name the person calls this
+  // contact, matched under the same narrow rules as the name (mentions.ts).
+  it("matches a contact through an alias, under the same ambiguity rule", () => {
+    const people = [
+      { id: "mom", name: "Linda Fisher", aliases: ["Mom"] },
+      { id: "art", name: "Arthur Vance", aliases: ["Art"] },
+    ];
+    expect(classifyLine("call Mom about thanksgiving", TODAY, { people }).personId).toBe("mom");
+    // "Art" is an ordinary word; the alias does not get to match where the name would not.
+    expect(classifyLine("buy art supplies", TODAY, { people }).personId).toBeUndefined();
+    // No aliases given: exactly the matching the lane had before.
+    expect(classifyLine("call Mom about thanksgiving", TODAY, { people: [{ id: "mom", name: "Linda Fisher" }] }).personId).toBeUndefined();
+  });
+
+  // Phase 0 D3 (2026-10-10): `inferred` is exactly the fields a rule chose
+  // (ParsedEntity.inferred states the rule). A date resolved from the words
+  // the person wrote is stated; a bare clock time's "today" is not.
+  it("inferred carries exactly the fields the parser filled by inference", () => {
+    const people = [{ id: "p3", name: "Nadia Sorensen" }, { id: "p1", name: "Marco Diaz" }, { id: "p2", name: "Marco Silva" }];
+    const projects = [{ id: "pr1", title: "Kitchen remodel" }];
+    expect(classifyLine("call Nadia about the invoice", TODAY, { people }).inferred).toEqual(["personId"]);
+    expect(classifyLine("order tile for Kitchen remodel", TODAY, { projects }).inferred).toEqual(["projectId"]);
+    expect(classifyLine("call Nadia about Kitchen remodel", TODAY, { people, projects }).inferred).toEqual(["personId", "projectId"]);
+    // Two contacts answer: nobody was filed, so nothing was inferred.
+    expect(classifyLine("text Marco about the invoice", TODAY, { people }).inferred).toEqual([]);
+    // The unanchored opener: an unconfident task, personId guessed.
+    expect(classifyLine("Need to follow up with Mike about summer roster", TODAY, { people: [{ id: "mike", name: "Mike Rossi" }] }))
+      .toMatchObject({ kind: "task", confident: false, personId: "mike", inferred: ["personId"] });
+    // A written day is stated; a clock with no day assumes today, and says so.
+    expect(classifyLine("dinner with marco thursday 7pm", TODAY).inferred).toEqual([]);
+    expect(classifyLine("$1,200 rent on the 1st", TODAY).inferred).toEqual([]);
+    expect(classifyLine("call Marcus 10am", TODAY).inferred).toEqual(["date"]);
+    expect(classifyLine("call Nadia 10am", TODAY, { people }).inferred).toEqual(["personId", "date"]);
+    // The lanes that never guess.
+    expect(classifyLine("I never work out on Sundays", TODAY).inferred).toEqual([]);
+    expect(classifyLine("Mike moved to Acme", TODAY).inferred).toEqual([]);
+    expect(parsePaste("a\n\nb", TODAY).entities.every((e) => e.inferred.length === 0)).toBe(true);
+  });
+
   it("writes the reminder to a task and the bill to Money, never to a task", async () => {
     const calls = { n: 0 };
     const deps = rig(calls);

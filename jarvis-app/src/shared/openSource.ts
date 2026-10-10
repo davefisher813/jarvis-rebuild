@@ -20,6 +20,11 @@ import type { Source, SourceType } from "./provenance";
 // block or a step made out of one) opens that task, not the inbox: it was a
 // plain line before, which left "From a task" as the one origin with a record
 // behind it and no way to it.
+//
+// Phase 0 D3 (2026-10-10): "app" and "import" have no route BY DESIGN. An app
+// stamp's ref names a record in another app's store and an import names a
+// file that is gone; neither is something this app can show, so both render a
+// plain fact. openSource.test.ts pins the absence.
 const ROUTE: Partial<Record<SourceType, string>> = {
   note: "note",
   event: "event",

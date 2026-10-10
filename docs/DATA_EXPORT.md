@@ -90,6 +90,17 @@ accounting. Not content either, and deleted with the account.
 is nothing of Google's in your JARVIS account to export, and the connection is
 revoked with Google when you disconnect or delete.
 
+**History, links and proposals (Phase 0, 2026-10-10).** `item_change` (who
+wrote each record, through which door, and which keys moved), `item_link`
+(what each record points at) and `proposal` rows are not in the bundle. The
+first two are derived from `items[].data` by a database trigger, and a
+proposal is an offer that was never a record. A restore writes the items
+back, the trigger re-derives every link from the JSONB fields as it goes, and
+history starts afresh from the restore: `item_why` on a restored row answers
+from its insert on that day, not from the account it came from. Deleting your
+account deletes all three (`delete_owned`). The bundle version does not move
+for this; nothing in the contract changed. The bundle carries no `created_at` either, so after a restore every row's creation time is the day of the restore; no screen renders it yet.
+
 ## Stability
 
 The version number is the promise. A change that removes or renames a field in

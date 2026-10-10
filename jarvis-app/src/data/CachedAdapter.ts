@@ -51,12 +51,18 @@ export class CachedAdapter implements DataAdapter {
   // the user's write. Err toward the write.
   private writes = 0;
 
-  async create(ownerId: string, entityType: string, data: ItemData, presetId?: string): Promise<string> {
-    const id = await this.inner.create(ownerId, entityType, data, presetId);
+  // Phase 0 D1 change 2 (2026-10-10): the optional ages ride through. The
+  // Store's drain hands create, apply and del the moment a held write was
+  // made (op.queuedAt); this wrapper sits between the Store and the real
+  // adapter in production, and forwarding only the old lists would have
+  // dropped every age on the floor exactly where it mattered.
+  async create(ownerId: string, entityType: string, data: ItemData, presetId?: string, createdAt?: number): Promise<string> {
+    const id = await this.inner.create(ownerId, entityType, data, presetId, createdAt);
     this.writes++;
     const cached = readPreload(ownerId, entityType);
     if (cached) {
-      writePreload(ownerId, entityType, [...cached, { id, ownerId, entityType, data, serverTime: Date.now() }]);
+      const now = Date.now();
+      writePreload(ownerId, entityType, [...cached, { id, ownerId, entityType, data, serverTime: now, createdAt: createdAt ?? now }]);
     }
     return id;
   }
@@ -69,7 +75,7 @@ export class CachedAdapter implements DataAdapter {
       const now = Date.now();
       writePreload(ownerId, entityType, [
         ...cached,
-        ...ids.map((id, i) => ({ id, ownerId, entityType, data: datas[i]!, serverTime: now })),
+        ...ids.map((id, i) => ({ id, ownerId, entityType, data: datas[i]!, serverTime: now, createdAt: now })),
       ]);
     }
     return ids;
@@ -79,14 +85,14 @@ export class CachedAdapter implements DataAdapter {
     return this.inner.read(ownerId, id);
   }
 
-  async apply(ownerId: string, id: string, patch: ItemData, serverTime?: ServerTime): Promise<boolean> {
-    const ok = await this.inner.apply(ownerId, id, patch, serverTime);
+  async apply(ownerId: string, id: string, patch: ItemData, serverTime?: ServerTime, clientAt?: number): Promise<boolean> {
+    const ok = await this.inner.apply(ownerId, id, patch, serverTime, clientAt);
     if (ok) { this.writes++; this.patchCaches(ownerId, id, patch); }
     return ok;
   }
 
-  async del(ownerId: string, id: string): Promise<void> {
-    await this.inner.del(ownerId, id);
+  async del(ownerId: string, id: string, clientAt?: number): Promise<void> {
+    await this.inner.del(ownerId, id, clientAt);
     this.writes++;
     this.dropFromCaches(ownerId, id);
   }
