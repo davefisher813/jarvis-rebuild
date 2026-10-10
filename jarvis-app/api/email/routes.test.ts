@@ -91,6 +91,9 @@ async function stubWorld(w: Partial<World>) {
     }
     // The token lifecycle functions (migration 0057) are not applied in this world: the lifecycle degrades to no cache, no lock, no DEAD mark.
     if (url.includes("/rest/v1/rpc/google_")) return res({}, 404);
+    // Nor is the coverage crawl (migration 0065): PostgREST answers an unknown function with 404, and sync does exactly what it
+    // did before. The crawl has its own world in sync.coverage.test.ts.
+    if (url.includes("/rest/v1/rpc/email_coverage_")) return res({ code: "PGRST202" }, 404);
     throw new Error("unexpected " + url);
   });
   vi.stubGlobal("fetch", f);

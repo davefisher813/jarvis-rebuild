@@ -10,9 +10,9 @@ import ListFloor from "../shared/ListFloor";
 import { rowDoor } from "../shared/rowDoor";
 import RowActionSheet from "../shared/RowActionSheet";
 import RowMenuButton from "../shared/RowMenuButton";
-import { ACCOUNTS_TITLE, ADD_GMAIL, DRAFTS_AND_SENT, EDIT_SIGNATURE, EMAIL_TITLE, EMPTY_ACCOUNTS, MAILBOXES, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
+import { ACCOUNTS_TITLE, ADD_GMAIL, CATCHING_UP, DRAFTS_AND_SENT, EDIT_SIGNATURE, EMAIL_TITLE, EMPTY_ACCOUNTS, MAILBOXES, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
 import EmailFacts from "./EmailFacts";
-import { updatedFacts, type EmailFact } from "./format";
+import { checkedFacts, isCatchingUp, type EmailFact } from "./format";
 import type { EmailAccount } from "./emailClient";
 import type { ClientView } from "../connections/connectionStatus";
 import type { RpcClient } from "../substrate/commands/errors";
@@ -68,7 +68,8 @@ export default function AccountsScreen({ accounts, views, client, userId, onBack
                   proven
                     ? { text: proven.headline, ...(proven.state === "connected" ? { tone: "good" as const } : { tone: "warn" as const }) }
                     : { text: STATE_WORD[a.state], ...(a.state === "connected" ? { tone: "good" as const } : a.state === "reauth" ? { tone: "warn" as const } : {}) },
-                  ...(a.state === "disconnected" ? [] : a.last_sync_at ? updatedFacts(a.last_sync_at) : [{ text: NOT_SYNCED }]),
+                  // Connected is not current (spec 8.1, AC39): while its window is still being listed, the mailbox says so instead of a time.
+                  ...(a.state === "disconnected" ? [] : isCatchingUp(a) ? [{ text: CATCHING_UP }] : (a.verified_through_at ?? a.last_sync_at) ? checkedFacts((a.verified_through_at ?? a.last_sync_at)!) : [{ text: NOT_SYNCED }]),
                   { text: `${messagesWord(a.cached)} Saved`, strong: true },
                 ];
                 return (

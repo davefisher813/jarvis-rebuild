@@ -14,8 +14,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import EmailFlow from "./EmailFlow";
-import { OFFLINE_LINE, REAUTH_LINE, RECONNECT, READ_CONFLICT, READ_FAILED, EMPTY_SEARCH, SEARCH_FAILED, EMPTY_FILTER, EMPTY_WAITING, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, GENERIC_WHY, ATTACHMENT_TOO_BIG, IMAGES_OFF, SHOW_IMAGES, ARCHIVED, UNDO, UNSUPPORTED_ACTION, RETENTION_NOTE, LOAD_MORE, STATE_WORD } from "./copy";
+import EmailFlow, { CRAWL_MAX_IDLE, CRAWL_MAX_ROUNDS } from "./EmailFlow";
+import { EMPTY_INBOX, OFFLINE_LINE, REAUTH_LINE, RECONNECT, READ_CONFLICT, READ_FAILED, EMPTY_SEARCH, SEARCH_FAILED, EMPTY_FILTER, EMPTY_WAITING, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, GENERIC_WHY, ATTACHMENT_TOO_BIG, IMAGES_OFF, SHOW_IMAGES, ARCHIVED, UNDO, UNSUPPORTED_ACTION, RETENTION_NOTE, LOAD_MORE, STATE_WORD } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import { newestFirst } from "./emailClient";
 import { saveSnapshot } from "./deviceCache";
@@ -124,10 +124,10 @@ describe("M1: the inbox", () => {
     expect(r.posts.filter((p) => p.path.endsWith("/api/email/sync")).map((p) => p.body.email).sort()).toEqual([DAVE, WORK]);
     expect(r.calls.filter((c) => c.fn === "email_inbox").length).toBe(1);
     expect(screen.getByText("That's everything.")).toBeInTheDocument();
-    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Updated Today.*2 Accounts$/);
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked Today.*2 Accounts$/);
     // 2026-10-05: three facts and no middle dot in a string: the day is the line's one grey, the clock is small caps, the count a white number.
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Updated Today", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "2 Accounts"]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Checked Today", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "2 Accounts"]);
     expect(fresh[1]).toHaveClass("date");
     expect(fresh[2]!.querySelector("b")).toHaveTextContent("2 Accounts");
     expect(document.querySelector(".email-fresh")!.textContent).not.toMatch(/\u00B7/);
@@ -426,7 +426,7 @@ describe("E21, E22, E28: accounts and states", () => {
     const r = rig({ accounts: [accounts[0]!, account({ id: "acct-work", address: WORK, state: "disconnected", cached: 1 })] });
     mount(r);
     await waitFor(() => expect(subjects()).toEqual(["m3", "m1", "m0"]));
-    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Updated Today.*1 Account$/);
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked Today.*1 Account$/);
     fireEvent.click(document.querySelector(".email-fresh") as HTMLElement);
     await waitFor(() => expect(screen.getAllByText("Accounts").length).toBeGreaterThan(0));
     expect(screen.getByText(STATE_WORD.disconnected)).toBeInTheDocument();
@@ -474,3 +474,119 @@ describe("EmailFlow header with no mailbox client", () => {
   });
 });
 
+
+// CATCHING UP IS NOT CURRENT (Email v1 spec 2026-10-08, 8.1, 8.3, 3.1; AC39). While a mailbox is still listing its 90-day
+// window the header says Catching Up on Mail, one line, never a time and never an empty-inbox claim; the open screen keeps
+// the crawl moving (one call after the other, no timer, capped, stopped by a failure, by no progress, or by closing); once
+// current, the header is the checked time.
+describe("the coverage crawl, as the inbox shows it", () => {
+  const syncs = (r: Rig, email = DAVE) => r.posts.filter((p) => p.path.endsWith("/api/email/sync") && p.body.email === email).length;
+  /** A mailbox whose crawl finishes on the nth sync call: email_accounts follows what the server would say. */
+  const crawling = (doneOn: number, o: { rows?: InboxRow[]; synced?: number; fail?: (n: number) => { status: number; body: unknown } | undefined } = {}) => {
+    let n = 0;
+    let state: "catching_up" | "current" = "catching_up";
+    return rig({
+      rows: o.rows ?? [],
+      accounts: [account({})],
+      rpc: { email_accounts: () => [account({ sync_state: state, last_sync_at: state === "current" ? "2026-10-03T14:58:00Z" : null, verified_through_at: state === "current" ? "2026-10-03T14:58:00Z" : null })] },
+      routes: (path) => {
+        if (!path.endsWith("/api/email/sync")) return undefined;
+        n++;
+        const failed = o.fail?.(n);
+        if (failed) return failed;
+        if (n >= doneOn) state = "current";
+        return { status: 200, body: { ok: true, synced: o.synced ?? 50, removed: 0, next_page: null, complete: false, resynced: false, coverage_complete: n >= doneOn, sync_state: state } };
+      },
+    });
+  };
+  const settle = (ms = 40) => act(() => new Promise<void>((res) => setTimeout(res, ms)));
+  /** Every request takes a moment, as a real one does. */
+  const slowFetch = (ms: number) => { const inner = globalThis.fetch; vi.stubGlobal("fetch", async (...a: Parameters<typeof fetch>) => { await new Promise((res) => setTimeout(res, ms)); return inner(...a); }); };
+
+  it("says Catching Up on Mail as the one status line, and never claims an empty inbox or the end of the list", async () => {
+    const r = crawling(99, { synced: 0 });
+    slowFetch(5);
+    mount(r);
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Catching Up on Mail.*1 Account$/));
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "email_inbox")).toBe(true));
+    const facts = [...document.querySelectorAll(".email-fresh .facts > .fact")].map((f) => f.textContent);
+    expect(facts).toEqual(["Catching Up on Mail", "1 Account"]);
+    expect(document.querySelectorAll(".email-fresh .facts").length).toBe(1);
+    expect(document.querySelector(".email-fresh")!.textContent).not.toMatch(/\d:\d{2}|Checked|Not Synced|\u00B7/);
+    // Nothing cached yet is still loading, not "Nothing in Your Inbox".
+    expect(screen.queryByText(EMPTY_INBOX.title)).toBeNull();
+    expect(document.querySelector(".skel-row")).not.toBeNull();
+    expect(screen.queryByText("That's everything.")).toBeNull();
+  });
+
+  it("with mail already cached, the list's floor says what's loaded so far, never That's everything.", async () => {
+    const r = crawling(99, { rows, synced: 0 });
+    mount(r);
+    await waitFor(() => expect(subjects().length).toBe(4));
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Catching Up on Mail/);
+    expect(screen.queryByText("That's everything.")).toBeNull();
+    expect(screen.getByText("Showing what's loaded so far.")).toBeInTheDocument();
+  });
+
+  it("keeps the crawl moving while open, then says Checked and the time once the mailbox is current, and stops calling", async () => {
+    const r = crawling(3, { rows });
+    mount(r);
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked Today.*1 Account$/));
+    const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
+    expect(fresh.map((f) => f.textContent)).toEqual(["Checked Today", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "1 Account"]);
+    expect(fresh[1]).toHaveClass("date");
+    // The open's sync, then two more, one after the other; each crawl call reads the cache's first page again.
+    expect(syncs(r)).toBe(3);
+    await waitFor(() => expect(r.calls.filter((c) => c.fn === "email_inbox").length).toBe(3));
+    await settle();
+    expect(syncs(r)).toBe(3);
+    expect(screen.getByText("That's everything.")).toBeInTheDocument();
+  });
+
+  it("a failure stops the crawl and says so on its line: no retrying without the person; a pull starts it again", async () => {
+    const r = crawling(99, { fail: (n) => (n === 2 ? { status: 503, body: { code: "UNAVAILABLE", safe_message: "Couldn't reach Gmail." } } : undefined) });
+    mount(r);
+    await waitFor(() => expect(syncs(r)).toBe(2));
+    await waitFor(() => expect(screen.getByText(/^Didn't Refresh · dave@example.test/)).toBeInTheDocument());
+    await settle();
+    expect(syncs(r)).toBe(2);
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Catching Up on Mail/);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(syncs(r)).toBeGreaterThan(3));
+  });
+
+  it("a mailbox that makes no progress twice running waits for the next open", async () => {
+    const r = crawling(99, { synced: 0 });
+    mount(r);
+    await waitFor(() => expect(syncs(r)).toBe(1 + CRAWL_MAX_IDLE));
+    await settle();
+    expect(syncs(r)).toBe(1 + CRAWL_MAX_IDLE);
+  });
+
+  it("is capped per open, however long the crawl", async () => {
+    const r = crawling(10_000);
+    mount(r);
+    await waitFor(() => expect(syncs(r)).toBe(1 + CRAWL_MAX_ROUNDS), { timeout: 5000 });
+    await settle(80);
+    expect(syncs(r)).toBe(1 + CRAWL_MAX_ROUNDS);
+  });
+
+  it("stops when the screen closes", async () => {
+    const r = crawling(10_000);
+    slowFetch(15);
+    const ui = mount(r);
+    await waitFor(() => expect(syncs(r)).toBeGreaterThanOrEqual(2));
+    ui.unmount();
+    const at = syncs(r);
+    await new Promise((res) => setTimeout(res, 120));
+    expect(syncs(r)).toBeLessThanOrEqual(at + 1);
+  });
+
+  it("a server without coverage (no coverage_complete in its answer) is never looped on", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(subjects().length).toBe(4));
+    await settle();
+    expect(r.posts.filter((p) => p.path.endsWith("/api/email/sync")).length).toBe(2);
+  });
+});
