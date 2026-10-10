@@ -106,7 +106,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onFin
                   <Tile tone="green"><FileText className="ic" /></Tile>
                   <div className="row-grow">
                     <div className="conn-name">Save as a New Program</div>
-                    <div className="conn-meta">Make a Program From This Workout</div>
+                    <div className="conn-meta">Make a Program from This Workout</div>
                   </div>
                   {CHEV}
                 </div>

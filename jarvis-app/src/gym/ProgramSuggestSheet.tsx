@@ -44,7 +44,7 @@ export default function ProgramSuggestSheet({ suggestion, onCreate, onChoose, on
             {/* One fact per muscle, so the line wraps between them, never inside one. */}
             {suggestion.muscles.map((m) => <span className="fact" key={m}>{MUSCLE_LABEL[m]}</span>)}
           </div>
-          <div className="grp"><div className="eyebrow">What to Do With It</div></div>
+          <div className="grp"><div className="eyebrow">What to Do with It</div></div>
           <div className="card">
             <div className="row" {...pressable(onCreate)}>
               <Tile tone="green"><FileText className="ic" /></Tile>

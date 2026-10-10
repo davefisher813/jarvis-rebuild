@@ -683,7 +683,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   <div className="row-grow">
                     <div className="conn-name">{`Add to ${alsoOnDay.dayName}`}</div>
                     <div className="facts">
-                      <span className="fact">{alsoOnDay.value ? "Kept for next time, can be paired" : "This Workout Only"}</span>
+                      <span className="fact">{alsoOnDay.value ? "Kept for Next Time, Can Be Paired" : "This Workout Only"}</span>
                     </div>
                   </div>
                   <div className={"switch" + (alsoOnDay.value ? "" : " off")} role="switch" aria-checked={alsoOnDay.value}

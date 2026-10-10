@@ -1864,7 +1864,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
    *  day (each once), the program is written through GymService, and only then
    *  is the workout saved, pointing at that day. A failed program write saves
    *  nothing and leaves the sheet up, so the workout is never half-attached. */
-  const connectFinished = async (itemId: string, note?: string) => {
+  // ONE WRITE AT A TIME (review 2026-10-10): a second tap on Create Program,
+  // Save or a program day while the first write is still out read the same
+  // unfinished workout and created a second program. Every Keep This Workout
+  // write takes this latch first and lets it go when it lands or fails.
+  const keepBusy = useRef(false);
+  const oneKeepWrite = async (write: () => Promise<void>) => {
+    if (keepBusy.current) return;
+    keepBusy.current = true;
+    try { await write(); } finally { keepBusy.current = false; }
+  };
+  const connectFinished = (itemId: string, note?: string) => oneKeepWrite(async () => {
     const f = finishing.current;
     if (!f) return;
     const [pid, wid, did] = itemId.split("|");
@@ -1883,11 +1893,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     setSuggestFor(null);
     await commitFinish(note);
     showToast({ message: savedToastText(`Added to ${workoutTitle(day.name)}`, heldText(workoutTitle(day.name)), storePending()) });
-  };
+  });
   /** The finished workout becomes a program of its own: one week, one day,
    *  made of what he logged, created through GymService; then the workout is
    *  saved as that day's first. */
-  const saveAsProgram = async (name: string, note?: string) => {
+  const saveAsProgram = (name: string, note?: string) => oneKeepWrite(async () => {
     const f = finishing.current;
     const clean = name.trim();
     if (!f || !clean) return;
@@ -1906,7 +1916,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     setSuggestFor(null);
     await commitFinish(note);
     showToast({ message: savedToastText(`${workoutTitle(clean)} Saved as a Program`, heldText(), storePending()) });
-  };
+  });
   /** Not Now: this workout is not offered as a program again. */
   const declinePattern = (sig: string) => {
     const gs = readGymSettings();
@@ -1974,7 +1984,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           onSaveNew: (note) => setKeepFlow({
             kind: "new", note,
             name: finishing.current?.suggestion?.name
-              ?? (receipt.dayName && receipt.dayName !== SCRATCH_DAY_NAME ? workoutTitle(receipt.dayName) : "New Program"),
+              ?? (receipt.dayName && workoutTitle(receipt.dayName) !== SCRATCH_DAY_NAME ? workoutTitle(receipt.dayName) : "New Program"),
           }),
           onOneOff: (note) => void commitFinish(note),
         } : undefined}
@@ -2817,7 +2827,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           library={library}
           classStore={classStore}
           history={workouts}
-          onAddEntry={(entry) => addToLive(exerciseFromEntry(entry, classStore, nid))}
+          onAddEntry={(entry) => addToLive(exerciseFromEntry(entry, classStore, nid, { mintKey: false }))}
           onAddDraft={(draft) => { addToLive(draft); seedLibrary(draft); }}
           onCancel={() => { clearLive(); enterSession(null); leaveIfStartedOutside(); }}
         />

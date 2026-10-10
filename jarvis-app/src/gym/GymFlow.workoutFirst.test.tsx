@@ -83,6 +83,17 @@ describe("Start Workout with no program", () => {
     expect(readLive()!.exercises[0]!.equipment).toBe("barbell");
     expect(await screen.findByRole("button", { name: "Finish" })).toBeInTheDocument();
   });
+
+  it("a suggestion the library knows by name alone keeps that identity, so its history does not fork", async () => {
+    const ROW: WorkoutExercise = { exerciseId: "x1", name: "Goblet Squat", kind: "weight_reps", unit: "lb", sets: [{ id: "g1", w: 50, r: 10 }] };
+    await mount(async (gym) => { await gym.saveWorkout({ ...pastScratch(2), exercises: [ROW] }); });
+    const head = (await screen.findByText("Suggestions", undefined, { timeout: 4000 })).closest(".sh2") as HTMLElement;
+    const card = head.nextElementSibling as HTMLElement;
+    fireEvent.click(within(card).getByText("Goblet Squat").closest('.row[role="button"]') as HTMLElement);
+    await waitFor(() => expect(readLive()?.exercises.map((e) => e.name)).toEqual(["Goblet Squat"]));
+    // No fresh key: the logged sets file under the same library row as before.
+    expect(readLive()!.exercises[0]!.exerciseKey).toBeUndefined();
+  });
 });
 
 const finishToReceipt = async () => {
@@ -173,6 +184,20 @@ describe("the Program Suggestion, on the third similar workout", () => {
     expect(programs.map((p) => p.data.name)).toEqual(["Push Day"]);
     const newest = (await gym.listWorkouts()).find((w) => w.data.date === todayISO())!;
     expect(newest.data.programId).toBe(programs[0]!.id);
+  });
+
+  it("a second tap on Create Program while the first write is out makes one program, not two", async () => {
+    classify();
+    writeLive(liveScratch());
+    const { gym } = await mount(seedTwo);
+    const receipt = await finishToReceipt();
+    fireEvent.click(within(receipt).getByRole("button", { name: "Done" }));
+    const sheet = (await screen.findByText("Looks Like a Push Day")).closest(".sheet-scrim") as HTMLElement;
+    const create = within(sheet).getByText("Create Program");
+    fireEvent.click(create);
+    fireEvent.click(create);
+    await waitFor(async () => expect((await gym.listWorkouts()).length).toBe(3), { timeout: 4000 });
+    expect((await gym.listPrograms()).map((p) => p.data.name)).toEqual(["Push Day"]);
   });
 
   it("Not Now saves it as a one-off and does not offer the same workout again", async () => {

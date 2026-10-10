@@ -17,7 +17,17 @@ import { uniformStrip } from "./strip";
  * equipment and the reading), for this NEW sighting only; nothing already
  * logged is touched (classify.ts's first rule).
  */
-export function exerciseFromEntry(e: LibraryEntry, classStore: ClassStore, newId: (prefix: string) => string): Exercise {
+export function exerciseFromEntry(
+  e: LibraryEntry,
+  classStore: ClassStore,
+  newId: (prefix: string) => string,
+  /** Stamp a fresh exerciseKey on an entry that has none (the day builder's
+   *  long-standing behaviour). The live workout passes false: a new key on
+   *  an exercise the library knows by name alone would file this workout's
+   *  sets under a second "Bench Press" beside the first (review 2026-10-10),
+   *  so the pick keeps the identity the library already has. */
+  opts: { mintKey?: boolean } = {},
+): Exercise {
   const c = classStore[e.key] ?? classStore[e.exerciseKey ?? ""] ?? null;
   const kind = c?.measure ?? e.kind;
   // 2026-10-05: what the create sheet planned (rest, ramp, filler, note,
@@ -38,7 +48,7 @@ export function exerciseFromEntry(e: LibraryEntry, classStore: ClassStore, newId
     ...(kind === e.kind && (e.timeUnit ?? p?.timeUnit) ? { timeUnit: (e.timeUnit ?? p?.timeUnit)! } : {}),
     ...(c?.equipment ? { equipment: c.equipment } : e.equipment ? { equipment: e.equipment as Exercise["equipment"] } : {}),
     ...(c?.counted ? { counted: c.counted } : e.counted ? { counted: e.counted } : {}),
-    exerciseKey: e.exerciseKey ?? newExerciseKey(),
+    ...(e.exerciseKey ? { exerciseKey: e.exerciseKey } : opts.mintKey === false ? {} : { exerciseKey: newExerciseKey() }),
     ...(p?.restSec ? { restSec: p.restSec } : {}),
     ...(p?.ramp ? { ramp: true } : {}),
     ...(p?.filler ? { filler: true } : {}),

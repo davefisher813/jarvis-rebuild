@@ -103,13 +103,13 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
           </Card>
         </>
       )}
-      <Head label="Session" />
+      <Head label="Workout" />
       <Card>
         <Switch label="Rest Timer Sound" meta="Three Notes When the Rest Is Over" on={s.restSound} onToggle={() => set({ restSound: !s.restSound })} />
         {/* A lock-screen alert is the native app's own; the web build never
             schedules one, so there the switch would change nothing (2026-10-04). */}
         {Capacitor.isNativePlatform() && <Switch label="Rest Notification" meta="A Buzz on the Lock Screen When the Rest Is Over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />}
-        <Switch label="Last Time on Every Set" meta="Last Session Beside Each Set, with Tap-to-Match" on={showLast} onToggle={toggleShowLast} />
+        <Switch label="Last Time on Every Set" meta="Last Workout Beside Each Set, with Tap-to-Match" on={showLast} onToggle={toggleShowLast} />
         <Switch label="Celebrations" meta="The PR Mark, and New Best on the Receipt" on={s.celebrations} onToggle={() => set({ celebrations: !s.celebrations })} />
         <Switch label="Suggest Programs" meta="When the Same Workout Keeps Repeating, Offer to Save It as a Program" on={suggestPrograms} onToggle={toggleSuggestPrograms} />
         {/* Part 3 wave 5: the progression engine's mode, easy to change. Two

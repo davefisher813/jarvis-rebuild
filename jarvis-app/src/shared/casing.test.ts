@@ -73,6 +73,14 @@ describe("workoutTitle", () => {
     expect(workoutTitle(workoutTitle("pull day 2"))).toBe("Pull Day 2");
   });
 
+  // Pass-off item 13 (2026-10-10): a workout from scratch saved before the
+  // rename still carries "Open Session"; it reads as the one word, Workout.
+  it("draws an old scratch workout's name in the one vocabulary", () => {
+    expect(workoutTitle("Open Session")).toBe("Workout");
+    expect(workoutTitle("open session ")).toBe("Workout");
+    expect(workoutTitle("Open Session Day")).toBe("Open Session Day");
+  });
+
   // An acronym an athlete typed on purpose is not a casing mistake.
   it("keeps capitals that are already inside a word", () => {
     expect(workoutTitle("AMRAP finisher")).toBe("AMRAP Finisher");
