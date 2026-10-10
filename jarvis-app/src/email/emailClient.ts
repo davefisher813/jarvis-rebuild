@@ -33,7 +33,19 @@ export interface EmailAccount {
   connected_at: string;
   scopes: string[];
   cached: number;
+  /** The one saved plain-text signature for this account (spec L3). Empty is a valid, explicit save. */
+  signature_text: string;
+  /** Bumped on every signature save; the optimistic-concurrency check for email_signature_set, and what a draft's own signature_revision is compared against. */
+  signature_revision: number;
+  /** The sync dimension (Email v1 spec 8.1; migration 0065). Absent before 0065: freshness is then last_sync_at alone. */
+  sync_state?: SyncState | null;
+  /** When the 90-day Inbox and Sent window was last fully listed and reconciled through Gmail's history. */
+  verified_through_at?: string | null;
+  coverage_start?: string | null;
 }
+
+/** 8.1's values. The server writes catching_up and current; the rest are the spec's, read honestly if they ever arrive. */
+export type SyncState = "not_started" | "syncing" | "current" | "catching_up" | "stale" | "failed" | "paused";
 
 /** One inbox row as email_inbox returns it: the provider's facts, nothing derived. */
 export interface InboxRow {
@@ -111,6 +123,11 @@ export function searchCached(client: RpcClient, q: string, accounts: string[] | 
 
 export interface RuleShape { sender_exact: string; account_id: string; category_id: string }
 
+/** Save the account's one signature (spec L3): email_signature_set. Empty text is a valid, explicit save. p_expected_revision null skips the conflict check. */
+export function setSignature(client: RpcClient, ownerId: string, accountId: string, text: string, expectedRevision: number | null = null): Promise<CommandResult<{ account_id: string; signature_text: string; signature_revision: number }>> {
+  return callCommand(client, "email_signature_set", { p_owner: ownerId, p_account: accountId, p_text: text, p_expected_revision: expectedRevision });
+}
+
 export function offerSuggestion(client: RpcClient, rule: RuleShape, tapIds: string[]): Promise<CommandResult<{ suggestion_id: string; status: string; replay: boolean }>> {
   return callCommand(client, "policy_suggestion_offer", { p_rule: rule, p_evidence_tap_ids: tapIds });
 }
@@ -121,7 +138,8 @@ export function answerSuggestion(client: RpcClient, id: string, answer: "accepte
 
 // ---- the provider, through the server --------------------------------------
 
-export interface SyncResult { synced: number; removed: number; next_page: string | null; complete: boolean; resynced: boolean; last_sync_at?: string | null }
+/** `coverage_complete` false: the coverage crawl has more to list or reconcile, so call again (a little later). Absent before migration 0065. */
+export interface SyncResult { synced: number; removed: number; next_page: string | null; complete: boolean; resynced: boolean; last_sync_at?: string | null; coverage_complete?: boolean; sync_state?: SyncState }
 export interface OpenResult { message_id: string; labels: string[]; attachments: number }
 export interface LabelResult { message_id: string; labels: string[]; read: boolean; in_inbox: boolean; in_trash: boolean; receipt: string | null }
 export type MessageOp = "open" | "read" | "unread" | "archive" | "unarchive" | "trash" | "untrash";

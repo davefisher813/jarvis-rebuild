@@ -30,6 +30,10 @@ export const REFRESH_FAILED = "Couldn't Refresh · Showing Saved Mail";
 export const REAUTH_LINE = "Gmail Needs Reconnecting · Saved Mail Is Still Here";
 export const RECONNECT = "Reconnect Gmail";
 export const NOT_SYNCED = "Not Synced Yet";
+// Email v1 spec 8.1 and AC39: connected is not current. While the 90-day window is still being listed and reconciled, the
+// header says so, never a time and never "Nothing in Your Inbox". When it is current, the time it was checked.
+export const CATCHING_UP = "Catching Up on Mail";
+export const CHECKED = "Checked";
 
 // Empty states: each one carries its action (law L7). 2026-10-05: every sub is Title Case, like every other line the
 // app writes ("New mail lands here" was sentence case); the casing boundary names only chat, note bodies, onboarding and field notes.
@@ -71,6 +75,10 @@ export const PUT_BACK = "Put Back in Inbox";
 export const RESTORED = "Restored from Trash";
 export const OPEN_GMAIL_EXACT = "Open in Gmail";
 export const OPEN_GMAIL_GENERIC = "Open Gmail";
+// Astra's bottom-sheet design (2026-10-10): the sheet's own kind picker behind
+// Add to JARVIS. Track This reuses PRIMARY.waiting ("Track This") from
+// candidates.ts rather than a second constant for the same word.
+export const ADD_TO_JARVIS = "Add to JARVIS";
 export const GENERIC_WHY = "Gmail Gave No Link for This Message · Opening Your Inbox Instead";
 export const READ_CONFLICT = "Read Status Updated in Gmail";
 export const READ_FAILED = "Couldn't Mark as Read";
@@ -114,6 +122,14 @@ export const STATE_WORD: Record<"connected" | "reauth" | "disconnected", string>
 export function messagesWord(n: number): string {
   return `${n} ${n === 1 ? "Message" : "Messages"}`;
 }
+
+// The saved signature (Email v1 spec section 6, Dave's locked decision L3): one per account, empty is valid.
+export const EDIT_SIGNATURE = "Edit Signature";
+export const SIGNATURE_LABEL = "Signature";
+export const SIGNATURE_NOTE = "Appears Once, at the End of New Messages and Replies from This Account";
+export const SIGNATURE_SAVED = "Signature Saved";
+export const USE_SAVED_SIGNATURE = "Use Saved Signature";
+export const SIGNATURE_OFFER_NOTE = "This Account's Signature Isn't in This Draft";
 
 /** "2 Accounts", "1 Account". */
 export function accountsWord(n: number): string {

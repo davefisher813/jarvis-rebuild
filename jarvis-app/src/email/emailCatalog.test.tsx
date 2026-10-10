@@ -334,7 +334,7 @@ describe("a waiting record is a table of labelled values, with no placeholder an
 // ---------------------------------------------------------------------------
 // ACCOUNTS, DRAFTS, SEARCH, THE MESSAGE
 // ---------------------------------------------------------------------------
-const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "a", address: "dave@example.test", state: "connected", last_sync_at: "2026-10-05T09:12:00", sync_error: null, capabilities: {}, connected_at: "2026-09-01T00:00:00", scopes: [], cached: 12, ...o });
+const account = (o: Partial<EmailAccount>): EmailAccount => ({ id: "a", address: "dave@example.test", state: "connected", last_sync_at: "2026-10-05T09:12:00", sync_error: null, capabilities: {}, connected_at: "2026-09-01T00:00:00", scopes: [], cached: 12, signature_text: "", signature_revision: 1, ...o });
 
 describe("Accounts: one facts line per mailbox, never four stacked greys", () => {
   const screen_ = (accounts: EmailAccount[]) => render(<AccountsScreen accounts={accounts} onBack={noop} onOpenConnections={noop} onOpenDrafts={noop} />);
@@ -342,10 +342,19 @@ describe("Accounts: one facts line per mailbox, never four stacked greys", () =>
   it("connected is green, the sync time is the one grey plus small caps, the saved count is a white number", () => {
     const { container } = screen_([account({})]);
     const row = container.querySelector(".row .conn-meta")!;
-    expect(texts(row, ".fact")).toEqual([STATE_WORD.connected, expect.stringMatching(/^Updated /), expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "12 Messages Saved"]);
+    expect(texts(row, ".fact")).toEqual([STATE_WORD.connected, expect.stringMatching(/^Checked /), expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "12 Messages Saved"]);
     expect(row.querySelector(".fact.good")).toHaveTextContent("Connected");
     expect(row.querySelector(".fact b")).toHaveTextContent("12 Messages Saved");
     expect(container.querySelectorAll(".row .conn-meta").length).toBe(1);
+    expect(catalogViolations(container)).toEqual([]);
+  });
+
+  it("a mailbox still listing its window is Connected and Catching Up on Mail, never a time (spec 8.1, AC39)", () => {
+    const { container } = screen_([account({ sync_state: "catching_up", last_sync_at: "2026-10-05T09:12:00" })]);
+    const row = container.querySelector(".row .conn-meta")!;
+    expect(texts(row, ".fact")).toEqual([STATE_WORD.connected, "Catching Up on Mail", "12 Messages Saved"]);
+    expect(row.querySelector(".fact.good")).toHaveTextContent("Connected");
+    expect(row.textContent).not.toMatch(/\d:\d{2}|Checked/);
     expect(catalogViolations(container)).toEqual([]);
   });
 
@@ -414,21 +423,27 @@ const ROW_: InboxRow = { id: "m1", account_id: "a", account: "dave@example.test"
 const AREA: Category = { id: "c1", data: { name: "Money", color: "green", order: 0 } } as Category;
 
 describe("The message head and its attachments", () => {
-  const message = () => render(
-    <MessageScreen client={noClient} token={null} userId="u-head" row={ROW_} account={null} offline categories={[AREA]} categoryId="c1" onBack={noop} onRowChanged={noop} onLeftInbox={noop} onFileUnder={noop} />,
-  );
+  // Astra's bottom-sheet design (2026-10-10): MessageScreen portals its sheet
+  // to document.body (over the dimmed inbox underneath), so it never lands
+  // inside render()'s own container -- document.body is where to look.
+  const message = () => {
+    render(
+      <MessageScreen client={noClient} token={null} userId="u-head" row={ROW_} account={null} offline categories={[AREA]} categoryId="c1" onBack={noop} onRowChanged={noop} onLeftInbox={noop} onFileUnder={noop} />,
+    );
+    return document.body;
+  };
   it("the head is ONE wrapping line under the subject: the sender is the one grey, the day, time and mailbox small caps, the area a dot and its name", () => {
-    const { container } = message();
-    const head = container.querySelector(".email-head")!;
+    const body = message();
+    const head = body.querySelector(".email-head")!;
     expect(head.querySelectorAll(".conn-meta").length).toBe(1);
     expect(texts(head, ".fact")).toEqual(["Coach Miller", "Today", "9:12 AM", "dave@example.test", "Money"]);
     expect(head.querySelector(".fact.cat .cd")).toBeTruthy();
     expect(head.querySelector(".email-meta")).toBeNull();
-    expect(catalogViolations(container)).toEqual([]);
+    expect(catalogViolations(body)).toEqual([]);
   });
   it("an attachment row is its name, then its size as a white number: no second grey for the mime type", () => {
-    const { container } = message();
-    const row = [...container.querySelectorAll(".row")].find((r) => r.textContent?.includes("roster.pdf"))!;
+    const body = message();
+    const row = [...body.querySelectorAll(".row")].find((r) => r.textContent?.includes("roster.pdf"))!;
     expect(texts(row, ".fact")).toEqual(["240 KB"]);
     expect(row.querySelector(".fact b")).toHaveTextContent("240 KB");
     expect(row).not.toHaveTextContent("application/pdf");

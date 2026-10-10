@@ -42,7 +42,9 @@ TEN_SORTED="get_subscription_tier,get_user_settings,jarvis_action_provisional_em
 
 echo "-- forward: stub + chain 0001..0061, fixtures, rows for A and B in the user_id tables, then 0062 twice"
 q -f "$here/stub_supabase.sql" >/dev/null
-for f in $(ls "$here"/../migrations/*.sql | sort | grep -v '/0062_'); do q -f "$f" >/dev/null; done
+# 0001..0061 only, as the line above says: a later migration applied early (0063 sets one of the ten search_paths)
+# would change the "before" this proof is taken against.
+for f in $(ls "$here"/../migrations/*.sql | sort | awk -F/ '{ n = substr($NF, 1, 4) + 0; if (n < 62) print }'); do q -f "$f" >/dev/null; done
 q -f "$here/fixtures/substrate_fixtures.sql" >/dev/null
 q -c "insert into ai_budget (user_id) values ('$A'), ('$B')" \
   -c "insert into ai_budget_reservation (user_id, request_id, request_hash, model, price_version, reserved_microusd, state) values ('$A','r-a','h','m','v',1,'reserved'), ('$B','r-b','h','m','v',1,'reserved')" \

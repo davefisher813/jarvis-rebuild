@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SchedulePage from "./SchedulePage";
@@ -16,6 +16,13 @@ const rule: RoutineData = {
   ...DEFAULT_ROUTINE,
   protectedBlocks: [{ id: "bf", label: "Breakfast", startMin: 9 * 60 + 30, endMin: 10 * 60 + 30, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal" }],
 };
+// The writers prune exceptions on past dates against the real clock, so the fixtures' day has to be today. Pinned
+// (Date only) so these hold after 2026-10-01 too; unpinned, every check here went red on 2026-10-02.
+// At load, not in a hook: some fixtures below are built while the file is collected.
+vi.useFakeTimers({ toFake: ["Date"] });
+vi.setSystemTime(new Date("2026-10-01T08:00:00"));
+afterAll(() => { vi.useRealTimers(); });
+
 const page = (selected: string, routine: RoutineData, extra: Record<string, unknown> = {}) => (
   <SchedulePage
     year={2026} month={9} selected={selected} todayDate={DAY} dots={{}} dayEvents={[]} mode="day"

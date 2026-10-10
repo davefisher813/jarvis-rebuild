@@ -142,7 +142,6 @@
 .email-outcome-unknown { border-left: 4px solid var(--warn-fill); }
 .email-outcome-sending { border-left: 4px solid var(--divider); }
 .email-review, .email-outcome, .email-drafts { padding-bottom: var(--s-7); }
-.email-reply-acts { display: flex; gap: var(--s-2h); align-items: center; padding: var(--s-1) var(--s-4) var(--s-2h); }
 .email-drafts-door { margin-bottom: var(--s-2h); }
 .email-file-input { display: none; }
 

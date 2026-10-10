@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { deriveStatus } from "./connectionStatus";
-import { incidentId, incidentOf, escalationOf, ESCALATE_AFTER_FAILURES, ESCALATE_AFTER_MS, INCIDENT_PATTERN, type GrantMeta } from "./incident";
+import { incidentId, incidentOf, escalationOf, recoveredOf, ESCALATE_AFTER_FAILURES, ESCALATE_AFTER_MS, INCIDENT_PATTERN, type GrantMeta } from "./incident";
 
 const NOW = new Date("2026-10-07T12:00:00Z");
 const E = "dave@gmail.com";
@@ -64,5 +64,18 @@ describe("incidentOf: transient trouble escalates only when it lasts", () => {
   it("never offers anything about reconnecting: that is the auth kind's alone", () => {
     expect(escalationOf({ consecutiveFailures: 10, lastSuccessfulSyncAt: null, now: NOW })).toBe("failures");
     expect(escalationOf({ consecutiveFailures: 0, lastSuccessfulSyncAt: null, now: NOW })).toBeNull();
+  });
+});
+
+describe("recoveredOf: when an incident may end (Email v1 spec section 10)", () => {
+  it("only a valid credential, a mailbox reading as itself, and mail that is not stale", () => {
+    expect(recoveredOf(healthy())).toBe(true);
+    expect(recoveredOf(revoked())).toBe(false);
+    expect(recoveredOf(offline(NOW.toISOString()))).toBe(false);
+  });
+  it("a good refresh while mail is a day behind has not caught up, and a proof carrying an incident is not recovered", () => {
+    const stale = deriveStatus({ email: E, refresh: { ok: true }, read: { ok: true, status: 200, emailAddress: E }, lastSyncAt: new Date(NOW.getTime() - 25 * 3600e3).toISOString(), now: NOW });
+    expect(recoveredOf(stale)).toBe(false);
+    expect(recoveredOf({ ...healthy(), incident: { id: "JC-0000AAAA", kind: "degraded", openedAt: NOW.toISOString(), cause: "silence" } })).toBe(false);
   });
 });

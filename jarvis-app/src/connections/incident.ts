@@ -119,4 +119,13 @@ export function incidentOf(i: { email: string; status: AccountStatus; previous: 
   return null;
 }
 
+/** An account that has RECOVERED (Email v1 spec section 10: "an incident ends only after authorization and required
+ *  catch-up checks recover"): the credential is valid, the mailbox read worked as the right address, and mail is not
+ *  stale. A brief good refresh while sync stays a day behind is not a recovery, so a flapping account does not end its
+ *  incident early (and, the ID being anchored, could not open a second one if it did). Pure; the status route resolves
+ *  the durable incident on it, and the 15-minute ticker suppresses a pending alert on the same meaning. */
+export function recoveredOf(s: AccountStatus): boolean {
+  return s.auth_state === "valid" && s.state === "connected" && s.delivery.liveness !== "stale" && !s.incident;
+}
+
 export const INCIDENT_PATTERN = /^JC-[0-9A-F]{8}$/;

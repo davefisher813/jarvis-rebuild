@@ -5,7 +5,7 @@
 
 import { dayLabel, timeOf } from "../hub/format";
 import { shortDate } from "../shared/dateFormat";
-import { accountsWord, NOT_SYNCED } from "./copy";
+import { accountsWord, CATCHING_UP, CHECKED, NOT_SYNCED } from "./copy";
 import type { EmailAccount, InboxRow } from "./emailClient";
 
 /** The sender as the row says it: the name when there is one, else the address. */
@@ -65,26 +65,34 @@ export function whenWords(iso: string, now: Date = new Date()): string {
   return whenFacts(iso, now).map((f) => f.text).join(" ");
 }
 
-/** "Updated Today" in the row's one grey, then the time as small caps. */
-export function updatedFacts(iso: string, now: Date = new Date()): EmailFact[] {
+/** "Checked Today" in the row's one grey, then the time as small caps (spec 3.1: "Checked 9:12 AM"). */
+export function checkedFacts(iso: string, now: Date = new Date()): EmailFact[] {
   const day = dayLabel(iso, now);
   const time = timeOf(iso);
-  return [{ text: day ? `Updated ${day}` : "Updated" }, ...(time ? [{ text: time, tone: "date" as const }] : [])];
+  return [{ text: day ? `${CHECKED} ${day}` : CHECKED }, ...(time ? [{ text: time, tone: "date" as const }] : [])];
+}
+
+/** Whether a mailbox is still listing or reconciling its coverage window (8.1): connected, but not current (AC39). */
+export function isCatchingUp(a: Pick<EmailAccount, "state" | "sync_state">): boolean {
+  return a.state !== "disconnected" && (a.sync_state === "catching_up" || a.sync_state === "syncing");
 }
 
 /**
- * Honest freshness (E21): the oldest successful sync among the accounts that
- * are still connected, because the inbox is only as fresh as its stalest
- * mailbox. Updated Today, 9:12 AM, 2 Accounts as three facts; Not Synced Yet
- * before the first good sync. Empty with no live account.
+ * Honest freshness (E21; Email v1 spec 8.1, AC39). One status line: Catching
+ * Up on Mail while any live mailbox is still listing or reconciling its
+ * window (never a time, which would claim it); otherwise the oldest verified
+ * check among the live mailboxes, because the inbox is only as fresh as its
+ * stalest one: Checked Today, 9:12 AM, 2 Accounts as three facts. Not Synced
+ * Yet before the first good sync. Empty with no live account.
  */
 export function freshnessFacts(accounts: readonly EmailAccount[], now: Date = new Date()): EmailFact[] {
   const live = accounts.filter((a) => a.state !== "disconnected");
   if (live.length === 0) return [];
-  const synced = live.filter((a) => a.last_sync_at).map((a) => a.last_sync_at!).sort();
   const n: EmailFact = { text: accountsWord(live.length), strong: true };
+  if (live.some(isCatchingUp)) return [{ text: CATCHING_UP }, n];
+  const synced = live.map((a) => a.verified_through_at ?? a.last_sync_at).filter((x): x is string => !!x).sort();
   if (synced.length === 0) return [{ text: NOT_SYNCED }, n];
-  return [...updatedFacts(synced[0]!, now), n];
+  return [...checkedFacts(synced[0]!, now), n];
 }
 
 /** A copy line written as fragments joined by a middle dot, drawn as facts instead: the first wears `tone`, the rest are the one grey. For the few copy constants that render inside a facts line. */

@@ -20,13 +20,13 @@ import type { FileStore } from "../files/FileStore";
 import {
   ATTACH, ATTACH_FAILED, ATTACH_NEEDS_APP, ATTACH_TOO_MUCH, ATTACHMENTS_LABEL, ATTACHMENTS_WAIT, BAD_ADDRESS, BCC_LABEL, BODY_LABEL, CC_BCC, CC_LABEL, CLOSE_DRAFT, COMPOSE_TITLE,
   CONFLICT_TITLE, DISCARD_DRAFT, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
-  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT,
+  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE,
 } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
 import {
-  attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, sha256Hex, splitAddresses,
+  attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, replaceSignature, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, signatureUntouched, sha256Hex, splitAddresses,
   type AttachmentRef, type DraftFields, type DraftRow, type LocalDraft, type Review,
 } from "./drafts";
 
@@ -140,9 +140,37 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
     // The words themselves drive this; the callbacks are stable for a given revision.
   }, [fields]);
 
-  // The account is part of the draft too.
+  // AC19: the still-untouched managed block is swapped in silence on an account switch; an edited one, or one
+  // that was never there, is left alone, and the person gets a quiet explicit Use Saved Signature instead,
+  // never a silent rewrite of words they wrote.
+  const prevAccountId = useRef(accountId);
+  const [sigOffer, setSigOffer] = useState<{ oldText: string; newText: string } | null>(null);
+  const applySignature = () => {
+    if (!sigOffer) return;
+    const newAcct = accounts.find((a) => a.id === accountId) ?? null;
+    setFields((f) => ({ ...f, body_text: replaceSignature(f.body_text, sigOffer.oldText, sigOffer.newText), signature_revision: newAcct?.signature_text ? newAcct.signature_revision : null }));
+    setSigOffer(null);
+  };
+
+  // The account is part of the draft too; a switch also decides the signature.
   useEffect(() => {
+    const prevId = prevAccountId.current;
+    prevAccountId.current = accountId;
+    if (prevId !== accountId) {
+      const oldAcct = accounts.find((a) => a.id === prevId) ?? null;
+      const newAcct = accounts.find((a) => a.id === accountId) ?? null;
+      if (newAcct) {
+        if (signatureUntouched(fields.body_text, fields.signature_revision, oldAcct)) {
+          const nextBody = replaceSignature(fields.body_text, oldAcct!.signature_text, newAcct.signature_text);
+          setFields((f) => ({ ...f, body_text: nextBody, signature_revision: newAcct.signature_text ? newAcct.signature_revision : null }));
+          setSigOffer(null);
+        } else {
+          setSigOffer(newAcct.signature_text ? { oldText: oldAcct?.signature_text ?? "", newText: newAcct.signature_text } : null);
+        }
+      }
+    }
     if (accountId !== start.accountId || lastServer.current) scheduleServer(fields);
+    // Deliberately only accountId: this reacts to the switch itself, reading fields and accounts as they stand.
   }, [accountId]);
 
   const set = <K extends keyof DraftFields>(k: K, v: DraftFields[K]) => setFields((f) => ({ ...f, [k]: v }));
@@ -290,6 +318,10 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
         </div>
       </div></div>
       <div className="pad-x" onBlur={commitAddresses} />
+
+      {/* AC19: an edited or absent managed block is never silently rewritten; this is the explicit Replace choice
+          (Dave's locked row-actions rule: a quiet text action in the key colour, never a capsule). */}
+      {sigOffer && <div className="email-note quiet"><span>{SIGNATURE_OFFER_NOTE}</span><button className="quiet-action" onClick={applySignature}>{USE_SAVED_SIGNATURE}</button></div>}
 
       <div className="pad-x"><div className="card list-card-ruled">
         {fields.attachment_refs.length > 0 && <div className="eyebrow email-eyebrow">{ATTACHMENTS_LABEL}</div>}
