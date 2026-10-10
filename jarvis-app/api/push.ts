@@ -24,7 +24,6 @@ function h2probe(host: string): Promise<unknown> {
   });
 }
 
-import { handlePush } from "../src/push/proxy";
 
 // The native build posts from capacitor://localhost, a different origin, so
 // the browser sends a preflight first. Web push itself is web only, but a
@@ -41,6 +40,12 @@ async function handler(req: Request): Promise<Response> {
     return Response.json({ runtime: "nodejs", prod: await h2probe("api.push.apple.com"), sandbox: await h2probe("api.sandbox.push.apple.com") });
   }
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  let handlePush: typeof import("../src/push/proxy").handlePush;
+  try {
+    ({ handlePush } = await import("../src/push/proxy"));
+  } catch (e) {
+    return Response.json({ importError: String(e).slice(0, 400) }, { status: 500 });
+  }
   const res = await handlePush(req, {
     env: {
       JARVIS_SECRET: process.env.JARVIS_SECRET,
