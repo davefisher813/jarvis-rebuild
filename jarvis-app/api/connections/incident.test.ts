@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import handler from "./status";
 import { encrypt } from "../_google";
+import { reportRevocation } from "../_incident";
 import { incidentId, ESCALATE_AFTER_FAILURES } from "../../src/connections/incident";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
@@ -20,6 +21,8 @@ interface World {
   outbox: Array<{ kind: string; subject?: string }>;
   rows: Array<Record<string, unknown>>;
   sinkDown: boolean;
+  /** The durable ledger (migration 0064), or null where it is not applied (its functions answer 404). */
+  ledger: Array<{ owner: string; address: string; incident: string; kind: string; openedAt: string; state: string; alert: string }> | null;
 }
 let w: World;
 
@@ -33,6 +36,7 @@ async function stub(over: Partial<World> = {}): Promise<World> {
     outbox: [],
     rows: [],
     sinkDown: false,
+    ledger: [],
     ...over,
   };
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -55,6 +59,24 @@ async function stub(over: Partial<World> = {}): Promise<World> {
       if (init?.method === "POST") { w.sink.push(JSON.parse(String(init.body)) as Record<string, unknown>); return res({}, 201); }
       const fp = u.searchParams.get("fingerprint")?.replace("eq.", "");
       return res(w.sink.filter((r) => r.fingerprint === fp).map(() => ({ id: 1 })));
+    }
+    if (url.includes("/rest/v1/rpc/connection_incident_record")) {
+      if (!w.ledger) return res({}, 404);
+      const b = JSON.parse(String(init?.body)) as Record<string, string>;
+      // The SQL's insert ... on conflict (owner_id, incident_id) do nothing.
+      if (w.ledger.some((r) => r.owner === b.p_owner && r.incident === b.p_incident)) return res({ recorded: false, incident_id: b.p_incident });
+      w.ledger.push({ owner: b.p_owner!, address: b.p_address!, incident: b.p_incident!, kind: b.p_kind!, openedAt: b.p_opened_at!, state: "open", alert: "pending" });
+      return res({ recorded: true, incident_id: b.p_incident });
+    }
+    if (url.includes("/rest/v1/rpc/connection_incident_resolve")) {
+      if (!w.ledger) return res({}, 404);
+      const b = JSON.parse(String(init?.body)) as Record<string, string>;
+      let resolved = 0; let suppressed = 0;
+      for (const r of w.ledger.filter((x) => x.owner === b.p_owner && x.address === b.p_address && x.state === "open")) {
+        resolved++; r.state = "resolved";
+        if (r.alert === "pending") { suppressed++; r.alert = "suppressed"; }
+      }
+      return res({ resolved, suppressed });
     }
     if (url.includes("/rest/v1/rpc/email_account_health_record")) {
       const b = JSON.parse(String(init?.body)) as { p_health: unknown };
@@ -159,5 +181,69 @@ describe("transient trouble is quiet until it lasts (escalation)", () => {
   it("a single network failure on one check is no incident", async () => {
     await stub({ ...down, grant: grant(1) });
     expect((await get()).incident ?? null).toBeNull();
+  });
+});
+
+describe("the durable incident (migration 0064): recorded once, ended on a real recovery", () => {
+  const healthy = () => res({ access_token: "ya29.x", expires_in: 3599, scope: "gmail.send" });
+  const rpcBodies = (fn: string) => (vi.mocked(fetch).mock.calls as unknown as [string, RequestInit | undefined][])
+    .filter(([u]) => u.endsWith(`/rest/v1/rpc/${fn}`)).map(([, i]) => JSON.parse(String(i?.body)) as Record<string, unknown>);
+
+  it("the status check that finds it records it with the owner, the account, the ID, the kind and the anchor", async () => {
+    await stub();
+    const a = await get();
+    expect(w.ledger).toEqual([{ owner: USER, address: DAVE, incident: a.incident!.id, kind: "auth", openedAt: a.incident!.openedAt, state: "open", alert: "pending" }]);
+  });
+
+  it("two finders of the same incident (the revocation path and a status check) make ONE row", async () => {
+    const at = "2026-10-07T12:00:00.000Z";
+    await stub({ grant: { state: "DEAD", dead_at: at, last_refresh_ok_at: null, consecutive_failures: 0, last_auth_error: { oauthRefreshFailedAt: at, lastAuthErrorCode: "invalid_grant" } } });
+    await reportRevocation({ supaUrl: "https://supa.test", service: "service" }, { userId: USER, email: DAVE, source: "sync", code: "invalid_grant" });
+    const a = await get();
+    await get();
+    expect(a.incident!.id).toBe(incidentId(DAVE, "auth", at));
+    expect(w.ledger).toHaveLength(1);
+    expect(w.ledger![0]).toMatchObject({ incident: a.incident!.id, state: "open" });
+    expect(rpcBodies("connection_incident_record").every((b) => b.p_incident === a.incident!.id && b.p_owner === USER)).toBe(true);
+  });
+
+  it("a fresh proof that the account recovered ends the incident and suppresses the pending alert", async () => {
+    await stub();
+    await get();
+    expect(w.ledger![0]).toMatchObject({ state: "open", alert: "pending" });
+    w.token = healthy;
+    const a = await get();
+    expect(a.incident ?? null).toBeNull();
+    expect(w.ledger![0]).toMatchObject({ state: "resolved", alert: "suppressed" });
+    expect(rpcBodies("connection_incident_resolve")[0]).toEqual({ p_owner: USER, p_address: DAVE, p_reason: "recovered" });
+  });
+
+  it("a good refresh while mail is a day stale is not a recovery: the incident stays open", async () => {
+    await stub({ syncAt: new Date(Date.now() - 25 * 3600e3).toISOString() });
+    await get();
+    w.token = healthy;
+    await get();
+    expect(w.ledger![0]).toMatchObject({ state: "open", alert: "pending" });
+    expect(rpcBodies("connection_incident_resolve")).toEqual([]);
+  });
+
+  it("flapping before a real recovery opens nothing new: the same anchor is the same row", async () => {
+    const at = "2026-10-07T12:00:00.000Z";
+    const dead = { state: "DEAD", dead_at: at, last_refresh_ok_at: null, consecutive_failures: 0, last_auth_error: { oauthRefreshFailedAt: at } };
+    await stub({ grant: dead });
+    await get();
+    w.token = () => "throw";
+    await get();
+    w.token = () => res({ error: "invalid_grant" }, 400);
+    await get();
+    expect(w.ledger).toHaveLength(1);
+  });
+
+  it("without the ledger (0064 not applied) the status still answers with its incident", async () => {
+    await stub({ ledger: null });
+    const a = await get();
+    expect(a.incident!.kind).toBe("auth");
+    w.token = healthy;
+    expect((await get()).state).toBe("connected");
   });
 });

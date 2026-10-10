@@ -4,6 +4,9 @@
 //
 //   GET /api/connections/status            per-user Bearer
 //   GET /api/connections/status?refresh=1  prove again now, whatever is recorded
+//   POST with x-jarvis-worker: incidents   the 15-minute incident alert clock (api/_incidentWorker.ts), proven by the
+//                                          vault's token inside the worker, never by a session. It lives here, not as
+//                                          a route of its own, because the host plan caps the API files.
 //
 // HEALTH PROVES VALIDITY, NOT PRESENCE. A stored token is not evidence. For
 // each sign-in this refreshes the token for real and makes one named, harmless
@@ -21,8 +24,9 @@ export const config = { runtime: "edge" };
 
 import { authedUser, fail, failResponse, gmail, json, readEnv, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
 import { getAccessToken } from "../_google";
-import { pausedWorkOf, readGrantMeta, reportIncident } from "../_incident";
-import { PAUSED_REASON, incidentOf } from "../../src/connections/incident";
+import { pausedWorkOf, readGrantMeta, reportIncident, resolveIncidents } from "../_incident";
+import { INCIDENT_WORKER, WORKER_HEADER, runIncidentWorker } from "../_incidentWorker";
+import { PAUSED_REASON, incidentOf, recoveredOf } from "../../src/connections/incident";
 import {
   COVERAGE_DAYS, REPROVE_AFTER_MS, deliveryOf, deriveStatus, type AccountStatus, type ReadOutcome, type RefreshOutcome,
 } from "../../src/connections/connectionStatus";
@@ -87,6 +91,8 @@ async function prove(env: EmailEnv, userId: string, email: string, lastSyncAt: s
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  // The scheduled incident clock (pg_cron, migration 0064). Every other request is the status read below, unchanged.
+  if (req.headers.get(WORKER_HEADER) === INCIDENT_WORKER) return runIncidentWorker(req);
   if (req.method !== "GET") return json({ code: "METHOD_NOT_ALLOWED" }, 405, { allow: "GET" });
   const env = readEnv();
   if (!env) return failResponse(fail("UNAVAILABLE"));
@@ -126,13 +132,19 @@ export default async function handler(req: Request): Promise<Response> {
       // Queued work holds at its last committed checkpoint with the reason recorded, and resumes from there after a verified reconnect (Spec 4).
       status = { ...status, incident, paused: paused && incident.kind === "auth" ? { ...paused, reason: PAUSED_REASON } : paused };
       if (recorded?.incident?.id !== incident.id) {
-        await reportIncident(env, { email, incident, code: (grant?.code ?? status.lastError)?.toUpperCase() ?? null, source: "status", at: now });
+        await reportIncident(env, { email, incident, code: (grant?.code ?? status.lastError)?.toUpperCase() ?? null, source: "status", at: now, userId: who.id });
       }
     } else {
       status = { ...status, incident: null, paused: null };
     }
     // Awaited: an edge function may stop the moment the response is returned. A failed record is ignored, the proof stands.
-    if (row) await serviceRpc(env, "email_account_health_record", { p_owner: who.id, p_address: email, p_health: status });
+    // A fresh proof that the account RECOVERED (valid, reading as itself, mail not stale) ends its durable incidents and
+    // suppresses an alert still pending (migration 0064; "a short refresh recovery cancels it"). Best effort, like the record.
+    const recovered = !incident && recoveredOf(status);
+    await Promise.all([
+      row ? serviceRpc(env, "email_account_health_record", { p_owner: who.id, p_address: email, p_health: status }) : null,
+      recovered ? resolveIncidents(env, { userId: who.id, email }) : null,
+    ]);
     return status;
   }));
 

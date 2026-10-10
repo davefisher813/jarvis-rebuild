@@ -173,4 +173,25 @@ describe("GET /api/connections/status", () => {
     const post = await handler(new Request("https://x.test/api/connections/status", { method: "POST", headers: { authorization: "Bearer jwt" } }));
     expect(post.status).toBe(405);
   });
+
+  it("the incident clock's branch leaves every normal request as it was (migration 0064's worker rides on this route)", async () => {
+    await stub();
+    const plain = (await (await get()).json()) as { accounts: Array<Record<string, unknown>> };
+    // A request that names another worker, or none, is the status read: same answer, and the clock's token check never runs.
+    const other = await handler(new Request("https://x.test/api/connections/status", { method: "GET", headers: { authorization: "Bearer jwt", "x-jarvis-worker": "outbox" } }));
+    expect(other.status).toBe(200);
+    const j = (await other.json()) as { accounts: Array<Record<string, unknown>> };
+    const strip = (a: Record<string, unknown>) => ({ ...a, checkedAt: null, lastSuccessfulRefreshAt: null, receipt: { ...(a.receipt as object), at: null } });
+    expect(j.accounts.map(strip)).toEqual(plain.accounts.map(strip));
+    expect(calls.some((c) => c.url.includes("incident_cron_ok") || c.url.includes("connection_incident_claim"))).toBe(false);
+    // A POST without the header is still refused exactly as before.
+    expect((await handler(new Request("https://x.test/api/connections/status", { method: "POST", headers: { authorization: "Bearer jwt" } }))).status).toBe(405);
+  });
+
+  it("a healthy fresh proof asks the ledger to end any open incident, and the answer does not depend on it", async () => {
+    await stub();
+    const r = await get();
+    expect(r.status).toBe(200);
+    expect(calls.filter((c) => c.url.endsWith("/rpc/connection_incident_resolve")).map((c) => c.body)).toEqual([{ p_owner: USER, p_address: DAVE, p_reason: "recovered" }]);
+  });
 });
