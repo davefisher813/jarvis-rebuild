@@ -294,25 +294,14 @@ export async function cancelRestOver(): Promise<void> {
 // Honest limit, stated where it is decided: this is a LOCAL notification, so it
 // fires from a device that is running the app and polling the status (a few
 // minutes at most while it is open or recently backgrounded). It is not a push
-// from the server, which this build does not have for connection loss, and
-// Spec 3 forbids notifying outside the app beyond this one.
-export interface ConnectionNotice {
-  /** Every open incident this notification stands for, oldest first. */
-  incidentIds: string[];
-  /** "auth" says Reconnect; "degraded" says the mail is not updating. Mixed groups say the stronger one. */
-  kind: "auth" | "degraded";
-}
-
-export function connectionNoticeText(n: ConnectionNotice): { title: string; body: string } {
-  const title = n.kind === "auth" ? "Gmail Needs Reconnecting" : "Gmail Isn't Updating";
-  const count = n.incidentIds.length;
-  return {
-    title,
-    body: count === 1
-      ? `Incident ${n.incidentIds[0]} · Tap to Open JARVIS`
-      : `${count} Accounts · Incidents ${n.incidentIds.join(", ")}`,
-  };
-}
+// from the server. Since 2026-10-10 (Dave, with the APNs key) the server also
+// pushes the same words once per incident through APNs (api/push.ts); both
+// carry the incident ID, so a person who sees both sees one incident twice,
+// never two incidents.
+// The words live in connections/noticeText.ts so the server push (api/push.ts, APNs) says exactly what this local banner says.
+export { connectionNoticeText, type ConnectionNotice } from "../connections/noticeText";
+import type { ConnectionNotice } from "../connections/noticeText";
+import { connectionNoticeText } from "../connections/noticeText";
 
 export async function postConnectionIncident(n: ConnectionNotice, nowMs: number = Date.now()): Promise<void> {
   if (!Capacitor.isNativePlatform() || n.incidentIds.length === 0) return;
