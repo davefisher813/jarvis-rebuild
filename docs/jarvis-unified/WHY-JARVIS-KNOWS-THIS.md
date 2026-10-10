@@ -20,7 +20,7 @@ written and says what the design said in one clause.
 | Which approved command made it? | `action` | `capture_approve` and the other command functions |
 | What did that command promise and do, step by step? | `receipt_event` | the same functions, append only |
 | What did the command rest on (the email, the record another app sent)? | `source_evidence` | the capture and record functions |
-| Was it offered first, and by whom? | `proposal` | `proposal_submit`, and in 0062 `record_push` and `records_import` |
+| Was it offered first, and by whom? | `proposal` | `proposal_submit`, and in 0061 `record_push` and `records_import` |
 
 Three logs, three jobs. `item_change` is the history of a plain write: every
 insert, update and delete of an item, whoever made it, with no receipt and no
@@ -79,7 +79,7 @@ proof's pasted Mike task (ids are examples):
   `receipts` (`sequence, state, exact_verb, actor_kind, actor_display,
   assurance, occurred_at, diff, evidence_refs, erased_at`).
 - `evidence` is every `source_evidence` row those receipts cite. In 0060
-  `source_app` and `source_record_id` are null constants; 0062 redefines
+  `source_app` and `source_record_id` are null constants; 0061 redefines
   `item_why` with the real columns. The same is true of `proposals.source_app`
   (the design listed the real column for proposals; 0060 selects null).
 - `proposals` matches `payload ->> 'client_id'` to `data ->> 'clientId'`.
@@ -113,7 +113,7 @@ drops). A service role call reads `server` with `via` null even when it goes
 through a definer door, because the server test comes first. The doors that
 exist today: `capture_approve` (the proven one), and the design names
 `decision_save`, `exploration_keep`, `jarvis_waiting_write` and `action_undo`;
-0062 adds `record_approve`. Both columns are checked against
+0061 adds `record_approve`. Both columns are checked against
 `^[a-z0-9_]{1,64}$`.
 
 A link's `created_by` has two more words than an origin. `import` when `via`

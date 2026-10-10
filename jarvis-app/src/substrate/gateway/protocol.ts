@@ -34,7 +34,7 @@ export const LIMITS = {
   recordBytes: 8192,
 } as const;
 
-/** The apps that may push or be pulled: the TS mirror of jarvis_vyzn_apps() (migration 0062). */
+/** The apps that may push or be pulled: the TS mirror of jarvis_vyzn_apps() (migration 0061). */
 export const VYZN_APPS = ["backend-inbox", "bridge", "tucci"] as const;
 export type VyznApp = (typeof VYZN_APPS)[number];
 

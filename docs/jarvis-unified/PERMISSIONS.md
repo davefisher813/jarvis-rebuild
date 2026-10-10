@@ -1,12 +1,12 @@
 # Permissions
 
 Who may read and write each table and run each function, and under which role. Written 2026-10-10
-(Phase 0, design D7). Every row below is read from a local Postgres after `0001` to `0063` were applied
+(Phase 0, design D7). Every row below is read from a local Postgres after `0001` to `0062` were applied
 over `tests/stub_supabase.sql` (which mirrors Supabase's default privileges), not from memory: tables
 from `pg_class` and `has_table_privilege`, policies from `pg_policies`, guards from `pg_trigger`,
 functions from `pg_proc` with `has_function_privilege` and `proconfig`, account deletion from the body
 of `delete_owned`. The proof is `jarvis-core/supabase/tests/posture.sh` (22 checks); the migration that
-closed the last open tables is `jarvis-core/supabase/migrations/0063_private_by_default.sql`. When a
+closed the last open tables is `jarvis-core/supabase/migrations/0062_private_by_default.sql`. When a
 migration changes a grant, a policy or a function, this page is regenerated from the same queries.
 
 The one sentence: **a person reaches their own rows and nothing else; the server reaches everything;
@@ -82,22 +82,22 @@ written by migrations.
 
 `substrate_readiness()` (authenticated and service_role) answers `phase0.private` true only when all
 four of `email_opens`, `google_tokens`, `ai_tokens` and `feedback` exist and neither `anon` nor
-`authenticated` holds any of select, insert, update or delete on any of them; `migration` reads `0063`.
+`authenticated` holds any of select, insert, update or delete on any of them; `migration` reads `0062`.
 
 ## What is still open to a browser role by default grant, and why it is left
 
-| object | grant left | what protects it | why 0063 left it |
+| object | grant left | what protects it | why 0062 left it |
 |---|---|---|---|
 | `ai_usage` | anon and authenticated hold all four verbs | RLS on with no policy: no row is visible or writable | outside the design's four (D7 names 0017, 0018, 0026, 0035); the same shape as the four and the next candidate for a revoke |
 | `item`, `scalar_setting`, `event_log`, `entity_type` | anon holds the default grant | every policy reads `auth.uid()` (null for anon) or `auth.role() = 'authenticated'`, so anon matches no row | the app's own tables since 0001; a policy is their door, and the design rewrites no policy (section 10 item 17) |
-| `get_subscription_tier()`, `get_user_settings()` | PUBLIC execute (0037's default) | each reads `scalar_setting` for `auth.uid()` only | 0037 was never applied live; 0063 sets their search_path when present and never creates them |
+| `get_subscription_tier()`, `get_user_settings()` | PUBLIC execute (0037's default) | each reads `scalar_setting` for `auth.uid()` only | 0037 was never applied live; 0062 sets their search_path when present and never creates them |
 | 44 of the 47 policies | n/a | each calls `auth.uid()` per row (the live advisor's finding); `item_change_select` and `item_link_select` use `(select auth.uid())`, `entity_type_select` reads `auth.role()` | the 45 per row policies are not rewritten in Phase 0 (section 10 item 17) |
 
 ## Sequences and the private schema
 
 | object | anon | authenticated | service_role | closed by |
 |---|---|---|---|---|
-| `ai_tokens_id_seq` | none | none | all | 0063 |
+| `ai_tokens_id_seq` | none | none | all | 0062 |
 | `client_error_id_seq` | none | none | all | 0053 |
 | schema `jarvis_private` (usage) | none | none | usage | 0044 |
 | `jarvis_private.agent_credential`, `agent_rate`, `context_snapshot`, `email_credential` | none | none | all | 0044 to 0047; PostgREST does not expose the schema |
@@ -309,4 +309,4 @@ foreign key.
 
 ## Proof
 
-`tests/posture.sh` (0063, 22 checks), `tests/memory.sh` (0060), `tests/inbox.sh` (0062), `tests/substrate.sh` (0044 and the RLS proof) and `tests/rehearsal.sh` (every migration forward, the Phase 0 and substrate migrations back and forward, the leakage inspection, then every proof) on the local Postgres (`tests/local_pg.sh`). Nothing on this page was read from the live project.
+`tests/posture.sh` (0062, 22 checks), `tests/memory.sh` (0060), `tests/inbox.sh` (0061), `tests/substrate.sh` (0044 and the RLS proof) and `tests/rehearsal.sh` (every migration forward, the Phase 0 and substrate migrations back and forward, the leakage inspection, then every proof) on the local Postgres (`tests/local_pg.sh`). Nothing on this page was read from the live project.

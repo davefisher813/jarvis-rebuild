@@ -57,7 +57,7 @@ TASK_PREP='{"destination_kind":"task","data":{"text":"Review transcript","catego
 
 echo "-- forward: stub + chain 0001..0059, fixtures, two rows that predate 0060, then 0060 twice"
 q -f "$here/stub_supabase.sql" >/dev/null
-for f in $(ls "$here"/../migrations/*.sql | sort | grep -v '/006[0-9]_'); do q -f "$f" >/dev/null; done
+for f in $(ls "$here"/../migrations/*.sql | sort | grep -v '/006[012]_'); do q -f "$f" >/dev/null; done
 q -f "$here/fixtures/substrate_fixtures.sql" >/dev/null
 q -c "insert into item (id, owner_id, entity_type, data) values ('$PRE_LINKED','$A','task','{\"text\":\"Book the flights\",\"category\":\"\",\"done\":false,\"projectId\":\"$PROJ_A\"}'), ('$PRE_DANGLING','$A','task','{\"text\":\"Pack\",\"category\":\"\",\"done\":false,\"projectId\":\"$MISSING\"}')" >/dev/null
 q -f "$here/../migrations/0060_memory.sql" >/dev/null

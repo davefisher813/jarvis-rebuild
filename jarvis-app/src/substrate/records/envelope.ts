@@ -1,7 +1,7 @@
 // THE RECORD ENVELOPE (PHASE0-DESIGN.md D6; docs/jarvis-unified/VYZN-SYNC-CONTRACT.md).
 //
 // An outside app hands JARVIS records inside one envelope, and every record lands as a proposal on the
-// inbox surface (migration 0062): an app proposes, the person's tap makes the item, and a newer revision
+// inbox surface (migration 0061): an app proposes, the person's tap makes the item, and a newer revision
 // of a saved record never overwrites it. This module is the TS side of that contract: the types, the
 // roster that turns an agent id into a name a person can read, and the one pure mapping from the backend
 // inbox's shape (family/inbox.js buildTask) to records. Nothing here reads the network or the environment;

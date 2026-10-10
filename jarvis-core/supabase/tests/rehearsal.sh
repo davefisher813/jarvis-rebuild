@@ -2,7 +2,7 @@
 # MIGRATION REHEARSAL (docs/jarvis-unified, slice 09; IMPLEMENTATION-SPEC.md
 # section 17: "migration rollback/forward rehearsal and key leakage
 # inspection"). On the throwaway Postgres (local_pg.sh): a fresh install of
-# every migration from 0001, the eight substrate migrations and 0060 to 0063 rolled back in
+# every migration from 0001, the eight substrate migrations and 0060 to 0062 rolled back in
 # reverse order, forward again, forward twice (idempotent), the leakage
 # inspection (no token, secret or credential column outside jarvis_private;
 # row level security on every substrate table; no function PUBLIC may run),
@@ -20,10 +20,10 @@ check() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: expected 
 step() { if "$@" >/dev/null 2>"$ERR"; then return 0; else echo "FAIL $*: $(tail -3 "$ERR")"; fail=1; return 1; fi; }
 
 UP=$(ls "$here"/../migrations/*.sql | sort)
-SUB_UP=$(ls "$here"/../migrations/00{44,45,46,47,48,49,50,51,60,62,63}_*.sql | sort)
-SUB_DOWN=$(ls "$here"/../rollback/00{44,45,46,47,48,49,50,51,60,62,63}_*_down.sql | sort -r)
+SUB_UP=$(ls "$here"/../migrations/00{44,45,46,47,48,49,50,51,60,61,62}_*.sql | sort)
+SUB_DOWN=$(ls "$here"/../rollback/00{44,45,46,47,48,49,50,51,60,61,62}_*_down.sql | sort -r)
 
-echo "== fresh install, 0001 to 0063 =="
+echo "== fresh install, 0001 to 0062 =="
 step q -f "$here/stub_supabase.sql" || { echo "SOME FAILED"; exit 1; }
 for f in $UP; do step q -f "$f" || { echo "SOME FAILED"; exit 1; }; done
 tables_full=$(q -c "select count(*) from pg_tables where schemaname='public'")
@@ -31,7 +31,7 @@ fns_full=$(q -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.p
 check "a fresh install has the substrate's tables" t "$(q -c "select (select count(*) from pg_tables where schemaname='public' and tablename in ('agent_connection','scope_grant','policy_suggestion','job','context_package','proposal','action','receipt_event','approval','email_account','email_message','email_message_body','source_evidence','decision_version','decision_dependency','email_candidate','email_draft','outbox_command','item_change','item_link'))=20")"
 echo "   tables $tables_full, functions $fns_full"
 
-echo "== rollback 0063 to 0060 and 0051 to 0044, in reverse =="
+echo "== rollback 0062 to 0060 and 0051 to 0044, in reverse =="
 for f in $SUB_DOWN; do step q -f "$f" || break; done
 check "the substrate's tables are gone after the rollback" 0 "$(q -c "select count(*) from pg_tables where schemaname='public' and tablename in ('action','receipt','approval','email_candidate','email_message','email_draft','context_package','agent_connection','item_change','item_link')")"
 check "the private schema is gone after the rollback" 0 "$(q -c "select count(*) from pg_namespace where nspname='jarvis_private'")"
@@ -39,7 +39,7 @@ tables_down=$(q -c "select count(*) from pg_tables where schemaname='public'")
 check "the app's older tables all survive the rollback (twenty fewer, none else)" "$((tables_full - 20))" "$tables_down"
 echo "   tables after rollback $tables_down"
 
-echo "== forward again, 0044 to 0051 and 0060 to 0063 =="
+echo "== forward again, 0044 to 0051 and 0060 to 0062 =="
 for f in $SUB_UP; do step q -f "$f" || break; done
 check "forward after rollback restores the same table count" "$tables_full" "$(q -c "select count(*) from pg_tables where schemaname='public'")"
 check "forward after rollback restores the same function count" "$fns_full" "$(q -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'")"
