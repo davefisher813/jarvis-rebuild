@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import {
   blockForDate, exceptionOn, protectedRangesOn, protectedRangesFor, splitProtectedRanges,
   type ProtectedBlock, type RoutineData, DEFAULT_ROUTINE,
@@ -19,6 +19,13 @@ import { weekRowsFor } from "../schedule/weekRows";
 const TODAY = "2026-10-01"; // a Thursday
 const NEXT = "2026-10-02";  // the Friday after
 const BF: ProtectedBlock = { id: "bf", label: "Breakfast", startMin: 9 * 60 + 30, endMin: 10 * 60 + 30, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal", soft: true };
+// The writers prune exceptions on past dates against the real clock, so the fixtures' day has to be today. Pinned
+// (Date only) so these hold after 2026-10-01 too; unpinned, every check here went red on 2026-10-02.
+// At load, not in a hook: some fixtures below are built while the file is collected.
+vi.useFakeTimers({ toFake: ["Date"] });
+vi.setSystemTime(new Date("2026-10-01T08:00:00"));
+afterAll(() => { vi.useRealTimers(); });
+
 const routineWith = (...blocks: ProtectedBlock[]): RoutineData => ({ ...DEFAULT_ROUTINE, protectedBlocks: blocks });
 
 describe("blockForDate", () => {
