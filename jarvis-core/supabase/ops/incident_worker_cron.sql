@@ -6,9 +6,10 @@
 -- What it makes: the 15-minute clock for connection incidents. Postgres calls the route once a minute, but only while
 -- an alert is actually due (an open incident, its alert still pending, past alert_due_at, not leased by a tick in
 -- flight), so an idle project makes no calls at all. The route rechecks each due incident against the same truth the
--- status route uses, suppresses the alert when the account has recovered, and otherwise asks for a user-scoped push
--- transport. There is none yet (no APNs key; the backend's web push broadcasts to every device), so it records the
--- alert as 'unavailable' and sends nothing. The in-app status is shown either way.
+-- status route uses, suppresses the alert when the account has recovered, and otherwise sends one Apple push to that
+-- owner's registered phones (api/_apns.ts), or records the alert 'unavailable' with why (no key, no phone). The
+-- backend's web push broadcasts to every device and is never used. The in-app status is shown either way.
+-- Run on production 2026-10-10 (job jarvis-incidents): real secret 200 with counts, wrong token 401.
 --
 -- The route proves the caller by asking the database (incident_cron_ok), so the secret never lives in an env var, a
 -- log or the repo: it is generated here, in the vault, and read by the job and the check inside Postgres only. It is
