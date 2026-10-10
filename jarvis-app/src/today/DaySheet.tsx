@@ -4,7 +4,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { countsForToday, countsDoneToday } from "./todayData";
 import { titleCase } from "../shared/casing";
 import { rowDoor, own } from "../shared/rowDoor";
-import { catColor, catName } from "../shared/categories";
+import CatChipLine, { chipArea } from "../shared/CatChipLine";
 import RowCtxAction from "../shared/RowCtxAction";
 
 // THE DAY RING OPENS ONTO THE DAY (Dave 2026-10-06: "tapping it opens a bottom
@@ -23,9 +23,9 @@ import RowCtxAction from "../shared/RowCtxAction";
 // THE SHEET'S OWN CARD (pass-off item 22, 2026-10-10). The card wears `xs`, the
 // class the app's other sheets wear, so the foot under the last row clears the
 // home indicator instead of sitting under it. A section with nothing in it is
-// not drawn: no heading, no empty state. The category dot under each title is
-// sized by `.day-sheet .conn-meta .cat-dot`; as a bare inline span it measured
-// zero wide and never showed.
+// not drawn: no heading, no empty state. The area under each title is the
+// unified chip (pass-off item 14, shared/CatChipLine), as on every other task
+// row; a task with no area shows no chip.
 //
 // NOTHING LEFT, NO SHEET (review, 2026-10-10). Moving the last task due today to
 // Tomorrow, with none done yet, empties both sections and takes the ring away
@@ -45,8 +45,8 @@ export default function DaySheet({ tasks, today, onToggle, onTomorrow, onOpen, o
   const done = mine.filter((t) => countsDoneToday(t, today));
   const empty = mine.length === 0;
   useEffect(() => { if (empty) onClose(); }, [empty, onClose]);
-  const where = (t: TaskItem) => catName(t.data.category) ? (
-    <div className="conn-meta"><span className="fact"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</span></div>
+  const where = (t: TaskItem) => chipArea(t.data.category) ? (
+    <div className="conn-meta"><CatChipLine category={t.data.category} /></div>
   ) : null;
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>

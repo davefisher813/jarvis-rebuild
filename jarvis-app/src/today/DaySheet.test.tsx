@@ -112,11 +112,11 @@ describe("the rows", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it("names each row's area with its dot", () => {
+  it("names each row's area with the unified chip, never the old dot", () => {
     const { sheet } = open([task("a", "Call the Bank")]);
     const meta = sheet.querySelector(".row .conn-meta")!;
-    expect(meta.querySelector(".cat-dot")).not.toBeNull();
-    expect(meta.textContent).toBe("Work");
+    expect(meta.querySelector(".cat-chip")?.textContent).toBe("Work");
+    expect(meta.querySelector(".cat-dot")).toBeNull();
   });
 });
 
