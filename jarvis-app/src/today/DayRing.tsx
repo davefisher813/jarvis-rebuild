@@ -1,10 +1,9 @@
 // Day progress ring for the Today hero (RDB, Dave 2026-07-29): due-today
-// tasks completed over due-today total. Fills as the day progresses, pops
-// once full. Renders nothing on days with no due tasks, so it never nags.
-// Catalog V3.1: reaching 100% fires the completion burst (the app's one
-// celebration primitive) on top of the ring pop.
-import type { CSSProperties } from "react";
-import { Burst } from "../shared/Burst";
+// tasks completed over due-today total. Fills as the day progresses, and
+// marks the moment it is full with one quiet halo (premium feel, 2026-10-10;
+// it used to pop and fire the dots burst). Renders nothing on days with no
+// due tasks, so it never nags.
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { pressable } from "../shared/pressable";
 
 // TWO NUMBERS THAT MEAN TWO THINGS (Dave 2026-08-29: the ring said 7/12
@@ -24,20 +23,36 @@ import { pressable } from "../shared/pressable";
 // THE RING IS A DOOR (Dave 2026-10-06): given onOpen, a tap opens the day it
 // counts (today/DaySheet). The evening's copy inside How Today Went is a
 // receipt and takes none.
+//
+// THE HALO IS FOR THE TICK THAT FILLS IT (premium feel, 2026-10-10). The ring
+// celebrates once, at the moment the last due task is ticked: .just-full is
+// set only when the ring goes from open to full while it is on screen, and
+// leaves once the halo has played. Opening Today on a day already finished
+// shows the full ring at rest, the way content never re-animates on a tab
+// visit (RDB, Dave 2026-07-29).
 export default function DayRing({ done, total, onOpen }: { done: number; total: number; onOpen?: () => void }) {
+  const full = total > 0 && done >= total;
+  const wasFull = useRef(full);
+  const [justFull, setJustFull] = useState(false);
+  useEffect(() => {
+    const filled = full && !wasFull.current;
+    wasFull.current = full;
+    if (!filled) return;
+    setJustFull(true);
+    const t = setTimeout(() => setJustFull(false), 500);
+    return () => clearTimeout(t);
+  }, [full]);
   if (total <= 0) return null;
-  const full = done >= total;
   const pct = Math.round(Math.min(1, done / total) * 100);
   return (
     <div
-      className={"dring" + (full ? " done" : "")}
+      className={"dring" + (full ? " done" : "") + (justFull ? " just-full" : "")}
       {...(onOpen ? {} : { role: "img" })}
       aria-label={`${done} of ${total} tasks due today are done${onOpen ? ", open the list" : ""}`}
       {...(onOpen ? pressable(onOpen) : {})}
       style={{ "--pct": `${pct}%` } as CSSProperties}
     >
       <div><b>{done}/{total}</b><span>done</span></div>
-      {full && <Burst show />}
     </div>
   );
 }

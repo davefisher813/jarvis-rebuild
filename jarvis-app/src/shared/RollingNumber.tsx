@@ -30,17 +30,21 @@ function prefersStill(): boolean {
 export default function RollingNumber({ value }: { value: number }) {
   const [shown, setShown] = useState(value);
   const [roll, setRoll] = useState<"" | "up" | "down">("");
-  const fromRef = useRef(value);
+  // The figure on screen, kept beside the state so the effect can read it.
+  const shownRef = useRef(value);
   const rafRef = useRef(0);
 
   useEffect(() => {
-    const from = fromRef.current;
+    // A new value while a count is still running starts from the figure on
+    // screen, not from where that count began, so the number never jumps back
+    // to an old value and counts the whole way again.
+    const from = shownRef.current;
     if (from === value) return;
+    const show = (n: number) => { shownRef.current = n; setShown(n); };
     cancelAnimationFrame(rafRef.current);
     const delta = value - from;
     if (prefersStill() || Math.abs(delta) <= ROLL_MAX) {
-      fromRef.current = value;
-      setShown(value);
+      show(value);
       setRoll(prefersStill() ? "" : delta > 0 ? "up" : "down");
       return;
     }
@@ -49,9 +53,8 @@ export default function RollingNumber({ value }: { value: number }) {
     const step = (now: number) => {
       const p = Math.min(1, (now - t0) / SETTLE_MS);
       const e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p); // expo ease-out
-      setShown(Math.round(from + delta * e));
+      show(Math.round(from + delta * e));
       if (p < 1) rafRef.current = requestAnimationFrame(step);
-      else fromRef.current = value;
     };
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);

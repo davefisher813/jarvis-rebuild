@@ -58,6 +58,20 @@ describe("RollingNumber: a change of a few rolls, a big change counts, Reduce Mo
     expect(rafQueue.length, "and stops").toBe(0);
   });
 
+  it("a new value mid-count carries on from the figure on screen, never jumping back to where the count began", () => {
+    const { container, rerender } = render(<RollingNumber value={0} />);
+    rerender(<RollingNumber value={1200} />);
+    act(() => flushFrames(120));
+    const mid = Number(container.textContent!.replace(/,/g, ""));
+    expect(mid).toBeGreaterThan(600);
+    rerender(<RollingNumber value={1500} />);
+    act(() => flushFrames(0)); // the new count's first frame (performance.now is pinned at 0)
+    const next = Number(container.textContent!.replace(/,/g, ""));
+    expect(next, "it never drops below where it was").toBeGreaterThanOrEqual(mid);
+    act(() => flushFrames(360));
+    expect(container.textContent).toBe("1,500");
+  });
+
   it("the app's own Motion setting (Reduced) snaps, as the phone's does", () => {
     html.dataset.motion = "reduce";
     const { container, rerender } = render(<RollingNumber value={0} />);

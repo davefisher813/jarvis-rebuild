@@ -1260,15 +1260,17 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* THE RING MOVES WITH THE DAY (premium feel, 2026-10-10). --pct is
    registered, so a tick glides the arc to its new share instead of jumping;
    and reaching the whole day lets one quiet halo leave the ring, where it
-   used to swell to 1.18 on a spring. The ring's own Burst is not drawn: the
-   halo is its moment. Celebration Off and Reduce Motion keep it still. */
+   used to swell to 1.18 on a spring. The halo plays on the tick that fills
+   the ring (.just-full, DayRing.tsx), never again on a later visit. The ring
+   draws no Burst: the halo is its moment. Celebration Off and Reduce Motion
+   keep it still. */
 @property --pct { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
 .dring .burst { display: none; }
 @keyframes dringHalo { 0% { box-shadow: 0 0 0 1px var(--divider), 0 0 0 0 var(--good-tint); }
   100% { box-shadow: 0 0 0 1px var(--divider), 0 0 0 12px transparent; } }
 @media (prefers-reduced-motion: no-preference) {
   html:not([data-motion="reduce"]) .dring { transition: --pct var(--dur-settle) var(--ease-out); }
-  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .dring.done { animation: dringHalo var(--dur-celebrate) var(--ease-out); }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .dring.just-full { animation: dringHalo var(--dur-celebrate) var(--ease-out); }
 }
 
 /* Skeleton building blocks for loading screens (pairs with .skel-line etc.).
@@ -7553,9 +7555,9 @@ span.row-star { cursor: default; }
 }
 @keyframes checkReveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @media (prefers-reduced-motion: no-preference) {
-  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .task-row.just-done .task-check.done,
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .just-done .task-check.done,
   html:not([data-motion="reduce"]):not([data-celebrate="off"]) .cb.on.just-checked { animation: checkFill var(--dur-normal) var(--ease-out); }
-  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .task-row.just-done .task-check.done::before {
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) .just-done .task-check.done::before {
     animation: checkDraw var(--dur-check) var(--ease-draw) 80ms both; }
   html:not([data-motion="reduce"]):not([data-celebrate="off"]) .cb.on.just-checked > .ic {
     animation: checkReveal var(--dur-check) var(--ease-draw) 80ms both; }
@@ -7661,12 +7663,12 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 @media (prefers-reduced-motion: no-preference) {
   html:not([data-motion="reduce"]) :is(.burst-ring, .payoff-mark .burst-wash, .focus-screen ~ .burst-wash)::before { animation: cvRing var(--dur-celebrate) var(--ease-out) forwards; }
   html:not([data-motion="reduce"]) .burst-bloom::before { animation: cvBloom var(--dur-celebrate) var(--ease-out) forwards; }
-  html:not([data-motion="reduce"]) :is(.task-row, .rem-row, .rem-card):has(.burst-wash) { animation: cvWash var(--dur-celebrate) var(--ease-out); }
-  html:not([data-motion="reduce"]):not([data-celebrate="off"]) :is(.task-row, .rem-row, .rem-card):has(.burst-wash) :is(.task-check.done, .cb.on) {
+  html:not([data-motion="reduce"]) :is(.task-row, .rem-row, .rem-card, .just-done):has(.burst-wash) { animation: cvWash var(--dur-celebrate) var(--ease-out); }
+  html:not([data-motion="reduce"]):not([data-celebrate="off"]) :is(.task-row, .rem-row, .rem-card, .just-done):has(.burst-wash) :is(.task-check.done, .cb.on) {
     animation: checkFill var(--dur-normal) var(--ease-out), cvHalo var(--dur-celebrate) var(--ease-out); }
-  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) :is(.task-row.just-done .task-check.done, .cb.on.just-checked) {
+  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) :is(.just-done .task-check.done, .cb.on.just-checked) {
     animation: checkFill var(--dur-normal) var(--ease-out), cvHalo var(--dur-celebrate) var(--ease-out); }
-  html[data-celebrate="gentle"][data-cv="2"]:not([data-motion="reduce"]) :is(.task-row.just-done, .rem-row:has(.cb.just-checked), .rem-card:has(.cb.just-checked)) {
+  html[data-celebrate="gentle"][data-cv="2"]:not([data-motion="reduce"]) :is(.just-done, .rem-row:has(.cb.just-checked), .rem-card:has(.cb.just-checked)) {
     animation: cvWash var(--dur-celebrate) var(--ease-out); }
 }
 @media (prefers-reduced-motion: reduce) {
