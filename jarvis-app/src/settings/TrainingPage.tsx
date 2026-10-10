@@ -55,7 +55,7 @@ export function platesToShow(unit: "lb" | "kg", on: number[]): number[] {
  *  Rack Unit row above it, so the note no longer opens with it (2026-10-05, a typed middle dot and "In Lb" jammed into
  *  the same line); the unit argument stays so a caller keeps one signature. */
 export function rackHint(_unit: "lb" | "kg"): string {
-  return "A lift logged in the other unit is converted both ways";
+  return "An exercise logged in the other unit is converted both ways";
 }
 
 /** THE RACK, as one piece (Health Push C, H-40, 2026-09-12): Settings,
@@ -94,7 +94,7 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
     <>
       <Card>
         {withShowLast && (
-          <Switch label="Last Time on Every Set" meta="Last Session Beside Each Set, with Tap-to-Match" on={settings.showLast}
+          <Switch label="Last Time on Every Set" meta="Last Workout Beside Each Set, with Tap-to-Match" on={settings.showLast}
             onToggle={() => set({ showLast: !settings.showLast })} />
         )}
         {/* Row tap (Dave 2026-09-15, "I want all rows clickable"): the row flips between the two units; each half still

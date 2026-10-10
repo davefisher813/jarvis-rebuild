@@ -115,8 +115,8 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
 
       <div className="pad-x">
         <div className="segmented">
-          <button type="button" className={"seg" + (mode === "lifts" ? " active" : "")} onClick={() => setMode("lifts")}>Lifts</button>
-          <button type="button" className={"seg" + (mode === "sessions" ? " active" : "")} onClick={() => setMode("sessions")}>Sessions</button>
+          <button type="button" className={"seg" + (mode === "lifts" ? " active" : "")} onClick={() => setMode("lifts")}>Exercises</button>
+          <button type="button" className={"seg" + (mode === "sessions" ? " active" : "")} onClick={() => setMode("sessions")}>Workouts</button>
         </div>
       </div>
 
@@ -124,8 +124,8 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
         <GymLoadState status={status} what="Your History" onRetry={onRetry ?? (() => {})} />
       ) : mode === "sessions" ? (
         groups.length === 0 ? (
-          <div className="empty-state"><div className="empty-title">No Sessions Yet</div>
-            <div className="empty-sub">Finish a session and it shows up here</div></div>
+          <div className="empty-state"><div className="empty-title">No Workouts Yet</div>
+            <div className="empty-sub">Finish a Workout and It Shows Up Here</div></div>
         ) : (
           groups.map((g) => (
             <div key={g.label}>
@@ -164,14 +164,14 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
         <div className="empty-state"><div className="empty-title">No Numbers Yet</div>
           {/* B14: not a button, because history is earned in the gym, but the
               bare title read as broken instead of as new. */}
-          <div className="empty-sub">Log a set in any session and it shows up here</div></div>
+          <div className="empty-sub">Log a Set in Any Workout and It Shows Up Here</div></div>
       ) : (
         <>
         {/* THE TRAINING SURFACE ONTO THE RULINGS (2026-09-03): every list on a
             ruled screen is a card, and the two lists here read alike -- Done
             Work already had its head, so the lifts get theirs ("if one should,
             all should", the Schedule heads ruling). */}
-        <div className="sh2 sh2-quiet"><span className="t">Lifts</span></div>
+        <div className="sh2 sh2-quiet"><span className="t">Exercises</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {rows.map((r) => (
             <div className="row" role="button" tabIndex={0} key={(r.exerciseKey ?? r.name) + r.kind}

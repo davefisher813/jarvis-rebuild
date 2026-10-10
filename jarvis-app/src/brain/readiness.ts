@@ -280,7 +280,7 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
     ),
     slipRow(rows),
     planRow(rows),
-    bandRow("training_window", "When You Train", "sessions", workoutDone(rows)),
+    bandRow("training_window", "When You Train", "workouts", workoutDone(rows)),
     bandRow("email_window", "When Email Gets Done", "emails handled", emailHandled(rows)),
     peopleRow(rows, people),
     quietRow(people, nowMs),

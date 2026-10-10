@@ -271,7 +271,7 @@ export default function LiftDetailScreen({
                       </div>
                       <div className="ex-cell">
                         <div className="ex-cell-n">{sessions.length}</div>
-                        <div className="ex-cell-k">{sessions.length === 1 ? "Session" : "Sessions"}</div>
+                        <div className="ex-cell-k">{sessions.length === 1 ? "Workout" : "Workouts"}</div>
                       </div>
                     </div>
                     {/* Both dates are the point, so the pair wraps whole in
@@ -306,7 +306,7 @@ export default function LiftDetailScreen({
                   </div>
                 </div>
               </div>
-              <div className="row"><div className="row-grow"><div className="conn-meta">Trend Starts at Session 2</div></div></div>
+              <div className="row"><div className="row-grow"><div className="conn-meta">Trend Starts at Workout 2</div></div></div>
             </div></div>
           ) : (
             <div className="pad-x"><div className="card pad banner-blue">
@@ -334,7 +334,7 @@ export default function LiftDetailScreen({
                 )}
               </div>
               <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
-                aria-label={`${name} ${label} trend over ${sessions.length} sessions`}>
+                aria-label={`${name} ${label} trend over ${sessions.length} workouts`}>
                 <line x1={PAD} y1={CHART_H - PAD} x2={CHART_W - PAD} y2={CHART_H - PAD} stroke="currentColor" opacity={0.12} />
                 {path && <path d={path} fill="none" stroke="var(--blue)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
                 {pts.map((p, i) => prs.has(i) ? (
@@ -346,7 +346,7 @@ export default function LiftDetailScreen({
                     the keyboard; no axes are drawn (H-34). */}
                 {pts.map((p, i) => (
                   <circle key={"h" + i} cx={p.x} cy={p.y} r={10} fill="transparent" role="button" tabIndex={0}
-                    aria-label={`Session ${i + 1} of ${pts.length}`} onClick={() => setSel(i)}
+                    aria-label={`Workout ${i + 1} of ${pts.length}`} onClick={() => setSel(i)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }} />
                 ))}
               </svg>
@@ -371,7 +371,7 @@ export default function LiftDetailScreen({
                 {/* Both ends as dates, the way the Best card states the
                     same span, so the page says one range one way. */}
                 <span className="se-chip se-chip-when">{shortDate(sessions[0]!.date)} to {shortDate(sessions[sessions.length - 1]!.date)}</span>
-                <span className="se-chip se-chip-last">{sessions.length}<em>Sessions</em></span>
+                <span className="se-chip se-chip-last">{sessions.length}<em>Workouts</em></span>
                 {prs.size > 0 && readHealthSettings().celebrations && <span className="se-chip se-chip-best">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
               </div>
               {/* Epley, and what the number is not, one tap away: the same
@@ -493,7 +493,7 @@ export default function LiftDetailScreen({
               <div className="pad-x"><div className="card list-card-ruled banner-warn">
                 <div className="row">
                   <div className="row-grow">
-                    <div className="conn-name">{lineCase(`${plateau.flatSessions} sessions with no new best`)}</div>
+                    <div className="conn-name">{lineCase(`${plateau.flatSessions} workouts with no new best`)}</div>
                     {/* §AM (2026-09-26): three facts, the separator drawn by
                         CSS. The stalled current value is amber, the same
                         reading the Brain plateau card gives, and it leads:
@@ -689,7 +689,7 @@ export default function LiftDetailScreen({
           <div className="sh2 sh2-quiet"><span className="t">Milestones</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             <div className="row">
-              <div className="row-grow"><div className="conn-name">First Session</div><div className="facts"><span className="fact date">{shortDate(sessions[0]!.date)}</span></div></div>
+              <div className="row-grow"><div className="conn-name">First Workout</div><div className="facts"><span className="fact date">{shortDate(sessions[0]!.date)}</span></div></div>
             </div>
             {best && bestShown && (
               <div className="row">
@@ -698,7 +698,7 @@ export default function LiftDetailScreen({
             )}
           </div></div>
 
-          <div className="sh2 sh2-quiet"><span className="t">Sessions</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Workouts</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {(() => {
               // HOW IT MOVED (catalog §4.5): a fact once there is history to

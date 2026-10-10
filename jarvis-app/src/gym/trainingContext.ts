@@ -74,7 +74,7 @@ export function trainingLines(input: TrainingContextInput): string[] {
   const summary = trainingSummary(workouts, today);
   if (summary.last) {
     lines.push(
-      "Last session: " + summary.last.dayName + ", " + shortDate(summary.last.date)
+      "Last workout: " + summary.last.dayName + ", " + shortDate(summary.last.date)
       + ", " + summary.last.minutes + " min",
     );
   }

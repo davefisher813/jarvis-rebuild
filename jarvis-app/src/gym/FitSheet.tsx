@@ -188,7 +188,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
             {est.liftCount === 0 && est.condCount > 0
               ? lineCase("timed from the block's own clock")
               : est.learnedCount > 0
-                ? lineCase(`${est.learnedCount} of ${est.liftCount} lifts at your logged pace`)
+                ? lineCase(`${est.learnedCount} of ${est.liftCount} exercises at your logged pace`)
                 : "Default Pace, Improves as You Log"}
             {est.cappedCount > 0 && lineCase("; a For Time cap is the ceiling, not a forecast")}
           </div>

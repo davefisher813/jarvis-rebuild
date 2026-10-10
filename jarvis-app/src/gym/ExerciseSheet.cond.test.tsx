@@ -63,7 +63,7 @@ describe("ExerciseSheet, the grouped table", () => {
     const { baseElement } = render(<ExerciseSheet mode="new" library={[]} history={[]} onSave={onSave} onCancel={onCancel} />);
     expect(baseElement.querySelector(".sheet-bar .sheet-bar-title")).toHaveTextContent("New Exercise");
     expect(baseElement.querySelector(".sheet-bar-cancel")).toHaveTextContent("Cancel");
-    expect([...baseElement.querySelectorAll(".xs-grp .eyebrow")].map((e) => e.textContent)).toEqual(["Name", "Sets", "Tracks", "In the Session", "Note"]);
+    expect([...baseElement.querySelectorAll(".xs-grp .eyebrow")].map((e) => e.textContent)).toEqual(["Name", "Sets", "Tracks", "In This Workout", "Note"]);
     expect(baseElement.querySelector(".chip-row")).toBeNull();
     expect(baseElement.querySelectorAll(".chip")).toHaveLength(0);
     // The tiles: one hue per row, the glyph names the row.

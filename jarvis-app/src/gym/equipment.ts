@@ -487,3 +487,35 @@ export function splitEquipmentSuffix(raw: string): { name: string; equipment?: E
   if (!equipment || !name || name.endsWith(")")) return { name: raw };
   return { name, equipment };
 }
+
+/** MISSPELLINGS THE APP HAS SEEN IN A SAVED NAME, AND THE WORD MEANT (Dave
+ *  2026-10-09, pass-off item 6: "Tri Entension" should read "Tri Extension").
+ *  Whole words only, any case, so a correct name never changes; keys are the
+ *  misspelling in lower case. A new entry is a word somebody actually saved,
+ *  never a guess at what they might type. */
+const NAME_TYPOS: Record<string, string> = {
+  entension: "extension",
+  entensions: "extensions",
+};
+
+/** A name with every known misspelling put right, keeping the case the word
+ *  was typed in ("Entension" to "Extension", "ENTENSION" to "EXTENSION").
+ *  Pure and idempotent; a name with nothing to fix comes back unchanged. */
+export function fixNameTypos(raw: string): string {
+  return raw.replace(/[A-Za-z]+/g, (word) => {
+    const fixed = NAME_TYPOS[word.toLowerCase()];
+    if (!fixed) return word;
+    if (word === word.toUpperCase()) return fixed.toUpperCase();
+    if (word[0] === word[0]!.toUpperCase()) return fixed[0]!.toUpperCase() + fixed.slice(1);
+    return fixed;
+  });
+}
+
+/** THE ONE CLEAN-UP A SAVED NAME GETS (pass-off items 5 and 6): misspellings
+ *  put right, then a trailing equipment word taken off and kept as the
+ *  equipment. Both the save door (ExerciseSheet) and the once-per-visit
+ *  library cleanup (equipmentCleanup.ts) read this, so a name is cleaned the
+ *  same way wherever it is written. */
+export function cleanExerciseName(raw: string): { name: string; equipment?: Equipment } {
+  return splitEquipmentSuffix(fixNameTypos(raw));
+}

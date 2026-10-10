@@ -185,7 +185,7 @@ describe("a lift added to a finished workout", () => {
     // What a record keeps stays.
     for (const kept of ["Measure", "Muscle"]) expect(screen.getAllByText(kept).length, kept).toBeGreaterThan(0);
     // What only a live session or a day can use does not.
-    for (const gone of ["Rest Timer", "Warm-Up Ramp", "Filler", "Clock", "In the Session"]) expect(screen.queryByText(gone), gone).toBeNull();
+    for (const gone of ["Rest Timer", "Warm-Up Ramp", "Filler", "Clock", "In This Workout"]) expect(screen.queryByText(gone), gone).toBeNull();
     expect(screen.queryByLabelText("Note")).toBeNull();
   });
 
@@ -243,7 +243,7 @@ describe("Add from Your Lifts carries what the lift's sheet planned", () => {
     fireEvent.click(await screen.findByText("Push", { selector: ".row-grow .conn-name, .row-grow *" }, { timeout: 4000 }));
     // The day's Add Exercise capsule (on the Exercises head) opens the two doors, the picker first.
     fireEvent.click(await screen.findByRole("button", { name: "Add Exercise" }));
-    fireEvent.click(await screen.findByText("Add from Your Lifts"));
+    fireEvent.click(await screen.findByText("Add from Your Exercises"));
     fireEvent.click(await screen.findByText("Zercher Squat", { selector: ".conn-name" }));
     fireEvent.click(screen.getByRole("button", { name: "Add 1" }));
     await waitFor(async () => {

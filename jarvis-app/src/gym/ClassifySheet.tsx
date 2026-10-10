@@ -322,7 +322,7 @@ export default function ClassifySheet({
                     than the ISO string the store happens to keep. */}
                 <div className="row xs-row"><div className="row-grow"><div className="conn-meta">
                   {scope === "all" ? (
-                    <span className="fact">Every Session, Past and Future</span>
+                    <span className="fact">Every Workout, Past and Future</span>
                   ) : scope === "future" ? (
                     <>
                       <span className="fact date">{`From ${monthDay(todayIso)} on`}</span>
@@ -372,7 +372,7 @@ export default function ClassifySheet({
             <div className="row xs-row"><div className="row-grow">
               <details className="exp-more">
                 <summary>About Changing This</summary>
-                <div className="conn-meta">Sessions already logged keep the numbers and units they were recorded with</div>
+                <div className="conn-meta">Workouts Already Logged Keep the Numbers and Units They Were Recorded With</div>
               </details>
             </div></div>
           </div></div>

@@ -5,5 +5,5 @@
  *  read "Not enough days yet forBodyweightandRDLs (dumbbell),1of10paired
  *  sessions." One string is one text node, so every reader gets the words. */
 export function notEnoughDaysLine(n: { def: string; ex: string; p: { paired: number; needed: number } }): string {
-  return `Not enough days yet for ${n.def} and ${n.ex}, ${n.p.paired} of ${n.p.needed} paired sessions.`;
+  return `Not enough days yet for ${n.def} and ${n.ex}, ${n.p.paired} of ${n.p.needed} paired workouts.`;
 }

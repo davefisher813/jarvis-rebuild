@@ -7330,6 +7330,13 @@ span.row-star { cursor: default; }
 /* AND ITS ADD EXERCISE beside it (Dave 2026-10-05, locked: a section's add is its head's capsule); alone, it takes the edge. */
 .ruled.health-ruled .sh2 .pill-act.se-add { order: 2; align-self: center; margin-left: auto; }
 .ruled.health-ruled .sh2 .pill-act.se-sup + .pill-act.se-add { margin-left: var(--s-2); }
+/* AND THE TWO RIDE ONE CLUSTER (pass-off item 11, 2026-10-10). With the add saying Add Exercise on its face, the title, the
+   leader and both capsules no longer fit one line at 390, and the title was cut to "This ...". The cluster takes the
+   head's own answer for more capsules than room (A HEAD WITH MORE CAPSULES THAN ROOM, below): one row when it fits, its own
+   right-aligned row under the title when it does not. One rule for both themes. */
+.ruled.health-ruled .sh2:has(> .se-head-acts) { flex-wrap: wrap; row-gap: var(--s-1); }
+.ruled.health-ruled .sh2 .sec-left.se-head-acts { margin: 0 0 0 auto; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; row-gap: var(--s-1); }
+.ruled.health-ruled .sh2 .se-head-acts .pill-act.se-sup, .ruled.health-ruled .sh2 .se-head-acts .pill-act.se-add { margin-left: 0; }
 /* THE SUPERSET SWITCHER under the lift's name: one door per member, the one
    on screen filled with the selected ink (the app's own "this one" fill,
    as on the decision outcome chips) and without the door's chevron, since

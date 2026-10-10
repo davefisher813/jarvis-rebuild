@@ -215,7 +215,7 @@ describe("a superset in the live session", () => {
 });
 
 describe("cancelling a workout", () => {
-  it("the foot of This Session cancels, after asking, and Keep Going changes nothing", () => {
+  it("the top bar's Cancel cancels, after asking, and Keep Going changes nothing", () => {
     const onCancel = vi.fn();
     renderScreen({ onCancel, live: live([{ id: "x1", w: 225, r: 5 }], []) });
     fireEvent.click(screen.getByRole("button", { name: "Cancel Workout" }));

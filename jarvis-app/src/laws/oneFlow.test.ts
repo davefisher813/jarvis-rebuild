@@ -63,7 +63,11 @@ describe("§AN: one logging flow", () => {
 
   it("a started workout can be cancelled, after asking, with Undo", () => {
     const screen = read("gym/SessionScreen.tsx");
-    expect(screen).toMatch(/>Cancel Workout<\/button>/);
+    // AMENDED 2026-10-10 (pass-off item 12: "Cancel Workout sits right above
+    // the Log button"): the door is the top bar's leading word, as on mockup
+    // 4, as far from Log as the screen goes, and it still asks first.
+    expect(screen).toMatch(/aria-label="Cancel Workout" onClick=\{\(\) => setCancelAsk\(true\)\}>Cancel<\/button>/);
+    expect(screen, "and nothing destructive sits over the log bar").not.toMatch(/btn-danger-text" onClick=\{\(\) => setCancelAsk/);
     expect(screen, "the confirm's way out is not a second Cancel").toMatch(/dismissLabel="Keep Going"/);
     const flow = read("gym/GymFlow.tsx");
     const cancel = flow.slice(flow.indexOf("onCancel={() => {"), flow.indexOf("onBack={parkSession}"));

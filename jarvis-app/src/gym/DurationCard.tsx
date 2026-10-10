@@ -81,7 +81,7 @@ export default function DurationCard({ workout, onCorrect }: {
           </div>
         )}
         {d.flagged && (
-          <div className="row"><div className="row-grow"><div className="conn-name">The recorded end runs far past the last logged set, so this session may have been left open</div></div></div>
+          <div className="row"><div className="row-grow"><div className="conn-name">The Recorded End Runs Far Past the Last Logged Set, so This Workout May Have Been Left Open</div></div></div>
         )}
         {revisions.map((r, i) => (
           <div className="row" key={i}>

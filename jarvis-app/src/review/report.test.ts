@@ -91,7 +91,7 @@ describe("tiles and deltas", () => {
     }));
     // The hero already leads with the done count here (no crossings), so a Done tile would say the same number twice.
     expect(r.hero.label).toBe("Things Done");
-    expect(r.tiles.map((t) => t.label)).toEqual(["Sessions", "Days Checked In", "Deposits"]);
+    expect(r.tiles.map((t) => t.label)).toEqual(["Workouts", "Days Checked In", "Deposits"]);
     // "-2" with nothing beside it was a number nobody could read; it names the month it is against.
     expect(r.tiles[0]!.delta).toEqual({ text: "−2 Vs July", up: false });
     // No change says nothing: a row with nothing to say shows nothing, so "Same" is not drawn.
@@ -307,7 +307,7 @@ describe("the life cards", () => {
   it("health: one line, PRs green, sets the one grey, and the exit is the health area", () => {
     const r = buildReport(inputs({ seal: emptySeal("2026-08", { sessions: 12, training: { sets: 140, prs: 3 } }), healthCategoryId: "hc" }));
     const h = r.life.find((c) => c.id === "health")!;
-    expect(h.title).toBe("12 Sessions");
+    expect(h.title).toBe("12 Workouts");
     expect(h.facts).toEqual([{ text: "3 PRs", tone: "good" }, { text: "140 Working Sets", parts: [{ b: "140" }, " Working Sets"] }]);
     expect(h.exit).toEqual({ label: "Open Health Insights", kind: "health", id: "hc" });
   });

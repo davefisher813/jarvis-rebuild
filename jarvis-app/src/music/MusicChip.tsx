@@ -39,8 +39,10 @@ export default function MusicChip({ context }: { context: MusicContext }) {
         >
           {remembered ? remembered.label : "Music"}
         </div>
+        {/* CHANGE WHAT? (Dave 2026-10-09, pass-off item 11). "Change" beside
+            "Apple Music" did not say; the word on the chip does now. */}
         {remembered && (
-          <div className="chip" role="button" tabIndex={0} aria-label="Change music" onClick={() => setOpen(true)}>Change</div>
+          <div className="chip" role="button" tabIndex={0} onClick={() => setOpen(true)}>Change Music</div>
         )}
       </div>
     );

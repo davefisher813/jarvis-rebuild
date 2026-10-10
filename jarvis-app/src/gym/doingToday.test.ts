@@ -77,7 +77,7 @@ describe("populating a day, and the one thing the sheet will not let you do", ()
     // "Add Exercise" capsule on the day's Exercises head, and the picker is
     // still the first of the two.
     const flow = read("gym/GymFlow.tsx");
-    const lifts = flow.indexOf('label: "Add from Your Lifts"');
+    const lifts = flow.indexOf('label: "Add from Your Exercises"');
     const author = flow.indexOf('label: "New Exercise"');
     expect(lifts, "the picker is rendered").toBeGreaterThan(-1);
     expect(author, "so is the authoring door").toBeGreaterThan(-1);

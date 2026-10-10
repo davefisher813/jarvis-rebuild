@@ -68,9 +68,9 @@ describe("TrainingPage: the unit hint", () => {
   it("is one plain sentence, whichever unit, with no dot typed in it and no unit jammed into it", () => {
     render(<TrainingPage onBack={() => {}} />);
     const hint = () => document.querySelector(".input-hint")!;
-    expect(hint().textContent).toBe("A lift logged in the other unit is converted both ways");
+    expect(hint().textContent).toBe("An exercise logged in the other unit is converted both ways");
     fireEvent.click(screen.getByText("Kg", { selector: ".seg" }));
-    expect(hint().textContent).toBe("A lift logged in the other unit is converted both ways");
+    expect(hint().textContent).toBe("An exercise logged in the other unit is converted both ways");
     expect(hint().textContent).not.toContain("\u00b7");
   });
 });

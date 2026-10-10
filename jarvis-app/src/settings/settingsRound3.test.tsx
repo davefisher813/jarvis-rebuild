@@ -67,7 +67,7 @@ describe("Training: the unit note sits under the unit, and the plates say what a
     expect(cards.length).toBe(2);
     const first = cards[0]!;
     expect(first.querySelector('[aria-label="Rack Unit"]'), "the first card holds the unit").not.toBeNull();
-    expect(norm(first.nextElementSibling!.querySelector(".input-hint"))).toBe("A lift logged in the other unit is converted both ways");
+    expect(norm(first.nextElementSibling!.querySelector(".input-hint"))).toBe("An exercise logged in the other unit is converted both ways");
     // And the plates card has its own line, not the unit's.
     expect(norm(cards[1]!.nextElementSibling!.querySelector(".input-hint"))).toBe("Tap a plate to turn it off or on");
   });

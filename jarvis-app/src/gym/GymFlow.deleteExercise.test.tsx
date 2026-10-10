@@ -152,8 +152,8 @@ describe("GymFlow: Delete Exercise with logged history", () => {
     await openMenu("Bench Press");
     fireEvent.click(screen.getByRole("button", { name: "Delete Exercise" }));
     const sheet = await screen.findByRole("dialog", { name: "Delete Bench Press" });
-    expect(within(sheet).getByText("2 Sessions, 6 Sets")).toBeInTheDocument();
-    expect(within(sheet).getByText("1 Session Left Empty Is Removed")).toBeInTheDocument();
+    expect(within(sheet).getByText("2 Workouts, 6 Sets")).toBeInTheDocument();
+    expect(within(sheet).getByText("1 Workout Left Empty Is Removed")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Archive Instead" })).toBeInTheDocument();
 
     await act(async () => { fireEvent.click(within(sheet).getByRole("button", { name: "Delete Exercise and Its History" })); });

@@ -29,7 +29,7 @@
 //     name alone (the goal would stop seeing it).
 
 import type { Exercise, MeasureKind, Program, Workout } from "./types";
-import { defaultCount, splitEquipmentSuffix, type Equipment } from "./equipment";
+import { cleanExerciseName, defaultCount, type Equipment } from "./equipment";
 import { EMPTY_CLASS, type ClassStore } from "./classify";
 import { renameLift, libraryKeyOf, aliasesAfterRename, type AliasMap, type LibraryPatch } from "./libraryEdit";
 import type { CreatedLift } from "./settings";
@@ -56,7 +56,8 @@ export interface CleanupRename {
   stampedKey: string;
   from: string;
   to: string;
-  equipment: Equipment;
+  /** Absent when the name only had a misspelling put right. */
+  equipment?: Equipment;
 }
 
 export interface CleanupPlan {
@@ -118,13 +119,15 @@ export function planEquipmentCleanup(input: CleanupInput): CleanupPlan | null {
   const all = sightings(input);
   // Every identity that has at least one sighting whose name ends in an
   // equipment word, with the first such name and what it says.
-  const dirty = new Map<string, { name: string; equipment: Equipment; exerciseKey?: string }>();
+  // AND EVERY NAME WITH A KNOWN MISSPELLING (pass-off item 6, "Tri
+  // Entension"): the same rename door, so its history follows it.
+  const dirty = new Map<string, { name: string; equipment?: Equipment; exerciseKey?: string }>();
   for (const s of all) {
     const key = libraryKeyOf(s);
     if (dirty.has(key)) continue;
-    const split = splitEquipmentSuffix(s.name);
-    if (!split.equipment || split.name === s.name) continue;
-    dirty.set(key, { name: s.name, equipment: split.equipment, ...(s.exerciseKey ? { exerciseKey: s.exerciseKey } : {}) });
+    const clean = cleanExerciseName(s.name);
+    if (clean.name === s.name) continue;
+    dirty.set(key, { name: s.name, ...(clean.equipment ? { equipment: clean.equipment } : {}), ...(s.exerciseKey ? { exerciseKey: s.exerciseKey } : {}) });
   }
   if (dirty.size === 0) return null;
 
@@ -143,7 +146,7 @@ export function planEquipmentCleanup(input: CleanupInput): CleanupPlan | null {
     if (input.busy({ key, ...(d.exerciseKey ? { exerciseKey: d.exerciseKey } : {}) })) continue;
     // A goal that follows this lift by its name alone would stop seeing it.
     if (input.goals.some((g) => !g.exerciseKey && g.exercise === d.name)) continue;
-    const to = splitEquipmentSuffix(d.name).name;
+    const to = cleanExerciseName(d.name).name;
     const stampedKey = d.exerciseKey ?? derivedKey(key);
 
     // 1. The records and the programs, through the library's own rename.
@@ -161,7 +164,7 @@ export function planEquipmentCleanup(input: CleanupInput): CleanupPlan | null {
           days: wk.days.map((day) => ({
             ...day,
             exercises: day.exercises.map((e: Exercise) => (
-              e.exerciseKey === stampedKey && e.kind === "weight_reps" && !e.equipment
+              d.equipment && e.exerciseKey === stampedKey && e.kind === "weight_reps" && !e.equipment
                 ? { ...e, equipment: d.equipment, counted: e.counted ?? defaultCount(d.equipment) }
                 : e)),
           })),
@@ -175,10 +178,10 @@ export function planEquipmentCleanup(input: CleanupInput): CleanupPlan | null {
     let seedTouched = false;
     createdLifts = createdLifts.map((c) => {
       if (c.key !== key && c.key !== stampedKey) return c;
-      const split = splitEquipmentSuffix(c.name);
-      if (split.name === c.name) return c;
+      const clean = cleanExerciseName(c.name);
+      if (clean.name === c.name) return c;
       seedTouched = true;
-      return { ...c, key: stampedKey, name: split.name };
+      return { ...c, key: stampedKey, name: clean.name };
     });
     if (isEmptyPatch(withPlanEquipment) && !seedTouched) continue;
 
@@ -191,7 +194,7 @@ export function planEquipmentCleanup(input: CleanupInput): CleanupPlan | null {
       store[stampedKey] = filed;
     }
     const said = !!filed?.equipment || all.some((s) => libraryKeyOf(s) === key && !!s.equipment);
-    if (!said) {
+    if (!said && d.equipment) {
       store[stampedKey] = { ...(filed ?? EMPTY_CLASS), equipment: d.equipment, counted: filed?.counted ?? defaultCount(d.equipment) };
     }
 

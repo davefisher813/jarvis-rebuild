@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { own, rowDoor } from "../shared/rowDoor";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
-import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, splitEquipmentSuffix, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
+import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, cleanExerciseName, fixNameTypos, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
 import { condCap, condLength, mmss } from "./conditioning";
 import { fieldsFor, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
@@ -300,7 +300,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
     // its equipment, unless an equipment was picked on the sheet, which wins.
     // Only on a weighted lift, the one kind the sheet saves an equipment for,
     // so the word is never dropped without its answer being kept.
-    const split = kind === "weight_reps" ? splitEquipmentSuffix(name.trim()) : { name: name.trim() };
+    // And a known misspelling is put right on the way in (pass-off item 6,
+    // "Tri Entension"), whatever the kind.
+    const split = kind === "weight_reps" ? cleanExerciseName(name.trim()) : { name: fixNameTypos(name.trim()) };
     const eq = equipment || split.equipment || "";
     const ct = equipment ? counted : split.equipment ? defaultCount(split.equipment) : counted;
     const emit = (name: string) => onSave({
@@ -595,7 +597,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
 
           {/* IN THE SESSION: what the live screen does with this exercise. */}
           {!record && <>
-          <div className="grp xs-grp"><div className="eyebrow">In the Session</div></div>
+          <div className="grp xs-grp"><div className="eyebrow">In This Workout</div></div>
           <div className="pad-x"><div className="card xs-group">
             {/* REST TIMER (catalog §4.3), optional and per-exercise. 0 means no
                 timer offered in-session -- most "done" and reps work has none. */}
@@ -681,7 +683,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   <div className="row-grow">
                     <div className="conn-name">{`Add to ${alsoOnDay.dayName}`}</div>
                     <div className="facts">
-                      <span className="fact">{alsoOnDay.value ? "Kept for next time, can be paired" : "This session only"}</span>
+                      <span className="fact">{alsoOnDay.value ? "Kept for next time, can be paired" : "This Workout Only"}</span>
                     </div>
                   </div>
                   <div className={"switch" + (alsoOnDay.value ? "" : " off")} role="switch" aria-checked={alsoOnDay.value}

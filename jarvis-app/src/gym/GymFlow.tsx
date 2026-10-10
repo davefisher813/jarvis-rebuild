@@ -316,17 +316,17 @@ function WorkoutMetaSheet({ initialName, initialDate, onSave, onCancel }: {
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">This Session</div></div>
+        <div className="grp"><div className="eyebrow">This Workout</div></div>
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className="input" {...NAME_FIELD} value={name} aria-label="Session Name" onChange={(e) => setName(e.target.value)} />
+            <input className="input" {...NAME_FIELD} value={name} aria-label="Workout Name" onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="field">
             <div className="input-label">Date</div>
             {/* No future date: this is a session that already happened, the
                 same rule backdating keeps. */}
-            <input className="input" type="date" max={todayISO()} value={date} aria-label="Session Date" onChange={(e) => setDate(e.target.value)} />
+            <input className="input" type="date" max={todayISO()} value={date} aria-label="Workout Date" onChange={(e) => setDate(e.target.value)} />
           </div>
         </div>
         <div className="pad-x sheet-actions">
@@ -379,7 +379,7 @@ function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
   return (
     <div {...pressable(onOpen)} className="row">
       <div className="row-grow">
-        <div className="conn-name">Your Lifts</div>
+        <div className="conn-name">Your Exercises</div>
       </div>
       {/* A CHIP ON THE ROW, NOT A LINE UNDER IT (Dave 2026-09-18: "your lifts
           subtext should be a chip"; health polish 2026-09-16 before it: "Your
@@ -433,7 +433,7 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           lift or a state worth stating. */}
       {(day.exercises.length > 0 || current || doneWord) && (
         <div className="facts">
-          {day.exercises.length > 0 && <span className="fact">{lineCase(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>}
+          {day.exercises.length > 0 && <span className="fact">{lineCase(`${day.exercises.length} ${day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>}
           {current && <span className="fact st cyan">Live</span>}
           {!current && doneWord && <span className="fact lime">{doneWord}</span>}
         </div>
@@ -714,7 +714,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
             <div className="row">
               <div className="row-grow">
                 <div className="conn-name">{mins > 0 ? spanLabel(mins) : "Not Counted"}</div>
-                <div className="conn-meta">Counted toward the session estimate</div>
+                <div className="conn-meta">Counted Toward the Workout Estimate</div>
               </div>
               <Stepper value={mins} step={1} min={0} label="Minutes" onChange={setMins} />
             </div>
@@ -1187,7 +1187,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // exercise still named "Chest Flys (Machine)" is renamed "Chest Flys" with
   // Machine as its equipment, through the library's own rename: the key is
   // kept, the old name becomes an alias, and the classification takes the
-  // equipment only when nothing has said one (gym/equipmentCleanup.ts). Once
+  // equipment only when nothing has said one (gym/equipmentCleanup.ts). A
+  // known misspelling ("Tri Entension", pass-off item 6) is put right through
+  // the same door, so the record keeps its history. Once
   // per visit; idempotent, so a clean library costs one scan. A write that
   // fails says nothing (nobody asked for this one) and the next visit finishes
   // it on the same key.
@@ -2562,7 +2564,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       await reload();
       if (!ok) return;
       setViewWorkout({ ...w, data: { ...w.data, ...patch } });
-      showToast({ message: "Session updated" });
+      showToast({ message: "Workout Updated" });
     };
     return (
       <div className="screen ruled health-ruled">
@@ -2595,7 +2597,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           await reload();
           if (!ok) return;
           setViewWorkout({ ...w, data: { ...w.data, ...patch } });
-          showToast({ message: "Session end corrected" });
+          showToast({ message: "Workout End Corrected" });
         }} />
         {/* HOW IT WENT, ON THE SESSION ITSELF (Dave 2026-09-10). These two were
             on the health home page, next to bedtime and bodyweight, which put
@@ -2979,7 +2981,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           const week = alsoOnDay && day ? program?.data.weeks.find((w) => w.days.some((d) => d.id === day.id)) : undefined;
           if (week && day) {
             void saveDays(week.id, week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, { ...draft, id: nid("e") }] } : d)))
-              .then((ok) => showToast({ message: ok ? `${draft.name} added to ${workoutTitle(day.name)}` : `Added ${draft.name} for this session` }));
+              .then((ok) => showToast({ message: ok ? `${draft.name} added to ${workoutTitle(day.name)}` : `Added ${draft.name} for This Workout` }));
           } else {
             showToast({ message: `Added ${draft.name}` });
           }
@@ -3232,7 +3234,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             // whether it did, and a failed save that says "Added 6 lifts"
             // is the worst version of this feature.
             if (await saveDays(week.id, days)) {
-              showToast({ message: added.length === 1 ? `Added ${added[0]!.name}` : `Added ${added.length} lifts` });
+              showToast({ message: added.length === 1 ? `Added ${added[0]!.name}` : `Added ${added.length} Exercises` });
             }
           }}
           onCancel={() => setSheet({ kind: "closed" })}
@@ -3591,10 +3593,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     </button>
                   </>
                 )}
-                {/* "Add" on the face, "Add Exercise" to a screen reader: three capsules share one head at 390 wide. */}
-                <button className="see-all pill-action" aria-label="Add Exercise"
+                {/* "Add Exercise" on the face (Dave 2026-10-09, pass-off item 11: "Add" alone did not say what it adds). */}
+                <button className="see-all pill-action"
                   onClick={() => (library.length > 0 ? setAddExOpen(true) : setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }))}>
-                  Add
+                  Add Exercise
                 </button>
               </span>
             </div>
@@ -3634,7 +3636,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             </details></div>
             {(live ?? parkedLive) && (
               <div className="pad-x">
-                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Session</button>
+                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Workout</button>
               </div>
             )}
             <BlockList
@@ -3676,7 +3678,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             <ActionSheet
               title="Add Exercise"
               actions={[
-                { label: "Add from Your Lifts", onClick: () => setSheet({ kind: "fillDay", weekId: activeWeek.id, dayId: openDay.id }) },
+                { label: "Add from Your Exercises", onClick: () => setSheet({ kind: "fillDay", weekId: activeWeek.id, dayId: openDay.id }) },
                 { label: "New Exercise", onClick: () => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }) },
               ]}
               onClose={() => setAddExOpen(false)}
@@ -3896,7 +3898,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     one short readable line, and four aligned chips read in a
                     glance where a sentence has to be parsed. */}
                 <div className="se-chips">
-                  <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
+                  <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Exercise" : "Exercises"}</em></span>
                   {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{spanLabel(nextEst)}</span>}
                   {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
                     <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
@@ -4050,8 +4052,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                         <div className="facts">
                           <span className="fact date">{monthDay(w.data.date)}</span>
                           {logged === total
-                            ? <span className="fact lime">{lineCase(`${total} ${total === 1 ? "lift" : "lifts"}`)}</span>
-                            : <span className="fact"><b>{lineCase(`${logged} of ${total} lifts`)}</b></span>}
+                            ? <span className="fact lime">{lineCase(`${total} ${total === 1 ? "exercise" : "exercises"}`)}</span>
+                            : <span className="fact"><b>{lineCase(`${logged} of ${total} exercises`)}</b></span>}
                           {durationOf(w.data).flagged && <span className="fact">Worth Reviewing</span>}
                         </div>
                       </div>

@@ -352,7 +352,7 @@ export function deriveTrainingWindow(rows: WindowRow[]): Derived | null {
     derivation: "training_window",
     category: "routine",
     title: `You train between ${from} and ${to}`,
-    sub: ofLast(bestCount, done.length, "sessions", "sessions in that window"),
+    sub: ofLast(bestCount, done.length, "workouts", "workouts in that window"),
     strandText: `Trains between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
   };

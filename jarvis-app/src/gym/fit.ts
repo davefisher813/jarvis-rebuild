@@ -251,7 +251,7 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
         offers.push({
           key: "trim", name,
           sub: `Saves ${aboutLabel(save)}`, est: true,
-          note: "Never Your Main Lift",
+          note: "Never Your Main Exercise",
           on: Object.keys(plan.trims ?? {}).length > 0, saveMin: save,
         });
       }

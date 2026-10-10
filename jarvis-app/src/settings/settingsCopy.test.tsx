@@ -56,8 +56,8 @@ function expectOneNode(el: Element | null, words: string) {
 describe("item 4: Training hint", () => {
   it("rackHint keeps its space in both units", () => {
     // 2026-10-05: no unit prefix and no dot typed in the line; the Rack Unit row above already says the unit.
-    expect(rackHint("lb")).toBe("A lift logged in the other unit is converted both ways");
-    expect(rackHint("kg")).toBe("A lift logged in the other unit is converted both ways");
+    expect(rackHint("lb")).toBe("An exercise logged in the other unit is converted both ways");
+    expect(rackHint("kg")).toBe("An exercise logged in the other unit is converted both ways");
   });
 
   it("renders as one text node, in a block, for lb and for kg", () => {
@@ -199,7 +199,7 @@ describe("no Settings sentence is split across text nodes", () => {
 
   it("Health Insights: the not-enough-days line and the volume note are built as one string", () => {
     const src = read("brain/CategoryDetail.tsx");
-    expect(notEnoughDaysLine({ def: "Bodyweight", ex: "RDLs (dumbbell)", p: { paired: 1, needed: 10 } })).toBe("Not enough days yet for Bodyweight and RDLs (dumbbell), 1 of 10 paired sessions.");
+    expect(notEnoughDaysLine({ def: "Bodyweight", ex: "RDLs (dumbbell)", p: { paired: 1, needed: 10 } })).toBe("Not enough days yet for Bodyweight and RDLs (dumbbell), 1 of 10 paired workouts.");
     expect(src).toMatch(/\{notEnoughDaysLine\(nearest\)\}/);
     expect(src).not.toMatch(/Not enough days yet for \{/);
     expect(src).not.toMatch(/warm-ups excluded\. \{rangeRows/);

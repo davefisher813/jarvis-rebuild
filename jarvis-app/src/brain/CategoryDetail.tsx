@@ -1008,7 +1008,7 @@ export default function CategoryDetail({
     { group: "Tomorrow", key: "eatingWindows", label: "Eating Windows", sub: "Where Tomorrow Leaves No Room" },
     ...(bagEvent ? [{ group: "Tomorrow", key: "theBag" as HealthScreenKey, label: "The Bag", sub: bagEvent.eventTitle }] : []),
     { group: "The Week", key: "thirdPractice", label: "The Third Practice", sub: "Days That Carry Two Teams" },
-    { group: "The Week", key: "weekShape", label: "Week Shape", sub: "Sessions and Hours, Day by Day" },
+    { group: "The Week", key: "weekShape", label: "Week Shape", sub: "Workouts and Hours, Day by Day" },
     { group: "The Week", key: "twoDaysOff", label: "Two Days Off", sub: "Where a Rest Day Fits" },
     { group: "Keeping", key: "locker", label: "The Locker", sub: "Forms and the Dates They Run Out" },
     { group: "Keeping", key: "handoff", label: "The Handoff", sub: "What the Next Adult Needs to Know" },
@@ -1288,8 +1288,8 @@ export default function CategoryDetail({
   // from the facts beside it; the colour is left for done, due and late.
   const goalKindChip = (m: Goal["data"]["measure"]) => {
     if (!m) return null;
-    if (m.kind === "lift") return { text: "Lift", hue: "" };
-    if (m.kind === "training") return { text: "Sessions", hue: "" };
+    if (m.kind === "lift") return { text: "Exercise", hue: "" };
+    if (m.kind === "training") return { text: "Workouts", hue: "" };
     if (m.kind === "cadence") return { text: "Rhythm", hue: "" };
     // A goal set on a reading (Dave's ask 2026-09-12).
     if (m.kind === "metric") return { text: "Metric", hue: "" };
@@ -1913,7 +1913,7 @@ export default function CategoryDetail({
                     <div className="ins-line">
                       {coverage.untagged.length === 1
                         ? lineCase(`${coverage.untagged[0]!.name} has no muscle set, so its sets are left out of the band above`)
-                        : lineCase(`${coverage.untagged.length} lifts you trained this week have no muscle set, so their sets are left out of the band above`)}
+                        : lineCase(`${coverage.untagged.length} exercises you trained this week have no muscle set, so their sets are left out of the band above`)}
                     </div>
                     <div className="ins-rows">
                       {coverage.untagged.slice(0, 6).map((u) => (

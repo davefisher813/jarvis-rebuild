@@ -160,7 +160,7 @@ const sealed = (over: Partial<MonthSealData> = {}): MonthSealData => ({
 describe("the sealed month, compressed for the Brain", () => {
   it("states what happened, in counts", () => {
     const line = sealLine(sealed({ done: 84, pushed: 12, bandStart: 8, bandCount: 40, sessions: 14, goalsAchieved: 2 }));
-    expect(line).toBe("August 2026: finished 84, pushed 12, gym sessions 14, goals achieved 2, most done between 8 AM and 11 AM");
+    expect(line).toBe("August 2026: finished 84, pushed 12, workouts 14, goals achieved 2, most done between 8 AM and 11 AM");
   });
 
   it("a month with nothing to say renders nothing, never a row of zeroes", () => {

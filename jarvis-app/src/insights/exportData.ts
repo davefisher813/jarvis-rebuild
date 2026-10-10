@@ -42,7 +42,7 @@ export function buildSummary(overview: PeriodOverview, rows: DataRecord[], categ
     out.push(`Workouts: ${overview.workouts}`);
     out.push(`Working sets: ${overview.workingSets}`);
     out.push(`Training time: ${overview.trainingMin} min (active, parked time excluded)`);
-    if (overview.flagged.length > 0) out.push(`Sessions whose duration needs review: ${overview.flagged.length}`);
+    if (overview.flagged.length > 0) out.push(`Workouts whose duration needs review: ${overview.flagged.length}`);
   }
   if (want.has("sleep")) {
     out.push(overview.sleep.nights > 0 && overview.sleep.avgHours != null
@@ -55,8 +55,8 @@ export function buildSummary(overview: PeriodOverview, rows: DataRecord[], categ
   out.push("");
   out.push("Notes on the numbers:");
   out.push("  A working set is a logged set that is not a warm-up, a drop or a skip, and scores or is marked done.");
-  out.push("  A workout is a saved session with at least one working set.");
-  out.push("  Minutes are active minutes: the wall clock less any time the session sat parked.");
+  out.push("  A workout counts once it has at least one working set.");
+  out.push("  Minutes are active minutes: the wall clock less any time the workout sat parked.");
   out.push("  A night of sleep is dated the morning it ended.");
   out.push("  A day with no log is a gap, never a zero.");
   out.push("  Loads compare only in the unit and under the counting convention they were logged with.");

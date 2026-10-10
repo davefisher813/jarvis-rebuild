@@ -90,7 +90,7 @@ describe("the plan counts the real records", () => {
 
   it("says what moves in plain counts, and says so honestly when nothing has been logged", () => {
     const { plan } = setup();
-    expect(movesLine(plan)).toBe("1 Session, 2 Sets, 1 Program Day, 1 Goal");
+    expect(movesLine(plan)).toBe("1 Workout, 2 Sets, 1 Program Day, 1 Goal");
     expect(movesLine({ ...plan, sessions: 0, sets: 0, programDays: 0, goals: [] }))
       .toBe("Nothing logged under it yet, so only the name moves");
   });

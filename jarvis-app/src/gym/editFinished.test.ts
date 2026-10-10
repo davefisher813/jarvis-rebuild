@@ -64,7 +64,7 @@ describe("the finished-workout screen is fully editable", () => {
     expect(FLOW).toContain('<button className="nav-action-text" onClick={() => setWorkoutMetaOpen(true)}>Edit</button>');
     // A session that already happened cannot have happened tomorrow, the same
     // rule BackdateSheet keeps.
-    expect(FLOW).toContain('<input className="input" type="date" max={todayISO()} value={date} aria-label="Session Date"');
+    expect(FLOW).toContain('<input className="input" type="date" max={todayISO()} value={date} aria-label="Workout Date"');
   });
 
   it("cases the session's name the way every other workout title is cased", () => {

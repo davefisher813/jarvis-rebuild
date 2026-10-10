@@ -204,7 +204,7 @@ describe("training window: the rows that were captured and read by nobody", () =
     // documented behaviour a launch test already pins: a 6 PM mass reads
     // as "between 4 PM and 7 PM".
     expect(d.title).toBe("You train between 4 PM and 7 PM");
-    expect(d.sub).toContain("12 Sessions There");
+    expect(d.sub).toContain("12 Workouts There");
     expect(d.evidence.length).toBeGreaterThan(0);
   });
 

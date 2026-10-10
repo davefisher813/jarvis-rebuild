@@ -138,7 +138,7 @@ describe("adding a lift mid-session asks where it lands", () => {
     expect(screen.getByText("Kept for next time, can be paired")).toBeInTheDocument();
     cleanup();
     sheet({ dayName: "Leg Day", value: false, onChange: () => {} });
-    expect(screen.getByText("This session only")).toBeInTheDocument();
+    expect(screen.getByText("This Workout Only")).toBeInTheDocument();
     expect(screen.queryByText(/can be paired/i)).toBeNull();
     cleanup();
   });
