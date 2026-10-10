@@ -138,7 +138,17 @@ export class Store {
   }
 
   private itemFromCreate(op: QueuedCreate): Item {
-    return { id: op.id, ownerId: op.ownerId, entityType: op.entityType, data: op.data, serverTime: op.queuedAt };
+    // Phase 0 D8 (2026-10-10): the pending copy is dated by the moment it was
+    // queued, and the drain hands that same number to adapter.create, so the
+    // createdAt a list shows offline is the one the server row reads after.
+    return {
+      id: op.id,
+      ownerId: op.ownerId,
+      entityType: op.entityType,
+      data: op.data,
+      serverTime: op.queuedAt,
+      createdAt: op.queuedAt,
+    };
   }
 
   // UP-PLAT-05: the queue only ever changes through here, so this is the one
@@ -153,6 +163,17 @@ export class Store {
 
   syncState(): SyncState {
     return { online: this.online, queued: this.queue.length, lastSyncedAt: this.lastSyncedAt };
+  }
+
+  // Phase 0 D4 (2026-10-10): the one question the trust checkpoint asks, "is
+  // anything of mine still on the phone?", answered in one word. True while
+  // offline, because a write made now would be held, and true while the queue
+  // has anything in it, because a write made earlier still is. The same four
+  // lines BrainMemoryService.pending() and ProfileService.pending() held for
+  // their own side queues; a door that says "Saved" reads this first and says
+  // "Will Sync" instead when it is true.
+  pending(): boolean {
+    return !this.online || this.queue.length > 0;
   }
 
   /**
@@ -332,7 +353,9 @@ export class Store {
         this.queue = this.queue.filter((op) => op.id !== id);
       } else {
         this.pendingDeletes.add(id);
-        this.queue.push({ op: "delete", id, ownerId });
+        // Phase 0 D1 change 2: stamped with WHEN the delete was made, so the
+        // replay can date the server's history row by it.
+        this.queue.push({ op: "delete", id, ownerId, queuedAt: Date.now() });
       }
       this.saveQueue();
       this.invalidate(ownerId);
@@ -461,7 +484,10 @@ export class Store {
       const op = this.queue[0]!;
       if (op.op === "create") {
         try {
-          await this.adapter.create(op.ownerId, op.entityType, op.data, op.id);
+          // Phase 0 D1 change 2 (2026-10-10): the replay carries the moment
+          // the capture was made, so created_at on the server is the 6 AM
+          // the note was written and not the reconnect hours later.
+          await this.adapter.create(op.ownerId, op.entityType, op.data, op.id, op.queuedAt);
         } catch (e) {
           // PLUMB-F-01: the row is already there under this id; that is
           // success, not a reason to wedge the queue on every online event.
@@ -478,7 +504,13 @@ export class Store {
           // A queue persisted by a build that did not stamp the age, or an
           // adapter that cannot ask the question. Replays the old way rather
           // than being thrown away.
-          await this.adapter.apply(op.ownerId, op.id, wire, op.serverTime);
+          //
+          // Phase 0 D1 change 2 (2026-10-10): the age still rides along when
+          // there is one. On the writtenHere branch it cannot be used to
+          // refuse the edit (the row's last write is this drain's own), but
+          // the server's history row should still say WHEN the edit was made.
+          // An old queue has no queuedAt and the argument is simply absent.
+          await this.adapter.apply(op.ownerId, op.id, wire, op.serverTime, op.queuedAt);
         } else {
           // PLUMB-F-10: the edit's own age decides, not its arrival.
           const outcome = await this.adapter.applyIfOlder(op.ownerId, op.id, wire, op.queuedAt);
@@ -486,7 +518,9 @@ export class Store {
           else if (outcome === "applied") writtenHere.add(op.id);
         }
       } else {
-        await this.adapter.del(op.ownerId, op.id);
+        // Phase 0 D1 change 2: a delete stamped by this build carries its
+        // age too; one persisted by an older build passes undefined.
+        await this.adapter.del(op.ownerId, op.id, op.queuedAt);
         this.pendingDeletes.delete(op.id);
       }
       this.queue.shift();

@@ -98,14 +98,20 @@ const SettingsContext = createContext<SettingsService | null>(null);
 export function NotesProvider({
   userId,
   accessToken,
+  store: givenStore,
   children,
 }: {
   userId: string;
   accessToken?: string;
+  // Phase 0 D4 (2026-10-10): a test seam. The trust checkpoint's doors read
+  // useStore()?.pending(), and proving the offline path needs a Store built
+  // on an adapter the test controls. Production never passes this;
+  // makeStore(accessToken, userId) below stays the one builder.
+  store?: Store;
   children: ReactNode;
 }) {
   const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, tracker, ledger, backup, routine, gym, metrics, health, rules, chat, decisions, brainMemory, strands, seal, files, fileStore } = useMemo(() => {
-    const store = makeStore(accessToken, userId);
+    const store = givenStore ?? makeStore(accessToken, userId);
     return {
       store,
       files: new FilesService(store, userId, (e) => emit(e)),
@@ -136,7 +142,7 @@ export function NotesProvider({
       strands: new StrandsService(store, userId, (e) => emit(e)),
       seal: new SealService(store, userId, (e) => emit(e)),
     };
-  }, [userId, accessToken]);
+  }, [userId, accessToken, givenStore]);
   // Rebuilt with the session, like everything above it: a different signed-in
   // user must never read the last one's settings.
   const settings = useMemo(() => new SettingsService(supabase, userId), [userId]);

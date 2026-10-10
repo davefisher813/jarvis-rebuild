@@ -29,10 +29,10 @@ export class ProfileService {
   // Whether the last write is still on this phone: offline, or queued behind
   // a dropped connection (the same truth BrainMemoryService.pending() tells).
   // A screen that saved through here says "Will Sync" until this is false
-  // rather than claiming the server has it.
+  // rather than claiming the server has it. Phase 0 D4 (2026-10-10): the
+  // Store answers this itself now, so the four lines live once.
   pending(): boolean {
-    const s = this.store.syncState();
-    return !s.online || s.queued > 0;
+    return this.store.pending();
   }
 
   async isOnboarded(): Promise<boolean> {

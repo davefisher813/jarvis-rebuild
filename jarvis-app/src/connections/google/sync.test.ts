@@ -1,9 +1,18 @@
 import { Store, InMemoryAdapter } from "@core";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ScheduleService } from "../../schedule/ScheduleService";
 import { importCalendar } from "./sync";
 import { makeFakeGoogleApi } from "./fakeApi";
 import type { GCalEvent, GmailMeta } from "./map";
+
+// Phase 0 D3 (2026-10-10): memory_v1 decides whether the import stamps its
+// origin. One switch the two cases below flip; every other flag answers as
+// the build does.
+const flags = vi.hoisted(() => ({ memoryOn: false }));
+vi.mock("../../substrate/flags", async (orig) => {
+  const real = await orig<typeof import("../../substrate/flags")>();
+  return { ...real, flagOn: (f: Parameters<typeof real.flagOn>[0]) => (f === "memory_v1" ? flags.memoryOn : real.flagOn(f)) };
+});
 
 function apiWith(events: GCalEvent[], messages: GmailMeta[] = []) {
   return makeFakeGoogleApi({ listUpcomingEvents: async () => events, listRecentMessages: async () => messages });
@@ -227,5 +236,49 @@ describe("google sync keeps up with changes", () => {
     expect(seen[0]!.opts?.showDeleted).toBe(true);
     // Sixty days out, so a meeting two months away is inside what it covers.
     expect(seen[0]!.opts?.timeMaxISO?.slice(0, 10)).toBe(new Date(2026, 10, 4, 10, 0, 0).toISOString().slice(0, 10));
+  });
+});
+
+// Phase 0 D3 (2026-10-10): an imported event says where it came from. The
+// create wrote gcalId and no source, so "From Google Calendar" (provenance.ts)
+// was never earned and every imported event read as hand drawn. Behind
+// memory_v1, because 105 live events would start rendering the line.
+describe("google sync stamps its origin behind memory_v1", () => {
+  const brief = (): GCalEvent => ({ id: "g1", summary: "Standup", start: { dateTime: "2026-06-01T09:00:00Z" } });
+
+  it("flag on: a created event carries madeBy google_calendar with the gcal id as its ref", async () => {
+    flags.memoryOn = true;
+    try {
+      const schedule = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+      expect((await importCalendar(apiWith([brief()]), schedule)).created).toBe(1);
+      const [e] = await schedule.listEvents();
+      expect(e!.data.source).toMatchObject({ type: "google_calendar", ref: "g1" });
+      expect(typeof e!.data.source!.ts).toBe("number");
+    } finally {
+      flags.memoryOn = false;
+    }
+  });
+
+  it("flag off: the create is byte for byte what it was, no source", async () => {
+    flags.memoryOn = false;
+    const schedule = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    expect((await importCalendar(apiWith([brief()]), schedule)).created).toBe(1);
+    const [e] = await schedule.listEvents();
+    expect(e!.data.gcalId).toBe("g1");
+    expect("source" in e!.data).toBe(false);
+  });
+
+  it("flag on: an update to an event imported before the flag leaves it unstamped, since only the create path stamps", async () => {
+    const schedule = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    await importCalendar(apiWith([brief()]), schedule);
+    flags.memoryOn = true;
+    try {
+      await importCalendar(apiWith([{ ...brief(), summary: "Standup Moved" }]), schedule);
+      const [e] = await schedule.listEvents();
+      expect(e!.data.title).toBe("Standup Moved");
+      expect("source" in e!.data).toBe(false);
+    } finally {
+      flags.memoryOn = false;
+    }
   });
 });

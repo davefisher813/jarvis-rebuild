@@ -28,7 +28,7 @@ a Google refresh token, act as an admin, and delete an account.
 Every user-owned record is a row in `item`:
 
 ```
-item(id uuid, owner_id uuid, entity_type text, data jsonb, updated_at, deleted_at)
+item(id uuid, owner_id uuid, entity_type text, data jsonb, created_at, updated_at)
 ```
 
 `entity_type` is a foreign key into a registry table, and that is the whole

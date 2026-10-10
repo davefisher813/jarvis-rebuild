@@ -225,6 +225,15 @@ export function destinationKindOf(actionKind: string): string | null {
     case "capture_task": return "task";
     case "capture_event": return "event";
     case "capture_waiting": return "waiting";
+    // Phase 0 (PHASE0-DESIGN.md D6 item 6): a record approved from the VYZN inbox lands in its module and
+    // the receipt's Open button goes there. record_person answers null on purpose: the shell's
+    // navigateToEntity opens note, task, event, waiting, project, goal, decision, fact, email, healthItem
+    // and file, and no person, so an Open button for a person would be the dead button the house rule
+    // forbids. The person route in the shell is Phase 0.5 work.
+    case "record_task": return "task";
+    case "record_event": return "event";
+    case "record_note": return "note";
+    case "record_person": return null;
     case "decision_save": case "decision_replace": case "decision_withdraw": return "decision";
     // A kept exploration is NOT a Notes-module note: it is its own item kind that
     // NotesService.getNote refuses, so "note" opened an empty editor. It lives in

@@ -217,3 +217,37 @@ Each phase ships on its own, each behind the same laws, and each autofill carrie
 5. **Where the section label reads "From the JARVIS Area"** or something shorter ("JARVIS")?
 
 Nothing in Phases 1 to 3 touches the frozen Today TV guide or the protected-block resolver, and none of it adds a stored field except the typed area defaults in Phase 3.
+
+## 11. Phase 0 (2026-10-10): what landed behind a flag, and what is next
+
+PHASE0-DESIGN.md D3 and D11 touch capture only, all behind `memory_v1`, and
+restyle nothing. Flag off, every path below is today's byte for byte.
+
+- **Aliases reach capture.** `namePatterns(fullName, aliases)` exists in
+  `people/mentions.ts`; capture handed it names only, so "Mom" never matched.
+  Phase 0 passes `aliases` through the capture context so the deterministic
+  pass can match them. Names only with the flag off.
+- **Refused is not failed.** Smart Paste turned every unconfident line into a
+  note whenever the AI looked available, and `aiImprove` answered the same
+  null for a gated refusal, an unreachable backend and an unreadable reply.
+  Phase 0 splits them: refused (AI off, gated, or no network answer) leaves
+  the deterministic result standing with its `personId`; unreadable (a reply
+  `parseCapture` cannot read) still makes the honest note. The package's own
+  sentence, "Need to follow up with Mike about summer roster", keeps its Mike
+  chip with AI off and in airplane mode.
+- **The inferred stamp on Source.** `Source.inferred?: string[]` names the
+  fields a rule filled (`["personId"]`); `withInferred()` in
+  `shared/provenance.ts` adds it, and an empty list leaves the stamp byte
+  identical to today. The word (`stated`, `imported`, `inferred`) is derived
+  by `confidenceOf()` and nothing renders it in Phase 0. The database reads
+  the stamp to mark the projected link `created_by rule`
+  (WHY-JARVIS-KNOWS-THIS.md).
+
+**Next (Phase 0.5): the unanchored opener.** `TASK_OPENERS` in
+`paste/deterministic.ts` anchors at the start of the line, so "Need to follow
+up with Mike" is kept as an unconfident task rather than a confident one. The
+named fix is an alternative pattern
+`\b(follow up|check in|reach out|circle back) with\b`, after a golden set
+run (`score.ts`), because it changes what a typed line becomes. Principle 9
+still holds: a person is matched by name or alias, never guessed from an area
+or a title word.

@@ -10,8 +10,33 @@ import type { Item } from "@core";
 
 // Versioned base (laws: stored shapes are versioned); the entity type rides
 // after the version so one type's cache can be dropped without touching the rest.
-const BASE = "jarvis.preload.v1";
+// v2 (Phase 0 D8, 2026-10-10): Item gained createdAt, read from the row's
+// created_at. A v1 entry predates the field, so it would paint a list with no
+// creation times until the refresh landed; the bump makes the first read a
+// miss instead. The v1 family is swept once, at the first read (below), and
+// again by clearPreload.
+const BASE = "jarvis.preload.v2";
 const PREFIX = BASE + ".";
+// Earlier bases, left in localStorage by an install that cached before the
+// bump. Nothing reads them; sweepRetired removes them at the first read of
+// the session and clearPreload removes them with the live family. Without
+// the sweep an install kept every v1 entry (up to 300KB per type) beside the
+// v2 family until Clear Local Data, and writePreload, which drops an entry
+// on a quota error, would have silently stopped caching a heavy type.
+const RETIRED_BASES = ["jarvis.preload.v1"];
+let swept = false;
+function sweepRetired(s: Storage): void {
+  if (swept) return;
+  swept = true;
+  try {
+    const doomed: string[] = [];
+    for (let i = 0; i < s.length; i++) {
+      const k = s.key(i);
+      if (k && RETIRED_BASES.some((b) => k.startsWith(b + "."))) doomed.push(k);
+    }
+    for (const k of doomed) s.removeItem(k);
+  } catch { /* a sweep that cannot run costs nothing but the space */ }
+}
 
 // Bounds. A type over the item cap or the byte cap simply is not cached:
 // silent truncation would lie to the first paint, so it is all or nothing
@@ -35,6 +60,7 @@ function storage(): Storage | null {
 export function readPreload(owner: string, entityType: string): Item[] | null {
   const s = storage();
   if (!s) return null;
+  sweepRetired(s);
   try {
     const raw = s.getItem(PREFIX + entityType);
     if (!raw) return null;
@@ -69,7 +95,7 @@ export function clearPreload(): void {
   const doomed: string[] = [];
   for (let i = 0; i < s.length; i++) {
     const k = s.key(i);
-    if (k && k.startsWith(PREFIX)) doomed.push(k);
+    if (k && (k.startsWith(PREFIX) || RETIRED_BASES.some((b) => k.startsWith(b + ".")))) doomed.push(k);
   }
   for (const k of doomed) s.removeItem(k);
 }

@@ -46,6 +46,19 @@ export interface ParsedEntity {
   // picks, which is the whole reason this is a list and not a best match.
   personChoices?: string[];
   projectId?: string;
+  // Phase 0 D3 (PHASE0-DESIGN.md, 2026-10-10): THE FIELDS A RULE FILLED. The
+  // rule: a field is inferred when nothing the person typed names its value
+  // and a rule chose it. That is the id behind a name (personId: a first
+  // name matched against the contacts list; projectId: a title found inside
+  // the line) and a date no word of the line carries (a bare clock time is
+  // read as today's). A date resolved from words the person wrote
+  // ("tomorrow", "thursday", "aug 20", "on the 1st") is stated, not guessed,
+  // and so is everything else here: a repeat needs "every", a bill needs an
+  // amount, a reminder needs "remind me" or a daily clock. personChoices is
+  // never inferred because nobody was filed. Empty when nothing was guessed.
+  // smartPaste writes it onto the Source stamp (withInferred) behind
+  // memory_v1, so the row can say which of its facts were a guess.
+  inferred: string[];
   // The line EXACTLY as it was pasted (2026-08-24). Every title on this
   // object has been through titleCase, which capitalises every meaningful
   // word, and rules/triggers.ts reads capitalisation to find a proper noun.
@@ -178,7 +191,10 @@ function matchTime(lower: string): TimeHit | null {
 // something bounded to match against. Absent means those two lanes are
 // closed and the rest still works, which is what every existing caller gets.
 export interface CaptureContext {
-  people?: { id: string; name: string }[];
+  // Phase 0 D11 (2026-10-10): aliases are the other names the person calls
+  // this contact ("Mom" for Linda Fisher, People handoff 2026-09-16), matched
+  // under the same narrow rules as the name (mentions.ts namePatterns).
+  people?: { id: string; name: string; aliases?: string[] }[];
   projects?: { id: string; title: string }[];
 }
 
@@ -242,8 +258,8 @@ const REMIND_RE = /\bremind me\b(?:\s+to\b)?/i;
 // The people this line names, by the app's own narrow matcher (mentions.ts),
 // which already refuses first names that are ordinary English words. One
 // match is filed; two are offered; none is silence.
-function matchPeople(raw: string, people: { id: string; name: string }[]): string[] {
-  return people.filter((p) => mentions(raw, p.name)).map((p) => p.id);
+function matchPeople(raw: string, people: NonNullable<CaptureContext["people"]>): string[] {
+  return people.filter((p) => mentions(raw, p.name, p.aliases ?? [])).map((p) => p.id);
 }
 
 // "for Kitchen remodel": the project by its own title, whole and
@@ -278,10 +294,13 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // three facts in it, and the kind is only the first of them.
   const peopleHits = matchPeople(t, ctx.people ?? []);
   const projectId = matchProject(t, ctx.projects ?? []);
-  const who: Pick<ParsedEntity, "personId" | "personChoices" | "projectId"> = {
+  const who: Pick<ParsedEntity, "personId" | "personChoices" | "projectId" | "inferred"> = {
     ...(peopleHits.length === 1 ? { personId: peopleHits[0]! } : {}),
     ...(peopleHits.length > 1 ? { personChoices: peopleHits } : {}),
     ...(projectId ? { projectId } : {}),
+    // The ids a rule chose (see ParsedEntity.inferred); the date joins below
+    // on the one branch that assumes a day.
+    inferred: [...(peopleHits.length === 1 ? ["personId"] : []), ...(projectId ? ["projectId"] : [])],
   };
 
   // A time plus a day (or just a time with "tonight"-style words caught by
@@ -303,18 +322,18 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // with Ridgeline" names a thing, not a person.
   const decided = decisionLine(t);
   if (decided) {
-    return { kind: "decision", title: decided.decision, confident: true, raw: t };
+    return { kind: "decision", title: decided.decision, confident: true, raw: t, inferred: [] };
   }
   // `who` above is already the person and project this line is ABOUT
   // (UP-CORE-01); this is the person the line is a FACT about, which is a
   // different question with a different answer.
   const about = personLine(t);
   if (about) {
-    return { kind: "person", title: t, person: about, confident: true, raw: t };
+    return { kind: "person", title: t, person: about, confident: true, raw: t, inferred: [] };
   }
   const fact = selfFact(t);
   if (fact) {
-    return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: t };
+    return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: t, inferred: [] };
   }
   // A REMINDER, NOT A NINE PM EVENT (UP-CORE-01, 2026-09-05). Two ways in:
   //
@@ -373,7 +392,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // what the AI-less fallback in ai/capture.ts has always assumed. It sits
   // below the fact read so "I don't do anything before 7am" is still a fact.
   if (time) {
-    return { kind: "event", title: titleCase(stripDateWords(t, spans)), date: today, start: time, ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
+    return { kind: "event", title: titleCase(stripDateWords(t, spans)), date: today, start: time, ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who, inferred: [...who.inferred, "date"] };
   }
   // A date without a time on a to-do-looking line: a task due that day.
   if (TASK_OPENERS.test(t)) {
@@ -392,7 +411,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
   if (t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2) {
-    return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true, raw: t };
+    return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true, raw: t, inferred: [] };
   }
   // Short, no signal: a task is the cheapest honest read, but the AI
   // fallback may know better.
@@ -446,7 +465,7 @@ export function parsePaste(text: string, today: string, ctx: CaptureContext = {}
   if (noteish > parsed.length / 2) {
     // Mostly prose: one note, paste kept verbatim.
     return {
-      entities: [{ kind: "note", title: titleCase(lines[0]!.split(/\s+/).slice(0, 6).join(" ")), body: text.trim(), confident: true, raw: text.trim() }],
+      entities: [{ kind: "note", title: titleCase(lines[0]!.split(/\s+/).slice(0, 6).join(" ")), body: text.trim(), confident: true, raw: text.trim(), inferred: [] }],
       confident: true,
     };
   }

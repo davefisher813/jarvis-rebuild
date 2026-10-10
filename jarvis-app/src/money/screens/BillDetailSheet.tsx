@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FormSheet, Group, Row, Note, DeleteRow } from "../../shared/FormSheet";
 import Provenance from "../../shared/ProvenanceLine";
 import { sourceOpener } from "../../shared/openSource";
-import type { Source } from "../../shared/provenance";
+import { sourceOf } from "../../shared/provenance";
 import { Calendar, Link2 } from "../../shared/icons";
 import { DollarGlyph, RepeatGlyph, WalletGlyph, CheckCircleGlyph } from "../../shared/glyphs";
 import { useOptionalLedger } from "../../data/NotesProvider";
@@ -10,7 +10,7 @@ import { lineCase, titleCase } from "../../shared/casing";
 import { monthDay } from "../bills";
 import { billAmount, evidenceLine, historyLines, ledgerChip, ledgerStatusWord } from "../billView";
 import { isPaid } from "../ledger/status";
-import type { Bill } from "../ledger/types";
+import { ENTITY_MONEY_BILL, type Bill } from "../ledger/types";
 import type { TrackerTx } from "../tracker";
 
 // THE BILL'S OWN PAGE (Money ledger, lane B). Everything the ledger knows
@@ -54,9 +54,9 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
   const inState = !paid && !reopened && !!d.dueDate && !!stateTone && !!chip;
   const evidence = evidenceLine(d, txs);
   const history = historyLines(d.history, d.currency);
-  const source: Source | undefined = d.source !== "manual" && d.source.type === "email"
-    ? { type: "email", ...(d.source.ref ? { ref: d.source.ref } : {}), ts: Date.parse(d.history[0]?.at ?? "") || 0 }
-    : undefined;
+  // Phase 0 D3 (2026-10-10): the ledger's own source shape read into the one
+  // Source by the one map (provenance.ts sourceOf), not by hand here.
+  const source = sourceOf(ENTITY_MONEY_BILL, d);
   const open = source && onOpenEntity ? sourceOpener(onOpenEntity)(source) : undefined;
 
   return (

@@ -40,7 +40,14 @@ export type SourceType =
   | "health"
   | "apple_calendar"
   | "apple_reminders"
-  | "contacts";
+  | "contacts"
+  // Phase 0 D3 (2026-10-10): a record another app pushed through the VYZN
+  // feed and the person approved from the inbox. ref is '<app>:<record_id>'.
+  | "app"
+  // Phase 0 D3: a bulk import (a contact file, a bank export) with no finer
+  // origin to name. Neither of these has a route (openSource.ts): nothing in
+  // the app to open, so the line is a plain fact.
+  | "import";
 
 export interface Source {
   type: SourceType;
@@ -48,6 +55,33 @@ export interface Source {
   ref?: string;
   // Epoch ms at creation. Facts carry their time.
   ts: number;
+  // Phase 0 D3 (2026-10-10): the fields a RULE filled in rather than the
+  // person or the origin stating them (classifyLine guessing personId from a
+  // first name). A fact, not a verdict: confidenceOf() derives the word.
+  // Absent or empty means nothing was guessed.
+  inferred?: string[];
+}
+
+/** The same stamp with the guessed fields recorded. An empty list leaves the
+ *  stamp untouched, so a stamp that guessed nothing is byte identical to one
+ *  made before this field existed (about 25 assertions pin madeBy("paste")). */
+export function withInferred(source: Source, fields: readonly string[]): Source {
+  return fields.length ? { ...source, inferred: [...fields] } : source;
+}
+
+// Phase 0 D3: the types that mean "this came from outside the app". The type
+// is the fact; the word below is derived from it, never stored.
+const IMPORTED: ReadonlySet<SourceType> = new Set<SourceType>([
+  "app", "import", "google_calendar", "contacts", "gmail", "apple_calendar", "apple_reminders", "apple_health",
+]);
+
+/** How far to trust a source: a rule guessed part of it (inferred), it came
+ *  from outside (imported), or the person or the origin stated it (stated).
+ *  Nothing renders this word in Phase 0; the three display words stay Dave's. */
+export function confidenceOf(source: Source): "stated" | "imported" | "inferred" {
+  if (source.inferred && source.inferred.length > 0) return "inferred";
+  if (IMPORTED.has(source.type)) return "imported";
+  return "stated";
 }
 
 // Sentence-case labels (the line talks; it is not a button label). Feature
@@ -71,7 +105,107 @@ const LABEL: Record<SourceType, string> = {
   apple_calendar: "From Apple Calendar",
   apple_reminders: "From Apple Reminders",
   contacts: "From Contacts",
+  app: "From another app",
+  import: "From an import",
 };
+
+// Phase 0 D3 (2026-10-10): ONE READ-TIME MAP FROM EVERY MODULE'S OWN SOURCE
+// SHAPE TO THE ONE Source. Five modules grew their own way of saying where a
+// row came from before this file existed, and BillDetailSheet.tsx converted
+// one of them by hand to render a line. This is that conversion written once,
+// for all five, so a second sheet cannot convert the same shape differently.
+// Nothing is stamped or backfilled: the module shapes stay what they are and
+// are read into Source here (no stamp on hand made rows; no backfill on the
+// bulk imported persons, Dave 2026-09-28).
+//
+//   person          data.source: "email" | "calendar" | "event" | "import" | "manual"
+//   brain_memory    data.source: BrainMemorySource (ai/brainMemory.ts)
+//   decision_record data.source: DecisionSource {kind, entityId?, at}
+//   money_bill, money_receipt, money_tx
+//                   data.source: "manual" | "camera" | "import" | EmailSource {type, fingerprint, ref?}
+//                   with the when read from history[0].at, as BillDetailSheet did
+//   everything else data.source is already a Source and comes back as is
+//
+// A hand made row ("manual", a filing from the Brain tab or the plus menu, a
+// receipt photographed by the person) answers undefined, the same way a hand
+// typed task carries no source. A shape with no when (a person, a brain
+// memory, a transaction without history) answers ts 0, the convention
+// BillDetailSheet already used for a bill with no history; a caller that
+// renders a when should treat 0 as none.
+//
+// Callers: BillDetailSheet.tsx (the first, by design choice). The next, when
+// a surface needs the line: the person sheet, the memory detail, the decision
+// Source card, the receipt and transaction sheets.
+//
+// The entity type literals here are pinned to the registry constants by
+// provenance.test.ts, so this file stays free of module imports.
+const PERSON_SOURCE: Record<string, SourceType | undefined> = {
+  email: "email",
+  calendar: "event",
+  event: "event",
+  import: "import",
+  manual: undefined,
+};
+const BRAIN_SOURCE: Record<string, SourceType | undefined> = {
+  "manual-chat": "chat",
+  "plus-menu": undefined,
+  brain: undefined,
+  note: "note",
+  email: "email",
+  task: "task",
+  event: "event",
+};
+const DECISION_SOURCE: Record<string, SourceType | undefined> = {
+  chat: "chat",
+  note: "note",
+  email: "email",
+  manual: undefined,
+};
+
+type Shape = Record<string, unknown>;
+
+function isSource(v: unknown): v is Source {
+  return !!v && typeof v === "object" && typeof (v as Shape).type === "string" && typeof (v as Shape).ts === "number";
+}
+
+function whenOf(iso: unknown): number {
+  return typeof iso === "string" ? Date.parse(iso) || 0 : 0;
+}
+
+function stamp(type: SourceType | undefined, ref: unknown, ts: number): Source | undefined {
+  if (!type) return undefined;
+  return { type, ...(typeof ref === "string" && ref ? { ref } : {}), ts };
+}
+
+export function sourceOf(entityType: string, data: unknown): Source | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const src = (data as Shape).source;
+  if (src === undefined || src === null) return undefined;
+  switch (entityType) {
+    case "person":
+      return typeof src === "string" ? stamp(PERSON_SOURCE[src], undefined, 0) : undefined;
+    case "brain_memory":
+      return typeof src === "string" ? stamp(BRAIN_SOURCE[src], undefined, 0) : undefined;
+    case "decision_record": {
+      if (typeof src !== "object") return undefined;
+      const d = src as Shape;
+      return typeof d.kind === "string" ? stamp(DECISION_SOURCE[d.kind], d.entityId, whenOf(d.at)) : undefined;
+    }
+    case "money_bill":
+    case "money_receipt":
+    case "money_tx": {
+      const history = (data as Shape).history;
+      const first = Array.isArray(history) ? (history[0] as Shape | undefined) : undefined;
+      const ts = whenOf(first?.at);
+      if (src === "import") return stamp("import", undefined, ts);
+      if (typeof src === "object" && (src as Shape).type === "email") return stamp("email", (src as Shape).ref, ts);
+      // "manual" and "camera": the person made it.
+      return undefined;
+    }
+    default:
+      return isSource(src) ? src : undefined;
+  }
+}
 
 // Build the source stamp for an auto-created entity, timestamped now.
 export function madeBy(type: SourceType, ref?: string, now: () => number = Date.now): Source {

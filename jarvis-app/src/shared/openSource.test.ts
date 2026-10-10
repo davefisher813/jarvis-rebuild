@@ -27,9 +27,17 @@ describe("sourceOpener: a source opens what it names", () => {
   });
 
   it("only email and gmail stamps route to email", () => {
-    const all: SourceType[] = ["paste", "note", "email", "recorder", "chat", "file", "plan", "event", "task", "sweep", "reflow", "google_calendar", "gmail", "apple_health", "health", "apple_calendar", "apple_reminders", "contacts"];
+    const all: SourceType[] = ["paste", "note", "email", "recorder", "chat", "file", "plan", "event", "task", "sweep", "reflow", "google_calendar", "gmail", "apple_health", "health", "apple_calendar", "apple_reminders", "contacts", "app", "import"];
     const toEmail = all.filter((t) => opened(t).calls.some((c) => c[0] === "email"));
     expect(toEmail.sort()).toEqual(["email", "gmail"]);
+  });
+
+  // Phase 0 D3 (2026-10-10): an app stamp names a record in another app's
+  // store and an import names a file that is gone. Nothing here to open, so
+  // the line is a plain fact; a button that does nothing is the bug.
+  it("app and import stamps have no door, by design", () => {
+    expect(opened("app", "backend-inbox:inbox_1").hasDoor).toBe(false);
+    expect(opened("import", "contacts.vcf").hasDoor).toBe(false);
   });
 
   it("a source with no ref, or with nothing behind it, has no door", () => {

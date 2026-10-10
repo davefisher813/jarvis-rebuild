@@ -6,6 +6,8 @@
 // broken, it was retired.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useEffect, useState } from "react";
+import type React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople, useLedger } from "../data/NotesProvider";
@@ -20,6 +22,19 @@ import { TasksService } from "../tasks/TasksService";
 // as ProfilePage.test.tsx: a captured fn standing in for the real module.
 const showToast = vi.fn();
 vi.mock("../shared/toast", () => ({ showToast: (...a: unknown[]) => showToast(...a) }));
+
+// Phase 0 (2026-10-10): the two flags this door reads, on the seam every
+// flagged test uses (connections/google/sync.test.ts). Both off by default,
+// so every test above runs against the build's own answer.
+const flags = vi.hoisted(() => ({ trustOn: false, memoryOn: false }));
+vi.mock("../substrate/flags", async (orig) => {
+  const real = await orig<typeof import("../substrate/flags")>();
+  return {
+    ...real,
+    flagOn: (f: Parameters<typeof real.flagOn>[0]) =>
+      f === "trust_v1" ? flags.trustOn : f === "memory_v1" ? flags.memoryOn : real.flagOn(f),
+  };
+});
 
 beforeEach(() => localStorage.clear());
 
@@ -703,5 +718,107 @@ describe("QuickCapture: the sheet reads field, aids, Capture, Cancel", () => {
     expect(kids.slice(actions + 1).filter((k) => k.classList.contains("msg-quiet-acts"))).toHaveLength(0);
     expect(kids[actions]!.querySelectorAll("button")).toHaveLength(2);
     expect(kids[actions]!.lastElementChild!.textContent).toBe("Cancel");
+  });
+});
+
+// THE TRUST CHECKPOINT (Phase 0 D4, 2026-10-10). Dave, 2026-09-28: "a filing
+// never says Saved before it reaches the server". Behind trust_v1 this door
+// reads the Store through useStore(); while it is pending (offline, or a
+// queue still on the phone) the receipt eyebrow says Filed · Will Sync and the Done
+// toast says Will Sync. The offline Store is passed through NotesProvider's
+// test seam (store prop), built on the same InMemoryAdapter and held offline.
+import { Store, InMemoryAdapter } from "@core";
+
+function offlineStore(): Store {
+  const s = new Store(new InMemoryAdapter());
+  s.goOffline();
+  return s;
+}
+
+async function captureAndDone(text: string, store?: Store) {
+  showToast.mockClear();
+  const onClose = vi.fn();
+  const r = render(
+    <NotesProvider userId="u-trust" {...(store ? { store } : {})}>
+      <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
+    </NotesProvider>,
+  );
+  fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: text } });
+  fireEvent.click(screen.getByText("Capture"));
+  await waitFor(() => expect(screen.getAllByText("Undo").length).toBeGreaterThan(0));
+  const eyebrow = document.querySelector(".eyebrow")!.textContent;
+  fireEvent.click(screen.getByText("Done"));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  r.unmount();
+  return { eyebrow, toast: (showToast.mock.calls[0]?.[0] as { message: string } | undefined)?.message };
+}
+
+describe("QuickCapture: the trust checkpoint (trust_v1)", () => {
+  beforeEach(() => { flags.trustOn = true; flags.memoryOn = false; });
+
+  it("online, the receipt says Saved and Done says Saved, as today", async () => {
+    const got = await captureAndDone("Renew the domain");
+    expect(got.eyebrow).toBe("Saved");
+    expect(got.toast).toBe("Saved");
+  });
+
+  it("offline, the receipt says Filed and Done says Filed · Will Sync", async () => {
+    const got = await captureAndDone("Renew the domain", offlineStore());
+    expect(got.eyebrow).toBe("Filed · Will Sync");
+    expect(got.toast).toBe("Filed · Will Sync");
+  });
+
+  it("offline with two captures, Done counts them and still never says Saved", async () => {
+    const got = await captureAndDone("Renew the domain\ncall the plumber back", offlineStore());
+    expect(got.toast).toBe("Filed 2 Items · Will Sync");
+  });
+
+  it("flag off, an offline Store changes nothing: Saved, byte for byte", async () => {
+    flags.trustOn = false;
+    const got = await captureAndDone("Renew the domain\ncall the plumber back", offlineStore());
+    expect(got.eyebrow).toBe("Saved");
+    expect(got.toast).toBe("Saved 2 items");
+  });
+});
+
+// Phase 0 D11: a contact's aliases reach the capture behind memory_v1, so
+// "Mom" files onto Linda's card the way "Linda" does.
+let seededPeople: ReturnType<typeof usePeople> | null = null;
+function SeedMom({ children }: { children: React.ReactNode }) {
+  const people = usePeople();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      await people.create({ name: "Linda Fisher", group: "contacts", aliases: ["Mom"] });
+      seededPeople = people;
+      setReady(true);
+    })();
+  }, [people]);
+  return ready ? <>{children}</> : null;
+}
+
+describe("QuickCapture: aliases reach the capture (memory_v1)", () => {
+  async function captureMom(userId: string) {
+    render(
+      <NotesProvider userId={userId}>
+        <SeedMom><QuickCapture ai={new AIService({ available: false })} onClose={() => {}} /></SeedMom>
+      </NotesProvider>,
+    );
+    fireEvent.change(await screen.findByLabelText("Paste or Type"), { target: { value: "call Mom about thanksgiving" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
+  }
+
+  it("flag on, Mom is Linda on the receipt", async () => {
+    flags.memoryOn = true;
+    await captureMom("u-alias-on");
+    expect(screen.getByText("Linda Fisher", { selector: ".fact" })).toBeInTheDocument();
+    expect(seededPeople).not.toBeNull();
+  });
+
+  it("flag off, the alias is not read and nobody is filed", async () => {
+    flags.memoryOn = false;
+    await captureMom("u-alias-off");
+    expect(screen.queryByText("Linda Fisher", { selector: ".fact" })).toBeNull();
   });
 });

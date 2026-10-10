@@ -9,6 +9,8 @@
 // in the `data` jsonb column. `BrainMemoryData` is the shape of `data`;
 // row-level fields (id, created_at, updated_at) live on the table.
 
+import { heldText, savedToastText } from "../shared/saved";
+
 export const BRAIN_MEMORY_ENTITY = "brain_memory";
 export const PERSON_ENTITY = "person";
 
@@ -124,13 +126,15 @@ export function categoryLabel(c: BrainMemoryCategory): string {
  *  (offline, or queued), "Filed to Philosophy · Will Sync": a filing never
  *  says Saved before it reaches the server (Dave 2026-09-28). */
 export function filedToastText(c: BrainMemoryCategory, pending = false): string {
-  return pending ? `Filed to ${categoryLabel(c)} · Will Sync` : `Saved to ${categoryLabel(c)} ✓`;
+  // Phase 0 D4 (2026-10-10): the rule has one body, shared/saved.ts; this is
+  // the brain's name for it and the strings are byte for byte what they were.
+  return savedToastText(`Saved to ${categoryLabel(c)} ✓`, heldText(categoryLabel(c)), pending);
 }
 
 // "Who Is This?" ends on a contact, not a brain_memory row, but the same
 // confirm-toast shape applies -- shared so every surface names it once.
 export function filedContactToastText(pending = false): string {
-  return pending ? "Filed to Contacts · Will Sync" : "Saved to Contacts ✓";
+  return savedToastText("Saved to Contacts ✓", heldText("Contacts"), pending);
 }
 
 /** Title Case source labels for the memory detail screen's "Filed from" line. */
