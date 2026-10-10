@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { TaskItem } from "../tasks/TasksService";
 import { countsForToday, countsDoneToday } from "./todayData";
@@ -18,6 +19,19 @@ import RowCtxAction from "../shared/RowCtxAction";
 // row's one quiet text verb (no capsule on a row, the catalog's rule).
 // The row itself is the door to the task. Nothing here writes on its own; the
 // flow owns every write, its Undo and its reload.
+//
+// THE SHEET'S OWN CARD (pass-off item 22, 2026-10-10). The card wears `xs`, the
+// class the app's other sheets wear, so the foot under the last row clears the
+// home indicator instead of sitting under it. A section with nothing in it is
+// not drawn: no heading, no empty state. The category dot under each title is
+// sized by `.day-sheet .conn-meta .cat-dot`; as a bare inline span it measured
+// zero wide and never showed.
+//
+// NOTHING LEFT, NO SHEET (review, 2026-10-10). Moving the last task due today to
+// Tomorrow, with none done yet, empties both sections and takes the ring away
+// behind the sheet; the sheet then stood open as a bare title bar over nothing.
+// It closes itself instead, and the Undo the flow raised still brings the task,
+// and the ring, back.
 export default function DaySheet({ tasks, today, onToggle, onTomorrow, onOpen, onClose }: {
   tasks: TaskItem[];
   today: string;
@@ -29,12 +43,14 @@ export default function DaySheet({ tasks, today, onToggle, onTomorrow, onOpen, o
   const mine = tasks.filter((t) => countsForToday(t, today));
   const open = mine.filter((t) => !countsDoneToday(t, today));
   const done = mine.filter((t) => countsDoneToday(t, today));
+  const empty = mine.length === 0;
+  useEffect(() => { if (empty) onClose(); }, [empty, onClose]);
   const where = (t: TaskItem) => catName(t.data.category) ? (
     <div className="conn-meta"><span className="fact"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</span></div>
   ) : null;
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
-      <div className="card" role="dialog" aria-label="Today’s Tasks" onClick={(e) => e.stopPropagation()}>
+      <div className="card xs day-sheet" role="dialog" aria-label="Today’s Tasks" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="opt-bar">
           <div className="opt-title">Today’s Tasks</div>
