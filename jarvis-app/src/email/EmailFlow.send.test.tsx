@@ -345,8 +345,8 @@ describe("E16, 11: a reload keeps the latest words; two devices get a choice", (
     saveLocalDraft(USER, { key: "local:abc", draft_id: null, account_id: "acct-dave", fields: { thread_id: null, to_addresses: ["coach@example.test"], cc_addresses: [], bcc_addresses: [], subject: "Before the reload", body_text: "Half a sentence", attachment_refs: [], reply_headers: { in_reply_to: null, references: [], thread_id: null }, signature_revision: null }, revision: null, saved_at: "2026-10-03T14:58:00Z", server_saved_at: null });
     const r = rig();
     mount(r);
-    await waitFor(() => expect(screen.getByText(/Updated Today/)).toBeInTheDocument());
-    fireEvent.click(screen.getByText(/Updated Today/));
+    await waitFor(() => expect(screen.getByText(/Checked Today/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Checked Today/));
     fireEvent.click(await screen.findByText(DRAFTS_AND_SENT));
     expect(await screen.findByText("Before the reload")).toBeInTheDocument();
     expect(screen.getByText(THIS_DEVICE)).toBeInTheDocument();

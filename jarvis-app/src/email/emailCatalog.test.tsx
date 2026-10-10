@@ -342,10 +342,19 @@ describe("Accounts: one facts line per mailbox, never four stacked greys", () =>
   it("connected is green, the sync time is the one grey plus small caps, the saved count is a white number", () => {
     const { container } = screen_([account({})]);
     const row = container.querySelector(".row .conn-meta")!;
-    expect(texts(row, ".fact")).toEqual([STATE_WORD.connected, expect.stringMatching(/^Updated /), expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "12 Messages Saved"]);
+    expect(texts(row, ".fact")).toEqual([STATE_WORD.connected, expect.stringMatching(/^Checked /), expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "12 Messages Saved"]);
     expect(row.querySelector(".fact.good")).toHaveTextContent("Connected");
     expect(row.querySelector(".fact b")).toHaveTextContent("12 Messages Saved");
     expect(container.querySelectorAll(".row .conn-meta").length).toBe(1);
+    expect(catalogViolations(container)).toEqual([]);
+  });
+
+  it("a mailbox still listing its window is Connected and Catching Up on Mail, never a time (spec 8.1, AC39)", () => {
+    const { container } = screen_([account({ sync_state: "catching_up", last_sync_at: "2026-10-05T09:12:00" })]);
+    const row = container.querySelector(".row .conn-meta")!;
+    expect(texts(row, ".fact")).toEqual([STATE_WORD.connected, "Catching Up on Mail", "12 Messages Saved"]);
+    expect(row.querySelector(".fact.good")).toHaveTextContent("Connected");
+    expect(row.textContent).not.toMatch(/\d:\d{2}|Checked/);
     expect(catalogViolations(container)).toEqual([]);
   });
 

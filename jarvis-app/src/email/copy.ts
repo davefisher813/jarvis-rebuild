@@ -30,6 +30,10 @@ export const REFRESH_FAILED = "Couldn't Refresh · Showing Saved Mail";
 export const REAUTH_LINE = "Gmail Needs Reconnecting · Saved Mail Is Still Here";
 export const RECONNECT = "Reconnect Gmail";
 export const NOT_SYNCED = "Not Synced Yet";
+// Email v1 spec 8.1 and AC39: connected is not current. While the 90-day window is still being listed and reconciled, the
+// header says so, never a time and never "Nothing in Your Inbox". When it is current, the time it was checked.
+export const CATCHING_UP = "Catching Up on Mail";
+export const CHECKED = "Checked";
 
 // Empty states: each one carries its action (law L7). 2026-10-05: every sub is Title Case, like every other line the
 // app writes ("New mail lands here" was sentence case); the casing boundary names only chat, note bodies, onboarding and field notes.

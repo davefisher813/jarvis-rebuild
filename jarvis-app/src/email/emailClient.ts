@@ -37,7 +37,15 @@ export interface EmailAccount {
   signature_text: string;
   /** Bumped on every signature save; the optimistic-concurrency check for email_signature_set, and what a draft's own signature_revision is compared against. */
   signature_revision: number;
+  /** The sync dimension (Email v1 spec 8.1; migration 0065). Absent before 0065: freshness is then last_sync_at alone. */
+  sync_state?: SyncState | null;
+  /** When the 90-day Inbox and Sent window was last fully listed and reconciled through Gmail's history. */
+  verified_through_at?: string | null;
+  coverage_start?: string | null;
 }
+
+/** 8.1's values. The server writes catching_up and current; the rest are the spec's, read honestly if they ever arrive. */
+export type SyncState = "not_started" | "syncing" | "current" | "catching_up" | "stale" | "failed" | "paused";
 
 /** One inbox row as email_inbox returns it: the provider's facts, nothing derived. */
 export interface InboxRow {
@@ -130,7 +138,8 @@ export function answerSuggestion(client: RpcClient, id: string, answer: "accepte
 
 // ---- the provider, through the server --------------------------------------
 
-export interface SyncResult { synced: number; removed: number; next_page: string | null; complete: boolean; resynced: boolean; last_sync_at?: string | null }
+/** `coverage_complete` false: the coverage crawl has more to list or reconcile, so call again (a little later). Absent before migration 0065. */
+export interface SyncResult { synced: number; removed: number; next_page: string | null; complete: boolean; resynced: boolean; last_sync_at?: string | null; coverage_complete?: boolean; sync_state?: SyncState }
 export interface OpenResult { message_id: string; labels: string[]; attachments: number }
 export interface LabelResult { message_id: string; labels: string[]; read: boolean; in_inbox: boolean; in_trash: boolean; receipt: string | null }
 export type MessageOp = "open" | "read" | "unread" | "archive" | "unarchive" | "trash" | "untrash";

@@ -8,7 +8,10 @@
 //     headers; no ranking, no collapsed threads, no category ever hides a row;
 //   - honest freshness: the stalest good sync among the live accounts, under
 //     the title, and a line when one account did not refresh while the other
-//     did; one failing mailbox never blanks the other;
+//     did; one failing mailbox never blanks the other; while a mailbox is
+//     still listing its 90-day window (Email v1 spec 8.1, 8.3, AC39) the line
+//     says Catching Up on Mail instead of a time, and an empty list is a
+//     loading list, never "Nothing in Your Inbox";
 //   - search that says what it searched (saved mail, then Gmail, by account);
 //   - chips that filter what is loaded, counted, with All as the whole list;
 //   - the message, sanitised; read on open through a provider command the
@@ -23,8 +26,11 @@
 //
 // The Gmail token is never here. Reads go to the cache with the session;
 // commands go to api/email/* with the session; the server holds the grant.
-// Nothing runs on a timer: open, pull, tap. No card is ever an item until
-// the person's tap makes it one.
+// Nothing runs on a timer: open, pull, tap. The one thing that follows on
+// from them is the coverage crawl the open or pull started: while a sync
+// answers coverage_complete false, the open screen calls it again, one call
+// after the other, at most CRAWL_MAX_ROUNDS times, and stops on a failure or
+// when it closes. No card is ever an item until the person's tap makes it one.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
@@ -57,7 +63,7 @@ import {
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
-import { accountLabels, dayGroups, freshnessFacts, senderOf } from "./format";
+import { accountLabels, dayGroups, freshnessFacts, isCatchingUp, senderOf } from "./format";
 import EmailFacts from "./EmailFacts";
 import { usePull } from "./usePull";
 import InboxList from "./InboxList";
@@ -92,6 +98,11 @@ import {
   type Candidate,
 } from "./candidates";
 import { EXTRACTOR_VERSION } from "../substrate/extract";
+
+/** Crawl calls per open or pull. A 90-day window of a few thousand messages is listed well inside it; the next open carries on from the saved page. */
+export const CRAWL_MAX_ROUNDS = 40;
+/** Calls in a row that moved nothing (another tab took the page, a reconciliation still cut off) after which a mailbox waits for the next open or pull. */
+export const CRAWL_MAX_IDLE = 2;
 
 type Screen =
   | { kind: "root" }
@@ -379,10 +390,85 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
   // ---- the inbox ------------------------------------------------------------
 
+  // The first page from the cache, merged into what is shown. The first page is
+  // the truth for what it covers; on a refresh (or a crawl round) rows the
+  // person had already scrolled to, older than its last row, stay where they were.
+  const showFirstPage = useCallback(async (accountsNow: EmailAccount[], keepOlder: boolean): Promise<CommandFailure | InboxRow[]> => {
+    if (!client) return failure("UNAVAILABLE");
+    const page = await inboxPage(client, { limit: PAGE });
+    if (!page.ok) return page;
+    const fresh = page.value.rows;
+    setCachedTotal(page.value.cached_total);
+    let merged: InboxRow[] = fresh;
+    setRows((prev) => {
+      const last = fresh[fresh.length - 1];
+      const older = keepOlder && last && fresh.length >= PAGE ? prev.filter((r) => newestFirst(last, r) < 0) : [];
+      merged = mergeRows(fresh, older);
+      persist(accountsNow, merged);
+      return merged;
+    });
+    return merged;
+  }, [client, persist]);
+  /** The cards for what was just shown, and the rules over it. */
+  const readShown = useCallback(async (shown: InboxRow[]) => {
+    await loadCards(shown.map((r) => r.id));
+    void readRows(shown);
+  }, [loadCards, readRows]);
+
+  // ---- the coverage crawl (Email v1 spec 8.3) --------------------------------
+  // A sync that answers coverage_complete false has more of the 90-day window
+  // to list or reconcile. While this screen is open it asks again, one call
+  // after the other: each call is the server's own bounded work (a few pages,
+  // about ten seconds at most), so the calls pace themselves and no timer is
+  // set (SUBSTRATE law 5: nothing in Email runs on a timer). At most
+  // CRAWL_MAX_ROUNDS calls per open or pull; a failure stops that mailbox
+  // until the next open or pull (no retrying without the person); a mailbox
+  // that makes no progress twice running stops too. Closing the screen, or a
+  // new load, ends the run. The server keeps the progress, so the next open
+  // carries on where this one stopped.
+  const crawlRun = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; crawlRun.current++; };
+  }, []);
+  const crawl = useCallback(async (start: string[]) => {
+    const run = ++crawlRun.current;
+    const live = () => crawlRun.current === run && mounted.current && !(typeof navigator !== "undefined" && navigator.onLine === false);
+    const idle: Record<string, number> = {};
+    let pending = start;
+    for (let round = 0; round < CRAWL_MAX_ROUNDS && pending.length > 0; round++) {
+      if (!client || !token || !live()) return;
+      const results = await Promise.all(pending.map((address) => syncAccount(token, address)));
+      if (!live()) return;
+      const still: string[] = [];
+      const issues: Record<string, string> = {};
+      const cleared: string[] = [];
+      results.forEach((r, i) => {
+        const address = pending[i]!;
+        if (!r.ok) { issues[address] = lineFor(r); return; }
+        cleared.push(address);
+        if (r.value.coverage_complete !== false) return;
+        idle[address] = r.value.synced + r.value.removed > 0 ? 0 : (idle[address] ?? 0) + 1;
+        if (idle[address]! < CRAWL_MAX_IDLE) still.push(address);
+      });
+      setSyncIssues((prev) => { const next = { ...prev, ...issues }; for (const a of cleared) delete next[a]; return next; });
+      const again = await listAccounts(client);
+      if (!live()) return;
+      const accountsNow = again.ok ? again.value : accounts;
+      if (again.ok) setAccounts(again.value);
+      const shown = await showFirstPage(accountsNow, true);
+      if (!live()) return;
+      if (Array.isArray(shown)) void readShown(shown);
+      pending = still;
+    }
+  }, [client, token, accounts, showFirstPage, readShown]);
+
   // The one load: accounts, a sync of each live mailbox (this is the pull or
-  // the open, never a timer), then the first page from the cache. A failure
-  // with saved rows keeps them and says so; without any, it is the error
-  // state with Retry. One mailbox failing to sync is a line, not a blank.
+  // the open), then the first page from the cache. A failure with saved rows
+  // keeps them and says so; without any, it is the error state with Retry.
+  // One mailbox failing to sync is a line, not a blank. A mailbox still
+  // crawling its window is handed to the crawl above.
   const load = useCallback(async (mode: "first" | "refresh") => {
     if (!client) { setPending(false); setError(failure("UNAVAILABLE")); return; }
     if (offline) { setPending(false); return; }
@@ -396,6 +482,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (!acc.ok) { setError(acc); setPending(false); setRefreshing(false); return; }
     let accountsNow = acc.value;
     setAccounts(accountsNow);
+    const crawling: string[] = [];
     if (token) {
       const live = accountsNow.filter((a) => a.state !== "disconnected");
       const results = await Promise.all(live.map((a) => syncAccount(token, a.address)));
@@ -404,32 +491,24 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       results.forEach((r, i) => {
         const a = live[i]!;
         if (!r.ok) issues[a.address] = lineFor(r);
-        else next[a.address] = r.value.next_page;
+        else {
+          next[a.address] = r.value.next_page;
+          if (r.value.coverage_complete === false) crawling.push(a.address);
+        }
       });
       setSyncIssues(issues);
       setProviderNext(next);
       const again = await listAccounts(client);
       if (again.ok) { accountsNow = again.value; setAccounts(accountsNow); }
     }
-    const page = await inboxPage(client, { limit: PAGE });
-    if (!page.ok) { setError(page); setPending(false); setRefreshing(false); return; }
-    const fresh = page.value.rows;
-    setCachedTotal(page.value.cached_total);
-    let merged: InboxRow[] = fresh;
-    setRows((prev) => {
-      // The first page is the truth for what it covers; rows the person had
-      // already scrolled to, older than its last row, stay where they were.
-      const last = fresh[fresh.length - 1];
-      const older = mode === "refresh" && last && fresh.length >= PAGE ? prev.filter((r) => newestFirst(last, r) < 0) : [];
-      merged = mergeRows(fresh, older);
-      persist(accountsNow, merged);
-      return merged;
-    });
+    const shown = await showFirstPage(accountsNow, mode === "refresh");
+    if (!Array.isArray(shown)) { setError(shown); setPending(false); setRefreshing(false); return; }
     setPending(false);
     setRefreshing(false);
-    await loadCards(merged.map((r) => r.id));
-    void readRows(merged);
-  }, [client, token, offline, persist, loadCards, readRows]);
+    await readShown(shown);
+    // The person's open or pull starts a fresh allowance of crawl calls (and ends any run still going).
+    if (crawling.length > 0) void crawl(crawling);
+  }, [client, token, offline, showFirstPage, readShown, crawl]);
 
   useEffect(() => {
     if (loaded.current) return;
@@ -438,7 +517,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   }, [load]);
 
   const hasProviderNext = Object.values(providerNext).some(Boolean);
-  const atEnd = rows.length >= cachedTotal && !(hasProviderNext && token && !offline);
+  // While a mailbox is still listing its window the cache is not the mailbox: the floor says "what's loaded so far", never "That's everything." (8.3).
+  const atEnd = rows.length >= cachedTotal && !(hasProviderNext && token && !offline) && !accounts.some(isCatchingUp);
 
   // Load More: the next page of the cache; when the cache is spent and Gmail
   // said there was more, the next provider page is pulled in first (a tap,
@@ -543,6 +623,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const loadedToReview = useMemo(() => (reviewOnly ? visible.reduce((n, r) => n + (cards[r.id] ?? []).filter(isToReview).length, 0) : 0), [reviewOnly, visible, cards]);
   const groups = useMemo(() => dayGroups(visible, now), [visible, now]);
   const live = accounts.filter((a) => a.state !== "disconnected");
+  // A mailbox still listing its window (spec 8.1, AC39): the header says Catching Up on Mail and an empty list is still loading.
+  const catchingUp = live.some(isCatchingUp);
   const labels = live.length > 1 ? accountLabels(live.map((a) => a.address)) : {};
   // THE ONE STATUS (Foundation Fix Spec 1). Whether a mailbox needs reconnecting comes from the proven status, not from the
   // cache row's own state: the two used to disagree. The row's state is only the answer until the first proof arrives.
@@ -834,7 +916,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         {client && <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>}
         {client && <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>}
       </>}>
-        {/* 2026-10-05: the freshness line is facts (Updated Today, the time in small caps, the count in white), not one string joined by middle dots. */}
+        {/* 2026-10-05: the freshness line is facts (Checked Today, the time in small caps, the count in white), not one string joined by middle dots.
+            2026-10-10 (spec 8.1, AC39): while a mailbox is catching up it is Catching Up on Mail and the count, never a time. One line. */}
         {fresh.length > 0 && <button className="email-fresh" onClick={() => setScreen({ kind: "accounts" })}>{refreshing ? <EmailFacts facts={[{ text: REFRESHING }]} /> : <EmailFacts facts={fresh} />}</button>}
         <div className="pad-x">
           <div className="segmented" role="tablist" aria-label={EMAIL_TITLE}>
@@ -864,7 +947,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       {!client && (
         <EmptyState copy={NO_CLIENT} onAction={onOpenConnections} />
       )}
-      {client && pending && rows.length === 0 && !error && <SkeletonRows rows={4} />}
+      {/* Catching up with nothing cached yet is still loading: never "Nothing in Your Inbox" for a window not yet listed (8.3). */}
+      {client && (pending || (catchingUp && segment === "inbox")) && rows.length === 0 && !error && <SkeletonRows rows={4} />}
       {client && error && rows.length === 0 && !pending && (
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="row"><div className="row-grow"><div className="conn-name">{lineFor(error)}</div></div></div>
@@ -885,7 +969,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       {client && segment === "inbox" && !pending && !error && accounts.length === 0 && (
         <EmptyState copy={EMPTY_ACCOUNTS} onAction={onOpenConnections} />
       )}
-      {client && segment === "inbox" && !pending && !error && accounts.length > 0 && rows.length === 0 && (
+      {client && segment === "inbox" && !pending && !error && accounts.length > 0 && rows.length === 0 && !catchingUp && (
         <EmptyState copy={EMPTY_INBOX} onAction={() => void load("refresh")} />
       )}
       {client && segment === "inbox" && rows.length > 0 && chip && visible.length === 0 && (
