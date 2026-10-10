@@ -97,6 +97,18 @@ check "the browser cannot resolve" 42501 "$(as_user_state $A $AUTH "select conne
 check "the browser cannot claim" 42501 "$(as_user_state $A $AUTH "select connection_incident_claim(10)")"
 check "the browser cannot settle" 42501 "$(as_user_state $A $AUTH "select connection_incident_alert_settle('$ID3','$T3','unavailable',null)")"
 
+echo "-- account deletion (0066)"
+own() { q -c "select count(*) from connection_incident where owner_id='$1'"; }
+BEFORE_B=$(own $B)
+check "before: A and B each hold incidents" "true|true" "$([ "$(own $A)" -gt 0 ] && echo true || echo false)|$([ "$BEFORE_B" -gt 0 ] && echo true || echo false)"
+as_user $A $SVC "select delete_owned('$A')" >/dev/null
+check "delete_owned(A) leaves no incident for A and B's stand" "0|$BEFORE_B" "$(own $A)|$(own $B)"
+q -f "$here/../rollback/0066_delete_owned_incident_down.sql" >/dev/null
+check "0066 rollback: delete_owned no longer names the table" f "$(q -c "select pg_get_functiondef('delete_owned'::regproc) like '%connection_incident%'")"
+q -f "$here/../migrations/0066_delete_owned_incident.sql" >/dev/null
+check "0066 forward again" t "$(q -c "select pg_get_functiondef('delete_owned'::regproc) like '%connection_incident%'")"
+q -f "$here/../rollback/0066_delete_owned_incident_down.sql" >/dev/null
+
 echo "-- rollback, and forward again"
 q -f "$here/../rollback/0064_connection_incident_down.sql" >/dev/null
 check "the table and the four functions are gone" "0|0" "$(q -c "select count(*) from pg_class where relname='connection_incident'")|$(q -c "select count(*) from pg_proc where proname like 'connection_incident_%'")"
