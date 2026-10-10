@@ -77,8 +77,9 @@ create unique index if not exists connection_incident_alert_key on connection_in
 create index if not exists connection_incident_due_idx on connection_incident (alert_due_at) where state = 'open' and alert_status = 'pending';
 create index if not exists connection_incident_open_idx on connection_incident (owner_id, account_address) where state = 'open';
 
-drop trigger if exists connection_incident_touch on connection_incident;
-create trigger connection_incident_touch before insert or update on connection_incident
+-- create or replace (Postgres 14+), not drop-then-create: same effect, rerunnable, and the production apply path holds
+-- any statement containing DROP for a human confirmation, so a DROP here stalled the live apply (2026-10-10).
+create or replace trigger connection_incident_touch before insert or update on connection_incident
   for each row execute function jarvis_touch_updated_at();
 
 alter table connection_incident enable row level security;
