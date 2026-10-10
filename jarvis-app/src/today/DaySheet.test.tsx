@@ -70,12 +70,25 @@ describe("an empty section is not drawn", () => {
     expect(sheet.querySelectorAll(".list-card-ruled")).toHaveLength(1);
   });
 
-  it("nothing at all: no heads, no cards, only the bar and its way out", () => {
-    const { sheet, heads } = open([]);
+  it("nothing at all: the sheet closes itself instead of standing open over nothing", () => {
+    const { sheet, heads, onClose } = open([]);
     expect(heads()).toEqual([]);
     expect(sheet.querySelector(".list-card-ruled")).toBeNull();
     expect(sheet.querySelector(".empty-state")).toBeNull();
-    expect(within(sheet).getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("moving the last task to Tomorrow empties the sheet, and the sheet closes", () => {
+    const cb = { onToggle: vi.fn(), onTomorrow: vi.fn(), onOpen: vi.fn(), onClose: vi.fn() };
+    const { rerender } = render(<DaySheet tasks={[task("a", "Call the Bank")]} today={TODAY} {...cb} />);
+    expect(cb.onClose).not.toHaveBeenCalled();
+    rerender(<DaySheet tasks={[task("a", "Call the Bank", { due: "2026-10-11" })]} today={TODAY} {...cb} />);
+    expect(cb.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a sheet with something in it never closes itself", () => {
+    const { onClose } = open([task("a", "Call the Bank", { done: true, lastDone: TODAY })]);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 
