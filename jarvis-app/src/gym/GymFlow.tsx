@@ -1,7 +1,9 @@
 import { NAME_FIELD } from "../shared/nameField";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
+import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics, useStore } from "../data/NotesProvider";
+import { flagOn } from "../substrate/flags";
+import { heldText, savedToastText } from "../shared/saved";
 import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhrase, agoPhraseLower, workoutMinutes } from "./summary";
@@ -22,12 +24,13 @@ import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
-import { bumpStrip, uniformStrip } from "./strip";
+import { bumpStrip } from "./strip";
 import { composeLibrary, newExerciseKey, planOf, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
+import { exerciseFromEntry } from "./fromLibrary";
 import { emit } from "../events";
 import { dayWithSessionEntry, movedToDay } from "./edit";
-import { defaultUnit, equipmentOf } from "./types";
+import { equipmentOf } from "./types";
 import { loadFields, loadStyleOf, type LoadStyle } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
@@ -43,6 +46,9 @@ import { estimateDay, type FitPlan, dayUnderPlan } from "./fit";
 import { readGymSettings, writeGymSettings, rackFrom, type CreatedLift } from "./settings";
 import FitSheet from "./FitSheet";
 import ExerciseSheet from "./ExerciseSheet";
+import EmptyWorkoutScreen from "./EmptyWorkoutScreen";
+import ProgramSuggestSheet from "./ProgramSuggestSheet";
+import { appendWorkoutToDay, dayFromWorkout, isScratch, suggestProgram, workoutOnDay, type ProgramSuggestion } from "./patterns";
 import SessionScreen from "./SessionScreen";
 import ReceiptSheet from "./ReceiptSheet";
 import UploadFlow from "./UploadFlow";
@@ -62,6 +68,7 @@ import { pairId } from "./duplicates";
 import { mmss } from "./conditioning";
 import DurationCard from "./DurationCard";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
+import { FormSheet, Group, FieldRow } from "../shared/FormSheet";
 // The row's one visible menu door, shared with All Data since 2026-09-16.
 import RowMenuButton from "../shared/RowMenuButton";
 import SetStrip from "./SetStrip";
@@ -876,7 +883,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // 2026-09-14 (the reference's Adjust time): a budget picked mid-session.
   const [adjustOpen, setAdjustOpen] = useState(false);
   // H-30: the finish waits on the receipt (see finish below).
-  const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null } | null>(null);
+  const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null; suggestion?: ProgramSuggestion | null } | null>(null);
+  // THE TRUST CHECKPOINT (Phase 0 D4), behind trust_v1, the way TasksFlow
+  // reads it: a program written while the Store is still holding writes says
+  // Will Sync, never Saved.
+  const store = useStore();
+  const storePending = () => flagOn("trust_v1") && (store?.pending() ?? false);
+  // KEEP THIS WORKOUT (Dave 2026-10-09, item 4). The receipt's rows for a
+  // workout from scratch open one of these on top of it, and the Program
+  // Suggestion (mockup 10) is shown on the way out when the workout keeps
+  // repeating. Each carries the note typed on the receipt.
+  const [keepFlow, setKeepFlow] = useState<{ kind: "connect"; note?: string } | { kind: "new"; note?: string; name: string } | null>(null);
+  const [suggestFor, setSuggestFor] = useState<{ suggestion: ProgramSuggestion; note?: string } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
   // FULLY EDITABLE (Dave 2026-09-17). The finished session's own name and
@@ -1430,7 +1448,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   }, [workouts]);
 
   const startDay = (day: ProgramDay, opts: { date?: string; sameAsLastTime?: boolean; fit?: FitPlan; doorEventId?: string } = {}) => {
-    if (!program) return;
+    // MOST PEOPLE DON'T HAVE PROGRAMS (Dave 2026-10-09, item 1). A workout
+    // from scratch belongs to no program, so it starts with or without one and
+    // carries an empty programId until he connects it to one on the receipt.
+    // A program day still needs its program.
+    const scratch = day.id === SCRATCH_DAY_ID;
+    if (!program && !scratch) return;
     // Never overwrite logged work (2026-08-09): if a session with real sets
     // is already going -- today's or a still-open backdated one -- starting a
     // day RESUMES it instead of destroying it.
@@ -1455,7 +1478,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       : dayUnderPlan(day, opts.fit ?? {}).exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...loadFields(e) }));
     const startedAt = Date.now();
     const s: LiveSession = {
-      programId: program.id, dayId: day.id, dayName: day.name, date,
+      programId: scratch ? (program?.id ?? "") : program!.id, dayId: day.id, dayName: day.name, date,
       startedAt, lastActivityAt: startedAt, idx: 0, exercises,
       ...(backdated ? { backdated: true } : {}),
       ...(opts.sameAsLastTime ? { sameAsLastTime: true } : {}),
@@ -1490,19 +1513,31 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // for the day the Health page named. A live session in progress resumes
   // instead, which is what the door does too.
   const [startHandled, setStartHandled] = useState(false);
+  // A workout started from scratch on the Health page goes back there when it
+  // is done or cancelled: Health is where Start Workout lives, and the
+  // program page is not somewhere a person without a program was going.
+  const startedOutside = useRef(false);
+  const leaveIfStartedOutside = () => {
+    if (!startedOutside.current) return;
+    startedOutside.current = false;
+    onBack();
+  };
   useEffect(() => {
     if (!startDayId || startHandled || !loaded) return;
     setStartHandled(true);
+    if (startDayId === SCRATCH_DAY_ID) startedOutside.current = true;
     const existing = readLive();
     if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { enterSession(existing); return; }
-    if (!program) return;
     // The scratch sentinel is not a program day and never will be: it starts
-    // an empty session the athlete fills with Add Exercise. requestStart
-    // already routes an exercise-free day straight past the fit sheet.
+    // an empty workout the athlete fills with Add Exercise, program or not
+    // (Dave 2026-10-09, item 1: before this, a person with no program tapped
+    // Start and nothing happened). requestStart already routes an
+    // exercise-free day straight past the fit sheet.
     if (startDayId === SCRATCH_DAY_ID) {
       requestStart({ id: SCRATCH_DAY_ID, name: SCRATCH_DAY_NAME, exercises: [] }, { doorEventId: startDoorEventId });
       return;
     }
+    if (!program) return;
     const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
     if (day) requestStart(day, { doorEventId: startDoorEventId, budgetMin: startBudgetMin });
   }, [startDayId, startDoorEventId, startBudgetMin, startHandled, loaded, program]);
@@ -1677,7 +1712,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         if (afterState.met) goalHits.push({ id: g.id, title: g.data.title, line: afterState.line });
       }
     }
-    finishing.current = { data, door: live.doorEventId ? { id: live.doorEventId, date: live.date } : null };
+    // THE PROGRAM SUGGESTION (gym/patterns.ts states the rule): read now,
+    // against the workouts already saved, and offered only when the receipt
+    // closes. Off in Customize means off.
+    const gs = readGymSettings();
+    const suggestion = isScratch(data) && gs.suggestPrograms !== false
+      ? suggestProgram(data, workouts, { store: classStore, programs, declined: gs.declinedPatterns })
+      : null;
+    finishing.current = { data, door: live.doorEventId ? { id: live.doorEventId, date: live.date } : null, suggestion };
     setReceipt({ receipt: { ...r, goalHits }, dayName: live.dayName });
   };
   const commitFinish = async (note?: string) => {
@@ -1713,6 +1755,73 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       } catch { /* offline: the workout is safe, the stamp can wait */ }
     }
     await reload();
+    leaveIfStartedOutside();
+  };
+  // Done on the receipt: a workout that keeps repeating is offered as a
+  // program first; anything else is saved as it is.
+  const finishOrSuggest = (note?: string) => {
+    const s = finishing.current?.suggestion;
+    if (s) { setReceipt(null); setSuggestFor({ suggestion: s, note }); return; }
+    void commitFinish(note);
+  };
+  // Every program day he has, for Connect to a Program. Archived programs are
+  // not offered: the workout would vanish into a plan he has put away.
+  const programDayItems: PickItem[] = programs.flatMap((p) => p.data.weeks.flatMap((w) => w.days.map((d) => ({
+    id: [p.id, w.id, d.id].join("|"),
+    label: workoutTitle(d.name),
+    sub: p.data.weeks.length > 1 ? `${workoutTitle(p.data.name)}, ${w.label}` : workoutTitle(p.data.name),
+  }))));
+  /** The finished workout joins a program day: its exercises are added to the
+   *  day (each once), the program is written through GymService, and only then
+   *  is the workout saved, pointing at that day. A failed program write saves
+   *  nothing and leaves the sheet up, so the workout is never half-attached. */
+  const connectFinished = async (itemId: string, note?: string) => {
+    const f = finishing.current;
+    if (!f) return;
+    const [pid, wid, did] = itemId.split("|");
+    const p = programs.find((x) => x.id === pid);
+    const w = p?.data.weeks.find((x) => x.id === wid);
+    const d = w?.days.find((x) => x.id === did);
+    if (!p || !w || !d) return;
+    const day = appendWorkoutToDay(d, f.data, nid);
+    const weeks = p.data.weeks.map((x) => (x.id === w.id ? { ...x, days: x.days.map((y) => (y.id === d.id ? day : y)) } : x));
+    const ok = await attemptWrite(async () => {
+      if (!(await svc.updateProgram(p.id, { weeks }))) throw new Error("program is gone");
+    });
+    if (!ok) return;
+    finishing.current = { ...f, data: workoutOnDay(f.data, p.id, day) };
+    setKeepFlow(null);
+    setSuggestFor(null);
+    await commitFinish(note);
+    showToast({ message: savedToastText(`Added to ${workoutTitle(day.name)}`, heldText(workoutTitle(day.name)), storePending()) });
+  };
+  /** The finished workout becomes a program of its own: one week, one day,
+   *  made of what he logged, created through GymService; then the workout is
+   *  saved as that day's first. */
+  const saveAsProgram = async (name: string, note?: string) => {
+    const f = finishing.current;
+    const clean = name.trim();
+    if (!f || !clean) return;
+    const day = dayFromWorkout(f.data, workoutTitle(clean), nid);
+    let created: string | null = null;
+    const ok = await attemptWrite(async () => {
+      created = await svc.createProgram({ name: clean, weeks: [{ id: nid("w"), label: "Week 1", days: [day] }] });
+      if (!created) throw new Error("program not created");
+    });
+    const newId: string | null = created;
+    if (!ok || !newId) return;
+    // His first program is the one the gym opens on.
+    if (!program) { setActiveProgramId(newId); writeActiveProgramId(newId); }
+    finishing.current = { ...f, data: workoutOnDay(f.data, newId, day) };
+    setKeepFlow(null);
+    setSuggestFor(null);
+    await commitFinish(note);
+    showToast({ message: savedToastText(`${workoutTitle(clean)} Saved as a Program`, heldText(), storePending()) });
+  };
+  /** Not Now: this workout is not offered as a program again. */
+  const declinePattern = (sig: string) => {
+    const gs = readGymSettings();
+    writeGymSettings({ ...gs, declinedPatterns: [...(gs.declinedPatterns ?? []), sig] });
   };
   const keepTraining = () => {
     finishing.current = null;
@@ -1728,8 +1837,41 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onClose={() => setDupFinish(null)}
       />
     : null;
+  const finishingScratch = !!finishing.current && isScratch(finishing.current.data);
+  const keepEls = (
+    <>
+      {suggestFor && (
+        <ProgramSuggestSheet
+          suggestion={suggestFor.suggestion}
+          onCreate={() => void saveAsProgram(suggestFor.suggestion.name, suggestFor.note)}
+          onChoose={programDayItems.length > 0 ? () => setKeepFlow({ kind: "connect", note: suggestFor.note }) : undefined}
+          onNotNow={() => { declinePattern(suggestFor.suggestion.signature); const n = suggestFor.note; setSuggestFor(null); void commitFinish(n); }}
+          onDismiss={() => { const n = suggestFor.note; setSuggestFor(null); void commitFinish(n); }}
+        />
+      )}
+      {keepFlow?.kind === "connect" && (
+        <PickSheet
+          title="Connect to a Program"
+          items={programDayItems}
+          searchLabel="Search Program Days"
+          onPick={([id]) => { if (id) void connectFinished(id, keepFlow.note); }}
+          onCancel={() => setKeepFlow(null)}
+        />
+      )}
+      {keepFlow?.kind === "new" && (
+        <FormSheet title="New Program" saveDisabled={!keepFlow.name.trim()}
+          onCancel={() => setKeepFlow(null)}
+          onSave={() => void saveAsProgram(keepFlow.name, keepFlow.note)}>
+          <Group label="Name">
+            <FieldRow value={keepFlow.name} onChange={(v) => setKeepFlow({ ...keepFlow, name: v })} placeholder="New Program"
+              ariaLabel="Program name" right={false} onEnter={() => void saveAsProgram(keepFlow.name, keepFlow.note)} enterKeyHint="go" />
+          </Group>
+        </FormSheet>
+      )}
+    </>
+  );
   const receiptEl = receipt
-    ? <ReceiptSheet
+    ? <><ReceiptSheet
         dayName={receipt.dayName}
         receipt={receipt.receipt}
         celebrations={celebrations}
@@ -1737,6 +1879,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         // include it here (GYM-F-27 wanted the count right, not one behind).
         workouts={finishing.current ? [...workouts, { id: "pending", data: finishing.current.data } as Workout] : workouts}
         onDone={(note) => void commitFinish(note)}
+        onFinish={finishOrSuggest}
+        keep={finishingScratch ? {
+          onConnect: programDayItems.length > 0 ? (note) => setKeepFlow({ kind: "connect", note }) : undefined,
+          onSaveNew: (note) => setKeepFlow({
+            kind: "new", note,
+            name: finishing.current?.suggestion?.name
+              ?? (receipt.dayName && receipt.dayName !== SCRATCH_DAY_NAME ? workoutTitle(receipt.dayName) : "New Program"),
+          }),
+          onOneOff: (note) => void commitFinish(note),
+        } : undefined}
         onKeepTraining={live ? keepTraining : undefined}
         onRateSession={onRateSession}
         onLogSoreSpot={onLogSoreSpot}
@@ -1748,8 +1900,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             try { await goalsSvc.update(id, { state: "achieved" }); await reload(); } catch { /* offline: the goal stays open, nothing is lost */ }
           })();
         } : undefined}
-      />
-    : null;
+      />{keepEls}</>
+    : keepEls;
 
   if (uploadOpen) {
     return <UploadFlow ai={ai} onSave={(p) => void saveUploaded(p)} onCancel={() => setUploadOpen(false)} />;
@@ -2557,27 +2709,28 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // with no nav bar and no button, and isStillActive kept that session for
     // the rest of the day: every later visit landed on the same dead end.
     //
-    // So the empty session opens the same ExerciseSheet the Add Exercise button
-    // opens. Save and it is a session like any other. Cancel and the empty
-    // session is discarded rather than left behind, which is what Open Session
-    // meant in the first place: the sheet IS the screen until there is a lift.
+    // So the empty session opens on a screen of its own (the workout-first
+    // flow, Dave 2026-10-09, mockup 2): Add Exercise, and what he trained most
+    // recently one tap away. The first exercise makes it a session like any
+    // other. Cancel discards the empty session rather than leaving it behind,
+    // and goes back to where Start Workout was tapped.
     if (live.exercises.length === 0) {
+      const addToLive = (draft: Omit<Exercise, "id">) =>
+        // ...loadFields (2026-09-17): this path was missing it while the
+        // other mid-session add had it, so a lift that opened an empty
+        // session arrived with no equipment and no counting. The strip
+        // then stepped it by 5 for everything in the gym and the live
+        // card read "Equipment Not Set" on a lift that had just been
+        // told what it loads with, two screens earlier.
+        patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
       return (
-        <ExerciseSheet
-          mode="new"
+        <EmptyWorkoutScreen
           library={library}
+          classStore={classStore}
           history={workouts}
-          onSave={(draft) => {
-            // ...loadFields (2026-09-17): this path was missing it while the
-            // other mid-session add had it, so a lift that opened an empty
-            // session arrived with no equipment and no counting. The strip
-            // then stepped it by 5 for everything in the gym and the live
-            // card read "Equipment Not Set" on a lift that had just been
-            // told what it loads with, two screens earlier.
-            patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
-            seedLibrary(draft);
-          }}
-          onCancel={() => { clearLive(); enterSession(null); }}
+          onAddEntry={(entry) => addToLive(exerciseFromEntry(entry, classStore, nid))}
+          onAddDraft={(draft) => { addToLive(draft); seedLibrary(draft); }}
+          onCancel={() => { clearLive(); enterSession(null); leaveIfStartedOutside(); }}
         />
       );
     }
@@ -2979,49 +3132,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           onPick={() => {}}
           onPickMany={async (entries: LibraryEntry[]) => {
             if (!week || !day) return;
-            // Each pick lands as a real planned exercise carrying everything
-            // the library knows about it -- its measure, its unit, its last
-            // strip and, above all, its exerciseKey, so a lift added this way
-            // shares the history it already had rather than starting a fork.
-            // 2026-09-14: the CLASSIFICATION comes with it too -- the declared
-            // measurement, the equipment and the reading -- which is what makes
-            // editing those in the library a real answer rather than a label.
-            // It applies to this NEW sighting only; nothing already logged is
-            // touched (classify.ts's first rule).
-            const added: Exercise[] = entries.map((e) => {
-              const c = classStore[e.key] ?? classStore[e.exerciseKey ?? ""] ?? null;
-              const kind = c?.measure ?? e.kind;
-              // 2026-10-05: what the create sheet planned (rest, ramp, filler,
-              // note, clock, strip) lands here too, as ExerciseSheet's pick
-              // does. Gated on the measure still being the one it was planned
-              // under, like the unit: a clock or a strip means nothing on
-              // another kind. A seed has no lastSets, so its strip is the plan's.
-              const p = kind === e.kind ? e.plan : undefined;
-              const planSets = p?.sets?.length && e.lastSets.length === 0 ? p.sets : null;
-              return {
-                id: nid("e"),
-                name: e.name,
-                kind,
-                // A declared measure the entry was not logged under brings its
-                // own default unit: the old unit could be yards on a kind that
-                // measures seconds, and a mismatched unit is a nonsense PR.
-                ...(kind === e.kind ? (e.unit ? { unit: e.unit } : {}) : (defaultUnit(kind) ? { unit: defaultUnit(kind)! } : {})),
-                ...(kind === e.kind && (e.timeUnit ?? p?.timeUnit) ? { timeUnit: (e.timeUnit ?? p?.timeUnit)! } : {}),
-                ...(c?.equipment ? { equipment: c.equipment } : e.equipment ? { equipment: e.equipment as Exercise["equipment"] } : {}),
-                ...(c?.counted ? { counted: c.counted } : e.counted ? { counted: e.counted } : {}),
-                exerciseKey: e.exerciseKey ?? newExerciseKey(),
-                ...(p?.restSec ? { restSec: p.restSec } : {}),
-                ...(p?.ramp ? { ramp: true } : {}),
-                ...(p?.filler ? { filler: true } : {}),
-                ...(p?.note ? { note: p.note } : {}),
-                ...(p?.cond ? { cond: p.cond } : {}),
-                sets: kind === e.kind && e.lastSets.length > 0
-                  ? e.lastSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
-                  : planSets
-                    ? planSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
-                    : uniformStrip(3, { r: 8 }),
-              };
-            });
+            // Each pick lands as a real planned exercise carrying everything the
+            // library knows about it (fromLibrary.exerciseFromEntry, the one
+            // spelling the empty workout's Suggestions read too).
+            const added: Exercise[] = entries.map((e) => exerciseFromEntry(e, classStore, nid));
             const days = week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, ...added] } : d));
             setSheet({ kind: "closed" });
             // The toast is gated on the write landing: saveDays reports

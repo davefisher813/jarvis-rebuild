@@ -55,6 +55,18 @@ describe("HealthSettingsPage", () => {
     expect(readGymSettings().showLast).toBe(false);
   });
 
+  // The Program Suggestion (2026-10-10, the workout-first flow) is on until he turns it off here.
+  it("Suggest Programs is on by default and writes the gym store", () => {
+    render(<HealthSettingsPage onBack={() => {}} />);
+    const sw = screen.getByRole("switch", { name: "Suggest Programs" });
+    expect(sw).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(sw);
+    expect(readGymSettings().suggestPrograms).toBe(false);
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(sw);
+    expect(readGymSettings().suggestPrograms).toBe(true);
+  });
+
   it("the weekly sets band is his to set, and the studied range is one tap back", () => {
     render(<HealthSettingsPage onBack={() => {}} />);
     expect(screen.queryByText("Use the Studied Range")).toBeNull();

@@ -40,7 +40,7 @@ describe("the Next Workout's exercise count", () => {
 
   it("is the same plain fact on the sheet the hero opens", () => {
     const { container } = render(<HealthBody {...base} />);
-    fireEvent.click(container.querySelector(".h-hero")!);
+    fireEvent.click(container.querySelector('.h-hero[role="button"]')!);
     const facts = [...document.querySelectorAll(".sheet-scrim .facts .fact")];
     const fact = facts.find((f) => /Exercises/.test(f.textContent ?? ""))!;
     expect(fact).toBeTruthy();

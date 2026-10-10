@@ -6,7 +6,8 @@ import type { Receipt } from "./prs";
 import type { Workout } from "./types";
 import { doneCount } from "./history";
 import { pressable } from "../shared/pressable";
-import { Check } from "../shared/icons";
+import { CalendarDays, Check, FileText, RotateCcw } from "../shared/icons";
+import { Tile } from "../shared/FormSheet";
 
 const CHEV = <div className="chev" />;
 
@@ -21,13 +22,23 @@ const CHEV = <div className="chev" />;
 // names the done-kind work instead of folding it into a number. Each name
 // also gets a plain count fact ("done N times") pulled from history plus this
 // session -- a count, never a streak, never red, never a target.
-export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot, celebrations = true }: {
+export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onFinish, keep, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot, celebrations = true }: {
   dayName: string;
   receipt: Receipt;
   workouts: Workout[];
   /** H-30 (Health Push B, 2026-09-12): Done commits the session, carrying
    *  the note if he wrote one. */
   onDone: (note?: string) => void;
+  /** Done and a tap outside the sheet: what closing the receipt means. Absent
+   *  means onDone. The gym hands in its own so a workout that keeps repeating
+   *  can be offered as a program on the way out (gym/patterns.ts). */
+  onFinish?: (note?: string) => void;
+  /** KEEP THIS WORKOUT (Dave 2026-10-09, item 4: "connect the workout to a
+   *  program OR save it as a new program. The program emerges from
+   *  behavior"). Only for a workout that belongs to no program day. Each
+   *  carries the note typed below, like every other way out of the receipt.
+   *  Connect is absent when there is no program day to connect to. */
+  keep?: { onConnect?: (note: string) => void; onSaveNew: (note: string) => void; onOneOff: (note: string) => void };
   /** H-30: the quiet way back into the session, before anything is saved. */
   onKeepTraining?: () => void;
   /** H-35 (Health Push C): with Celebrations off, no PR tile and no New Best. */
@@ -53,11 +64,12 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
   if (receipt.otherSets > 0) tiles.push({ num: String(receipt.otherSets), label: receipt.otherSets === 1 ? "Set" : "Sets" });
   if (receipt.prs.length && celebrations) tiles.push({ num: String(receipt.prs.length), label: receipt.prs.length === 1 ? "PR" : "PRs" });
 
+  const finish = onFinish ?? onDone;
   return createPortal(
-    <div className="sheet-scrim" onClick={() => onDone(note)}>
+    <div className="sheet-scrim" onClick={() => finish(note)}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">Session Done</div></div>
+        <div className="grp"><div className="eyebrow">Workout Complete</div></div>
         <div className="pad-x sheet-form">
           <div className="p3-q">{workoutTitle(dayName)}</div>
           <div className="stat-row">
@@ -71,6 +83,43 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                 <div className="stat-tile" key={t.label}><div className="stat-num">{t.num}</div><div className="stat-label">{t.label}</div></div>
               ))}
             </div>
+          )}
+          {keep && (
+            <>
+              {/* Rows, not option cards (the style spec, screen 9): no red
+                  border and no tint, because red is a verb and the one filled
+                  red on this sheet is Done. Each tile wears its row's hue, and
+                  the card is the one the receipt's other groups sit in. */}
+              <div className="grp"><div className="eyebrow">Keep This Workout</div></div>
+              <div className="card">
+                {keep.onConnect && (
+                  <div className="row" {...pressable(() => keep.onConnect!(note))}>
+                    <Tile tone="sky"><CalendarDays className="ic" /></Tile>
+                    <div className="row-grow">
+                      <div className="conn-name">Connect to a Program</div>
+                      <div className="conn-meta">Add It to a Program Day</div>
+                    </div>
+                    {CHEV}
+                  </div>
+                )}
+                <div className="row" {...pressable(() => keep.onSaveNew(note))}>
+                  <Tile tone="green"><FileText className="ic" /></Tile>
+                  <div className="row-grow">
+                    <div className="conn-name">Save as a New Program</div>
+                    <div className="conn-meta">Make a Program From This Workout</div>
+                  </div>
+                  {CHEV}
+                </div>
+                <div className="row" {...pressable(() => keep.onOneOff(note))}>
+                  <Tile tone="graphite"><RotateCcw className="ic" /></Tile>
+                  <div className="row-grow">
+                    <div className="conn-name">Keep as a One-Off</div>
+                    <div className="conn-meta">Save It Without a Program</div>
+                  </div>
+                  {CHEV}
+                </div>
+              </div>
+            </>
           )}
           {receipt.doneNames.length > 0 && (
             <>
@@ -175,10 +224,10 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
           {/* H-30: a line of his own on the record. Optional; reference,
               never coaching, the same as an exercise note. */}
           <div className="grp"><div className="eyebrow">Note</div></div>
-          <MarkdownField value={note} docKey="receipt" level="quick" format="text" placeholder="Optional" ariaLabel="Session note" onChange={setNote} />
+          <MarkdownField value={note} docKey="receipt" level="quick" format="text" placeholder="Optional" ariaLabel="Workout note" onChange={setNote} />
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-launch btn-block" onClick={() => onDone(note)}>Done</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => finish(note)}>Done</button>
           {onKeepTraining && <button className="btn btn-block" onClick={onKeepTraining}>Keep Training</button>}
         </div>
       </div>

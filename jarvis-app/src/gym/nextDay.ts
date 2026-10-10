@@ -17,7 +17,9 @@ import { nextPinnedDay, pinnedTo, WEEKDAY_ABBR } from "./pins";
 // The id is a sentinel, never a real day's, so the rotation simply does not
 // find it and offers day one next, and nothing else in the gym has to know.
 export const SCRATCH_DAY_ID = "scratch";
-export const SCRATCH_DAY_NAME = "Open Session";
+// One vocabulary (Dave 2026-10-09, item 13): a visit is a Workout, never a
+// Session. A workout from scratch is simply called Workout until he names it.
+export const SCRATCH_DAY_NAME = "Workout";
 
 export interface NextDay {
   day: ProgramDay;

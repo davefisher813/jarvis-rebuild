@@ -27,7 +27,7 @@ const receipt: Receipt = {
 function open() {
   const onDone = vi.fn();
   render(<ReceiptSheet dayName="Pull Day 1" receipt={receipt} workouts={[]} onDone={onDone} onRateSession={() => {}} onLogSoreSpot={() => {}} />);
-  fireEvent.change(screen.getByLabelText("Session note"), { target: { value: "Left shoulder pinched on rows" } });
+  fireEvent.change(screen.getByLabelText("Workout note"), { target: { value: "Left shoulder pinched on rows" } });
   return onDone;
 }
 

@@ -2151,6 +2151,9 @@ export default function CategoryDetail({
           // History opens on its sessions segment.
           onOpenExercises={() => { setGymLibrary(true); setGymOpen(true); }}
           onOpenHistory={() => { setGymHistory("sessions"); setGymOpen(true); }}
+          // Recent Workouts (the workout-first Health page, 2026-10-10): a
+          // row opens that workout, the same door Insights' rows use.
+          onOpenWorkout={(id) => { setGymWorkoutId(id); setGymOpen(true); }}
           logActions={logActions}
           onOpenSettings={() => setHealthSettingsOpen(true)}
           // Projects, Goals Here, Coming Up, Up Next: the SAME block every

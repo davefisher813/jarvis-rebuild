@@ -39,6 +39,15 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
     writeGymSettings({ ...g, showLast: !g.showLast });
     setShowLast(!g.showLast);
   };
+  // THE PROGRAM SUGGESTION (2026-10-10, gym/patterns.ts): on unless he turns
+  // it off here. It only ever offers; nothing is created without his tap.
+  const [suggestPrograms, setSuggestPrograms] = useState(() => readGymSettings().suggestPrograms !== false);
+  const toggleSuggestPrograms = () => {
+    const g = readGymSettings();
+    const next = g.suggestPrograms === false;
+    writeGymSettings({ ...g, suggestPrograms: next });
+    setSuggestPrograms(next);
+  };
   const toggleShortcut = (k: ShortcutKey) => {
     const on = s.shortcuts.includes(k);
     set({ shortcuts: on ? s.shortcuts.filter((x) => x !== k) : [...s.shortcuts, k] });
@@ -102,6 +111,7 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
         {Capacitor.isNativePlatform() && <Switch label="Rest Notification" meta="A Buzz on the Lock Screen When the Rest Is Over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />}
         <Switch label="Last Time on Every Set" meta="Last Session Beside Each Set, with Tap-to-Match" on={showLast} onToggle={toggleShowLast} />
         <Switch label="Celebrations" meta="The PR Mark, and New Best on the Receipt" on={s.celebrations} onToggle={() => set({ celebrations: !s.celebrations })} />
+        <Switch label="Suggest Programs" meta="When the Same Workout Keeps Repeating, Offer to Save It as a Program" on={suggestPrograms} onToggle={toggleSuggestPrograms} />
         {/* Part 3 wave 5: the progression engine's mode, easy to change. Two
             modes since 2026-10-04: Program did what Manual does. */}
         <Menu label="Progression" meta={s.progression === "assisted" ? "A Next Target from Your Completed Sets, with Its Basis on Tap" : "No Suggestions"}

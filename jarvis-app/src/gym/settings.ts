@@ -88,6 +88,14 @@ export interface GymSettings {
    *  last. A record of what was folded into what and when, so a merge is
    *  answerable weeks later even when it can no longer be safely reversed. */
   merges?: MergeRecord[];
+  /** THE PROGRAM SUGGESTION (2026-10-10, the workout-first flow; see
+   *  gym/patterns.ts). Off only when he turns it off in Customize; absent
+   *  reads as on, because it never acts without his tap. */
+  suggestPrograms?: boolean;
+  /** Each pattern he answered Not Now to, as its exercise identities joined
+   *  with "|" (ProgramSuggestion.signature), so the same workout is not
+   *  offered again. Absent reads as none. */
+  declinedPatterns?: string[];
 }
 
 /** A lift the athlete created by hand, before ever doing it. See

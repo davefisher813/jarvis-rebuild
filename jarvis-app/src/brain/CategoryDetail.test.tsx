@@ -403,8 +403,10 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     expect(screen.getByText("Last 7 Days")).toBeInTheDocument();
     expect(screen.getByText("Working Sets")).toBeInTheDocument();
     expect(screen.getByText("Training Time")).toBeInTheDocument();
-    expect(screen.getByText("Next Workout")).toBeInTheDocument();
-    expect(screen.getByText("Set Up a Program")).toBeInTheDocument();
+    // WORKOUT FIRST (Dave 2026-10-09): Start Workout leads, with or without a program.
+    expect(screen.getByText("Ready to Train")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Workout" })).toBeInTheDocument();
+    expect(screen.queryByText("Set Up a Program")).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Insights" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "All Data" })).toBeInTheDocument();
     // No logger is a tile or a row on the page itself.
@@ -824,14 +826,17 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
   // THE TRAINING CARD IS A CHOICE (Dave 2026-09-10: "There's not even a header
   // above it. It should encourage the user to select a workout for the day or
   // begin one from scratch").
-  it("puts a head over the training card and offers a session from scratch", async () => {
+  //
+  // WORKOUT FIRST (Dave 2026-10-09, items 1 and 2: "Most people don't have
+  // programs. Stop assuming a Program on the Health screen"). With no program
+  // the card no longer asks for one: Start Workout starts an empty workout.
+  it("puts a head over the training card and offers a workout from scratch, with no program", async () => {
     render(<NotesProvider userId="hd2"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
-    expect(screen.getByText("Next Workout")).toBeInTheDocument();
-    // With no program yet there is nothing to start, so the card says so and
-    // offers neither Start nor Change Workout.
-    expect(screen.getByText("Set Up a Program")).toBeInTheDocument();
-    expect(screen.queryByText("Start Workout")).toBeNull();
+    expect(screen.getByText("Ready to Train")).toBeInTheDocument();
+    expect(screen.queryByText("Set Up a Program")).toBeNull();
+    expect(screen.getByRole("button", { name: "Start Workout" })).toBeInTheDocument();
+    // No program day to switch to, so no Change Workout either.
     expect(screen.queryByText("Change Workout")).toBeNull();
   });
 });
@@ -847,7 +852,7 @@ describe("CategoryDetail health page: Push C", () => {
       exercises: [{ exerciseId: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 135, r: 8 }] }],
     });
     render(<NotesProvider userId="hc1"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Session Open")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Workout in Progress")).toBeInTheDocument());
     expect(screen.getByText("Push Day")).toBeInTheDocument();
     expect(screen.getByText("Next: Bench Press")).toBeInTheDocument();
     expect(screen.getByText("1 Logged")).toBeInTheDocument();
