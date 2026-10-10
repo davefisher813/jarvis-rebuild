@@ -590,6 +590,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         if (draft.closeNow) await svc.toggleDone(sheet.id);
       });
     }
+    if (saved && sheet && !draft.closeNow) haptics.confirm();
     const wasNew = sheet?.mode === "new" && saved;
     setSheet(null);
     await reload();

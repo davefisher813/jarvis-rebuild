@@ -317,7 +317,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
       return;
     }
     if (billNote) showToast({ message: billNote });
-    haptics.selection();
+    haptics.confirm();
     setSaved(out);
     setRecents(readRecentCaptures().filter((r) => !out.some((s) => s.id === r.id)));
     setPhase("saved");
@@ -337,7 +337,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     const out: SavedEntity[] = [];
     const ok = await attemptWrite(() => smartPasteSave(s.raw ?? s.title, deps(cats), out));
     if (!ok || out.length === 0) return;
-    haptics.selection();
+    haptics.confirm();
     setSaved((cur) => cur.flatMap((x) => (x.id === s.id ? out : [x])));
     setRecents((cur) => cur.filter((r) => !out.some((o) => o.id === r.id)));
   };

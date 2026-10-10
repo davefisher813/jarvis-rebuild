@@ -115,19 +115,39 @@ describe("haptics and sound are off until chosen", () => {
     expect(vibrate).toHaveBeenCalledTimes(1);
   });
 
-  it("a completion on the bus plays nothing at defaults", () => {
+  // Apple sprint, haptics (2026-10-10): a completion is never felt as nothing.
+  // The success pattern stays the chosen reward; without it (by default, or
+  // under Quiet Today) the completion gets the light confirm every committing
+  // tap gets. One tap per completion, never both.
+  it("a completion on the bus answers with the light confirm at defaults, never the success pattern", () => {
     render(<FeedbackProvider><Probe /></FeedbackProvider>);
     act(() => { bus.emit({ type: "task.completed" } as never); });
-    expect(vibrate).not.toHaveBeenCalled();
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenLastCalledWith(10);
   });
 
-  it("a completion on the bus taps once when haptics are chosen", () => {
+  it("a completion on the bus taps the success pattern once when haptics are chosen, and only that", () => {
     render(<FeedbackProvider><Probe /></FeedbackProvider>);
     setLiveFeedback({ ...DEFAULT_FEEDBACK, haptics: true });
     act(() => { bus.emit({ type: "task.completed" } as never); });
     expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenLastCalledWith([10, 40, 16]);
     playCompletion();
     expect(vibrate).toHaveBeenCalledTimes(2);
+  });
+
+  it("under Quiet Today a completion keeps the light confirm and drops the reward", () => {
+    setLiveFeedback({ ...DEFAULT_FEEDBACK, haptics: true });
+    setQuietToday(true, todayISO());
+    playCompletion();
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenLastCalledWith(10);
+  });
+
+  it("confirm is the controls' own feel, outside the choice, and lighter than the reward", () => {
+    haptics.confirm();
+    expect(vibrate).toHaveBeenCalledTimes(1);
+    expect(vibrate).toHaveBeenLastCalledWith(10);
   });
 
   it("tones are throttled so a whole list makes one sound", () => {

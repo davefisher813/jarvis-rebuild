@@ -96,7 +96,12 @@ export function playCompletion(): void {
   chooseCelebrationForm();
   const eff = currentEffective();
   if (eff.sound) playTone();
+  // The completion tap is a choice (Feedback Style > Haptics); when it is not
+  // chosen, or Quiet Today holds it, the completion still answers with the
+  // same light confirm any committing tap gets, so finishing a task never
+  // feels like nothing (Apple sprint, haptics, 2026-10-10).
   if (eff.haptic) haptics.success();
+  else haptics.confirm();
 }
 
 /** The Hear It row in settings: plays the tone even while the switch is off,

@@ -111,7 +111,7 @@ export default function NotificationsFlow({ onOpen, onBack }: { onOpen?: (kind: 
       const before = await tasksSvc.task(n.entityId);
       const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
       if (!ok) return;
-      haptics.selection();
+      // No tap here: the completion answers through the bus (encourage/effects playCompletion).
       setFeed((f) => f.filter((x) => !(x.entity === "task" && x.entityId === n.entityId)));
       if (before) showToast({
         message: "Done",
