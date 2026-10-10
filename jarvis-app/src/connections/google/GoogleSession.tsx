@@ -4,7 +4,7 @@ import { requestGoogleToken, type TokenOpts } from "./gis";
 import { GOOGLE_SCOPES } from "./config";
 import {
   serverBroker, googleFailure, interactiveHelps, GoogleSessionError,
-  type TokenBroker, type GoogleFailure, type GoogleSessionResult,
+  type TokenBroker, type GoogleFailure, type GoogleSessionResult, type AuthorizeResult,
 } from "./broker";
 import { useOptionalSession } from "../../auth/AuthProvider";
 import { createGoogleApi, withSilentRefresh, type FetchLike, type GoogleApi } from "./api";
@@ -91,7 +91,12 @@ interface GoogleSessionValue {
   connect: () => Promise<GoogleApi>;
   /** Force the account chooser to add a new account. */
   addAccount: () => Promise<{ api: GoogleApi; email: string; remembered: boolean }>;
-  reconnect: (email: string) => Promise<GoogleApi>;
+  /** consent: true skips the silent refresh and goes straight to Google's consent screen (Sign In Again). */
+  reconnect: (email: string, opts?: { consent?: boolean }) => Promise<GoogleApi>;
+  /** Get a reconnect ready before the tap, so the tap can open Google's window (2026-10-10). Safe to call often. */
+  warmReconnect: (email: string, opts?: { consent?: boolean }) => void;
+  /** Get Add Account ready before the tap, for the same reason. */
+  warmAdd: () => void;
   /** No email: disconnect everything (legacy behavior). */
   disconnect: (email?: string) => Promise<void>;
   setFeature: (email: string, key: "mail" | "cal" | "drive", on: boolean) => Promise<void>;
@@ -293,14 +298,40 @@ export function GoogleSessionProvider({
   // A token grant always ends with getProfile when the broker didn't already
   // say whose it is: the USER picks the account in Google's UI, so the truth
   // of "who authorized" comes from Google, not from what we asked for.
-  const authorize = useCallback(async (opts: TokenOpts): Promise<{ api: GoogleApi; email: string; remembered: boolean }> => {
-    const got = await brokerRef.current!.authorize(opts);
+  const finishAuthorize = useCallback(async (got: AuthorizeResult): Promise<{ api: GoogleApi; email: string; remembered: boolean }> => {
     const email = normalizeAccount(got.email ?? (await buildApi(got.token).getProfile()).emailAddress);
     // remembered:false is shown as what it is, a connection that lasts until
     // the app is closed, not as a sign-in that stays.
     storeToken(email, got, got.remembered ? undefined : got.warning);
     return { api: buildApi(got.token, email), email, remembered: got.remembered === true };
   }, [buildApi, storeToken]);
+  const authorize = useCallback(async (opts: TokenOpts) => finishAuthorize(await brokerRef.current!.authorize(opts)), [finishAuthorize]);
+
+  // PREPARED SIGN-INS (2026-10-10, the reconnect that did nothing). A browser opens a window only inside the person's tap, and
+  // a reconnect used to spend that tap on a token refresh and the server's attempt before asking Google, so Safari refused the
+  // window and the button did nothing. Now the work happens before the tap: a prepared entry either already fixed the account
+  // (the silent refresh worked) or holds a launch() that opens Google synchronously. Single use; stale after its expiry.
+  type Ready = { kind: "fixed"; api: GoogleApi; at: number } | { kind: "launch"; launch: () => Promise<AuthorizeResult>; expiresAt: number };
+  const ready = useRef<Record<string, Ready>>({});
+  const warming = useRef<Record<string, Promise<void>>>({});
+  const readyKey = (what: "add" | "reconnect" | "consent", email = "") => what + ":" + email;
+  const fresh = (r: Ready | undefined): r is Ready => !!r && (r.kind === "fixed" ? Date.now() - r.at < 60e3 : Date.now() < r.expiresAt);
+  const prepareLaunch = useCallback(async (key: string, opts: TokenOpts) => {
+    const b = brokerRef.current!;
+    if (!b.prepare) return; // a broker with nothing to prepare (tests, the bench) is authorized at the tap, as before
+    const p = await b.prepare(opts);
+    ready.current[key] = { kind: "launch", launch: p.launch, expiresAt: p.expiresAt };
+  }, []);
+  const warm = useCallback((key: string, work: () => Promise<void>) => {
+    if (fresh(ready.current[key]) || key in warming.current) return;
+    warming.current[key] = work().catch(() => { /* the tap will try again the old way and say what went wrong */ })
+      .finally(() => { delete warming.current[key]; });
+  }, []);
+  const takeReady = (key: string): Ready | null => {
+    const r = ready.current[key];
+    delete ready.current[key];
+    return fresh(r) ? r : null;
+  };
 
   // "Stays signed in": on app open, mint tokens for every known account from
   // the stored sign-ins, no popup, no tap. Interactive connect remains the
@@ -352,33 +383,62 @@ export function GoogleSessionProvider({
     return list.map((a) => (a.email === email ? { ...a, scopes: GOOGLE_SCOPES } : a));
   }, []);
 
-  const addAccount = useCallback(async () => {
-    const got = await authorize({ selectAccount: true });
-    await persist(stamped(accounts, got.email));
-    return got;
-  }, [authorize, accounts, persist, stamped]);
+  const warmAdd = useCallback(() => {
+    warm(readyKey("add"), () => prepareLaunch(readyKey("add"), { selectAccount: true }));
+  }, [warm, prepareLaunch]);
 
-  const reconnect = useCallback(async (email: string) => {
-    // Silent first: with a stored sign-in this is popup-free. Gated on the
-    // scopes being current, because a silent token under old scopes LOOKS
-    // signed in and then fails every write.
+  const addAccount = useCallback(async () => {
+    // Prepared: Google's window opens right here, inside the tap. Not prepared: the old way (it may be refused, and says so).
+    const r = takeReady(readyKey("add"));
+    const pending = r?.kind === "launch" ? r.launch() : null;
+    const got = await finishAuthorize(pending ? await pending : await brokerRef.current!.authorize({ selectAccount: true }));
+    await persist(stamped(accountsRef.current, got.email));
+    return got;
+  }, [finishAuthorize, persist, stamped]);
+
+  const warmReconnect = useCallback((email: string, opts: { consent?: boolean } = {}) => {
     const key = normalizeAccount(email);
-    const known = accounts.find((a) => normalizeAccount(a.email) === key);
-    const silent = brokerRef.current?.silent;
-    if (silent && known && scopesCurrent(known)) {
-      const r = await refreshAccount(key);
-      if (r.ok) return buildApi(r.token, key);
-      // Google's chooser answers a sign-in that is gone, not a network that
-      // is down: a temporary failure is reported as itself and nothing opens.
-      if (!interactiveHelps(r.code)) throw new GoogleSessionError(r);
+    const k = readyKey(opts.consent ? "consent" : "reconnect", key);
+    warm(k, async () => {
+      // Silent first, unless the person asked to sign in again: with a stored sign-in this is popup free. Gated on the scopes
+      // being current, because a silent token under old scopes LOOKS signed in and then fails every write.
+      const known = accountsRef.current.find((a) => normalizeAccount(a.email) === key);
+      const silent = brokerRef.current?.silent;
+      if (!opts.consent && silent && known && scopesCurrent(known)) {
+        const r = await refreshAccount(key);
+        if (r.ok) { ready.current[k] = { kind: "fixed", api: buildApi(r.token, key), at: Date.now() }; return; }
+        // A temporary failure is reported as itself at the tap and nothing opens; only a sign-in that is gone is prepared for Google.
+        if (!interactiveHelps(r.code)) return;
+      }
+      // One tap, guarded: the server mints the attempt and its state, and checks who came back before anything is stored (Spec 4).
+      await prepareLaunch(k, { loginHint: email, reconnect: key });
+    });
+  }, [warm, refreshAccount, buildApi, prepareLaunch]);
+
+  const reconnect = useCallback(async (email: string, opts: { consent?: boolean } = {}) => {
+    const key = normalizeAccount(email);
+    const r = takeReady(readyKey(opts.consent ? "consent" : "reconnect", key));
+    if (r?.kind === "fixed") return r.api;
+    // Prepared: Google's window opens right here, synchronously, inside the tap.
+    const pending = r?.kind === "launch" ? r.launch() : null;
+    let got: { api: GoogleApi; email: string; remembered: boolean };
+    if (pending) {
+      got = await finishAuthorize(await pending);
+    } else {
+      // Not prepared (the tap came before the warm-up finished): the old order, which a strict browser may refuse; it now says so.
+      const known = accountsRef.current.find((a) => normalizeAccount(a.email) === key);
+      const silent = brokerRef.current?.silent;
+      if (!opts.consent && silent && known && scopesCurrent(known)) {
+        const s2 = await refreshAccount(key);
+        if (s2.ok) return buildApi(s2.token, key);
+        if (!interactiveHelps(s2.code)) throw new GoogleSessionError(s2);
+      }
+      got = await authorize({ loginHint: email, reconnect: key });
     }
-    // One tap, guarded: the server mints the attempt and its state, and checks who came back before anything is stored (Spec 4).
-    const got = await authorize({ loginHint: email, reconnect: normalizeAccount(email) });
-    // Stamp whoever ACTUALLY authorized (the user picks in Google's popup;
-    // honoring reality also creates the entry when they picked someone new).
-    await persist(stamped(accounts, got.email));
+    // Stamp whoever ACTUALLY authorized (the user picks in Google's window; honoring reality also creates the entry when they picked someone new).
+    await persist(stamped(accountsRef.current, got.email));
     return got.api;
-  }, [authorize, accounts, persist, stamped, refreshAccount, buildApi]);
+  }, [authorize, finishAuthorize, persist, stamped, refreshAccount, buildApi]);
 
   const connect = useCallback(async (): Promise<GoogleApi> => {
     if (accounts.length === 0) return (await addAccount()).api;
@@ -525,8 +585,8 @@ export function GoogleSessionProvider({
   const hasToken = tokenEmails.length > 0;
   const connected = accounts.length > 0 || legacyConnected;
   const value = useMemo<GoogleSessionValue>(
-    () => ({ connected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, disconnect, setFeature, api, apis, ensureGoogleSession, connectionOf }),
-    [connected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, disconnect, setFeature, api, apis, ensureGoogleSession, connectionOf],
+    () => ({ connected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, warmReconnect, warmAdd, disconnect, setFeature, api, apis, ensureGoogleSession, connectionOf }),
+    [connected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, warmReconnect, warmAdd, disconnect, setFeature, api, apis, ensureGoogleSession, connectionOf],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

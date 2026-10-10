@@ -9,13 +9,14 @@
 //   recovered, or the mailbox removed  ->  the incident ends and its alert is suppressed. Nothing is sent.
 //   still broken                        ->  ONE attempt through a user-scoped transport, if there is one.
 //
-// THERE IS NO USER-SCOPED TRANSPORT TODAY, and this never pretends otherwise. Native APNs needs an Apple key that does
-// not exist yet (src/native/push.ts, migration 0054), and the backend's web push (/api/push/test, src/push/proxy.ts)
-// broadcasts to EVERY subscribed device of EVERY user, so an incident alert through it would reach every tester: a
-// privacy breach, and never used here. transportFor() is the seam a real sender (APNs to this owner's device_token rows,
-// gated on their notification permission and preferences) plugs into; it answers null today, and the alert is recorded
-// as 'unavailable' with the reason 'no_user_scoped_transport'. Never "sent", never "delivered". The in-app status is
-// shown whatever happens here ("push failure never hides either in-app state").
+// THE TRANSPORT IS APPLE PUSH TO THIS OWNER'S PHONES ONLY (2026-10-10, Dave's APNs key; api/_apns.ts). transportFor()
+// reads the owner's device_token rows (migration 0054) and sends to those and nothing else. "If notifications are enabled"
+// is the token itself: the phone registers one only after the person allowed notifications (src/native/push.ts), and
+// iOS drops an alert for an app whose permission was later turned off. No key configured, or no phone registered: the
+// alert is recorded 'unavailable' with that reason. The backend's web push (/api/push/test, src/push/proxy.ts)
+// broadcasts to EVERY subscribed device of EVERY user, so it is never used here: a privacy breach. Never "sent", never
+// "delivered": Apple accepting it is "submitted". The in-app status is shown whatever happens here ("push failure never
+// hides either in-app state").
 //
 // EXACTLY ONE LOGICAL ATTEMPT. The claim leases the row (skip locked, so two ticks never take the same one); the
 // database moves the alert only forward (pending -> unavailable | failed | unknown -> submitted | failed) and only for
@@ -31,6 +32,7 @@
 // never an incident ID, never a token.
 
 import { fail, failResponse, json, readEnv, serviceRpc, serviceSelect, type EmailEnv } from "./_email";
+import { apnsSend, readApnsConfig, type ApnsConfig, type ApnsEnvironment } from "./_apns";
 import { readGrantMeta, resolveIncidents } from "./_incident";
 import { recoveredOf, type GrantMeta } from "../src/connections/incident";
 import type { AccountStatus } from "../src/connections/connectionStatus";
@@ -59,10 +61,49 @@ export interface AlertTransport {
   send(payload: AlertPayload): Promise<AlertOutcome>;
 }
 
-/** THE SEAM. A user-scoped sender for this owner, already gated on their notification permission and preferences, or null.
- *  Null today for everyone: there is no user-scoped push transport (see the header). */
-export async function transportFor(_env: EmailEnv, _owner: string): Promise<AlertTransport | null> {
-  return null;
+/** No sender for this owner, and why (recorded as the alert's reason; never an address or a token). */
+export interface NoTransport {
+  unavailable: "no_apns_key" | "no_registered_phone";
+}
+
+interface DeviceRow {
+  token: string;
+  environment: ApnsEnvironment;
+}
+
+/** Apple push to every phone this owner registered, one alert each. Any phone accepting it is "submitted"; a phone that
+ *  may have received it makes the whole "unknown" (never resent); otherwise "failed". A token Apple says is retired
+ *  (410) is removed. */
+export function apnsTransport(env: EmailEnv, owner: string, cfg: ApnsConfig, devices: readonly DeviceRow[], doFetch: (url: string, init: RequestInit) => Promise<Response> = fetch): AlertTransport {
+  return {
+    async send(payload) {
+      let submitted = false;
+      let unknown = false;
+      for (const d of devices) {
+        const r = await apnsSend(cfg, d, { body: payload.text, collapseId: `jarvis-${payload.kind}` }, doFetch);
+        if (r.kind === "submitted") submitted = true;
+        else if (r.kind === "unknown") unknown = true;
+        else if (r.kind === "unregistered") {
+          await doFetch(`${env.supaUrl}/rest/v1/device_token?user_id=eq.${encodeURIComponent(owner)}&token=eq.${encodeURIComponent(d.token)}`, {
+            method: "DELETE",
+            headers: { apikey: env.service, Authorization: `Bearer ${env.service}` },
+          }).catch(() => null);
+        }
+      }
+      return submitted ? "submitted" : unknown ? "unknown" : "failed";
+    },
+  };
+}
+
+/** THE SEAM. This owner's sender, or why there is none. Throws when the phones could not be read, so the alert stays
+ *  pending and the next tick tries again rather than recording a transient failure as final. */
+export async function transportFor(env: EmailEnv, owner: string): Promise<AlertTransport | NoTransport> {
+  const cfg = readApnsConfig();
+  if (!cfg) return { unavailable: "no_apns_key" };
+  const devices = await serviceSelect<DeviceRow>(env, "device_token", `user_id=eq.${encodeURIComponent(owner)}&platform=eq.ios&select=token,environment`);
+  if (devices === null) throw new Error("device_token unreadable");
+  if (devices.length === 0) return { unavailable: "no_registered_phone" };
+  return apnsTransport(env, owner, cfg, devices);
 }
 
 /** Alerts handled per call. A call is short; the next tick takes the next ones. */
@@ -142,7 +183,7 @@ async function settle(env: EmailEnv, a: ClaimedAlert, status: "unavailable" | "f
 }
 
 export interface IncidentWorkerDeps {
-  transportFor: (env: EmailEnv, owner: string) => Promise<AlertTransport | null>;
+  transportFor: (env: EmailEnv, owner: string) => Promise<AlertTransport | NoTransport | null>;
 }
 
 export async function runIncidentWorker(req: Request, deps: IncidentWorkerDeps = { transportFor }): Promise<Response> {
@@ -179,14 +220,15 @@ export async function runIncidentWorker(req: Request, deps: IncidentWorkerDeps =
       continue;
     }
 
-    // Still broken at 15 minutes. Permission and preferences are the transport's to check; none exists for anyone yet.
-    let transport: AlertTransport | null = null;
-    try { transport = await deps.transportFor(env, a.owner_id); } catch { transport = null; }
-    if (!transport) {
-      if (await settle(env, a, "unavailable", "no_user_scoped_transport")) counts.unavailable++;
+    // Still broken at 15 minutes. Whether this owner can be reached is the transport's to say.
+    let found: AlertTransport | NoTransport | null;
+    try { found = await deps.transportFor(env, a.owner_id); } catch { counts.deferred++; continue; } // still pending; the lease brings it back
+    if (!found || "unavailable" in found) {
+      if (await settle(env, a, "unavailable", found ? found.unavailable : "no_user_scoped_transport")) counts.unavailable++;
       else counts.lost++;
       continue;
     }
+    const transport = found;
     // Marked before the call: a send that may have left is never sent again.
     if (!(await settle(env, a, "unknown", "dispatching"))) { counts.lost++; continue; }
     let outcome: AlertOutcome;

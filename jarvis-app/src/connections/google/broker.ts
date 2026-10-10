@@ -1,7 +1,7 @@
 import { apiUrl } from "../../shared/apiBase";
-import { requestGoogleCode, type TokenOpts } from "./gis";
+import { preloadGoogleSignIn, startGoogleCode, type TokenOpts } from "./gis";
 import { nativeGoogleAvailable, requestGoogleCodeNative } from "./nativeAuth";
-import { ReconnectCancelled, ReconnectDenied, ReconnectOutcomeError, clearPending, writePending, type AttemptStatus } from "./reconnect";
+import { ReconnectCancelled, ReconnectDenied, ReconnectOutcomeError, SignInBlocked, clearPending, writePending, type AttemptStatus } from "./reconnect";
 
 // The token broker (persistent sign-in, 2026-08-04): how the session gets
 // Google access tokens.
@@ -81,8 +81,20 @@ export interface AuthorizeResult {
   warning?: GoogleFailure;
 }
 
+/** An interactive sign-in made ready before the tap: launch() opens Google synchronously, inside the tap, and resolves with the
+ *  exchange's result. Single use (the server's state is single use); stale after expiresAt (the state lives ten minutes). */
+export interface PreparedAuthorize {
+  launch: () => Promise<AuthorizeResult>;
+  expiresAt: number;
+}
+
+/** How long a prepared sign-in is used before it is prepared again: inside the server state's ten minutes, with room for the tap. */
+export const PREPARED_FOR_MS = 8 * 60e3;
+
 export interface TokenBroker {
   authorize: (opts: TokenOpts) => Promise<AuthorizeResult>;
+  /** Everything an interactive sign-in needs before Google's window opens (the server's attempt, the script). Optional: a broker without it is authorized directly. */
+  prepare?: (opts: TokenOpts) => Promise<PreparedAuthorize>;
   silent?: (email: string) => Promise<GoogleSessionResult>;
   forget?: (email: string) => Promise<void>;
 }
@@ -193,6 +205,50 @@ export function serverBroker(getAuthToken: () => string | undefined, doFetch: Fe
     return googleFailure("GOOGLE_REFRESH_UNAVAILABLE", email, a.status);
   };
 
+  // The half of an interactive sign-in after Google answers: the server is told of a cancel or a refusal, the code is exchanged,
+  // and the server's checks decide. Shared by every launch.
+  const finish = async (o: TokenOpts, opts: TokenOpts, native: boolean, code: Promise<{ code: string; verifier: string; redirectUri: string }>): Promise<AuthorizeResult> => {
+    let sent: { code: string; verifier: string; redirectUri: string };
+    try {
+      sent = await code;
+    } catch (e) {
+      // The window closed (silent) or Google refused (with its reason): the server is told, the device forgets it left.
+      if (o.state && (e instanceof ReconnectCancelled || e instanceof ReconnectDenied)) {
+        clearPending();
+        await call({ reconnectReport: { state: o.state, outcome: e instanceof ReconnectDenied ? "denied" : "cancelled", ...(e instanceof ReconnectDenied ? { reason: e.reason } : {}) } });
+      }
+      // The browser refused the window: nothing left this device, so nothing is pending.
+      if (e instanceof SignInBlocked) clearPending();
+      throw e;
+    }
+    const reply = await call({ code: sent.code, ...(native ? { verifier: sent.verifier, redirectUri: sent.redirectUri } : {}), ...(o.state ? { state: o.state } : {}) });
+    if ("local" in reply) throw new GoogleSessionError(reply.local);
+    const res = reply.answer;
+    if (o.state && !res.accessToken) {
+      // The server ran the checks and one did not pass: the same words on every screen, and nothing was stored.
+      clearPending();
+      if (res.reconnect?.status) throw new ReconnectOutcomeError(res.reconnect.status, res.reconnect.intended ?? opts.reconnect ?? "", { ...(res.reconnect.selected ? { selected: res.reconnect.selected } : {}), retryable: res.retryable === true });
+    }
+    if (!res.accessToken) {
+      // A coded refusal (network, storage, an expired JARVIS sign-in)
+      // keeps its code; the exchange's own errors keep their old wording.
+      if (isGoogleCode(res.code)) throw new GoogleSessionError(failureOf(res, res.email ?? ""));
+      throw new Error(res.error || "Google sign-in failed");
+    }
+    if (o.state) clearPending();
+    const warning = res.remembered !== true && isGoogleCode(res.code) ? googleFailure(res.code, res.email ?? "", res.status, res.message) : undefined;
+    return {
+      token: res.accessToken,
+      email: res.email,
+      expiresAt: now() + (res.expiresIn ?? 3600) * 1000,
+      // Durable only when the server says it stored one. A response with
+      // no field at all is an older server and is not taken on trust.
+      remembered: res.remembered === true,
+      ...(res.scope ? { scope: res.scope } : {}),
+      ...(warning ? { warning } : {}),
+    };
+  };
+
   return {
     // UP-LAUNCH-12 (2026-09-05): the same exchange, two ways of getting the
     // code. The web keeps the GIS popup; the phone opens the system sign-in
@@ -201,53 +257,33 @@ export function serverBroker(getAuthToken: () => string | undefined, doFetch: Fe
     // which Google will not accept. The server half is identical apart from
     // the verifier, which is what proves the exchange belongs to this sheet.
     async authorize(opts) {
-      // ONE-TAP RECONNECT (Spec 4): the server mints the attempt and its signed state BEFORE the person leaves for Google. The
-      // attempt is the server's: this device only remembers that it left, so a killed app can say so honestly when it reopens.
+      // Prepared and launched at once: for a caller with no tap to protect (tests, a retry from code). Tap paths prepare ahead.
+      return (await this.prepare!(opts)).launch();
+    },
+
+    // ONE-TAP RECONNECT (Spec 4): the server mints the attempt and its signed state BEFORE the person leaves for Google. The
+    // attempt is the server's: this device only remembers that it left, so a killed app can say so honestly when it reopens.
+    // PREPARED AHEAD (2026-10-10, the reconnect that did nothing): all of that happens here, before the tap, so launch() can open
+    // Google's window inside the tap. Awaiting the server first spent the tap's permission to open a window and Safari refused it.
+    async prepare(opts) {
       let o = opts;
       if (opts.reconnect) {
         const st = await call({ reconnectStart: opts.reconnect });
         if ("local" in st) throw new GoogleSessionError(st.local);
         if (!st.answer.state) throw new GoogleSessionError(failureOf(st.answer, opts.reconnect));
-        writePending(opts.reconnect);
         o = { ...opts, state: st.answer.state, loginHint: st.answer.loginHint ?? opts.reconnect };
       }
       const native = nativeGoogleAvailable();
-      let sent: { code: string; verifier: string; redirectUri: string };
-      try {
-        sent = native ? await requestGoogleCodeNative(o) : { code: await requestGoogleCode(o), verifier: "", redirectUri: "" };
-      } catch (e) {
-        // The window closed (silent) or Google refused (with its reason): the server is told, the device forgets it left.
-        if (o.state && (e instanceof ReconnectCancelled || e instanceof ReconnectDenied)) {
-          clearPending();
-          await call({ reconnectReport: { state: o.state, outcome: e instanceof ReconnectDenied ? "denied" : "cancelled", ...(e instanceof ReconnectDenied ? { reason: e.reason } : {}) } });
-        }
-        throw e;
-      }
-      const reply = await call({ code: sent.code, ...(native ? { verifier: sent.verifier, redirectUri: sent.redirectUri } : {}), ...(o.state ? { state: o.state } : {}) });
-      if ("local" in reply) throw new GoogleSessionError(reply.local);
-      const res = reply.answer;
-      if (o.state && !res.accessToken) {
-        // The server ran the checks and one did not pass: the same words on every screen, and nothing was stored.
-        clearPending();
-        if (res.reconnect?.status) throw new ReconnectOutcomeError(res.reconnect.status, res.reconnect.intended ?? opts.reconnect ?? "", { ...(res.reconnect.selected ? { selected: res.reconnect.selected } : {}), retryable: res.retryable === true });
-      }
-      if (!res.accessToken) {
-        // A coded refusal (network, storage, an expired JARVIS sign-in)
-        // keeps its code; the exchange's own errors keep their old wording.
-        if (isGoogleCode(res.code)) throw new GoogleSessionError(failureOf(res, res.email ?? ""));
-        throw new Error(res.error || "Google sign-in failed");
-      }
-      if (o.state) clearPending();
-      const warning = res.remembered !== true && isGoogleCode(res.code) ? googleFailure(res.code, res.email ?? "", res.status, res.message) : undefined;
+      if (!native) await preloadGoogleSignIn();
+      const ready = o;
       return {
-        token: res.accessToken,
-        email: res.email,
-        expiresAt: now() + (res.expiresIn ?? 3600) * 1000,
-        // Durable only when the server says it stored one. A response with
-        // no field at all is an older server and is not taken on trust.
-        remembered: res.remembered === true,
-        ...(res.scope ? { scope: res.scope } : {}),
-        ...(warning ? { warning } : {}),
+        expiresAt: now() + PREPARED_FOR_MS,
+        launch: () => {
+          if (ready.reconnect) writePending(ready.reconnect);
+          // Synchronous up to the window: startGoogleCode calls Google inside this call stack, which is the tap's.
+          const code = native ? requestGoogleCodeNative(ready) : startGoogleCode(ready).then((c) => ({ code: c, verifier: "", redirectUri: "" }));
+          return finish(ready, opts, native, code);
+        },
       };
     },
     async silent(email) {

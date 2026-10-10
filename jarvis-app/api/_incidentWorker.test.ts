@@ -2,12 +2,13 @@
 // The real status handler runs and hands the request to the worker; the network is a recorder, and the ledger is an
 // in-memory stand-in for connection_incident with the same one-way rules as the SQL (proven on a real Postgres by
 // jarvis-core/supabase/tests/connection_incident.sh). What these hold: no vault token, nothing happens; only due alerts
-// are taken; each is RECHECKED, and a recovered or removed account suppresses its alert; a still-broken one is recorded
-// 'unavailable' (there is no user-scoped transport) and never called sent; one logical attempt, ever; and the answer
-// carries counts, never an address, an incident ID or a token.
+// are taken; each is RECHECKED, and a recovered or removed account suppresses its alert; a still-broken one goes by Apple
+// push to that owner's registered phones only, or is recorded 'unavailable' with why (no key, no phone) and never called
+// sent; one logical attempt, ever; and the answer carries counts, never an address, an incident ID or a token.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import statusHandler from "./connections/status";
 import { INCIDENT_ALERT_TEXT, recheck, runIncidentWorker, type AlertPayload, type AlertTransport } from "./_incidentWorker";
+import { resetProviderToken } from "./_apns";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const DAVE = "dave@gmail.com";
@@ -25,6 +26,10 @@ interface World {
   account: Record<string, unknown> | null | "down";
   grant: Record<string, unknown> | null;
   tokenOk: boolean;
+  /** The owner's device_token rows; "down" = storage refuses. */
+  devices: { token: string; environment: string }[] | "down";
+  /** Apple's answer to one push. */
+  apple: (url: string, init: RequestInit) => Response;
 }
 let w: World;
 let calls: { url: string; body: Record<string, unknown> | null }[] = [];
@@ -38,7 +43,7 @@ const row = (o: Partial<Row> = {}): Row => ({
 });
 
 function stub(over: Partial<World> = {}): World {
-  w = { rows: [row()], account: { state: "reauth", last_sync_at: "2026-10-10T11:00:00.000Z", connection_health: null, connection_health_at: null }, grant: { state: "DEAD", dead_at: DETECTED, last_refresh_ok_at: null, consecutive_failures: 0, last_auth_error: { oauthRefreshFailedAt: DETECTED } }, tokenOk: true, ...over };
+  w = { rows: [row()], account: { state: "reauth", last_sync_at: "2026-10-10T11:00:00.000Z", connection_health: null, connection_health_at: null }, grant: { state: "DEAD", dead_at: DETECTED, last_refresh_ok_at: null, consecutive_failures: 0, last_auth_error: { oauthRefreshFailedAt: DETECTED } }, tokenOk: true, devices: [], apple: () => res(null), ...over };
   calls = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
@@ -67,6 +72,12 @@ function stub(over: Partial<World> = {}): World {
       }
       return res({ resolved, suppressed });
     }
+    if (url.includes("/rest/v1/device_token?")) {
+      if (init?.method === "DELETE") return res(null, 204);
+      if (w.devices === "down") return res({}, 503);
+      return res(w.devices);
+    }
+    if (url.startsWith("https://api.push.apple.com/") || url.startsWith("https://api.sandbox.push.apple.com/")) return w.apple(url, init!);
     if (url.includes("/rest/v1/google_tokens")) return res(w.grant ? [{ email: DAVE, ...w.grant }] : []);
     if (url.includes("/rest/v1/email_account?")) {
       if (w.account === "down") return res({}, 503);
@@ -115,11 +126,11 @@ describe("the incident clock (POST /api/connections/status with x-jarvis-worker:
     expect(w.rows[1]).toMatchObject({ alert_status: "pending", alert_attempted_at: null, token: null });
   });
 
-  it("still broken with no user-scoped transport: recorded 'unavailable', with the reason, and never called sent", async () => {
+  it("still broken with no APNs key configured: recorded 'unavailable', with the reason, and never called sent", async () => {
     stub();
     const r = await run();
     expect(counts(r.text)).toEqual({ claimed: 1, suppressed: 0, unavailable: 1, submitted: 0, failed: 0, unknown: 0, deferred: 0, lost: 0 });
-    expect(w.rows[0]).toMatchObject({ state: "open", alert_status: "unavailable", alert_reason: "no_user_scoped_transport" });
+    expect(w.rows[0]).toMatchObject({ state: "open", alert_status: "unavailable", alert_reason: "no_apns_key" });
     expect(w.rows[0]!.alert_attempted_at).not.toBeNull();
     // The Railway broadcast route is never touched: it would reach every tester's device.
     expect(calls.some((c) => /push|apns|railway/i.test(c.url))).toBe(false);
@@ -203,6 +214,79 @@ describe("the transport seam (for when a user-scoped sender exists)", () => {
     w.rows[0]!.lease = 0;
     await runIncidentWorker(post("good"), { transportFor: async () => ({ send }) });
     expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Apple push to the owner's phones (api/_apns.ts)", () => {
+  const PHONE = "a".repeat(64);
+  let publicKey: CryptoKey;
+  beforeEach(async () => {
+    resetProviderToken();
+    const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    publicKey = pair.publicKey;
+    const der = Buffer.from(await crypto.subtle.exportKey("pkcs8", pair.privateKey)).toString("base64");
+    vi.stubEnv("APNS_KEY_P8", `-----BEGIN PRIVATE KEY-----\n${der.match(/.{1,64}/g)!.join("\n")}\n-----END PRIVATE KEY-----`);
+    vi.stubEnv("APNS_KEY_ID", "KEY1234567");
+    vi.stubEnv("APNS_TEAM_ID", "TEAM123456");
+  });
+  const pushes = () => calls.filter((c) => c.url.includes("push.apple.com"));
+  const deletes = () => (vi.mocked(fetch).mock.calls as [string, RequestInit?][]).filter(([u, i]) => u.includes("/rest/v1/device_token?") && i?.method === "DELETE");
+
+  it("no registered phone: recorded 'unavailable' with that reason, and Apple is never called", async () => {
+    stub({ devices: [] });
+    expect(counts((await run()).text)).toMatchObject({ unavailable: 1, submitted: 0 });
+    expect(w.rows[0]).toMatchObject({ alert_status: "unavailable", alert_reason: "no_registered_phone" });
+    expect(pushes()).toEqual([]);
+  });
+
+  it("sends the private text only, to this owner's phone only, with a provider token Apple can verify, and says submitted", async () => {
+    const seen: { url: string; headers: Record<string, string> }[] = [];
+    stub({ devices: [{ token: PHONE, environment: "production" }], apple: (url, init) => { seen.push({ url, headers: init.headers as Record<string, string> }); return res(null); } });
+    const r = await run();
+    expect(counts(r.text)).toMatchObject({ submitted: 1, unknown: 0 });
+    expect(w.rows[0]!.alert_status).toBe("submitted");
+    expect(rpcs("connection_incident_alert_settle").map((b) => b.p_status)).toEqual(["unknown", "submitted"]);
+    expect(calls.some((c) => c.url.includes("/rest/v1/device_token?") && c.url.includes(`user_id=eq.${USER}`))).toBe(true);
+    expect(seen.map((x) => x.url)).toEqual([`https://api.push.apple.com/3/device/${PHONE}`]);
+    const h = seen[0]!.headers;
+    expect(h).toMatchObject({ "apns-topic": "com.bridge.jarvis", "apns-push-type": "alert", "apns-priority": "10", "apns-collapse-id": "jarvis-connection" });
+    expect(pushes()[0]!.body).toEqual({ aps: { alert: { body: INCIDENT_ALERT_TEXT }, sound: "default" } });
+    expect(JSON.stringify(pushes()[0])).not.toMatch(/dave|gmail|@|JC-/i);
+    const [head, claims, sig] = h.authorization!.replace(/^bearer /, "").split(".");
+    const dec = (x: string) => JSON.parse(Buffer.from(x, "base64url").toString("utf8")) as Record<string, unknown>;
+    expect(dec(head!)).toEqual({ alg: "ES256", kid: "KEY1234567" });
+    expect(dec(claims!)).toMatchObject({ iss: "TEAM123456" });
+    expect(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, publicKey, Buffer.from(sig!, "base64url"), new TextEncoder().encode(`${head}.${claims}`))).toBe(true);
+  });
+
+  it("a debug build's token: BadDeviceToken on the production host is tried once on the sandbox host", async () => {
+    stub({ devices: [{ token: PHONE, environment: "production" }], apple: (url) => (url.includes("sandbox") ? res(null) : res({ reason: "BadDeviceToken" }, 400)) });
+    expect(counts((await run()).text)).toMatchObject({ submitted: 1 });
+    expect(pushes().map((c) => new URL(c.url).host)).toEqual(["api.push.apple.com", "api.sandbox.push.apple.com"]);
+  });
+
+  it("a retired token (410) is removed, and with no other phone the alert is recorded failed, never sent", async () => {
+    stub({ devices: [{ token: PHONE, environment: "production" }], apple: () => res({ reason: "Unregistered" }, 410) });
+    expect(counts((await run()).text)).toMatchObject({ failed: 1, submitted: 0 });
+    expect(w.rows[0]!.alert_status).toBe("failed");
+    expect(deletes()).toHaveLength(1);
+    expect(deletes()[0]![0]).toContain(`token=eq.${PHONE}`);
+    expect(deletes()[0]![0]).toContain(`user_id=eq.${USER}`);
+  });
+
+  it("Apple unreachable after the request left: unknown, recorded, and never resent", async () => {
+    stub({ devices: [{ token: PHONE, environment: "production" }], apple: () => { throw new Error("socket hang up"); } });
+    expect(counts((await run()).text)).toMatchObject({ unknown: 1 });
+    w.rows[0]!.lease = 0;
+    await run();
+    expect(pushes()).toHaveLength(1);
+  });
+
+  it("the phones cannot be read: the alert stays pending for the next tick, nothing is recorded as final", async () => {
+    stub({ devices: "down" });
+    expect(counts((await run()).text)).toMatchObject({ deferred: 1, unavailable: 0 });
+    expect(w.rows[0]!.alert_status).toBe("pending");
+    expect(rpcs("connection_incident_alert_settle")).toEqual([]);
   });
 });
 
