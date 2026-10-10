@@ -242,6 +242,25 @@ describe("TasksPage", () => {
     expect(b).toHaveTextContent(/^Garage$/);
   });
 
+  // On an area's own page (CategoryDetail passes inArea) the page already says the area, so the row never chips it: a task
+  // filed there under a project shows the project alone, and a second area of its own is the chip instead.
+  it("on an area's own page the row never chips that area", async () => {
+    const { TaskRow } = await import("./screens/TasksPage");
+    const proj = { kind: "project" as const, name: "Kitchen Remodel", tone: "cat-fg-pink", pct: 40, cat: "family" };
+    const { container } = render(
+      <div className="ruled">
+        <TaskRow item={tk("a", null, "family")} today="2026-05-20" parent={proj} inArea="family" />
+        <TaskRow item={{ id: "b", data: { text: "b", category: "family", extraCategories: ["money"], done: false, due: null } }}
+          today="2026-05-20" parent={proj} inArea="family" />
+      </div>,
+    );
+    const [a, b] = [...container.querySelectorAll(".r-goal.r-parent")];
+    expect(a!.querySelector(".cat-chip"), "the page's own area is not chipped").toBeNull();
+    expect(a).toHaveTextContent(/^Kitchen Remodel$/);
+    expect(b!.querySelector(".cat-chip.cat-fg-yellow")).toHaveTextContent("Money");
+    expect(b!.querySelector(".r-goal-t")).toHaveTextContent("Kitchen Remodel");
+  });
+
   it("the row prints no time estimate, and the checklist count sits on the title line", () => {
     const item: TaskItem = { id: "e", data: { text: "Pack the Van", category: "family", done: false, estimateMin: 45,
       steps: [{ text: "Chairs", done: true }, { text: "Cooler", done: false }, { text: "Tent", done: false }] } as TaskItem["data"] };
