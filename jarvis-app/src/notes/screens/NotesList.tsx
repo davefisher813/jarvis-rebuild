@@ -10,7 +10,7 @@ import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { catColor, catName } from "../../shared/categories";
-import { ParentLineGlyph } from "../../shared/glyphs";
+import CatChipLine from "../../shared/CatChipLine";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
@@ -351,11 +351,15 @@ export default function NotesList({
               unchanged). Only the drawn text is cased: n.title stays raw for
               search, selection and the aria labels. */}
           <span className="task-name">{titleCase(n.title)}</span>
-          {NOTES_ROW === "line" && (!!area || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
+          {NOTES_ROW === "line" && (!!area || !!n.first.trim() || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
             <div className="r-k">
-              {/* An unfiled note has no area to name, and a placeholder that
-                  says so is a line with nothing to say (§AK): it shows none. */}
-              {area && <ParentLineGlyph p={{ kind: "category", name: area, tone, pct: null }} />}
+              {/* THE UNIFIED CHIP (Dave 2026-10-09, the pass-off, item 14): the
+                  area as a small chip in its own colour with the note's own
+                  first line right next to it, the same piece a task row uses for
+                  its area and project. An unfiled note has no area to name, and
+                  a placeholder that says so is a line with nothing to say (§AK):
+                  it shows no chip, and its first line stands alone. */}
+              <CatChipLine category={area ? n.category : null} text={n.first} sentence />
               {/* The line's gap separates its facts, as on a task row: no
                   typed dots. The tags are one run, the row's one grey; what
                   JARVIS found is work waiting for his review, so it is amber

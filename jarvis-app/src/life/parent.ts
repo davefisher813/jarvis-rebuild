@@ -31,33 +31,38 @@ export interface ParentLine {
   tone: string;
   /** Project progress, 0-100; null for a project with no tasks and for every other kind. */
   pct: number | null;
+  /** THE AREA BEHIND IT (the unified chip, Dave 2026-10-09): the category id the
+   *  tone came from, so a row whose task carries no area of its own can still
+   *  chip the area its project or event lives in. "" when there is none. */
+  cat?: string;
 }
 
 export interface ParentIndex {
-  projects: Map<string, { title: string; tone: string; pct: number | null }>;
+  projects: Map<string, { title: string; tone: string; pct: number | null; cat?: string }>;
   /** EVENTS ARE FIRST-CLASS (2026-09-09). An event a task belongs to, by the
    *  event's own id. Empty for a caller that has no events to hand, which is
    *  every caller that has not been given them yet: an absent index reads as
    *  "no event parent" and the row falls through to the project it always
    *  used, so this could be added without touching a single call site. */
-  events: Map<string, { title: string; tone: string }>;
+  events: Map<string, { title: string; tone: string; cat?: string }>;
 }
 
 /** Build once per render pass; every row on the page reads from it.
  *  `goals` is still taken so every call site keeps its shape, and because a
  *  task that can be filed to a goal directly would read it again. */
 export function buildParentIndex(projects: Project[], _goals: Goal[], tasks: TaskItem[], events: EventItem[] = []): ParentIndex {
-  const pmap = new Map<string, { title: string; tone: string; pct: number | null }>();
+  const pmap = new Map<string, { title: string; tone: string; pct: number | null; cat?: string }>();
   for (const p of projects) {
     pmap.set(p.id, {
       title: p.data.title,
       tone: "cat-fg-" + catColor(p.data.category ?? ""),
       pct: projectProgress(tasks, p.id)?.pct ?? null,
+      cat: p.data.category ?? "",
     });
   }
-  const emap = new Map<string, { title: string; tone: string }>();
+  const emap = new Map<string, { title: string; tone: string; cat?: string }>();
   for (const e of events) {
-    emap.set(e.id, { title: e.data.title, tone: "cat-fg-" + catColor(e.data.category ?? "") });
+    emap.set(e.id, { title: e.data.title, tone: "cat-fg-" + catColor(e.data.category ?? ""), cat: e.data.category ?? "" });
   }
   return { projects: pmap, events: emap };
 }
@@ -73,10 +78,10 @@ export function parentForTask(idx: ParentIndex, task: TaskItem): ParentLine | nu
   // function has always drawn.
   const eid = task.data.eventId;
   const e = eid ? idx.events.get(eid) : undefined;
-  if (e) return { kind: "event", name: e.title, tone: e.tone, pct: null };
+  if (e) return { kind: "event", name: e.title, tone: e.tone, pct: null, cat: e.cat ?? "" };
   const pid = task.data.projectId;
   const p = pid ? idx.projects.get(pid) : undefined;
-  if (p) return { kind: "project", name: p.title, tone: p.tone, pct: p.pct };
+  if (p) return { kind: "project", name: p.title, tone: p.tone, pct: p.pct, cat: p.cat ?? "" };
   // WHERE A TASK LIVES IS A LINK SOMEONE MADE, NOT A FILTER THAT MATCHES IT
   // (2026-09-06, Dave: "unlabeled tasks randomly go into projects and goals
   // that have nothing to do with them").
@@ -101,5 +106,5 @@ export function parentForTask(idx: ParentIndex, task: TaskItem): ParentLine | nu
   const cat = task.data.category;
   const name = cat ? catName(cat) : "";
   if (!name) return null;
-  return { kind: "category", name, tone: "cat-fg-" + catColor(cat), pct: null };
+  return { kind: "category", name, tone: "cat-fg-" + catColor(cat), pct: null, cat };
 }

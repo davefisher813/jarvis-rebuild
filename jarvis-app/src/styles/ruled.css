@@ -256,7 +256,8 @@
    row). Two lines, then the ellipsis; the row grows by one line of name and
    no more. This supersedes the one-line name; DEFECT 1 (2026-09-06) was
    about the second line's pills, which stay one line. */
-.ruled .task-row .task-title > .task-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+.ruled .task-row .task-title > .task-name,
+.ruled .task-row .task-line1 > .task-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere;
   /* NO ORPHAN WORD (2026-10-05, the perfect bar): "Call Ridgeline About the / Field" and "Draft the Coach Onboarding / Email" left one
      word alone on the second line; balance splits the two lines evenly instead. A one-line title is untouched. */
@@ -397,10 +398,16 @@
    The numerals take section 5's inline number emphasis (the same rule the
    readiness panel's fraction wears), because "2 of 5" read as one flat grey
    run is exactly the undifferentiated meta line that ruling exists to end. */
-.ruled .task-row > .tr-steps { flex-shrink: 0; align-self: center;
+/* AMENDED 2026-10-09 (Dave, the pass-off, item 16): the count moved from the
+   trailing slot to the title line, beside the name it counts. Same type and
+   ink; it sits on the name's first baseline and never shrinks, so a long name
+   gives up its room (two lines, then the ellipsis) before the count does. */
+.ruled .task-row .task-line1 { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.ruled .task-row .task-line1 > .task-name { flex: 0 1 auto; min-width: 0; }
+.ruled .task-row .task-line1 > .tr-steps { flex-shrink: 0;
   font-size: var(--t-sub); font-weight: var(--w-medium);
   color: var(--tx-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ruled .task-row > .tr-steps b { font-weight: var(--w-semi); color: var(--tx-1); }
+.ruled .task-row .task-line1 > .tr-steps b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .r-bar { width: 4px; height: 11px; border-radius: var(--r-xxs); flex-shrink: 0; }
 .ruled .r-goal { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -1382,6 +1389,11 @@
 .ruled .note-row .r-k .r-when { flex-shrink: 0; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
+/* THE NOTE'S SECOND LINE IS ONE LINE (2026-10-09, the unified chip). It now
+   carries the note's first line beside its area chip, and words that long
+   would otherwise wrap the line into a third. The words are cut with an
+   ellipsis instead; the chip and the date keep their room. */
+.ruled .note-row .r-k { flex-wrap: nowrap; }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
@@ -2431,6 +2443,45 @@
      renders on. Same grammar as .uchip.u-today, which is the app's chip for
      "this needs you soon". */
   color: var(--warn); background: var(--warn-tint); white-space: nowrap; }
+
+/* THE UNIFIED CHIP (Dave 2026-10-09, the pass-off, item 14: "all of it now").
+   A row's area is a small chip in the area's own colour, with the project (a
+   task) or the note's first line (a note) right next to it; it replaces the
+   coloured dot. One piece draws it, shared/CatChipLine, on every task row and
+   every note row. The chip is the slide tag's shape and type (the app's one
+   small state chip, above) in the category's colours instead of the warning's:
+   the ink is the slot's text ink (.cat-fg-*, which already carries the light
+   and dark twins), and the wash is mixed from the slot's VIVID FILL, not from
+   the ink, so a light chip is the hue and never mud on mud (§AQ, "kicker
+   chips mix the fill, not the ink"). Colour only: the size, the padding and
+   the shape are one rule for both themes. It never shrinks; the words beside
+   it give up their room first. */
+.ruled .cat-chip { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
+  letter-spacing: var(--track-eyebrow); text-transform: uppercase; padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill);
+  white-space: nowrap; background-color: color-mix(in srgb, var(--chip-fill, currentColor) 18%, transparent); }
+.ruled .cat-chip.cat-fg-orange { --chip-fill: var(--cat-orange); }
+.ruled .cat-chip.cat-fg-sky { --chip-fill: var(--cat-sky); }
+.ruled .cat-chip.cat-fg-pink { --chip-fill: var(--cat-pink); }
+.ruled .cat-chip.cat-fg-yellow { --chip-fill: var(--cat-yellow); }
+.ruled .cat-chip.cat-fg-green { --chip-fill: var(--cat-green); }
+.ruled .cat-chip.cat-fg-blue { --chip-fill: var(--cat-blue); }
+.ruled .cat-chip.cat-fg-teal { --chip-fill: var(--cat-teal); }
+.ruled .cat-chip.cat-fg-graphite { --chip-fill: var(--cat-graphite); }
+.ruled .cat-chip.cat-fg-purple { --chip-fill: var(--cat-purple); }
+.ruled .cat-chip.cat-fg-indigo { --chip-fill: var(--cat-indigo); }
+.ruled .cat-chip.cat-fg-magenta { --chip-fill: var(--cat-magenta); }
+.ruled .cat-chip.cat-fg-lime { --chip-fill: var(--cat-lime); }
+.ruled .cat-chip.cat-fg-sand { --chip-fill: var(--cat-sand); }
+.ruled .cat-chip.cat-fg-coral { --chip-fill: var(--cat-coral); }
+.ruled .cat-chip.cat-fg-amber { --chip-fill: var(--cat-amber); }
+.ruled .cat-chip.cat-fg-rust { --chip-fill: var(--cat-rust); }
+.ruled .cat-chip.cat-fg-rose { --chip-fill: var(--cat-rose); }
+.ruled .cat-chip.cat-fg-plum { --chip-fill: var(--cat-plum); }
+.ruled .cat-chip.cat-fg-violet { --chip-fill: var(--cat-violet); }
+.ruled .cat-chip.cat-fg-cyan { --chip-fill: var(--cat-cyan); }
+.ruled .cat-chip.cat-fg-mint { --chip-fill: var(--cat-mint); }
+.ruled .cat-chip.cat-fg-olive { --chip-fill: var(--cat-olive); }
+.ruled .cat-chip.cat-fg-slate { --chip-fill: var(--cat-slate); }
 
 /* ---------- THE HEALTH OVERVIEW, TO THE REFERENCE (Dave 2026-09-14) ------
    Three tabs, the next-workout card with its eyebrow and program beside it,

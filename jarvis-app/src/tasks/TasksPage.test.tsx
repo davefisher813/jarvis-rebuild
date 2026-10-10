@@ -169,7 +169,7 @@ describe("TasksPage", () => {
     expect(onFirst).toHaveBeenCalledWith("b");
   });
 
-  it("renders the ruled row: neutral ring, the parent's glyph, distance chip", () => {
+  it("renders the ruled row: neutral ring, the area's chip, distance chip", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("over", "2026-05-18"), tk("due", "2026-05-20")]} today="2026-05-20"
         parentOf={(t) => ({ kind: "category", name: "Ridgeley", tone: "cat-fg-sky", pct: null })} />,
@@ -179,7 +179,9 @@ describe("TasksPage", () => {
     // is gone.
     expect(container.querySelector(".task-check[class*=cat-bd]")).toBeNull();
     expect(container.querySelector(".r-bar")).toBeNull();
-    expect(container.querySelector(".r-parent .r-pg.cat-fg-sky .r-pdot")).toBeTruthy();
+    // AMENDED 2026-10-09 (Dave, the unified chip): the area is a small chip in its own colour, which replaces the dot.
+    expect(container.querySelector(".r-parent .cat-chip.cat-fg-sky")).toHaveTextContent("Ridgeley");
+    expect(container.querySelector(".r-pdot"), "the colour dot is gone").toBeNull();
     // The distance is a fact in the late colour: text, never a filled chip (Dave 2026-10-05, D10).
     expect(container.querySelector(".r-k .fact.red")).toHaveTextContent("2 Days Late");
     expect(container.querySelector(".uchip")).toBeNull();
@@ -200,7 +202,10 @@ describe("TasksPage", () => {
     expect(container.querySelector(".uchip")).toBeNull();
   });
 
-  it("the parent's own glyph leads the line: pie for a project, target for a goal, dot for a category", () => {
+  // AMENDED 2026-10-09 (Dave, the pass-off, item 14: "the category appears as a small chip with the project name right next
+  // to it ... Rows with no category show no chip at all"). The glyphs (pie, target, dot) are gone from the line: the area is
+  // one chip, and the project, goal or event it is filed under is the words right after it.
+  it("the area's chip leads the line, with the project or goal right next to it", () => {
     const { container } = render(
       <TasksPage filter="all" counts={counts} items={[tk("a", null), tk("b", null), tk("c", null, "")]} today="2026-05-20"
         parentOf={(t) => (t.id === "a" ? { kind: "goal", name: "Get Paid On Time", tone: "cat-fg-yellow", pct: null }
@@ -208,15 +213,48 @@ describe("TasksPage", () => {
     );
     const lines = container.querySelectorAll(".r-goal.r-parent");
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toHaveTextContent("Get Paid On Time");
-    expect(lines[0]!.querySelector(".r-pg.cat-fg-yellow .r-gm")).toBeTruthy();
-    expect(lines[1]).toHaveTextContent("Kitchen remodel");
-    expect(lines[1]!.querySelector(".r-pg.cat-fg-sky .pp")).toBeTruthy();
+    expect(lines[0]!.querySelector(".cat-chip.cat-fg-sky")).toHaveTextContent("Ridgeley");
+    expect(lines[0]!.querySelector(".r-goal-t")).toHaveTextContent("Get Paid On Time");
+    expect(lines[1]!.querySelector(".cat-chip.cat-fg-sky")).toHaveTextContent("Ridgeley");
+    expect(lines[1]!.querySelector(".r-goal-t")).toHaveTextContent("Kitchen remodel");
+    // The chip comes first, the words right after it, and nothing else is drawn in the line.
+    expect([...lines[1]!.children].map((c) => c.className)).toEqual(["cat-chip cat-fg-sky", "r-goal-t"]);
+    expect(container.querySelector(".r-pg, .r-pdot, .pp-sm"), "no glyph and no dot").toBeNull();
     // AMENDED 2026-09-19 (Dave, on five Anytime rows all reading "No
     // category"): a row states facts, and an absent area is not one. With no
     // parent, no area and no origin there is nothing true to put here, so
     // the line is empty rather than narrating the emptiness.
     expect(container.querySelectorAll(".r-goal.r-cat")).toHaveLength(0);
+    // The row with no area and no parent draws no chip at all.
+    expect(container.querySelectorAll(".cat-chip")).toHaveLength(2);
+  });
+
+  it("a row with no area of its own chips its project's area, and with none anywhere shows the project alone", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", null, ""), tk("b", null, "")]} today="2026-05-20"
+        parentOf={(t) => (t.id === "a" ? { kind: "project", name: "Kitchen Remodel", tone: "cat-fg-pink", pct: 40, cat: "family" }
+          : { kind: "project", name: "Garage", tone: "cat-fg-graphite", pct: null, cat: "" })} />,
+    );
+    const [a, b] = [...container.querySelectorAll(".r-goal.r-parent")];
+    expect(a!.querySelector(".cat-chip.cat-fg-pink")).toHaveTextContent("Family");
+    expect(a!.querySelector(".r-goal-t")).toHaveTextContent("Kitchen Remodel");
+    expect(b!.querySelector(".cat-chip"), "no area, no chip").toBeNull();
+    expect(b).toHaveTextContent(/^Garage$/);
+  });
+
+  it("the row prints no time estimate, and the checklist count sits on the title line", () => {
+    const item: TaskItem = { id: "e", data: { text: "Pack the Van", category: "family", done: false, estimateMin: 45,
+      steps: [{ text: "Chairs", done: true }, { text: "Cooler", done: false }, { text: "Tent", done: false }] } as TaskItem["data"] };
+    const { container } = render(<TasksPage filter="all" counts={counts} items={[item]} today="2026-05-20" onStartTask={() => {}} />);
+    const row = container.querySelector(".task-row")!;
+    // Dave 2026-10-09, item 15: no estimate on the row; the record keeps it.
+    expect(row.querySelector(".r-est")).toBeNull();
+    expect(row.textContent).not.toMatch(/45/);
+    // Item 16: "1 of 3" is on the title line, right after the name, and not in the trailing slot.
+    const line1 = row.querySelector(".task-title > .task-line1")!;
+    expect([...line1.children].map((c) => c.className)).toEqual(["task-name", "tr-steps"]);
+    expect(line1.querySelector(".tr-steps")).toHaveTextContent("1 of 3");
+    expect(row.querySelector(":scope > .tr-steps")).toBeNull();
   });
 
   it("rows ride inside one card, under a head whose menus name the cut and carry group-by", () => {

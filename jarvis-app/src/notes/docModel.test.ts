@@ -90,6 +90,23 @@ describe("what a note is called", () => {
     expect(firstLineOf(blocksToDoc([{ id: "a", type: "text", text: "x".repeat(120) }])).length).toBeLessThanOrEqual(80);
   });
 
+  // The note rows print this line beside the area chip (2026-10-09), so a list must not read as its items glued together.
+  it("a list's first line is its first item with words, never its items run together", () => {
+    const doc = { type: "doc", content: [
+      { type: "taskList", content: [
+        { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph" }] },
+        { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Tents and tables" }] }] },
+        { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Sponsor banners" }] }] },
+      ] },
+    ] };
+    expect(firstLineOf(doc)).toBe("Tents and tables");
+    const bullets = { type: "doc", content: [{ type: "bulletList", content: [
+      { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "What position" }] }] },
+      { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Need boats" }] }] },
+    ] }] };
+    expect(firstLineOf(bullets)).toBe("What position");
+  });
+
   it("counts words in paragraphs and lists, never in headings", () => {
     expect(docWordCount(blocksToDoc([{ id: "h", type: "heading", text: "Agenda for today" }, { id: "t", type: "text", text: "three words here" }]))).toBe(3);
   });
