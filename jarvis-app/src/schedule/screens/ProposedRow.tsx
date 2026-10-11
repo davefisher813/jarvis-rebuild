@@ -143,14 +143,15 @@ export default function ProposedRow({
               <div className="task-check" />
             </div>
           )}
+          {/* THE TIME IS IN THE TIME COLUMN (Dave 2026-10-11: "The time always goes in the LEFT time column, aligned with event
+              times. One left edge for all times, one event column; that is the established schedule geometry."). This
+              replaces the 2026-10-05 two-line shape that led the details line with the time. The row is an event row now:
+              the check in the star's slot, the time, then the title with "PROPOSED · 30 Min" under it. */}
+          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
           <div className="sched-body">
             <div className="sched-title"><span className="sched-t">{title}</span></div>
-            {/* TWO LINES, EXACTLY (Dave 2026-10-05): the name, then "4:45 PM · PROPOSED · 30 Min". The time LEADS the details line,
-                so a proposed row has no time column of its own and nothing on a third line. Each fact is its own unit with its
-                own separator (DayRow's rule), so a wrap can only happen between facts. */}
             <div className="sched-cat">
-              <span className="sched-fact"><span className="fact date">{t.time} {t.ap}</span></span>
-              <span className="sched-fact">{sep}<span className="prop-tag fact st gray">Proposed</span></span>
+              <span className="sched-fact"><span className="prop-tag fact st gray">Proposed</span></span>
               <span className="sched-fact">{sep}<span className="fact"><b>{spanLabel(mins)}</b></span></span>
             </div>
           </div>

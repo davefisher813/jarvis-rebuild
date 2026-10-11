@@ -146,12 +146,17 @@ describe("a proposed task is the name and one details line that leads with its t
   const blk: PlanBlock = { taskId: "t9", text: "Cleanup Backend/storage", category: "work", start: "16:45", end: "17:15" };
   const details = (el: Element | null) => (el?.textContent ?? "").replace(/\s+/g, " ").replace(/\s*·\s*/g, " · ").trim();
 
-  it("the standalone row: no time column, details read time, PROPOSED, length", () => {
+  // AMENDED 2026-10-11 (Dave: "The time always goes in the LEFT time column, aligned with event times ... no wrapping
+  // underneath"). The standalone row is an event row now: check, time column, then the title with its details under it.
+  it("the standalone row: the time is in the time column, before the title; the details read PROPOSED, length", () => {
     const { container } = render(<ProposedRow block={blk} open={false} onToggle={() => {}} onDuration={() => {}} onDrop={() => {}} />);
-    expect(container.querySelector(".sched-time"), "no separate time column").toBeNull();
+    const row = container.querySelector(".sched-row")!;
+    const kids = [...row.children].map((c) => c.className.split(" ")[0]);
+    expect(kids.indexOf("sched-time"), "the time column comes before the body").toBeLessThan(kids.indexOf("sched-body"));
+    expect(row.querySelector(":scope > .sched-time")!.textContent!.replace(/\s+/g, "")).toBe("4:45PM");
     expect(container.querySelector(".sched-t")!.textContent).toBe("Cleanup Backend/storage");
-    expect(details(container.querySelector(".sched-cat"))).toBe("4:45 PM · Proposed · 30 Min");
-    expect(container.querySelectorAll(".sched-cat .fact.date, .sched-cat .fact.st").length).toBe(2);
+    expect(details(container.querySelector(".sched-cat"))).toBe("Proposed · 30 Min");
+    expect(container.querySelector(".sched-cat .fact.date"), "no time under the title").toBeNull();
   });
 
   it("the row nested in a block says the same", () => {
