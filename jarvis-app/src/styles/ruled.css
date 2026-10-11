@@ -1400,6 +1400,12 @@
 /* THE NOTES CARD IS EVERY CARD (Dave 2026-10-11, visual catalog, Card Surface). It wore --surface-1 here so it would be
    warm when the other cards were cool; every card is the warm catalog card now (--card-fill), so the Notes card needs no
    rule of its own and is the same card as every other in both themes. */
+/* THE NOTES CARD IS THE WARM SURFACE (Dave 2026-10-11: "warm charcoal
+   backgrounds, proper text contrast, no grey text on grey surfaces"). The
+   card wears the design system's own --surface-1: warm charcoal in dark,
+   white in light. Restored 2026-10-11 with every other card's pre-catalog
+   colour (Dave: "I never wanted that changed"). */
+html .screen.ruled.notes-list .card { background: var(--surface-1); }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
