@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import NotesList, { editedLabel, leadingDate, type NoteListItem } from "./NotesList";
+import NotesList, { editedLabel, leadingDate, rowLine, type NoteListItem } from "./NotesList";
 import { setCategoryRegistry } from "../../shared/categories";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library is the
@@ -60,62 +60,73 @@ describe("NotesList", () => {
   // AMENDED 2026-10-09 (Dave, the pass-off, item 14: the unified chip, "same format on notes: the note preview sits next to
   // the chip. Rows with no category show no chip at all"). The area is a small chip in its colour, which replaces the dot,
   // and the note's own first line sits right next to it; the same piece a task row draws its area and project with.
-  // AMENDED 2026-10-11 (Dave: "The area chip goes on the TITLE line, right next to the note title, not on a second line
-  // below it. Approved design: chip + title on one line."). The chip leads the title; the second line is the note's first
-  // line, then the date. A row with no area shows no chip at all.
-  it("the chip rides the title line; the second line is the note's first line, then when; unfiled shows no chip", () => {
+  // AMENDED 2026-10-11 (Dave, "match the mock exactly": unified-chip-system-mockup-2026-10-09). Line one is the title with
+  // the date at its right; line two is the area's chip and the note's preview beside it. Unfiled: no chip. A note with
+  // neither a chip nor a preview has no second line.
+  it("line one is the title and the date; line two is the chip and the preview; unfiled shows no chip", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const { container } = render(<NotesList notes={notes} />);
       const rows = container.querySelectorAll(".note-row");
-      // A filed note with no body: the chip beside the title, and no second line.
-      const line1 = rows[0]!.querySelector(".note-line1")!;
-      expect([...line1.children].map((c) => c.className)).toEqual(["cat-chip cat-fg-blue", "task-name"]);
-      expect(line1.querySelector(".cat-chip")).toHaveTextContent("Work");
-      expect(rows[0]!.querySelector(".r-k .cat-chip"), "the chip is not on the second line").toBeNull();
-      expect(rows[0]!.querySelector(".r-pg, .r-pdot"), "the dot is gone").toBeNull();
-      expect(rows[0]!.querySelector(".r-k"), "nothing under the title, so no empty line").toBeNull();
-      // An unfiled note: no chip, its first line under the title.
+      // Today, filed, no body: title alone on line one (the Today head says the day), the chip alone on line two.
+      expect([...rows[0]!.querySelector(".note-line1")!.children].map((c) => c.className)).toEqual(["task-name"]);
+      expect([...rows[0]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip"]);
+      expect(rows[0]!.querySelector(".note-sub .cat-chip")).toHaveTextContent("Work");
+      expect(rows[0]!.querySelector(".note-sub .cat-chip-dot")).toHaveClass("cat-bg-blue");
+      expect(rows[0]!.querySelector(".note-line1 .cat-chip"), "the chip is not on the title line").toBeNull();
+      // Yesterday, unfiled: no chip, the preview alone.
       expect(rows[1]!.querySelector(".cat-chip")).toBeNull();
-      expect(rows[1]!.querySelector(".r-k .note-preview")).toHaveTextContent("Base week.");
-      expect(rows[1]!.querySelector(".r-when"), "the Yesterday head already says it").toBeNull();
+      expect([...rows[1]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["r-goal note-preview"]);
+      expect(rows[1]!.querySelector(".note-preview")).toHaveTextContent("Base week.");
+      expect(rows[1]!.querySelector(".note-date"), "the Yesterday head already says it").toBeNull();
       expect(rows[1]!.textContent).not.toMatch(/Not Filed/);
-      // A filed note with a body: chip and title on one line, then its first line and the date.
-      expect(rows[2]!.querySelector(".note-line1 .cat-chip")).toHaveTextContent("Family");
-      const line = rows[2]!.querySelector(".r-k")!;
-      expect([...line.children].map((c) => c.className)).toEqual(["r-goal note-preview", "r-goal r-cat r-when"]);
-      expect(line.querySelector(".note-preview")).toHaveTextContent("Tents and tables");
-      expect(rows[2]!.querySelector(".r-when"), "under Earlier the date is the row's own").toHaveTextContent("Aug 28");
-      expect(rows[3]!.querySelector(".r-when")).toBeNull();
-      expect(rows[3]!.querySelector(".r-k")).toBeNull();
+      // Earlier, filed, with a body: the date on line one at the right of the title, then chip and preview.
+      expect([...rows[2]!.querySelector(".note-line1")!.children].map((c) => c.className)).toEqual(["task-name", "note-date"]);
+      expect(rows[2]!.querySelector(".note-line1 .note-date")).toHaveTextContent("Aug 28");
+      expect([...rows[2]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip", "r-goal note-preview"]);
+      expect(rows[2]!.querySelector(".note-preview")).toHaveTextContent("Tents and tables");
+      expect(rows[2]!.querySelector(".note-sub .note-date"), "the date is not on line two").toBeNull();
+      // No date, no area, no body: a title and nothing else.
+      expect(rows[3]!.querySelector(".note-date")).toBeNull();
+      expect(rows[3]!.querySelector(".note-sub")).toBeNull();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  // Dave 2026-10-11: "One clear date per row: currently showing two confusing dates ('Aug 24 · Attendees OCT 1'). Pick the
-  // meaningful one." A meeting note opens with the meeting's date; that date is the row's, and the edit date is not drawn.
-  it("a body that opens with a date gives the row that one date, and the preview keeps the rest", () => {
+  // Dave 2026-10-11: "Never render a label with nothing after it", one date per row, and the second line is ONE thing.
+  it("a meeting note never shows a bare Attendees label or a second date", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const meeting: NoteListItem[] = [
-        { id: "m", title: "Convo with Berto", edited: at(3), category: "c-work", first: "Aug 24 \u00b7 Attendees", body: "" },
-        { id: "t", title: "Same Day Notes", edited: at(0, 10), category: "", first: "Sep 1 \u00b7 Agenda", body: "" },
+        { id: "m", title: "Convo with Berto", edited: at(3), category: "c-work", first: "Aug 24 \u00b7 Attendees", lines: ["Aug 24 \u00b7 Attendees", "Talked about the Q4 timeline and next steps"], body: "" },
+        { id: "e", title: "Meeting Notes", edited: at(4), category: "", first: "Sep 15 \u00b7 Attendees", lines: ["Sep 15 \u00b7 Attendees"], body: "" },
+        { id: "w", title: "Board Sync", edited: at(5), category: "c-work", first: "Aug 20 \u00b7 Attendees: Wei, Sam Okafor", lines: ["Aug 20 \u00b7 Attendees: Wei, Sam Okafor", "Agenda notes"], body: "" },
       ];
       const { container } = render(<NotesList notes={meeting} />);
-      const rows = [...container.querySelectorAll(".note-row")];
-      const berto = rows.find((r) => r.textContent!.includes("Berto"))!;
-      expect(berto.querySelectorAll(".r-when")).toHaveLength(1);
-      expect(berto.querySelector(".r-when")).toHaveTextContent("Aug 24");
-      expect(berto.querySelector(".note-preview")).toHaveTextContent("Attendees");
-      expect(berto.textContent).not.toMatch(/Aug 30/);
-      expect(berto.textContent).not.toMatch(/\u00b7/);
-      // Under the Today head the edit date is never drawn, but the meeting's own date still is.
-      const today = rows.find((r) => r.textContent!.includes("Same Day"))!;
-      expect(today.querySelector(".r-when")).toHaveTextContent("Sep 1");
+      const row = (t: string) => [...container.querySelectorAll(".note-row")].find((r) => r.textContent!.includes(t))!;
+      const berto = row("Berto");
+      expect(berto.querySelector(".note-preview")).toHaveTextContent("Talked about the Q4 timeline and next steps");
+      expect(berto.textContent).not.toMatch(/Attendees|Aug 24|\u00b7/);
+      expect(berto.querySelectorAll(".note-date")).toHaveLength(1);
+      expect(berto.querySelector(".note-date")).toHaveTextContent("Aug 30");
+      // Nothing but the empty label: unfiled, so no second line at all.
+      expect(row("Meeting Notes").querySelector(".note-sub")).toBeNull();
+      // Names typed after the label: who it was with, and only that.
+      expect(row("Board Sync").querySelector(".note-preview")).toHaveTextContent(/^With: Wei, Sam Okafor$/);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("rowLine: one thing, never a bare label", () => {
+    expect(rowLine(["Aug 24 \u00b7 Attendees"])).toEqual({ date: "Aug 24", with: [], preview: "" });
+    expect(rowLine(["Aug 24 \u00b7 Attendees", "Q4 timeline"])).toEqual({ date: "Aug 24", with: [], preview: "Q4 timeline" });
+    expect(rowLine(["Attendees: Wei and Sam Okafor", "x"]).with).toEqual(["Wei", "Sam Okafor"]);
+    expect(rowLine(["With Wei and Sam Okafor"]).with).toEqual(["Wei", "Sam Okafor"]);
+    expect(rowLine(["With the new budget we can hire"]).preview, "a sentence is not a guest list").toBe("With the new budget we can hire");
+    expect(rowLine(["Base week.", "With Wei"]).preview).toBe("Base week.");
+    expect(rowLine([])).toEqual({ date: "", with: [], preview: "" });
   });
 
   it("leadingDate reads a month and day at the start only", () => {
@@ -136,7 +147,7 @@ describe("NotesList", () => {
       const pinned: NoteListItem[] = [{ id: "p", title: "Packing List", edited: at(0, 12), category: "", first: "", body: "", pinned: true }];
       const { container } = render(<NotesList notes={pinned} />);
       expect(container.querySelector(".sh2 .t")).toHaveTextContent("Pinned");
-      expect(container.querySelector(".note-row .r-when")).toHaveTextContent("Edited Today");
+      expect(container.querySelector(".note-row .note-line1 .note-date")).toHaveTextContent("Edited Today");
     } finally {
       vi.useRealTimers();
     }
@@ -152,32 +163,20 @@ describe("NotesList", () => {
     expect(screen.getByLabelText("Delete jarvis updates")).toBeInTheDocument();
   });
 
-  // §AM F3 (R6) and §AK (R1), 2026-09-26: the line's gap separates its facts,
-  // so no dot is typed into them, and it carries one grey at most: the tags
-  // are one run, the finds are amber work waiting for review (§AM) with the
-  // number white, and the date is its own caps.
-  // AMENDED 2026-09-26 (pass-off): "JARVIS Found", Title Case like every
-  // line the app writes; the note sits under Earlier so its date shows.
-  it("the second line types no dots, and its tags are one run beside the finds and the date", () => {
+  // AMENDED 2026-10-11 (Dave: "No search debris ('Found 5') in rows"; "the second line should be ONE thing"). The tags
+  // and the count of what JARVIS found stay on the note; the row draws neither, and types no dots.
+  it("the row draws no tags and no found count, and types no dots", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const tagged: NoteListItem[] = [
-        { id: "t", title: "Offsite Ideas", edited: at(3), category: "c-work", first: "", body: "", tags: ["ideas", "q3"], found: 3 },
+        { id: "t", title: "Offsite Ideas", edited: at(3), category: "c-work", first: "Venues first", body: "", tags: ["ideas", "q3"], found: 5 },
       ];
       const { container } = render(<NotesList notes={tagged} />);
-      const line = container.querySelector(".note-row .r-k") as HTMLElement;
-      expect(line.textContent).not.toMatch(/\u00b7/);
-      const tags = line.querySelectorAll(".r-cat:not(.r-when)");
-      expect(tags).toHaveLength(1);
-      expect(tags[0]).toHaveTextContent("#ideas #q3");
-      expect(line.querySelector(".r-cue"), "the finds are not an if-then cue").toBeNull();
-      const found = line.querySelector(".r-goal.fact.warn") as HTMLElement;
-      // AMENDED 2026-10-11 (Dave: the 'Jarvis Updates' row read "JARVIS ... SEP 27", a duplicated label cut short). The
-      // finds say Found on the row: a note under the Jarvis area already wears JARVIS on its chip.
-      expect(found).toHaveTextContent("Found 3");
-      expect(found.textContent).not.toMatch(/JARVIS/);
-      expect(found.querySelector("b")).toHaveTextContent("3");
-      expect(line.querySelector(".r-when")?.textContent).toBe("Aug 30");
+      const r = container.querySelector(".note-row") as HTMLElement;
+      expect(r.textContent).not.toMatch(/\u00b7/);
+      expect(r.textContent).not.toMatch(/Found|#ideas|5/);
+      expect([...r.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip", "r-goal note-preview"]);
+      expect(r.querySelector(".note-date")?.textContent).toBe("Aug 30");
     } finally {
       vi.useRealTimers();
     }

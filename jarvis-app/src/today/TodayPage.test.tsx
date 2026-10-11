@@ -544,7 +544,7 @@ describe("Tomorrow's task rows", () => {
     const { container } = render(<TodayPage {...base} tomorrowTasks={[weekly, loose]} />);
     const rows = [...container.querySelectorAll(".sched-row-bare")];
     const w = rows.find((r) => r.textContent?.includes("Water the Plants"))!;
-    expect(w.querySelector(".sched-cat .cat-chip.cat-fg-pink")).toHaveTextContent("Family");
+    expect(w.querySelector(".sched-cat .cat-chip:has(> .cat-chip-dot.cat-bg-pink)")).toHaveTextContent("Family");
     expect(w.querySelector(".cat-dot"), "the dot is gone").toBeNull();
     const l = rows.find((r) => r.textContent?.includes("Take Out Bins"))!;
     expect(l.querySelector(".sched-cat, .cat-chip")).toBeNull();

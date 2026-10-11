@@ -3554,7 +3554,10 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     expect(src, "no category word is coloured").not.toMatch(/cat-fg-/);
     expect(src, "the old bar is gone").not.toMatch(/r-bar/);
     const chip = read(join(SRC, "shared/CatChipLine.tsx"));
-    expect(chip.match(/cat-fg-/g)?.length, "the chip line paints exactly one chip").toBe(1);
+    // AMENDED 2026-10-11 (Dave, "match the mock exactly", unified-chip-system-mockup-2026-10-09): the colour is the chip's
+    // dot now, the area's name beside it plain. Still exactly one coloured thing per chip.
+    expect(chip.match(/cat-bg-/g)?.length, "the chip line paints exactly one dot").toBe(1);
+    expect(chip, "and the chip's name wears no category colour").not.toMatch(/cat-fg-/);
     expect(chip, "and the words beside it wear no category colour").toMatch(/<span className="r-goal-t"[^>]*>\{words\}<\/span>/);
   });
 
@@ -6087,7 +6090,8 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // height and not a max-height, which is what this law is really about.
     // AMENDED 2026-09-18 (Catalog V5): the chip's arm of the max names the
     // chip's own token and a scale stop, rather than restating either.
-    expect(b, "one line box tall").toMatch(/height:\s*max\(calc\(var\(--t-sub\) \* 1\.3\), calc\(var\(--t-micro\) \* 1\.3 \+ var\(--s-1h\)\)\)/);
+    // AMENDED 2026-10-11 (the approved chip, unified-chip-system-mockup-2026-10-09): a third arm, the area chip's pill.
+    expect(b, "one line box tall").toMatch(/height:\s*max\(calc\(var\(--t-sub\) \* 1\.3\), calc\(var\(--t-micro\) \* 1\.3 \+ var\(--s-1h\)\), calc\(var\(--t-caption\) \* 1\.2 \+ var\(--s-2\)\)\)/);
     expect(b, "a second flex line is clipped, never shown").toMatch(/overflow:\s*hidden/);
     expect(b, "and the first line is packed to the top, never centred over two")
       .toMatch(/align-content:\s*flex-start/);
@@ -6188,14 +6192,20 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // drift again -- which they had, by a pixel, the moment the chip moved
     // to --t-micro. The padding it adds is a scale stop, read the same way.
     const space = (n: string) => Number(new RegExp("--s-" + n + ":\\s*([\\d.]+)px").exec(tokens)![1]);
-    const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(var\(--t-micro\) \* ([\d.]+) \+ var\(--s-([\w-]+)\)\)\)/.exec(RULED)!;
+    // AMENDED 2026-10-11: the third arm is the area chip (the approved mock's pill), read the same way.
+    const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(var\(--t-micro\) \* ([\d.]+) \+ var\(--s-([\w-]+)\)\), calc\(var\(--t-caption\) \* ([\d.]+) \+ var\(--s-([\w-]+)\)\)\)/.exec(RULED)!;
+    const capFs = Number(/--t-caption:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
+    const catChip = /\.ruled \.cat-chip, \.day-sheet \.cat-chip \{[^}]*padding: var\(--s-([\w-]+)\)[^}]*font-size: var\(--t-caption\)[^}]*line-height: ([\d.]+)/.exec(RULED)!;
+    const catPadY = space(catChip[1]!), catLh = Number(catChip[2]);
+    const capLh = Number(clamp[4]), capPad = space(clamp[5]!);
     const subLh = Number(clamp[1]), cLh = Number(clamp[2]);
     const cFs = chipFs, cPad = space(clamp[3]!);
     const rowGap = space(/\.ruled \.r-k \{[^}]*gap: var\(--s-([\w-]+)\)/.exec(RULED)![1]!);
     void rowFs;
     for (const scale of [1, 1.1, 1.2, 1.3, 1.4]) {
-      const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad);
+      const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad, capFs * scale * capLh + capPad);
       const chipH = chipFs * scale * lh + chipPadY * 2;
+      expect(box, `the area chip fits at ${scale}x`).toBeGreaterThanOrEqual(capFs * scale * catLh + catPadY * 2 - 0.001);
       const textH = metaFs * scale * lh;
       expect(box, `the chip fits at ${scale}x`).toBeGreaterThanOrEqual(chipH - 0.001);
       expect(box, `the words fit at ${scale}x`).toBeGreaterThanOrEqual(textH - 0.001);
@@ -6302,7 +6312,7 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
     // line's plain grey at regular weight whatever its kind, so the branch on kind that set a class is gone with the glyph.
     const chipLine = read(join(SRC, "shared/CatChipLine.tsx"));
     expect(chipLine, "the chip is drawn for an area, never for a name or a colour value")
-      .toMatch(/className=\{"cat-chip cat-fg-" \+ area\.slot\}/);
+      .toMatch(/className=\{"cat-chip-dot cat-bg-" \+ area\.slot\}/);
     expect(inkOf(".ruled .r-goal.r-parent .r-goal-t"))
       .toEqual({ color: "var(--tx-3)", weight: "var(--w-normal)" });
     expect(inkOf(".ruled .r-goal.r-parent.r-parent-plain .r-goal-t"))

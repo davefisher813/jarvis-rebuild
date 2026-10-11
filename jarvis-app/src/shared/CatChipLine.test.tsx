@@ -13,7 +13,9 @@ describe("CatChipLine", () => {
   it("draws the chip first and the words right after it, in one line fact", () => {
     const { container } = render(<div className="r-k"><CatChipLine category="w" text="Kitchen Remodel" /></div>);
     const line = container.querySelector(".r-k > .r-goal.r-parent")!;
-    expect([...line.children].map((c) => c.className)).toEqual(["cat-chip cat-fg-blue", "r-goal-t"]);
+    // AMENDED 2026-10-11 (the approved mock): the chip is a quiet pill with the area's colour as its dot.
+    expect([...line.children].map((c) => c.className)).toEqual(["cat-chip", "r-goal-t"]);
+    expect(line.querySelector(".cat-chip > .cat-chip-dot")).toHaveClass("cat-bg-blue");
     expect(line.querySelector(".cat-chip")).toHaveTextContent("Work");
     expect(line.querySelector(".r-goal-t")).toHaveTextContent("Kitchen Remodel");
   });

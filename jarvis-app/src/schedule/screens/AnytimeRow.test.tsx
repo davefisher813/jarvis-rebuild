@@ -155,7 +155,7 @@ describe("AnytimeRow: the area is the unified chip", () => {
     );
     const rows = container.querySelectorAll(".anytime-row");
     const line = rows[0]!.querySelector(".r-k > .r-parent")!;
-    expect(line.querySelector(".cat-chip.cat-fg-pink")).toHaveTextContent("Family");
+    expect(line.querySelector(".cat-chip:has(> .cat-chip-dot.cat-bg-pink)")).toHaveTextContent("Family");
     expect(line.querySelector(".r-goal-t")).toHaveTextContent("Reunion");
     expect(rows[0]!.querySelector(".r-pg, .r-pdot"), "the dot and the glyph are gone").toBeNull();
     expect(rows[1]!.querySelector(".cat-chip")).toBeNull();
