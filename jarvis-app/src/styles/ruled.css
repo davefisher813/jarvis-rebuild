@@ -1394,6 +1394,22 @@
    would otherwise wrap the line into a third. The words are cut with an
    ellipsis instead; the chip and the date keep their room. */
 .ruled .note-row .r-k { flex-wrap: nowrap; }
+/* THE CHIP ON THE TITLE LINE (Dave 2026-10-11, the approved Oct 9 chip spec:
+   chip + title on one line). The chip sits on the title's first baseline and
+   never shrinks; the title takes the rest and keeps its two line clamp. */
+.ruled .note-row .note-line1 { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.ruled .note-row .note-line1 > .task-name { flex: 1 1 auto; min-width: 0; }
+/* The second line: the note's first line gives up its room first and is cut
+   with an ellipsis; the finds and the date are never cut. The preview is the
+   secondary ink, never a grey on a grey. */
+.ruled .note-row .r-k > .note-preview { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--tx-2); font-weight: var(--w-normal); }
+.ruled .note-row .r-k > .note-found { flex-shrink: 0; white-space: nowrap; }
+/* THE NOTES CARD IS THE WARM SURFACE (Dave 2026-10-11: "warm charcoal
+   backgrounds, proper text contrast, no grey text on grey surfaces"). The
+   card wears the design system's own --surface-1: warm charcoal in dark,
+   white in light. Colour only; the lit edge and the depth stay. */
+html .screen.ruled.notes-list .card { background: var(--surface-1); }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
@@ -1408,7 +1424,7 @@
    same as .lib-name always wore; still ends in an ellipsis if two lines is
    not enough. Nothing moves at scale 1 or above 340px, where it already fit
    either way. */
-.ruled .note-row .task-title > .task-name {
+.ruled .note-row .note-line1 > .task-name {
   white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; text-overflow: clip;
 }

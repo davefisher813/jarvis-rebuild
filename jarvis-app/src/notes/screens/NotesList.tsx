@@ -10,7 +10,7 @@ import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { catColor, catName } from "../../shared/categories";
-import CatChipLine from "../../shared/CatChipLine";
+import { CatChip } from "../../shared/CatChipLine";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
@@ -148,6 +148,16 @@ function dayDiff(edited: number, now: Date): number {
 // "Edited" rides only the freshest case: on a dated row the date is the
 // edit, and saying so on every line was the noise the catalog removed.
 // Title Case, like every line the app writes (Dave 2026-09-26, the pass-off).
+// A body that opens with a date ("Aug 24 · Attendees", the calendar's
+// meeting note) hands that date to the row and the rest to the preview.
+const LEADING_DATE = /^((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2})(?:,\s*\d{4})?(?!\d)\s*(?:\u00b7|\||:|-)?\s*/;
+export function leadingDate(first: string): { date: string; rest: string } | null {
+  const m = LEADING_DATE.exec(first.trim());
+  if (!m) return null;
+  const date = m[1]!.replace(/^([A-Z][a-z]{2})[a-z]*\.?/, "$1");
+  return { date, rest: first.trim().slice(m[0].length) };
+}
+
 export function editedLabel(edited: number, now: Date = new Date()): string {
   if (!edited) return "";
   const d = dayDiff(edited, now);
@@ -311,7 +321,14 @@ export default function NotesList({
     // date; under Earlier, Pinned, Archived and Recently Deleted the head
     // is not a day, so the date stays.
     const dayHead = NOTES_GROUP === "when" && (group === "today" || group === "yesterday");
-    const when = dayHead ? "" : editedLabel(n.edited, now);
+    // ONE DATE PER ROW (Dave 2026-10-11: "Aug 24 · Attendees OCT 1" was two
+    // dates). A meeting note's body opens with the meeting's own date; that is
+    // the date that means something, so it moves out of the preview into the
+    // date slot and the edit date is not drawn. Any other note keeps the date
+    // it was last touched, said once as before.
+    const lead = leadingDate(n.first);
+    const preview = lead ? lead.rest : n.first;
+    const when = lead ? lead.date : dayHead ? "" : editedLabel(n.edited, now);
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
@@ -350,23 +367,28 @@ export default function NotesList({
               typed titles are shown in Title Case everywhere and stored
               unchanged). Only the drawn text is cased: n.title stays raw for
               search, selection and the aria labels. */}
-          <span className="task-name">{titleCase(n.title)}</span>
-          {NOTES_ROW === "line" && (!!area || !!n.first.trim() || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
+          {/* THE CHIP RIDES THE TITLE LINE (Dave 2026-10-11, the approved Oct 9
+              chip spec: "chip + title on one line"). The area is a small chip in
+              its own colour right before the title; an unfiled note has no area
+              to name and shows no chip at all, so its title stands alone. */}
+          <div className="note-line1">
+            {NOTES_ROW === "line" && <CatChip category={area ? n.category : null} />}
+            <span className="task-name">{titleCase(n.title)}</span>
+          </div>
+          {NOTES_ROW === "line" && (!!preview.trim() || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
             <div className="r-k">
-              {/* THE UNIFIED CHIP (Dave 2026-10-09, the pass-off, item 14): the
-                  area as a small chip in its own colour with the note's own
-                  first line right next to it, the same piece a task row uses for
-                  its area and project. An unfiled note has no area to name, and
-                  a placeholder that says so is a line with nothing to say (§AK):
-                  it shows no chip, and its first line stands alone. */}
-              <CatChipLine category={area ? n.category : null} text={n.first} sentence />
+              {/* The note's own first line, drawn as written. It is the one thing
+                  on this line that gives up room: the finds and the date never
+                  shrink, so neither is cut (the Jarvis Updates row, 2026-10-11). */}
+              {preview.trim() ? <span className="r-goal note-preview" data-sentence="">{preview}</span> : null}
               {/* The line's gap separates its facts, as on a task row: no
-                  typed dots. The tags are one run, the row's one grey; what
-                  JARVIS found is work waiting for his review, so it is amber
-                  (§AM) with the number white, and the date is its own caps,
-                  so nothing else here is that grey. */}
+                  typed dots. The tags are one run; what JARVIS found is work
+                  waiting for his review, so it is amber (§AM) with the number
+                  white, and the date is its own caps. The finds say Found, not
+                  JARVIS Found: on a note filed under the Jarvis area the chip
+                  already says JARVIS, and the row said it twice. */}
               {n.tags?.length ? <span className="r-goal r-cat">{n.tags.map((t) => "#" + t).join(" ")}</span> : null}
-              {(n.found ?? 0) > 0 && <span className="r-goal fact warn">JARVIS Found <b>{n.found}</b></span>}
+              {(n.found ?? 0) > 0 && <span className="r-goal fact warn note-found">Found <b>{n.found}</b></span>}
               {when && <span className="r-goal r-cat r-when">{when}</span>}
             </div>
           )}
@@ -408,7 +430,7 @@ export default function NotesList({
   };
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled notes-list">
       {/* Library chassis (Design 2, approved 2026-08-18): pencil rides the
           bar, search under the title. */}
       <PageHeader
