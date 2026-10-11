@@ -3,7 +3,7 @@
 // every save, so nothing that reads blocks (search, the checklist-to-task
 // flows, older builds) notices the editor changed underneath it.
 import { describe, it, expect } from "vitest";
-import { blocksToDoc, docToBlocks, displayTitle, listTitle, firstLineOf, docWordCount, setTaskDone, linkedTasksIn, isDocEmpty, emptyDoc, applyChecklistLinks } from "./docModel";
+import { blocksToDoc, docToBlocks, displayTitle, listTitle, firstLineOf, cutAtWord, contentLines, docWordCount, setTaskDone, linkedTasksIn, isDocEmpty, emptyDoc, applyChecklistLinks } from "./docModel";
 import type { Block } from "./types";
 
 const BLOCKS: Block[] = [
@@ -150,5 +150,25 @@ describe("listTitle", () => {
   });
   it("names an untitled event note by its first line, like displayTitle", () => {
     expect(listTitle({ title: "", blocks: [{ id: "t", type: "text", text: "Agenda" }], source: { type: "event" } })).toBe("Agenda");
+  });
+});
+
+// Dave 2026-10-11: "Preview text truncates mid-word ('pag...', 'progressiv...'). Truncate at word boundaries."
+describe("cutting a line", () => {
+  it("cuts at a word boundary with an ellipsis, never inside a word", () => {
+    expect(cutAtWord("short line", 80)).toBe("short line");
+    const cut = cutAtWord("We shipped the new pages and the progressive rollout plan for October", 40);
+    expect(cut).toBe("We shipped the new pages and the\u2026");
+    expect(cut.length).toBeLessThanOrEqual(40);
+    expect(cutAtWord("a, b, c, d, e, f", 10)).toBe("a, b, c\u2026");
+    expect(firstLineOf(blocksToDoc([{ id: "a", type: "text", text: "word ".repeat(30) }]))).toMatch(/word\u2026$/);
+  });
+  it("contentLines skips headings and reads each list item as a line", () => {
+    const doc = blocksToDoc([
+      { id: "m", type: "meta", text: "Aug 24 \u00b7 Attendees" },
+      { id: "h", type: "heading", text: "Agenda" },
+      { id: "l", type: "bulleted_list", items: ["Venue", "Budget"] },
+    ]);
+    expect(contentLines(doc)).toEqual(["Aug 24 \u00b7 Attendees", "Venue", "Budget"]);
   });
 });

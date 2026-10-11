@@ -180,7 +180,7 @@ describe("TasksPage", () => {
     expect(container.querySelector(".task-check[class*=cat-bd]")).toBeNull();
     expect(container.querySelector(".r-bar")).toBeNull();
     // AMENDED 2026-10-09 (Dave, the unified chip): the area is a small chip in its own colour, which replaces the dot.
-    expect(container.querySelector(".r-parent .cat-chip.cat-fg-sky")).toHaveTextContent("Ridgeley");
+    expect(container.querySelector(".r-parent .cat-chip:has(> .cat-chip-dot.cat-bg-sky)")).toHaveTextContent("Ridgeley");
     expect(container.querySelector(".r-pdot"), "the colour dot is gone").toBeNull();
     // The distance is a fact in the late colour: text, never a filled chip (Dave 2026-10-05, D10).
     expect(container.querySelector(".r-k .fact.red")).toHaveTextContent("2 Days Late");
@@ -213,12 +213,12 @@ describe("TasksPage", () => {
     );
     const lines = container.querySelectorAll(".r-goal.r-parent");
     expect(lines).toHaveLength(2);
-    expect(lines[0]!.querySelector(".cat-chip.cat-fg-sky")).toHaveTextContent("Ridgeley");
+    expect(lines[0]!.querySelector(".cat-chip:has(> .cat-chip-dot.cat-bg-sky)")).toHaveTextContent("Ridgeley");
     expect(lines[0]!.querySelector(".r-goal-t")).toHaveTextContent("Get Paid On Time");
-    expect(lines[1]!.querySelector(".cat-chip.cat-fg-sky")).toHaveTextContent("Ridgeley");
+    expect(lines[1]!.querySelector(".cat-chip:has(> .cat-chip-dot.cat-bg-sky)")).toHaveTextContent("Ridgeley");
     expect(lines[1]!.querySelector(".r-goal-t")).toHaveTextContent("Kitchen remodel");
     // The chip comes first, the words right after it, and nothing else is drawn in the line.
-    expect([...lines[1]!.children].map((c) => c.className)).toEqual(["cat-chip cat-fg-sky", "r-goal-t"]);
+    expect([...lines[1]!.children].map((c) => c.className)).toEqual(["cat-chip", "r-goal-t"]);
     expect(container.querySelector(".r-pg, .r-pdot, .pp-sm"), "no glyph and no dot").toBeNull();
     // AMENDED 2026-09-19 (Dave, on five Anytime rows all reading "No
     // category"): a row states facts, and an absent area is not one. With no
@@ -236,7 +236,7 @@ describe("TasksPage", () => {
           : { kind: "project", name: "Garage", tone: "cat-fg-graphite", pct: null, cat: "" })} />,
     );
     const [a, b] = [...container.querySelectorAll(".r-goal.r-parent")];
-    expect(a!.querySelector(".cat-chip.cat-fg-pink")).toHaveTextContent("Family");
+    expect(a!.querySelector(".cat-chip:has(> .cat-chip-dot.cat-bg-pink)")).toHaveTextContent("Family");
     expect(a!.querySelector(".r-goal-t")).toHaveTextContent("Kitchen Remodel");
     expect(b!.querySelector(".cat-chip"), "no area, no chip").toBeNull();
     expect(b).toHaveTextContent(/^Garage$/);
@@ -257,7 +257,7 @@ describe("TasksPage", () => {
     const [a, b] = [...container.querySelectorAll(".r-goal.r-parent")];
     expect(a!.querySelector(".cat-chip"), "the page's own area is not chipped").toBeNull();
     expect(a).toHaveTextContent(/^Kitchen Remodel$/);
-    expect(b!.querySelector(".cat-chip.cat-fg-yellow")).toHaveTextContent("Money");
+    expect(b!.querySelector(".cat-chip:has(> .cat-chip-dot.cat-bg-yellow)")).toHaveTextContent("Money");
     expect(b!.querySelector(".r-goal-t")).toHaveTextContent("Kitchen Remodel");
   });
 
