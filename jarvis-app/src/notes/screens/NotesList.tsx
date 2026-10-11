@@ -460,7 +460,7 @@ export default function NotesList({
   };
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled notes-list">
       {/* Library chassis (Design 2, approved 2026-08-18): pencil rides the
           bar, search under the title. */}
       <PageHeader

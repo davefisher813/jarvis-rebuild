@@ -43,13 +43,12 @@ html[data-theme="dark"] .app-shell .screen { background: transparent; }
 
 /* THE CARD: the same charcoal, finer lit. The pane is SOLID, so the red ember never tints a card (Dave 2026-10-05: all
    cards the same colour). These are the colours the old translucent pane showed over black. */
-/* THE CARD IS THE WARM SURFACE (Dave 2026-10-11: "Use the warm surface token from jarvis-design-system.css: warm
-   charcoal in dark mode, white in light mode. No neutral greys anywhere on cards. This applies to every card using that
-   surface"). The pane was a cool near-black gradient with white washes over it; it is the design system's --surface-1
-   now, flat. The lit edge and the depth below stay. */
 html[data-theme="dark"] .card,
 html[data-theme="dark"] .ruled .card {
-  background: var(--surface-1);
+  background:
+    radial-gradient(520px 200px at 6% 0%, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 110px),
+    var(--gd-pane);
   -webkit-backdrop-filter: none; backdrop-filter: none;
   box-shadow:
     inset 1px 1px 0 rgba(255, 255, 255, 0.22),
@@ -103,13 +102,13 @@ html[data-theme="dark"] .sheet-scrim {
   -webkit-backdrop-filter: blur(6px) saturate(120%); backdrop-filter: blur(6px) saturate(120%);
 }
 html[data-theme="dark"] .sheet-scrim > .card {
-  /* The sheet is the same warm surface (Dave 2026-10-11), with no red wash in its corner. */
-  background: var(--surface-1);
+  background:
+    radial-gradient(420px 240px at 100% 0%, color-mix(in srgb, var(--accent-fill) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(40, 40, 43, 0.90), rgba(22, 22, 25, 0.88));
   -webkit-backdrop-filter: blur(40px) saturate(160%); backdrop-filter: blur(40px) saturate(160%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05), 0 -14px 44px -6px rgba(0, 0, 0, 0.7);
 }
-/* A group inside a sheet sits on the sheet, so it is the next warm step up (Dave 2026-10-11, no neutral greys). */
-html[data-theme="dark"] .sheet-scrim .card.xs-group { background: var(--surface-2); }
+html[data-theme="dark"] .sheet-scrim .card.xs-group { background: var(--gd-chip); }
 html[data-theme="dark"] .sheet-handle { background: rgba(255, 255, 255, 0.30); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
 /* QUALITY PASS (Dave 2026-10-05: "push it to the max ... don't change
    anything, just enhance"). Same colours, sizes and places; finer rendering.

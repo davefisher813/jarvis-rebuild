@@ -1397,6 +1397,11 @@
 .ruled .note-row .note-sub { flex-wrap: nowrap; }
 .ruled .note-row .note-sub > .note-preview { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   color: var(--tx-3); font-weight: var(--w-normal); }
+/* THE NOTES CARD IS THE WARM SURFACE (Dave 2026-10-11: "warm charcoal
+   backgrounds, proper text contrast, no grey text on grey surfaces"). The
+   card wears the design system's own --surface-1: warm charcoal in dark,
+   white in light. Colour only; the lit edge and the depth stay. */
+html .screen.ruled.notes-list .card { background: var(--surface-1); }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
