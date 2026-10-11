@@ -12,26 +12,23 @@
    Same discipline as the light file: no backdrop-filter on cards, chips or
    the dock (nothing moves under them, so a blur changes nothing you can see);
    highlights are background layers and inset shadows so no card gets
-   position; no entrance animation on screen open (Dave 2026-07-29). */
+   position. The first open entrance (Dave 2026-10-11, visual catalog: cards rise
+   4px and fade in on the first open of a screen, once per launch) supersedes
+   the 2026-07-29 "no entrance on screen open" for that one moment only; it
+   lives in components.css, and a tab visit still never re-animates. */
 
 html[data-theme="dark"] {
   --gd-pane: linear-gradient(168deg, rgba(30, 30, 32, 1) 0%, rgba(20, 20, 22, 1) 55%, rgba(15, 15, 17, 1) 100%);
   --gd-chip: linear-gradient(168deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
   --gd-chrome: linear-gradient(168deg, rgba(46, 46, 50, 0.84), rgba(30, 30, 34, 0.74));
-  --gd-red-top: color-mix(in srgb, var(--accent-fill) 80%, white);
-  --gd-red-lo: color-mix(in srgb, var(--accent-fill) 80%, black);
-  --gd-red-glow: color-mix(in srgb, var(--accent-fill) 28%, transparent);
-  --gd-red-edge: color-mix(in srgb, var(--accent-fill) 50%, black);
 }
 
-/* THE EMBER: one faint red glow in the top corner, fixed behind the scroll,
-   and a still fainter one low on the other side. Red only. */
+/* THE GROUND (Dave 2026-10-11, visual catalog): one ember in the top corner over a deeper ramp, #131010 down to near
+   black. The second, bottom left ember is gone. The colours are the --ground token's. */
 html[data-theme="dark"] .app-shell { isolation: isolate; }
 html[data-theme="dark"] .app-shell::before {
   content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(560px 400px at 108% -6%, color-mix(in srgb, var(--accent-fill) 24%, transparent), transparent 64%),
-    radial-gradient(520px 380px at -10% 108%, color-mix(in srgb, var(--accent-fill) 12%, transparent), transparent 66%);
+  background: var(--ground);
 }
 /* Fine light grain, so the glow does not band on an OLED. */
 html[data-theme="dark"] .app-shell::after {
@@ -41,21 +38,14 @@ html[data-theme="dark"] .app-shell::after {
 html[data-theme="dark"] .app-scroll { position: relative; z-index: 1; background: transparent; }
 html[data-theme="dark"] .app-shell .screen { background: transparent; }
 
-/* THE CARD: the same charcoal, finer lit. The pane is SOLID, so the red ember never tints a card (Dave 2026-10-05: all
-   cards the same colour). These are the colours the old translucent pane showed over black. */
+/* THE CARD (Dave 2026-10-11, visual catalog): warm charcoal, rgba(36,29,27) to rgba(18,14,13), and a deeper shadow,
+   instead of the cool near-black glass. The pane is SOLID, so the ember never tints a card (Dave 2026-10-05: all cards
+   the same colour). The lit 1px rim is drawn by components.css (THE CARD RIM) from --card-rim. */
 html[data-theme="dark"] .card,
 html[data-theme="dark"] .ruled .card {
-  background:
-    radial-gradient(520px 200px at 6% 0%, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 110px),
-    var(--gd-pane);
+  background: var(--card-fill);
   -webkit-backdrop-filter: none; backdrop-filter: none;
-  box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.22),
-    inset -1px -1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65),
-    0 1px 1px rgba(0, 0, 0, 0.5),
-    0 14px 28px -12px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--card-lift);
 }
 html[data-theme="dark"] .card .card:not(.xs-group),
 html[data-theme="dark"] .ruled .card .card:not(.xs-group) {
@@ -72,13 +62,15 @@ html[data-theme="dark"] .stat-tile {
 }
 html[data-theme="dark"] .st-n,
 html[data-theme="dark"] .dring b { font-variant-numeric: tabular-nums; }
-html[data-theme="dark"] .notice-disc {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 56%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -2px 4px rgba(0, 0, 0, 0.30), 0 4px 10px -2px rgba(0, 0, 0, 0.6);
-}
-html[data-theme="dark"] .voice-mic {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 2px 8px -2px var(--gd-red-glow);
+/* THE ICON TILE (Dave 2026-10-11, visual catalog, Icon Tiles). The coloured glyph tiles (Heads Up, Inbox, Areas, the
+   nav rows) keep their fill and gain a lit top: a white 22% to clear overlay, a 1px top highlight, a 2px foot, and a
+   small shadow in the tile's own colour at 35% (--tile-shadow, named by each fill class). Small, never a glow. */
+html[data-theme="dark"] .row-ico[class*="cat-bg-"],
+html[data-theme="dark"] .row-ico[class*="nav-tile-"],
+html[data-theme="dark"] .notice-disc[class*="cat-bg-"],
+html[data-theme="dark"] .notice-disc[class*="nav-tile-"] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 0 rgba(0, 0, 0, 0.15), 0 6px 14px -8px var(--tile-shadow, transparent);
 }
 html[data-theme="dark"] .dring > div { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.10); }
 
@@ -91,10 +83,13 @@ html[data-theme="dark"] .voice-search {
   -webkit-backdrop-filter: none; backdrop-filter: none;
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.20), inset -1px -1px 0 rgba(255, 255, 255, 0.04), inset 0 -6px 10px -8px rgba(0, 0, 0, 0.6), 0 8px 18px -8px rgba(0, 0, 0, 0.7);
 }
+/* The Add Anything capsule's edge is the card's lit rim now (components.css, THE CARD RIM; Dave 2026-10-11, visual
+   catalog), so it keeps only the shadow beneath. */
+html[data-theme="dark"] .voice-bar { box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.7); }
 html[data-theme="dark"] .tab-bar {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
-html[data-theme="dark"] .tab-bar .tab.active .ic { filter: drop-shadow(0 0 4px var(--gd-red-glow)); }
+/* The active tab is plain red with no glow (Dave 2026-10-11, visual catalog). */
 
 /* THE SHEET: real glass, because the page really does pass under it. */
 html[data-theme="dark"] .sheet-scrim {
@@ -118,13 +113,8 @@ html[data-theme="dark"] .sheet-handle { background: rgba(255, 255, 255, 0.30); b
    4 the red buttons get a specular band and their words a hairline of depth
    5 a press dims a touch as well as giving, so the tap reads instantly
    6 the big title is set with optical kerning */
-html[data-theme="dark"] .app-shell::before { background: radial-gradient(560px 400px at 108% -6%, color-mix(in srgb, var(--accent-fill) 24.0%, transparent) 0%, color-mix(in srgb, var(--accent-fill) 20.2%, transparent) 12%, color-mix(in srgb, var(--accent-fill) 13.9%, transparent) 23%, color-mix(in srgb, var(--accent-fill) 7.7%, transparent) 35%, color-mix(in srgb, var(--accent-fill) 2.9%, transparent) 48%, transparent 64%),
-    radial-gradient(520px 380px at -10% 108%, color-mix(in srgb, var(--accent-fill) 12.0%, transparent) 0%, color-mix(in srgb, var(--accent-fill) 10.1%, transparent) 12%, color-mix(in srgb, var(--accent-fill) 7.0%, transparent) 24%, color-mix(in srgb, var(--accent-fill) 3.8%, transparent) 36%, color-mix(in srgb, var(--accent-fill) 1.4%, transparent) 50%, transparent 66%); }
+html[data-theme="dark"] .app-shell::before { background: var(--ground); }
 html[data-theme="dark"] .app-shell::after { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); background-size: 180px 180px; }
-@media (min-resolution: 2dppx) {
-  html[data-theme="dark"] .card, html[data-theme="dark"] .ruled .card { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.30), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.06), inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65), 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 14px 28px -12px rgba(0, 0, 0, 0.7); }
-  html[data-theme="dark"] .card .card:not(.xs-group), html[data-theme="dark"] .ruled .card .card:not(.xs-group) { box-shadow: none; }
-}
 html[data-theme="dark"] .today-title { text-rendering: optimizeLegibility; font-kerning: normal; }
 
 /* THE BUTTONS, ONE FINISH PER FAMILY (Dave 2026-10-05: "make sure it's uniform
@@ -141,26 +131,47 @@ html[data-theme="dark"] .today-title { text-rendering: optimizeLegibility; font-
    padding-box, inset shadows only, and anything outside the pill is a
    filter: drop-shadow, which follows what is actually painted.
 
-   RED: every solid red control. QUIET: every capsule (its own fill kept,
+   RED: every solid red control takes THE RED BUTTON below (Dave 2026-10-11, visual catalog: a lit top edge, a
+   gentle gradient, a small neutral shadow, no red glow); its press only dims. QUIET: every capsule (its own fill kept,
    lit from the top, a soft shadow beneath, no ring, per the capsule ruling).
    .row-act is red in light and a capsule in dark, as it already was. */
+/* THE RED BUTTON (Dave 2026-10-11, visual catalog, Primary Red Button: "no glow"). Every control filled with the
+   action red under white words, the capture button included: a gentle top to bottom gradient from this theme's own
+   red lifted toward white (82%) down to that red, a lit top edge, a small neutral shadow, and no red glow anywhere. The
+   red itself is never restated; the theme keeps its approved --accent-fill. A .pill-act's shadow is a drop-shadow that
+   follows its paint (see WHY THIS SHAPE); every other red button wears the picked box-shadow below. */
 html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .ruled.health-ruled .btn-primary,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go,
 html[data-theme="dark"] .pill-act.pill-go,
 html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost),
 html[data-theme="dark"] .mode-hero .mode-go,
 html[data-theme="dark"] .hdr-controls .tasks-focus,
 html[data-theme="dark"] .convo-send,
-html[data-theme="dark"] .ruled .h-hero .pill-act {
+html[data-theme="dark"] .ruled .h-hero .pill-act,
+html[data-theme="dark"] .voice-mic,
+html[data-theme="dark"] .sheet-bar-save:not(.dim),
+html[data-theme="dark"] .bench-act.prim {
   background-color: var(--accent-fill);
-  background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%),
-    linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent-fill) 82%, white), var(--accent-fill));
   background-clip: padding-box;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge);
-  filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 3px 5px var(--gd-red-glow));
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.2));
 }
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .ruled.health-ruled .btn-primary,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost),
+html[data-theme="dark"] .mode-hero .mode-go,
+html[data-theme="dark"] .hdr-controls .tasks-focus,
+html[data-theme="dark"] .convo-send,
+html[data-theme="dark"] .voice-mic,
+html[data-theme="dark"] .sheet-bar-save:not(.dim),
+html[data-theme="dark"] .bench-act.prim {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 10px -6px rgba(0, 0, 0, 0.35);
+  filter: none;
+}
+/* A primary that cannot be pressed yet keeps its own waiting wash. */
+html[data-theme="dark"] .btn.btn-primary:disabled, html[data-theme="dark"] .btn.btn-primary[aria-disabled="true"] { background-image: none; box-shadow: none; filter: none; }
 html[data-theme="dark"] .plan-cta.plan-cta-ghost,
 html[data-theme="dark"] .pill-act:not(.pill-go),
 html[data-theme="dark"] .see-all.pill-action,
@@ -250,7 +261,7 @@ html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost):active,
 html[data-theme="dark"] .mode-hero .mode-go:active,
 html[data-theme="dark"] .hdr-controls .tasks-focus:active,
 html[data-theme="dark"] .convo-send:active,
-html[data-theme="dark"] .ruled .h-hero .pill-act:active { filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 2px 3px var(--gd-red-glow)) brightness(0.94); }
+html[data-theme="dark"] .ruled .h-hero .pill-act:active { filter: brightness(0.94); }
 html[data-theme="dark"] .plan-cta.plan-cta-ghost:active,
 html[data-theme="dark"] .pill-act:not(.pill-go):active,
 html[data-theme="dark"] .see-all.pill-action:active,

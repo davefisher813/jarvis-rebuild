@@ -157,6 +157,8 @@
   --r-xl: 24px;  /* featured card / sheet */
   --r-card: 24px; --r-field: 16px; --r-inner: 16px;
   --r-pill: 999px; --r-circle: 50%;
+  /* Dave 2026-10-11, visual catalog: the task check's softer square, and the active tab's chip. */
+  --r-check: 9px; --r-tab: 26px;
 
   --tap-min: 44px;
 
@@ -495,6 +497,26 @@
      separate it. */
   --shadow-card: none;
   --shadow-float: 0 8px 24px rgba(12,8,4,0.36);
+  /* THE CATALOG PICKS (Dave 2026-10-11, visual catalog). One token per pick, so each theme names its own colour and the
+     rules that wear them are shared: the two themes differ only in colour.
+     Ground: one ember in the top corner over a deeper ramp to near black (the second, bottom left ember is gone).
+     Card: warm charcoal, a 1px rim lit white at the top left and touched with red at the far corner, a deeper shadow.
+     Chip: a hairline rim, no glow on the dot. Check: a soft outline with a faint inner gradient.
+     Progress: the checklist line's track. Dock: the capsule's lit rim; the fade behind it lands on the ground's foot. */
+  --ground: radial-gradient(520px 340px at 104% -4%, rgba(255,43,60,0.20), rgba(255,43,60,0) 60%), linear-gradient(180deg, #131010 0%, #0A0808 50%, #050404 100%);
+  --ground-foot: #050404;
+  --card-fill: linear-gradient(180deg, rgba(36,29,27,0.96), rgba(18,14,13,0.98));
+  --card-lift: inset 0 1px 0 rgba(255,255,255,0.08), 0 30px 60px -28px rgba(0,0,0,0.95);
+  --card-rim: linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 45%, rgba(255,43,60,0.08) 100%);
+  --dock-rim: linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+  --chip-fill: rgba(255,255,255,0.06);
+  --chip-ring: rgba(255,255,255,0.08); --chip-hi: rgba(255,255,255,0.06);
+  --kicker-rule: rgba(255,255,255,0.18);
+  /* Raised to the 3:1 control guideline (Dave 2026-10-11: "darken just enough"): 3.3:1 on every dark card. */
+  --check-bd: rgba(255,255,255,0.36);
+  --check-fill: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+  --check-hi: rgba(255,255,255,0.1); --check-hi-blur: 0px;
+  --progress-track: rgba(255,255,255,0.08);
   color-scheme: dark;
 }
 
@@ -763,6 +785,24 @@
      neutral, never red) without the harshness. */
   --sel-bg: #2A231D;
   --sel-fg: #FFFDFA;
+  /* THE CATALOG PICKS (Dave 2026-10-11, visual catalog), the light half of the tokens named in the dark block.
+     Ground: one quiet cream, a touch lighter at the top, instead of the coral, amber, sky and mint hazes.
+     Card: flat white, a crisp top edge, a softer warm two-layer shadow; the rim stays a clean white edge.
+     The active tab's lifted white chip is glass-light.css (THE ACTIVE TAB). */
+  --ground: linear-gradient(180deg, #FAF7F2 0%, #F3EEE6 100%);
+  --ground-foot: #F3EEE6;
+  --card-fill: #FFFFFF;
+  --card-lift: inset 0 1px 0 #FFFFFF, 0 1px 2px rgba(60,40,20,0.06), 0 20px 44px -24px rgba(60,40,20,0.40);
+  --card-rim: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9));
+  --dock-rim: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9));
+  --chip-fill: linear-gradient(180deg, #F7F2EB, #F0E9DF);
+  --chip-ring: rgba(60,40,20,0.06); --chip-hi: #FFFFFF;
+  --kicker-rule: rgba(60,40,20,0.22);
+  /* Raised to the 3:1 control guideline (Dave 2026-10-11: "darken just enough"): 3.6:1 on a white card, 3.1:1 on the cream page. */
+  --check-bd: #91867C;
+  --check-fill: linear-gradient(180deg, #FFFFFF, #FAF6F0);
+  --check-hi: rgba(60,40,20,0.06); --check-hi-blur: 1px;
+  --progress-track: #F1EBE2;
   color-scheme: light;
 }
 
@@ -1043,9 +1083,12 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    on Today, the Life tab, the Schedule and Health. The done state draws a
    tick, because a filled green square says less than a filled green circle
    did. */
-.task-check { width: 22px; height: 22px; border-radius: var(--r-sm); border: 2px solid var(--tx-4); flex-shrink: 0;
-  position: relative; box-sizing: border-box; }
-.task-check.done { border-color: var(--good-fill); background: var(--good-fill); }
+.task-check { width: 22px; height: 22px; border-radius: var(--r-check); border: 1.6px solid var(--check-bd); flex-shrink: 0;
+  position: relative; box-sizing: border-box; background: var(--check-fill); box-shadow: inset 0 1px var(--check-hi-blur) var(--check-hi); }
+/* AMENDED (Dave 2026-10-11, visual catalog, Task Checkbox): a softer square (9px) with a 1.6px outline, a faint inner
+   gradient and an inset highlight, so it reads as a control before it is touched. The done state is unchanged: the
+   same 2px green square and tick it always was. */
+.task-check.done { border-width: 2px; border-color: var(--good-fill); background: var(--good-fill); box-shadow: none; }
 .task-check.done::before { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
   border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 .task-title { flex: 1; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }

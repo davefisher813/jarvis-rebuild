@@ -234,7 +234,7 @@
    never shrink. That order is the whole fix: the old row had two things
    fighting for the trailing slot and the name lost. */
 .ruled .task-row { min-height: 56px; padding: 8px var(--s-4); gap: var(--s-2h); }
-.ruled .task-row .task-check { border-color: var(--tx-4); }           /* never category-coloured; a rounded square since 2026-09-02 */
+.ruled .task-row .task-check { border-color: var(--check-bd); }           /* never category-coloured; a rounded square since 2026-09-02 */
 .ruled .task-row .task-check.done { border-color: var(--good-fill); background: var(--good-fill); }
 /* DOING TODAY, on the fit sheet (2026-09-21). The checklist is not a task
    list -- it is a choice about this session -- but it wears the same check
@@ -1397,11 +1397,9 @@
 .ruled .note-row .note-sub { flex-wrap: nowrap; }
 .ruled .note-row .note-sub > .note-preview { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   color: var(--tx-3); font-weight: var(--w-normal); }
-/* THE NOTES CARD IS THE WARM SURFACE (Dave 2026-10-11: "warm charcoal
-   backgrounds, proper text contrast, no grey text on grey surfaces"). The
-   card wears the design system's own --surface-1: warm charcoal in dark,
-   white in light. Colour only; the lit edge and the depth stay. */
-html .screen.ruled.notes-list .card { background: var(--surface-1); }
+/* THE NOTES CARD IS EVERY CARD (Dave 2026-10-11, visual catalog, Card Surface). It wore --surface-1 here so it would be
+   warm when the other cards were cool; every card is the warm catalog card now (--card-fill), so the Notes card needs no
+   rule of its own and is the same card as every other in both themes. */
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
@@ -1415,10 +1413,15 @@ html .screen.ruled.notes-list .card { background: var(--surface-1); }
    lines, the no-wrap law's own stated exception (components.css :2865),
    same as .lib-name always wore; still ends in an ellipsis if two lines is
    not enough. Nothing moves at scale 1 or above 340px, where it already fit
-   either way. */
+   either way.
+   AMENDED (Dave 2026-10-11, visual catalog, Note Titles, his final word: "I don't want wrapping."). The title is ONE
+   line: Newsreader 600 at 18px on the type scale, line height 1.15, and a title too long for the line ends in an
+   ellipsis. It shrinks beside the date (min-width 0); the date stays at its right and never shrinks. Task rows stay
+   in the sans. In the Notes list it is the page's ink. */
+.ruled.notes-list .note-row .note-line1 > .task-name { color: var(--tx-1); }
 .ruled .note-row .note-line1 > .task-name {
-  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; text-overflow: clip;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  font-family: 'Newsreader', Georgia, serif; font-weight: var(--w-medium); font-size: calc(18px * var(--type-scale)); line-height: 1.15;
 }
 /* The "first" row shape: the note's own first line, in grey, one line. */
 .ruled .note-first { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: var(--s-1); white-space: nowrap; overflow: hidden;
@@ -2481,9 +2484,11 @@ html .screen.ruled.notes-list .card { background: var(--surface-1); }
 /* The DONE ring's sheet sits on document.body, outside .ruled, and its rows wear the same chip. */
 /* THE APPROVED CHIP (Dave 2026-10-11: "match the mock exactly", unified-chip-system-mockup-2026-10-09 .chip). A quiet
    warm pill, the area's colour as an 8px dot, the area's name in plain case. One rule for both themes; only the
-   tokens' colours differ. The DONE ring's sheet sits outside .ruled and wears the same chip. */
+   tokens' colours differ. The DONE ring's sheet sits outside .ruled and wears the same chip.
+   AMENDED (Dave 2026-10-11, visual catalog, Area Chip): a hairline rim so it sits on the card instead of in it, drawn
+   as inset shadows (--chip-fill, --chip-hi, --chip-ring) so the chip does not grow by a pixel. No glow on the dot. */
 .ruled .cat-chip, .day-sheet .cat-chip { display: inline-flex; align-items: center; gap: var(--s-1h); flex-shrink: 0;
-  padding: var(--s-1) var(--s-3); border-radius: var(--r-pill); background: var(--surface-2); color: var(--tx-2);
+  padding: var(--s-1) var(--s-3); border-radius: var(--r-pill); background: var(--chip-fill); box-shadow: inset 0 1px 0 var(--chip-hi), inset 0 0 0 1px var(--chip-ring); color: var(--tx-2);
   font-size: var(--t-caption); font-weight: var(--w-normal); line-height: 1.2; white-space: nowrap; }
 .ruled .cat-chip-dot, .day-sheet .cat-chip-dot { width: 8px; height: 8px; border-radius: var(--r-circle); flex-shrink: 0; }
 

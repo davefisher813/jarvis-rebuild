@@ -14,21 +14,19 @@
       layer per card on a phone. Blur stays only where content really passes
       under glass: the sheet and its scrim (and the tab bar, which already had
       it).
-   2. NO entrance animation on every screen open. Dave ruled 2026-07-29 that
-      cards replaying their entrance on a tab switch read as jank. The
-      existing boot-only stagger (body.boot-stagger) is the entrance.
+   2. NO entrance animation in this file. Dave ruled 2026-07-29 that cards
+      replaying their entrance on a tab switch read as jank, and that still
+      holds. His 2026-10-11 visual catalog pick adds one entrance: on the
+      FIRST open of a screen per launch the cards rise 4px and fade in. It
+      lives in components.css (THE FIRST OPEN) and never replays on a visit.
    3. The highlight and the rim are background layers and inset shadows, not
       pseudo-elements, so no card needs position: relative and nothing that
       was absolutely placed inside one moves.
 
-   No purple anywhere: the haze is coral, amber, sky and mint, kept far apart
-   because coral and blue blend to lavender where they overlap. */
+   No purple anywhere. The coral, amber, sky and mint haze is gone (Dave 2026-10-11, visual catalog): the ground is one
+   quiet cream, the --ground token. */
 
 html[data-theme="light"] {
-  --gl-coral: 255, 120, 96;
-  --gl-amber: 255, 184, 92;
-  --gl-sky: 72, 168, 255;
-  --gl-mint: 64, 214, 176;
   --gl-ink: 30, 40, 80;
   --gl-rim: 38, 48, 96;
   /* The pane is WHITE (Dave 2026-10-05, the catalog: card surfaces are white, the page is the warm cream). It was a cool pearl
@@ -36,23 +34,16 @@ html[data-theme="light"] {
   --gl-pane: linear-gradient(#FFFFFF, #FFFFFF);
   --gl-chip: linear-gradient(168deg, rgba(241, 243, 247, 0.96), rgba(231, 234, 240, 0.90));
   --gl-chrome: linear-gradient(168deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
-  --gl-red-lo: color-mix(in srgb, var(--accent-fill) 86%, black);
-  --gl-red-top: color-mix(in srgb, var(--accent-fill) 78%, white);
-  --gl-red-glow: color-mix(in srgb, var(--accent-fill) 20%, transparent);
-  --gl-red-edge: color-mix(in srgb, var(--accent-fill) 55%, black);
 }
 
-/* THE HAZE: behind the scroll, fixed, so content slides over it. */
+/* THE GROUND: behind the scroll, fixed, so content slides over it. One quiet cream, #FAF7F2 to #F3EEE6, and no haze
+   (Dave 2026-10-11, visual catalog). */
 html[data-theme="light"] .app-shell { isolation: isolate; }
 html[data-theme="light"] .app-shell::before {
   content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(520px 380px at 108% -4%, rgba(var(--gl-coral), 0.24), transparent 62%),
-    radial-gradient(430px 380px at -14% 34%, rgba(var(--gl-amber), 0.20), transparent 64%),
-    radial-gradient(540px 440px at 112% 78%, rgba(var(--gl-sky), 0.22), transparent 62%),
-    radial-gradient(420px 360px at -6% 104%, rgba(var(--gl-mint), 0.20), transparent 64%);
+  background: var(--ground);
 }
-/* Fine grain over the haze so a phone screen does not band. Plain, no blend. */
+/* Fine grain over the ground so a phone screen does not band. Plain, no blend. */
 html[data-theme="light"] .app-shell::after {
   content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.045;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
@@ -60,22 +51,13 @@ html[data-theme="light"] .app-shell::after {
 html[data-theme="light"] .app-scroll { position: relative; z-index: 1; background: transparent; }
 html[data-theme="light"] .app-shell .screen { background: transparent; }
 
-/* THE CARD: the same grey, lit. The pane is SOLID (Dave 2026-10-05: "all cards should be the same color"). It was
-   translucent, so wherever the coral and amber haze was strong a card turned beige and the same card was a different
-   colour from one screen to the next. The haze stays behind the page; it never tints a card. */
+/* THE CARD (Dave 2026-10-11, visual catalog): flat white, a crisp top edge and a softer warm two-layer shadow, in place
+   of the white radial highlight and the cool blue shadows. SOLID (Dave 2026-10-05: "all cards should be the same
+   color"). The 1px white rim is drawn by components.css (THE CARD RIM) from --card-rim, at the dark rim's width. */
 html[data-theme="light"] .card,
 html[data-theme="light"] .ruled .card {
-  background:
-    radial-gradient(520px 220px at 6% 0%, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0) 120px),
-    var(--gl-pane);
-  box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.95),
-    inset -1px -1px 0 rgba(120, 130, 170, 0.14),
-    inset 0 -10px 18px -12px rgba(var(--gl-ink), 0.10),
-    0 1px 1px rgba(var(--gl-ink), 0.05),
-    0 4px 10px -2px rgba(var(--gl-ink), 0.07),
-    0 18px 34px -10px rgba(var(--gl-ink), 0.14);
+  background: var(--card-fill);
+  box-shadow: var(--card-lift);
 }
 /* A card inside a card is a row group, not a pane. Sheet groups stay panes. */
 html[data-theme="light"] .card .card:not(.xs-group),
@@ -99,13 +81,21 @@ html[data-theme="light"] .hdr-search {
   box-shadow: inset 0 1px 2px rgba(52, 62, 128, 0.09), 0 0 0 0.5px rgba(var(--gl-rim), 0.07), 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-html[data-theme="light"] .notice-disc {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 56%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 4px rgba(0, 0, 0, 0.16), 0 1px 1px rgba(0, 0, 0, 0.12), 0 5px 10px -2px rgba(0, 0, 0, 0.22);
+/* THE ICON TILE (Dave 2026-10-11, visual catalog, Icon Tiles). The coloured glyph tiles (Heads Up, Inbox, Areas, the
+   nav rows) keep their fill and gain a lit top: a white 22% to clear overlay, a 1px top highlight, a 2px foot, and a
+   small shadow in the tile's own colour at 35% (--tile-shadow, named by each fill class). Small, never a glow. */
+html[data-theme="light"] .row-ico[class*="cat-bg-"],
+html[data-theme="light"] .row-ico[class*="nav-tile-"],
+html[data-theme="light"] .notice-disc[class*="cat-bg-"],
+html[data-theme="light"] .notice-disc[class*="nav-tile-"] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 0 rgba(0, 0, 0, 0.15), 0 6px 14px -8px var(--tile-shadow, transparent);
 }
-html[data-theme="light"] .voice-mic {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 3px var(--gl-red-edge), 0 3px 7px -2px var(--gl-red-glow);
+/* THE ACTIVE TAB (Dave 2026-10-11, visual catalog): its icon and label sit on a lifted white chip, no red glow. Dark
+   wears the same chip shape (components.css) with no fill and no shadow. */
+html[data-theme="light"] .tab-bar .tab.active {
+  background: linear-gradient(180deg, #FFFFFF, #F3EEE6);
+  box-shadow: 0 1px 2px rgba(60, 40, 20, 0.1), 0 6px 14px -8px rgba(60, 40, 20, 0.3);
 }
 
 /* THE DONE RING glows where it is filled. */
@@ -115,24 +105,22 @@ html[data-theme="light"] .dring > div { box-shadow: inset 0 1px 3px rgba(var(--g
 /* THE GREETING sits a touch tighter. */
 html[data-theme="light"] .today-title { letter-spacing: -0.03em; }
 
-/* THE DOCK and THE TAB BAR: white glass, a lit edge, a red glow under the
-   active tab. The tab bar floats as a capsule. */
+/* THE DOCK and THE TAB BAR: white glass and a lit edge. The tab bar floats as a capsule. The active tab sits on a
+   lifted white chip with no red glow (Dave 2026-10-11, visual catalog); the chip is THE ACTIVE TAB above, its shape is components.css. */
 html[data-theme="light"] .voice-bar,
 html[data-theme="light"] .voice-search {
   background: var(--gl-chrome);
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.98), inset -1px -1px 0 rgba(120, 130, 170, 0.14), inset 0 -6px 10px -8px rgba(var(--gl-ink), 0.10), 0 2px 3px rgba(var(--gl-ink), 0.05), 0 12px 22px -8px rgba(var(--gl-ink), 0.18);
 }
+/* The Add Anything capsule's edge is the card's lit rim now (components.css, THE CARD RIM; Dave 2026-10-11, visual
+   catalog), so it keeps only the shadow beneath. */
+html[data-theme="light"] .voice-bar { box-shadow: 0 2px 3px rgba(var(--gl-ink), 0.05), 0 12px 22px -8px rgba(var(--gl-ink), 0.18); }
 html[data-theme="light"] .tab-bar {
   position: relative; z-index: 5;
   margin: 0 14px calc(10px + env(safe-area-inset-bottom)); padding: 6px;
   border-radius: 32px; border: 0;
   background: linear-gradient(168deg, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.70));
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.98), inset -1px -1px 0 rgba(120, 130, 170, 0.14), inset 0 -8px 14px -10px rgba(var(--gl-ink), 0.10), 0 2px 4px rgba(var(--gl-ink), 0.06), 0 22px 40px -10px rgba(var(--gl-ink), 0.22);
-}
-html[data-theme="light"] .tab-bar .tab { border-radius: 26px; }
-html[data-theme="light"] .tab-bar .tab.active {
-  background: linear-gradient(168deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.66));
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 0.5px rgba(var(--gl-rim), 0.07), 0 3px 8px -2px var(--gl-red-glow);
 }
 
 /* THE SHEET: real glass, because the page really does pass under it. */
@@ -156,15 +144,8 @@ html[data-theme="light"] .sheet-handle { background: linear-gradient(180deg, rgb
    4 the red buttons get a specular band and their words a hairline of depth
    5 a press dims a touch as well as giving, so the tap reads instantly
    6 the big title is set with optical kerning */
-html[data-theme="light"] .app-shell::before { background: radial-gradient(520px 380px at 108% -4%, rgba(var(--gl-coral), 0.24) 0%, rgba(var(--gl-coral), 0.202) 11%, rgba(var(--gl-coral), 0.139) 22%, rgba(var(--gl-coral), 0.077) 34%, rgba(var(--gl-coral), 0.029) 46%, transparent 62%),
-    radial-gradient(430px 380px at -14% 34%, rgba(var(--gl-amber), 0.2) 0%, rgba(var(--gl-amber), 0.168) 12%, rgba(var(--gl-amber), 0.116) 23%, rgba(var(--gl-amber), 0.064) 35%, rgba(var(--gl-amber), 0.024) 48%, transparent 64%),
-    radial-gradient(540px 440px at 112% 78%, rgba(var(--gl-sky), 0.22) 0%, rgba(var(--gl-sky), 0.185) 11%, rgba(var(--gl-sky), 0.128) 22%, rgba(var(--gl-sky), 0.07) 34%, rgba(var(--gl-sky), 0.026) 46%, transparent 62%),
-    radial-gradient(420px 360px at -6% 104%, rgba(var(--gl-mint), 0.2) 0%, rgba(var(--gl-mint), 0.168) 12%, rgba(var(--gl-mint), 0.116) 23%, rgba(var(--gl-mint), 0.064) 35%, rgba(var(--gl-mint), 0.024) 48%, transparent 64%); }
+html[data-theme="light"] .app-shell::before { background: var(--ground); }
 html[data-theme="light"] .app-shell::after { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); background-size: 180px 180px; }
-@media (min-resolution: 2dppx) {
-  html[data-theme="light"] .card, html[data-theme="light"] .ruled .card { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 1), inset -0.5px -0.5px 0 rgba(120, 130, 170, 0.20), inset 0 -10px 18px -12px rgba(var(--gl-ink), 0.10), 0 0.5px 1px rgba(var(--gl-ink), 0.07), 0 4px 10px -2px rgba(var(--gl-ink), 0.07), 0 18px 34px -10px rgba(var(--gl-ink), 0.14); }
-  html[data-theme="light"] .card .card:not(.xs-group), html[data-theme="light"] .ruled .card .card:not(.xs-group) { box-shadow: none; }
-}
 html[data-theme="light"] .today-title { text-rendering: optimizeLegibility; font-kerning: normal; }
 
 /* THE BUTTONS, ONE FINISH PER FAMILY (Dave 2026-10-05: "make sure it's uniform
@@ -181,26 +162,48 @@ html[data-theme="light"] .today-title { text-rendering: optimizeLegibility; font
    padding-box, inset shadows only, and anything outside the pill is a
    filter: drop-shadow, which follows what is actually painted.
 
-   RED: every solid red control. QUIET: every capsule (its own fill kept,
+   RED: every solid red control takes THE RED BUTTON below (Dave 2026-10-11, visual catalog: a lit top edge, a
+   gentle gradient, a small neutral shadow, no red glow); its press only dims. QUIET: every capsule (its own fill kept,
    lit from the top, a soft shadow beneath, no ring, per the capsule ruling).
    .row-act is a capsule in both themes (Dave 2026-10-05: its label is the key red, so a red fill made Add a Reminder red
    on red). */
+/* THE RED BUTTON (Dave 2026-10-11, visual catalog, Primary Red Button: "no glow"). Every control filled with the
+   action red under white words, the capture button included: a gentle top to bottom gradient from this theme's own
+   red lifted toward white (82%) down to that red, a lit top edge, a small neutral shadow, and no red glow anywhere. The
+   red itself is never restated; the theme keeps its approved --accent-fill. A .pill-act's shadow is a drop-shadow that
+   follows its paint (see WHY THIS SHAPE); every other red button wears the picked box-shadow below. */
 html[data-theme="light"] .btn-primary,
+html[data-theme="light"] .ruled.health-ruled .btn-primary,
 html[data-theme="light"] .ruled .card .pill-act.pill-go,
 html[data-theme="light"] .pill-act.pill-go,
 html[data-theme="light"] .plan-cta:not(.plan-cta-ghost),
 html[data-theme="light"] .mode-hero .mode-go,
 html[data-theme="light"] .hdr-controls .tasks-focus,
-html[data-theme="light"] .convo-send {
+html[data-theme="light"] .convo-send,
+html[data-theme="light"] .ruled .h-hero .pill-act,
+html[data-theme="light"] .voice-mic,
+html[data-theme="light"] .sheet-bar-save:not(.dim),
+html[data-theme="light"] .bench-act.prim {
   background-color: var(--accent-fill);
-  background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%),
-    linear-gradient(180deg, var(--gl-red-top) 0%, var(--accent-fill) 46%, var(--gl-red-lo) 100%);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent-fill) 82%, white), var(--accent-fill));
   background-clip: padding-box;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gl-red-edge);
-  filter: drop-shadow(0 1px 1px var(--gl-red-edge)) drop-shadow(0 3px 5px var(--gl-red-glow));
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.2));
 }
+html[data-theme="light"] .btn-primary,
+html[data-theme="light"] .ruled.health-ruled .btn-primary,
+html[data-theme="light"] .plan-cta:not(.plan-cta-ghost),
+html[data-theme="light"] .mode-hero .mode-go,
+html[data-theme="light"] .hdr-controls .tasks-focus,
+html[data-theme="light"] .convo-send,
+html[data-theme="light"] .voice-mic,
+html[data-theme="light"] .sheet-bar-save:not(.dim),
+html[data-theme="light"] .bench-act.prim {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 10px -6px rgba(0, 0, 0, 0.35);
+  filter: none;
+}
+/* A primary that cannot be pressed yet keeps its own waiting wash. */
+html[data-theme="light"] .btn.btn-primary:disabled, html[data-theme="light"] .btn.btn-primary[aria-disabled="true"] { background-image: none; box-shadow: none; filter: none; }
 html[data-theme="light"] .plan-cta.plan-cta-ghost,
 html[data-theme="light"] .pill-act:not(.pill-go),
 html[data-theme="light"] .see-all.pill-action,
@@ -225,6 +228,30 @@ html[data-theme="light"] .dd {
 }
 /* A value word inside a row is a word, not a button. */
 html[data-theme="light"] .card .row .dd { background-image: none; box-shadow: none; filter: none; }
+/* THE SECONDARY CAPSULE, LIGHT ONLY (Dave 2026-10-11, visual catalog: "new in light, dark stays as it is"). See All,
+   Clear All, Focus and Add: the red label capsules become a white capsule with a blush edge, white to #FFF1EF, a 1px
+   red 18% edge and a soft blush shadow beneath, in place of the beige pill. The edge is an inset ring rather than a
+   border, so no capsule changes size and dark (no ring) differs only in colour. The edge is his pick and supersedes
+   §AL's "a fill and no ring" for these light capsules only. .pill-act paints inside a 44px hit
+   border, so its shadow is a drop-shadow that follows the paint (see WHY THIS SHAPE above); the head capsule
+   (.see-all.pill-action) is held to that same rule by the law that guards it, so it wears the same drop-shadow. */
+html[data-theme="light"] .row-act,
+html[data-theme="light"] .ruled .card .row.row-act,
+html[data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
+html[data-theme="light"] .hdr-add,
+html[data-theme="light"] .pagehead-acts .tasks-focus {
+  background-image: linear-gradient(180deg, #FFFFFF, #FFF1EF);
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px rgba(209, 36, 22, 0.18), 0 8px 18px -12px rgba(209, 36, 22, 0.4);
+  filter: none;
+}
+html[data-theme="light"] .see-all.pill-action,
+html[data-theme="light"] .pill-act:not(.pill-go) {
+  background-image: linear-gradient(180deg, #FFFFFF, #FFF1EF);
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px rgba(209, 36, 22, 0.18);
+  filter: drop-shadow(0 5px 6px rgba(209, 36, 22, 0.14));
+}
 
 /* PRESS: everything pressable gives a little under the thumb and dims a touch. */
 html[data-theme="light"] .btn-primary,
@@ -287,7 +314,7 @@ html[data-theme="light"] .pill-act.pill-go:active,
 html[data-theme="light"] .plan-cta:not(.plan-cta-ghost):active,
 html[data-theme="light"] .mode-hero .mode-go:active,
 html[data-theme="light"] .hdr-controls .tasks-focus:active,
-html[data-theme="light"] .convo-send:active { filter: drop-shadow(0 1px 1px var(--gl-red-edge)) drop-shadow(0 2px 3px var(--gl-red-glow)) brightness(0.94); }
+html[data-theme="light"] .convo-send:active { filter: brightness(0.94); }
 html[data-theme="light"] .plan-cta.plan-cta-ghost:active,
 html[data-theme="light"] .pill-act:not(.pill-go):active,
 html[data-theme="light"] .row-act:active,

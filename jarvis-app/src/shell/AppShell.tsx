@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { watchScreenEntrances } from "../shared/screenEntrance";
 import { lazyWithRecovery } from "./chunkRecovery";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
@@ -637,6 +638,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [active, sessionOpen, rootNonce]);
+  // THE FIRST OPEN (Dave 2026-10-11, visual catalog, Motion): the first time a screen opens in a launch its cards rise
+  // and fade in; never again on a visit. See shared/screenEntrance.ts.
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  useEffect(() => {
+    if (!ready || !scroller.current) return;
+    return watchScreenEntrances(scroller.current, () => activeRef.current);
+  }, [ready]);
   const showTabBar = active === "notes" ? notesChrome : !sessionOpen;
   const showCapture = showTabBar && active !== "chat";
 

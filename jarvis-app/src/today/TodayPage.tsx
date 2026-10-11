@@ -34,7 +34,8 @@ import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph } from "../shared/glyphs";
 import CatChipLine, { chipArea } from "../shared/CatChipLine";
 import { categoriesOf } from "../tasks/categories";
-import StepCount, { stepsOf } from "../shared/StepCount";
+import StepCount, { StepProgress, stepsOf } from "../shared/StepCount";
+import GreetingWords from "./GreetingWords";
 import type { ParentLine } from "../life/parent";
 import { originLabel } from "../tasks/origin";
 import { useAvatarPhoto } from "../profile/avatarPhoto";
@@ -143,6 +144,7 @@ function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }:
             <StepCount {...steps} />
           </div>
         ) : <span className="task-name">{name}</span>}
+        {steps.total > 0 && <StepProgress {...steps} />}
         {/* THE SECOND LINE ANSWERS THE PAGE'S QUESTION (Dave 2026-09-01,
             "Together" catalog, on the row he hated). Bar first, so the
             category mark sits at one x on every row. Chip next, so it sits
@@ -885,7 +887,9 @@ export default function TodayPage({
                 ? <><span className="fact">{dateLong}</span><span className="fact">Offline</span></>
                 : dateLong}
             </div>
-            <div className="today-title">{greeting}</div>
+            {/* THE GREETING'S ONE SERIF (Dave 2026-10-11, visual catalog): "Good" in the sans, the time of day in
+                Newsreader italic (.greet-when), same size, same line. */}
+            <div className="today-title"><GreetingWords greeting={greeting} /></div>
             {/* THE EVENING'S HEADER IS THE DOOR TOO (Dave 2026-10-06, on the live build: the header said "8 Done Today" as plain text
                 and a tap did nothing). In the evening the ring is gone from the hero (it lives inside How Today Went), so this
                 line is what he sees and what he taps: it opens the same sheet of the day the ring does. */}

@@ -104,8 +104,12 @@ describe("D3: one glyph set in both themes", () => {
 describe("D6: the dock is one line, fades the page into itself and its round buttons are one object", () => {
   it("fades the page with a page-colour gradient above the bar, behind the bar and under the toast and pill", () => {
     const b = joined(".voice-dock::before");
-    expect(b).toMatch(/bottom:\s*100%/);
-    expect(b).toMatch(/linear-gradient\(to top, var\(--bg\), transparent\)/);
+    // AMENDED (Dave 2026-10-11, visual catalog, Bottom Capsule and Tab Bar: "Content fades out behind the Add Anything
+    // capsule instead of stopping at it", a 170px fade from transparent to the ground). The ramp runs from the dock's
+    // foot up about 170px, clear at the top to the ground's own foot colour at the bottom.
+    expect(b).toMatch(/bottom:\s*0;/);
+    expect(b).toMatch(/height:\s*170px/);
+    expect(b).toMatch(/linear-gradient\(180deg, transparent 0%,[^;]*var\(--ground-foot, var\(--bg\)\) 100%\)/);
     expect(b).toMatch(/pointer-events:\s*none/);
     expect(b).toMatch(/z-index:\s*-1/);
     expect(joined(".toast-dock")).toMatch(/z-index:\s*2/);

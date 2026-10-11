@@ -29,7 +29,7 @@ import HeadMenu from "../../shared/HeadMenu";
 import { useRowMenu } from "../../shared/useRowMenu";
 import { EnvelopeGlyph } from "../../shared/glyphs";
 import CatChipLine from "../../shared/CatChipLine";
-import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
+import StepCount, { StepProgress, stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { parentForTask, type ParentLine, type ParentIndex } from "../../life/parent";
 import { originLabel } from "../origin";
 
@@ -500,6 +500,7 @@ export function TaskRow({
           ) : (
             <span className="task-name">{title}</span>
           )}
+          {showSteps && !renaming && <StepProgress {...steps} />}
           {/* THE RULED ROW'S SECOND LINE (Dave 2026-09-01, "Together" catalog;
               The Row and Health, 2026-09-02). Chip first, so it sits at one
               x whenever it appears. Then where the task lives: the parent's
