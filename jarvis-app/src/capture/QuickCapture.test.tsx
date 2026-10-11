@@ -419,7 +419,9 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     const orig = Date.prototype.toLocaleTimeString;
     Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
     try {
-      recordCapture({ id: "old-note-24h", kind: "note", title: "Locker code", ts: Date.now() - 60000 });
+      // A minute ago, but never before midnight: run in the day's first minute, a minute ago is yesterday.
+      const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+      recordCapture({ id: "old-note-24h", kind: "note", title: "Locker code", ts: Math.max(Date.now() - 60000, midnight.getTime()) });
       render(
         <NotesProvider userId="u-recent-24h">
           <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />

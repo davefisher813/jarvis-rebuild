@@ -2470,32 +2470,33 @@
    chips mix the fill, not the ink"). Colour only: the size, the padding and
    the shape are one rule for both themes. It never shrinks; the words beside
    it give up their room first. */
-.ruled .cat-chip { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
+/* The DONE ring's sheet sits on document.body, outside .ruled, and its rows wear the same chip. */
+.ruled .cat-chip, .day-sheet .cat-chip { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: var(--track-eyebrow); text-transform: uppercase; padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill);
   white-space: nowrap; background-color: color-mix(in srgb, var(--chip-fill, currentColor) 18%, transparent); }
-.ruled .cat-chip.cat-fg-orange { --chip-fill: var(--cat-orange); }
-.ruled .cat-chip.cat-fg-sky { --chip-fill: var(--cat-sky); }
-.ruled .cat-chip.cat-fg-pink { --chip-fill: var(--cat-pink); }
-.ruled .cat-chip.cat-fg-yellow { --chip-fill: var(--cat-yellow); }
-.ruled .cat-chip.cat-fg-green { --chip-fill: var(--cat-green); }
-.ruled .cat-chip.cat-fg-blue { --chip-fill: var(--cat-blue); }
-.ruled .cat-chip.cat-fg-teal { --chip-fill: var(--cat-teal); }
-.ruled .cat-chip.cat-fg-graphite { --chip-fill: var(--cat-graphite); }
-.ruled .cat-chip.cat-fg-purple { --chip-fill: var(--cat-purple); }
-.ruled .cat-chip.cat-fg-indigo { --chip-fill: var(--cat-indigo); }
-.ruled .cat-chip.cat-fg-magenta { --chip-fill: var(--cat-magenta); }
-.ruled .cat-chip.cat-fg-lime { --chip-fill: var(--cat-lime); }
-.ruled .cat-chip.cat-fg-sand { --chip-fill: var(--cat-sand); }
-.ruled .cat-chip.cat-fg-coral { --chip-fill: var(--cat-coral); }
-.ruled .cat-chip.cat-fg-amber { --chip-fill: var(--cat-amber); }
-.ruled .cat-chip.cat-fg-rust { --chip-fill: var(--cat-rust); }
-.ruled .cat-chip.cat-fg-rose { --chip-fill: var(--cat-rose); }
-.ruled .cat-chip.cat-fg-plum { --chip-fill: var(--cat-plum); }
-.ruled .cat-chip.cat-fg-violet { --chip-fill: var(--cat-violet); }
-.ruled .cat-chip.cat-fg-cyan { --chip-fill: var(--cat-cyan); }
-.ruled .cat-chip.cat-fg-mint { --chip-fill: var(--cat-mint); }
-.ruled .cat-chip.cat-fg-olive { --chip-fill: var(--cat-olive); }
-.ruled .cat-chip.cat-fg-slate { --chip-fill: var(--cat-slate); }
+.ruled .cat-chip.cat-fg-orange, .day-sheet .cat-chip.cat-fg-orange { --chip-fill: var(--cat-orange); }
+.ruled .cat-chip.cat-fg-sky, .day-sheet .cat-chip.cat-fg-sky { --chip-fill: var(--cat-sky); }
+.ruled .cat-chip.cat-fg-pink, .day-sheet .cat-chip.cat-fg-pink { --chip-fill: var(--cat-pink); }
+.ruled .cat-chip.cat-fg-yellow, .day-sheet .cat-chip.cat-fg-yellow { --chip-fill: var(--cat-yellow); }
+.ruled .cat-chip.cat-fg-green, .day-sheet .cat-chip.cat-fg-green { --chip-fill: var(--cat-green); }
+.ruled .cat-chip.cat-fg-blue, .day-sheet .cat-chip.cat-fg-blue { --chip-fill: var(--cat-blue); }
+.ruled .cat-chip.cat-fg-teal, .day-sheet .cat-chip.cat-fg-teal { --chip-fill: var(--cat-teal); }
+.ruled .cat-chip.cat-fg-graphite, .day-sheet .cat-chip.cat-fg-graphite { --chip-fill: var(--cat-graphite); }
+.ruled .cat-chip.cat-fg-purple, .day-sheet .cat-chip.cat-fg-purple { --chip-fill: var(--cat-purple); }
+.ruled .cat-chip.cat-fg-indigo, .day-sheet .cat-chip.cat-fg-indigo { --chip-fill: var(--cat-indigo); }
+.ruled .cat-chip.cat-fg-magenta, .day-sheet .cat-chip.cat-fg-magenta { --chip-fill: var(--cat-magenta); }
+.ruled .cat-chip.cat-fg-lime, .day-sheet .cat-chip.cat-fg-lime { --chip-fill: var(--cat-lime); }
+.ruled .cat-chip.cat-fg-sand, .day-sheet .cat-chip.cat-fg-sand { --chip-fill: var(--cat-sand); }
+.ruled .cat-chip.cat-fg-coral, .day-sheet .cat-chip.cat-fg-coral { --chip-fill: var(--cat-coral); }
+.ruled .cat-chip.cat-fg-amber, .day-sheet .cat-chip.cat-fg-amber { --chip-fill: var(--cat-amber); }
+.ruled .cat-chip.cat-fg-rust, .day-sheet .cat-chip.cat-fg-rust { --chip-fill: var(--cat-rust); }
+.ruled .cat-chip.cat-fg-rose, .day-sheet .cat-chip.cat-fg-rose { --chip-fill: var(--cat-rose); }
+.ruled .cat-chip.cat-fg-plum, .day-sheet .cat-chip.cat-fg-plum { --chip-fill: var(--cat-plum); }
+.ruled .cat-chip.cat-fg-violet, .day-sheet .cat-chip.cat-fg-violet { --chip-fill: var(--cat-violet); }
+.ruled .cat-chip.cat-fg-cyan, .day-sheet .cat-chip.cat-fg-cyan { --chip-fill: var(--cat-cyan); }
+.ruled .cat-chip.cat-fg-mint, .day-sheet .cat-chip.cat-fg-mint { --chip-fill: var(--cat-mint); }
+.ruled .cat-chip.cat-fg-olive, .day-sheet .cat-chip.cat-fg-olive { --chip-fill: var(--cat-olive); }
+.ruled .cat-chip.cat-fg-slate, .day-sheet .cat-chip.cat-fg-slate { --chip-fill: var(--cat-slate); }
 
 /* ---------- THE HEALTH OVERVIEW, TO THE REFERENCE (Dave 2026-09-14) ------
    Three tabs, the next-workout card with its eyebrow and program beside it,
