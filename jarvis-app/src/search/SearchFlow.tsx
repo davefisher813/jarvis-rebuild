@@ -5,6 +5,7 @@ import { personInitials, slotForName } from "../people/types";
 import { RowIcon } from "../shared/anatomy";
 import { titleCase } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
+import { flagOn } from "../substrate/flags";
 
 // UP-CORE-04 (2026-09-05): the matched line, under the title, so a hit whose
 // title does not contain the query says why it is here instead of looking
@@ -56,7 +57,8 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
     return () => { on = false; };
   }, [tasks, schedule, notes, people, projects, money, goals, categories, decisions, files, strands]);
 
-  const results = useMemo(() => (data ? runSearch(q, data) : null), [q, data]);
+  // Phase 0.5: aliases, task Notes and the person a task or note is about, behind memory_v1.
+  const results = useMemo(() => (data ? runSearch(q, data, { links: flagOn("memory_v1") }) : null), [q, data]);
   const empty = q.trim() === "";
   const none = !!results && !empty && totalHits(results) === 0;
 

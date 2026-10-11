@@ -196,6 +196,10 @@ export interface CaptureContext {
   // under the same narrow rules as the name (mentions.ts namePatterns).
   people?: { id: string; name: string; aliases?: string[] }[];
   projects?: { id: string; title: string }[];
+  // Phase 0.5 (PHASE05-DESIGN.md): the unanchored follow up opener named in
+  // Phase 0 D11. Passed by smartPaste behind memory_v1; absent, the anchored
+  // openers alone decide, byte for byte as before.
+  followUp?: boolean;
 }
 
 const REPEAT_RE = new RegExp(
@@ -275,6 +279,31 @@ function matchProject(raw: string, projects: { id: string; title: string }[]): s
 
 // The imperative openers that make a line read as a to-do.
 const TASK_OPENERS = /^(call|email|text|send|pay|buy|book|schedule|renew|cancel|fix|finish|check|review|remember to|pick up|drop off|order|sign|submit|follow up|confirm)\b/i;
+// Phase 0.5: "Need to follow up with Mike" puts the to-do mid line. Only these
+// four phrases (follow up spelt open, hyphenated or closed), and only with
+// "with" after them, so the line names someone.
+export const FOLLOW_UP_WITH = /\b(follow[\s-]?up|check in|reach out|circle back) with\b/i;
+// Phase 0.5 review: the opener claims only his own to-do. What comes before
+// the phrase (date words aside) is nothing, or a first person or to-do lead
+// in ("Need to", "I should", "I'll", "Remember to", "Let's"). "Mike will
+// follow up with me" and "Mike said he'd check in with the league" are about
+// someone else's doing: they stay unconfident, so the model may still read
+// them, and AI off they are the same unconfident task they were in Phase 0.
+const FOLLOW_UP_LEAD = new RegExp(
+  "^(?:" + [
+    "(?:i|we)(?:\\s+(?:really|still|also|just))?(?:'ll|\\s+will|\\s+should|\\s+must|\\s+need\\s+to|\\s+have\\s+to|\\s+want\\s+to|\\s+got\\s+to|\\s+gotta|\\s+ought\\s+to|'m\\s+going\\s+to|'re\\s+going\\s+to|\\s+(?:am|are)\\s+going\\s+to)",
+    "(?:really\\s+|still\\s+|also\\s+|just\\s+)?(?:need\\s+to|needs\\s+to|have\\s+to|got\\s+to|gotta|should|must|want\\s+to|going\\s+to|ought\\s+to|remember\\s+to|don'?t\\s+forget\\s+to)",
+    "please", "pls", "let'?s", "to\\s?do", "reminder", "note to self",
+  ].join("|") + ")?$",
+  "i",
+);
+function followUpOpener(t: string, spans: string[]): boolean {
+  // Curly apostrophes are what a phone keyboard types ("I\u2019ll").
+  const s = stripDateWords(t, spans).replace(/[\u2018\u2019]/g, "'");
+  const m = FOLLOW_UP_WITH.exec(s);
+  if (!m) return false;
+  return FOLLOW_UP_LEAD.test(s.slice(0, m.index).replace(/[\s:;,.-]+$/, "").trim());
+}
 
 // One line, one verdict.
 export function classifyLine(line: string, today: string, ctx: CaptureContext = {}): ParsedEntity {
@@ -394,8 +423,13 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   if (time) {
     return { kind: "event", title: titleCase(stripDateWords(t, spans)), date: today, start: time, ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who, inferred: [...who.inferred, "date"] };
   }
+  // Long prose, URLs, confirmation codes: kept verbatim as a note (below).
+  const prose = t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2;
   // A date without a time on a to-do-looking line: a task due that day.
-  if (TASK_OPENERS.test(t)) {
+  // Phase 0.5: the follow up opener never claims prose (a pasted message is
+  // copied text, kept verbatim), a question (the model may know better), or
+  // someone else's doing (followUpOpener above).
+  if (TASK_OPENERS.test(t) || (ctx.followUp && !prose && !/\?\s*$/.test(t) && followUpOpener(t, spans))) {
     return { kind: "task", title: titleCase(stripDateWords(t, spans)), ...(date ? { date } : {}), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
   }
   // A REPEAT WITH NO CLOCK ("water the plants every week"): the repeat is the
@@ -410,7 +444,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
     return { kind: "task", title: titleCase(stripDateWords(t, spans)), date, confident: false, raw: t, ...who };
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
-  if (t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2) {
+  if (prose) {
     return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true, raw: t, inferred: [] };
   }
   // Short, no signal: a task is the cheapest honest read, but the AI

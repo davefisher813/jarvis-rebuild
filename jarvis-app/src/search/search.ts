@@ -98,10 +98,27 @@ function whyFrom(q: string, fields: [string, string | undefined][]): string | un
 // Client-side full-text match across everything the user owns. Case-insensitive
 // substring on the human-facing field of each type, and on the fields inside
 // it that the user typed something into (UP-CORE-04).
-export function runSearch(query: string, data: SearchInput): SearchResults {
+// THE FIRST MAGIC LOOP (Phase 0.5, PHASE05-DESIGN.md). With `links` on (the
+// caller passes memory_v1), a person is also found by what they are Also
+// Called, a task by its Notes, and a task or note is found through the person
+// it is ABOUT: a query that names a contact (by name or alias) returns that
+// contact's linked tasks (personId) and notes (a person connection), each
+// with an "About: <name>" line saying why. Pure, local, no AI and no network;
+// this is not the Phase 1B walk over item_link.
+export interface SearchOptions { links?: boolean }
+
+export function runSearch(query: string, data: SearchInput, opts: SearchOptions = {}): SearchResults {
   const q = query.trim().toLowerCase();
   if (!q) return EMPTY;
   const has = (s: string | undefined) => !!s && s.toLowerCase().includes(q);
+  const links = !!opts.links;
+  const aliasHit = (p: Person) => (links ? (p.data.aliases ?? []).find((a) => has(a)) : undefined);
+  // The contacts this query names, by name or alias only: a hit in someone's
+  // notes or phone number is not the query naming them.
+  const named = new Map<string, string>();
+  if (links) for (const p of data.people) if (has(p.data.name) || aliasHit(p)) named.set(p.id, p.data.name);
+  const aboutWhy = (id: string | undefined) => (id && named.has(id) ? `About: ${snippet(named.get(id)!)}` : undefined);
+  const notePerson = (d: NoteData) => (d.connections ?? []).find((c) => c.kind === "person" && c.targetId && named.has(c.targetId))?.targetId;
   // Full-text over a note: title plus everything noteBlockText carries.
   const noteHas = (d: NoteData) => has(d.title) || has(noteBlockText(d));
   // The block line that matched, so a note hit says which line put it here.
@@ -119,22 +136,30 @@ export function runSearch(query: string, data: SearchInput): SearchResults {
       .filter((e) => has(e.data.title) || has(e.data.location))
       .map((e) => ({ id: e.id, title: e.data.title, start: e.data.start, ...whyOf(has(e.data.title) ? undefined : whyFrom(q, [["Location", e.data.location]])) })),
     tasks: data.tasks
-      .filter((t) => has(t.data.text) || (t.data.steps ?? []).some((s) => has(s.text)))
-      .map((t) => ({ id: t.id, text: t.data.text, ...whyOf(stepWhy(t)) })),
+      .filter((t) => has(t.data.text) || (t.data.steps ?? []).some((s) => has(s.text))
+        || (links && (has(t.data.notes) || named.has(t.data.personId ?? ""))))
+      .map((t) => ({
+        id: t.id,
+        text: t.data.text,
+        ...whyOf(stepWhy(t) ?? (links && !has(t.data.text) ? (whyFrom(q, [["Notes", t.data.notes]]) ?? aboutWhy(t.data.personId)) : undefined)),
+      })),
     people: data.people
-      .filter((p) => has(p.data.name) || has(p.data.notes) || has(p.data.email) || has(p.data.phone) || has(p.data.relationship))
+      .filter((p) => has(p.data.name) || has(p.data.notes) || has(p.data.email) || has(p.data.phone) || has(p.data.relationship) || !!aliasHit(p))
       .map((p) => ({
         id: p.id,
         name: p.data.name,
         ...whyOf(has(p.data.name) ? undefined : whyFrom(q, [
-          ["Phone", p.data.phone], ["Email", p.data.email], ["Relationship", p.data.relationship], ["Notes", p.data.notes],
+          ["Also Called", aliasHit(p)], ["Phone", p.data.phone], ["Email", p.data.email], ["Relationship", p.data.relationship], ["Notes", p.data.notes],
         ])),
       })),
-    notes: data.notes.filter((n) => noteHas(n.data as unknown as NoteData)).map((n) => ({
-      id: n.id,
-      title: (n.data as unknown as NoteData).title || "Untitled",
-      ...whyOf(noteWhy(n.data as unknown as NoteData)),
-    })),
+    notes: data.notes.filter((n) => noteHas(n.data as unknown as NoteData) || (links && !!notePerson(n.data as unknown as NoteData))).map((n) => {
+      const d = n.data as unknown as NoteData;
+      return {
+        id: n.id,
+        title: d.title || "Untitled",
+        ...whyOf(noteHas(d) ? noteWhy(d) : aboutWhy(notePerson(d))),
+      };
+    }),
     projects: data.projects.filter((p) => has(p.data.title)).map((p) => ({ id: p.id, title: p.data.title })),
     accounts: data.accounts.filter((a) => has(a.data.name)).map((a) => ({ id: a.id, name: a.data.name })),
     goals: data.goals.filter((g) => has(g.data.title)).map((g) => ({ id: g.id, title: g.data.title })),

@@ -243,11 +243,23 @@ restyle nothing. Flag off, every path below is today's byte for byte.
   the stamp to mark the projected link `created_by rule`
   (WHY-JARVIS-KNOWS-THIS.md).
 
-**Next (Phase 0.5): the unanchored opener.** `TASK_OPENERS` in
-`paste/deterministic.ts` anchors at the start of the line, so "Need to follow
-up with Mike" is kept as an unconfident task rather than a confident one. The
-named fix is an alternative pattern
-`\b(follow up|check in|reach out|circle back) with\b`, after a golden set
-run (`score.ts`), because it changes what a typed line becomes. Principle 9
-still holds: a person is matched by name or alias, never guessed from an area
-or a title word.
+**Shipped (Phase 0.5): the unanchored opener.** `TASK_OPENERS` in
+`paste/deterministic.ts` still anchors at the start of the line. Behind
+`memory_v1`, `smartPaste` passes `followUp: true` and the alternative pattern
+`FOLLOW_UP_WITH`, `\b(follow[\s-]?up|check in|reach out|circle back) with\b`,
+makes "Need to follow up with Mike" a confident task. Three guards keep it
+honest: it never claims prose (over 160 characters, a URL, or more than two
+sentences, which stay a verbatim note), never claims a question (a line
+ending in "?" still goes to the model), and never claims someone else's
+doing: what comes before the phrase, date words aside, must be nothing or a
+first person or to-do lead in ("Need to", "I should", "I'll", "Remember
+to", "Let's"), so "Mike will follow up with me" stays unconfident and the
+model may still read it. It sits after the event, decision,
+person fact, self fact, reminder, bill and bare time reads, so those
+verdicts never move. The golden gate (`ai/golden/golden.test.ts`): none of
+the seven `CAPTURE_GOLD` inputs match the pattern and `classifyLine` gives
+deep equal results with and without it, and the new `RULE_GOLD` set (scored
+through `classifyLine`, never sent to the model) passes at 100% including
+`personId`, which `scoreCapture` now checks. Principle 9 still holds: a
+person is matched by name or alias, never guessed from an area or a title
+word.

@@ -237,6 +237,40 @@ async function aiImprove(line: string, deps: PasteDeps): Promise<AiAnswer> {
   }
 }
 
+// THE RULE'S LINKS SURVIVE THE MODEL (Phase 0.5, PHASE05-DESIGN.md). Behind
+// memory_v1. The model may change the kind and the words; it never had the
+// person or project ids (CAPTURE_SCHEMA leaves them out on purpose), so any id
+// it sends is dropped and the deterministic match is put back. A note keeps
+// the line as typed (the Smart Paste law) and carries the person as a
+// connection; a task whose new title lost any of the typed words keeps the
+// line in its Notes, so it is found by those words later. An event carries
+// neither: an event write has no person or project field today.
+// `inferred` names the rule fields that landed, in the leaf the database reads
+// (0060: personId for a task, targetId for a note connection).
+function keepRuleLinks(r: CaptureResult, e: ParsedEntity): { result: CaptureResult; inferred: string[] } {
+  const out: CaptureResult = { ...r };
+  delete out.personId;
+  delete out.projectId;
+  const inferred: string[] = [];
+  if (out.kind === "task") {
+    if (e.personId) { out.personId = e.personId; inferred.push("personId"); }
+    if (e.projectId) { out.projectId = e.projectId; inferred.push("projectId"); }
+    if (keepsEveryWord(out.title, e.raw)) delete out.notes;
+    else out.notes = e.raw;
+  } else if (out.kind === "note") {
+    if (e.personId) { out.personId = e.personId; inferred.push("targetId"); }
+    out.notes = e.body ?? e.raw;
+  }
+  return { result: out, inferred };
+}
+
+// Every word of the line (letters and digits, any case) is still in the title.
+function keepsEveryWord(title: string, raw: string): boolean {
+  const words = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const have = new Set(words(title));
+  return words(raw).every((w) => have.has(w));
+}
+
 // The paste stamp. Behind memory_v1 it names the fields a rule guessed
 // (Source.inferred, D3); flag off it is madeBy("paste") byte for byte, which
 // about 25 exact data assertions pin. `fields` is empty whenever the reading
@@ -299,7 +333,8 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       return saved;
     }
   }
-  const { entities } = parsePaste(text, deps.today, { people: deps.people, projects: deps.projects });
+  const loop = flagOn("memory_v1");
+  const { entities } = parsePaste(text, deps.today, { people: deps.people, projects: deps.projects, ...(loop ? { followUp: true } : {}) });
   for (const e of entities) {
     // QUICK ADD (handoff 5.0). A standing fact about the user goes straight
     // into the genome as a told-rank strand: no AI call (a model never gets
@@ -377,6 +412,9 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
     // Whether the reading that lands is the deterministic layer's own, so
     // its inferred fields are facts about the row (pasteStamp above).
     let ruleRead = true;
+    // Phase 0.5: the rule fields that survived onto a reading that is not
+    // the rule's own (keepRuleLinks), so the stamp still names them.
+    let kept: string[] = [];
     if (e.kind === "fact") {
       // The lane is closed (no strand store). Read it the way this pipeline
       // read it before Quick Add existed: a short line with no date is a
@@ -403,11 +441,15 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       if (answer.kind === "parsed") {
         result = answer.result;
         ruleRead = false;
+        // Phase 0.5: the model reads the kind and the words; the rule's
+        // person and project match is not its to drop.
+        if (loop) ({ result, inferred: kept } = keepRuleLinks(result, e));
       } else if (noteInstead) {
         // The AI ran and still could not read it: honest note fallback,
         // paste kept verbatim. Never a guessed schedule.
         result = { kind: "note", title: e.title, notes: e.body ?? e.title };
         ruleRead = false;
+        if (loop) ({ result, inferred: kept } = keepRuleLinks(result, e));
       } else {
         // No model answer exists: the deterministic guess stands (a short
         // text saved as a task is the cheapest honest read, and it is
@@ -420,8 +462,10 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       deps.people?.find((p) => p.id === result.personId)?.name,
       deps.projects?.find((p) => p.id === result.projectId)?.title,
     ].filter(Boolean).join(", ");
-    const inferred = ruleRead ? e.inferred : [];
-    const applied = await applyCapture(result, deps, deps.categories, deps.today, pasteStamp(inferred), billFor);
+    const inferred = ruleRead ? e.inferred : kept;
+    const personName = deps.people?.find((p) => p.id === result.personId)?.name;
+    const applied = await applyCapture(result, deps, deps.categories, deps.today, pasteStamp(inferred), billFor,
+      loop ? { ...(personName ? { personName } : {}), ...(result.kind === "task" && result.notes ? { taskNotes: result.notes } : {}) } : undefined);
     const { id } = applied;
     if (applied.note) deps.onBillNote?.(applied.note);
     if (id) {
@@ -543,21 +587,41 @@ export async function refileSaved(
     // number") and the card edit is undone below, so the line as pasted is
     // what has to land, or the number itself is lost.
     const text = s.kind === "person" ? (s.raw ?? s.title) : s.title;
+    // Phase 0.5 (behind memory_v1): the person rides a refile between a task
+    // and a note (a note holds it as a connection), and the project rides to
+    // a task. An event holds neither, as before.
+    const loop = flagOn("memory_v1");
+    // A note holds the person only as a named connection, so a person the
+    // list no longer has is not carried onto a note.
+    const personName = loop && s.personId ? deps.people?.find((p) => p.id === s.personId)?.name : undefined;
+    const person = loop && s.personId && (toKind === "task" || (toKind === "note" && personName)) ? s.personId : undefined;
+    const project = loop && s.projectId && toKind === "task" ? s.projectId : undefined;
+    // The line as typed is the body only for a record that line made; a
+    // fact's or a decision's raw carries its prefix word.
+    const typed = s.kind === "task" || s.kind === "event" || s.kind === "note" ? (s.raw ?? text) : text;
     const result: CaptureResult = {
       kind: toKind,
       title: s.kind === "person" ? titleCase(text) : text,
       ...(s.date ? { date: s.date } : {}),
       ...(s.start ? { start: s.start } : {}),
-      ...(toKind === "note" ? { notes: text } : {}),
+      ...(toKind === "note" ? { notes: loop ? typed : text } : {}),
+      ...(person ? { personId: person } : {}),
+      ...(project ? { projectId: project } : {}),
     };
-    // The copy keeps only the guesses it still carries: a refile drops the
-    // person and project, and keeps the date, so "date" survives and
+    // The copy keeps only the guesses it still carries: flag off a refile
+    // drops the person and project, and keeps the date, so "date" survives and
     // "personId" does not. Flag off, pasteStamp is madeBy("paste") as before.
-    const kept = (s.inferred ?? []).filter((f) => f in result);
-    const { id } = await applyCapture(result, deps, deps.categories, deps.today, pasteStamp(kept));
+    // A person guessed onto a task is a connection's targetId on a note, and
+    // back again (the leaf 0060 reads).
+    const leaf = (f: string) => (toKind === "note" && f === "personId" ? "targetId" : toKind === "task" && f === "targetId" ? "personId" : f);
+    const kept = (s.inferred ?? []).map(leaf).filter((f) => f in result || (f === "targetId" && !!person));
+    const { id } = await applyCapture(result, deps, deps.categories, deps.today, pasteStamp(kept), undefined,
+      person && personName ? { personName } : undefined);
     if (!id) return null;
     next = { ...s, id, kind: toKind, title: result.title, ...(kept.length ? { inferred: kept } : {}) };
     if (!kept.length) delete next.inferred;
+    if (loop && !person) delete next.personId;
+    if (loop && !project) delete next.projectId;
   }
   try {
     await undoSaved(s, deps);

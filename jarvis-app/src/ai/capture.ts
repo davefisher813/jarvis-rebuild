@@ -6,7 +6,7 @@ import { contextToText } from "./context";
 import type { Category } from "../categories/types";
 import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
-import type { NotesService } from "../notes/NotesService";
+import { newConnection, type NotesService } from "../notes/NotesService";
 import { suggestCategory } from "../schedule/memory";
 import { todayISO as isoOf } from "../schedule/calendar";
 import type { Recurrence } from "../notes/types";
@@ -213,6 +213,10 @@ export async function applyCapture(
   // Who or which project a bill is for, already resolved by the caller, so the
   // ledger bill's notes keep what the line named.
   who?: string,
+  // Phase 0.5 (behind memory_v1, passed only by smartPaste): the person's name
+  // for a note's person connection, and the line kept on a task's Notes.
+  // Absent, every write below is exactly what it was.
+  extra?: { personName?: string; taskNotes?: string },
 ): Promise<Applied> {
   // A BILL IS MONEY'S, NEVER A TASK (ledger hard rule 1). A line that read as a
   // bill is filed in the ledger as typed or pasted: source manual, the due
@@ -262,7 +266,8 @@ export async function applyCapture(
   } else if (r.kind === "note") {
     // UP-CORE-05 (2026-09-05): a captured note carries the same provenance
     // stamp a captured task and event have carried since item 8.
-    id = await svc.notes.createNote(r.title, catId ?? "", [], source);
+    const conns = r.personId && extra?.personName ? [newConnection("person", extra.personName, r.personId)] : [];
+    id = await svc.notes.createNote(r.title, catId ?? "", conns, source);
     // A paste-born note keeps the copied text VERBATIM as its body (Smart
     // Paste law: copied text is never rewritten).
     if (id && r.notes) await svc.notes.addBlock(id, { type: "text", text: r.notes });
@@ -279,6 +284,7 @@ export async function applyCapture(
       ...(r.reminder ? { reminder: r.reminder } : {}),
       ...(r.personId ? { personId: r.personId } : {}),
       ...(r.projectId ? { projectId: r.projectId } : {}),
+      ...(extra?.taskNotes ? { notes: extra.taskNotes } : {}),
     });
   }
   return { id, kind: r.kind };

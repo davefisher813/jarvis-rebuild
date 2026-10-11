@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { CAPTURE_GOLD, TRIAGE_GOLD, toThreadRows } from "./goldenSet";
+import { CAPTURE_GOLD, RULE_GOLD, TRIAGE_GOLD, toThreadRows } from "./goldenSet";
+import { classifyLine, FOLLOW_UP_WITH } from "../../paste/deterministic";
 import { scoreCapture, scoreTriage, summarize } from "./score";
 import { parseCapture } from "../capture";
 import { parseTriage, fillSkipped } from "../../messages/triage";
@@ -20,6 +21,26 @@ describe("golden set: recorded outputs score 100% through the real parsers", () 
     const sum = summarize(scores);
     expect(sum.cases.filter((c) => !c.pass)).toEqual([]);
     expect(sum.passed).toBe(CAPTURE_GOLD.length);
+  });
+
+  // Phase 0.5: the deterministic layer's own golden cases, and the proof that
+  // the follow up opener changes no verdict in the model's golden set.
+  it("rule golden: the deterministic layer scores 100% with the follow up opener", () => {
+    const scores = RULE_GOLD.map((gold) => {
+      const e = classifyLine(gold.input, gold.today, { people: gold.people, followUp: true });
+      const actual = e.kind === "task" || e.kind === "event" || e.kind === "note"
+        ? { kind: e.kind, title: e.title, ...(e.date ? { date: e.date } : {}), ...(e.start ? { start: e.start } : {}), ...(e.personId ? { personId: e.personId } : {}) }
+        : null;
+      return scoreCapture(gold, e.confident ? actual : null);
+    });
+    expect(summarize(scores).cases.filter((c) => !c.pass)).toEqual([]);
+  });
+
+  it("the follow up opener changes no verdict in the capture golden set", () => {
+    for (const gold of CAPTURE_GOLD) {
+      expect(FOLLOW_UP_WITH.test(gold.input), gold.name).toBe(false);
+      expect(classifyLine(gold.input, gold.today, { followUp: true }), gold.name).toEqual(classifyLine(gold.input, gold.today));
+    }
   });
 
   it("triage", () => {

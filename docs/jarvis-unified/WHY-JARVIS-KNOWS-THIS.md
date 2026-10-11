@@ -238,14 +238,30 @@ date; who set it is not recorded); a pointer at a missing id lands with
 
 ## The package's sentence, with AI off
 
-"Need to follow up with Mike about summer roster" has no anchored opener
-(`TASK_OPENERS` in `paste/deterministic.ts` lists `follow up` only at the
-start of a line), so the deterministic read is an unconfident task with
-`personId` set to the one Mike. Phase 0 puts two things behind `memory_v1`:
-the stamp `source = {type: "paste", ts, inferred: ["personId"]}`, and a
-refused AI (off, gated or unreachable) leaving that deterministic result
-standing instead of turning the line into a note with no person. The trigger
-then projects one `about` link with `created_by rule`, and `item_why` answers
-`rule` (proven on the stored shape). The task is kept, not confident: the
-unanchored opener that would make it confident is Phase 0.5, after a golden
-set run (AUTOFILL-SPEC.md). Flag off, on a configured backend, the line becomes today's note.
+"Need to follow up with Mike about summer roster" is, since Phase 0.5, a
+confident task behind `memory_v1`: the follow up opener (`FOLLOW_UP_WITH` in
+`paste/deterministic.ts`, `\b(follow[\s-]?up|check in|reach out|circle back)
+with\b`) claims a short line that is not a question and not prose, a link or
+a copied message, and only when the phrase opens the line or follows a first
+person or to-do lead in ("Need to", "I'll"), never "Mike will follow up with
+me". The deterministic read sets `personId` to the one Mike and
+the stamp is `source = {type: "paste", ts, inferred: ["personId"]}`. The line
+never reaches the model, so AI on and AI off save the same record. The
+trigger then projects one `about` link with `created_by rule`, and `item_why`
+answers `rule` (proven on the stored shape). Flag off, the line is the
+unconfident task it was in Phase 0 (or, on a configured backend with the old
+fallback, today's note).
+
+When the model does read a line (an unconfident line, AI on), the rule's
+links survive it (`keepRuleLinks` in `paste/smartPaste.ts`): any id the model
+sent is dropped and the deterministic `personId` and `projectId` are put
+back. A note keeps the line as typed as its body and is created with the
+person as a connection, `{kind: "person", label, targetId}`, in the same
+`store.create`; its stamp is `inferred: ["targetId"]`, the leaf 0060 reads
+for `connections[].targetId`, so that link reads `created_by rule` too. A
+task whose new title lost typed words keeps the line in its Notes.
+
+Search follows the same pointer (`runSearch` with `links`, behind
+`memory_v1`): a query that names a contact by name or alias also returns
+that contact's tasks and notes, each with an `About: <Name>` line. It is pure
+and local: no AI, no network, no `item_link` read (that walk is Phase 1B).

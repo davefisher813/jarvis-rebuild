@@ -31,7 +31,7 @@ export function scoreCapture(gold: CaptureGold, actual: CaptureResult | null): C
   }
   if (actual.kind !== gold.expect.kind) misses.push(`kind: ${gold.expect.kind} -> ${actual.kind}`);
   if (norm(actual.title) !== norm(gold.expect.title)) misses.push(`title: ${gold.expect.title} -> ${actual.title}`);
-  for (const field of ["date", "start", "category"] as const) {
+  for (const field of ["date", "start", "category", "personId"] as const) {
     const want = gold.expect[field];
     const got = actual[field];
     if (want !== undefined) {
