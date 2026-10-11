@@ -39,13 +39,8 @@ void startAppUrlListener();
 // (native/keyboard.ts). A no-op on the web.
 void hideKeyboardAccessoryBar();
 
-// Catalog V3.1 motion: lists stagger on FIRST PAINT only. The class lives on
-// body for the boot moment and is gone before any tab switch, so switches
-// stay instant per the standing law (Dave 2026-07-29).
-if (typeof document !== "undefined") {
-  document.body.classList.add("boot-stagger");
-  setTimeout(() => document.body.classList.remove("boot-stagger"), 1400);
-}
+// The boot only row stagger is retired: the first open entrance (Dave 2026-10-11, visual catalog, Motion) is the one
+// entrance now, run per screen by shared/screenEntrance.ts from the shell.
 emit({ type: "app.opened" });
 // Durable event pipeline (Session 6.5): connects the Supabase sink (null in
 // demo mode = queue-only), backfills Time Sense once, scores yesterday's plan.

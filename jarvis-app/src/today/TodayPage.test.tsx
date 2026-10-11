@@ -41,7 +41,10 @@ const base = {
 describe("TodayPage", () => {
   it("renders greeting, date, and the summary with overdue in red", () => {
     const { container } = render(<TodayPage {...base} />);
-    expect(screen.getByText("Good Morning")).toBeInTheDocument();
+    // AMENDED (Dave 2026-10-11, visual catalog, Greeting): "Good" in the sans, the time of day in Newsreader italic.
+    const title = document.querySelector(".today-title")!;
+    expect(title).toHaveTextContent("Good Morning");
+    expect(title.querySelector(".greet-when")).toHaveTextContent("Morning");
     expect(screen.getByText("Wednesday, May 20")).toBeInTheDocument();
     // SPEC MOVED AGAIN (ruled 2026-09-01, superseding Catalog V3.1): the
     // workload line is stat TILES, number big with the word small beneath.

@@ -52,3 +52,20 @@ export default function StepCount({ done, total }: StepRollup) {
     </span>
   );
 }
+
+// THE CHECKLIST LINE (Dave 2026-10-11, visual catalog, Checklist Progress). Under a row that shows "1 of 5", a thin line
+// that fills as the steps get done: width is done over total. Decoration only (the count beside the name already says
+// it in words), so it is hidden from the accessibility tree. Rendered only where the count is.
+export function stepFraction({ done, total }: StepRollup): number {
+  if (total <= 0) return 0;
+  return Math.min(1, Math.max(0, done / total));
+}
+
+export function StepProgress(s: StepRollup) {
+  if (s.total <= 0) return null;
+  return (
+    <span className="tr-progress" aria-hidden="true">
+      <span className="tr-progress-fill" style={{ width: `${Math.round(stepFraction(s) * 1000) / 10}%` }} />
+    </span>
+  );
+}

@@ -382,37 +382,37 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    fifteen; indigo is the one true dark (black is 3.7:1 on #5856D6) and
    carries white at 5.6:1. Not a hand-kept list: a wrong on-colour fails
    the suite. */
-.cat-bg-red { background: var(--cat-red); color: var(--on-fill-dark); } .cat-bd-red { border-color: var(--cat-red); } .cat-fg-red { color: var(--cat-red); }
-.cat-bg-orange { background: var(--cat-orange); color: var(--on-fill-dark); } .cat-bd-orange { border-color: var(--cat-orange); } .cat-fg-orange { color: var(--cat-orange); }
-.cat-bg-sky { background: var(--cat-sky); color: var(--on-fill-dark); } .cat-bd-sky { border-color: var(--cat-sky); } .cat-fg-sky { color: var(--cat-sky); }
-.cat-bg-pink { background: var(--cat-pink); color: var(--on-fill-dark); } .cat-bd-pink { border-color: var(--cat-pink); } .cat-fg-pink { color: var(--cat-pink); }
-.cat-bg-yellow { background: var(--cat-yellow); color: var(--on-fill-dark); } .cat-bd-yellow { border-color: var(--cat-yellow); } .cat-fg-yellow { color: var(--cat-yellow); }
-.cat-bg-green { background: var(--cat-green); color: var(--on-fill-dark); } .cat-bd-green { border-color: var(--cat-green); } .cat-fg-green { color: var(--cat-green); }
-.cat-bg-blue { background: var(--cat-blue); color: var(--on-fill-dark); } .cat-bd-blue { border-color: var(--cat-blue); } .cat-fg-blue { color: var(--cat-blue); }
-.cat-bg-teal { background: var(--cat-teal); color: var(--on-fill-dark); } .cat-bd-teal { border-color: var(--cat-teal); } .cat-fg-teal { color: var(--cat-teal); }
-.cat-bg-graphite { background: var(--cat-graphite); color: var(--on-fill-dark); } .cat-bd-graphite { border-color: var(--cat-graphite); } .cat-fg-graphite { color: var(--cat-graphite); }
-.cat-bg-purple { background: var(--cat-purple); color: var(--on-fill-dark); } .cat-bd-purple { border-color: var(--cat-purple); } .cat-fg-purple { color: var(--cat-purple); }
-.cat-bg-indigo { background: var(--cat-indigo); color: #FFFFFF; } .cat-bd-indigo { border-color: var(--cat-indigo); } .cat-fg-indigo { color: var(--cat-indigo); }
-.cat-bg-magenta { background: var(--cat-magenta); color: var(--on-fill-dark); } .cat-bd-magenta { border-color: var(--cat-magenta); } .cat-fg-magenta { color: var(--cat-magenta); }
-.cat-bg-lime { background: var(--cat-lime); color: var(--on-fill-dark); } .cat-bd-lime { border-color: var(--cat-lime); } .cat-fg-lime { color: var(--cat-lime); }
-.cat-bg-sand { background: var(--cat-sand); color: var(--on-fill-dark); } .cat-bd-sand { border-color: var(--cat-sand); } .cat-fg-sand { color: var(--cat-sand); }
-.cat-bg-coral { background: var(--cat-coral); color: var(--on-fill-dark); } .cat-bd-coral { border-color: var(--cat-coral); } .cat-fg-coral { color: var(--cat-coral); }
-.cat-bg-amber { background: var(--cat-amber); color: var(--on-fill-dark); } .cat-bd-amber { border-color: var(--cat-amber); } .cat-fg-amber { color: var(--cat-amber); }
-.cat-bg-rust { background: var(--cat-rust); color: var(--on-fill-dark); } .cat-bd-rust { border-color: var(--cat-rust); } .cat-fg-rust { color: var(--cat-rust); }
-.cat-bg-rose { background: var(--cat-rose); color: var(--on-fill-dark); } .cat-bd-rose { border-color: var(--cat-rose); } .cat-fg-rose { color: var(--cat-rose); }
-.cat-bg-plum { background: var(--cat-plum); color: var(--on-fill-dark); } .cat-bd-plum { border-color: var(--cat-plum); } .cat-fg-plum { color: var(--cat-plum); }
-.cat-bg-violet { background: var(--cat-violet); color: var(--on-fill-dark); } .cat-bd-violet { border-color: var(--cat-violet); } .cat-fg-violet { color: var(--cat-violet); }
-.cat-bg-cyan { background: var(--cat-cyan); color: var(--on-fill-dark); } .cat-bd-cyan { border-color: var(--cat-cyan); } .cat-fg-cyan { color: var(--cat-cyan); }
-.cat-bg-mint { background: var(--cat-mint); color: var(--on-fill-dark); } .cat-bd-mint { border-color: var(--cat-mint); } .cat-fg-mint { color: var(--cat-mint); }
-.cat-bg-olive { background: var(--cat-olive); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
-.cat-bg-slate { background: var(--cat-slate); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
+.cat-bg-red { background: var(--cat-red); --tile-shadow: color-mix(in srgb, var(--cat-red) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-red { border-color: var(--cat-red); } .cat-fg-red { color: var(--cat-red); }
+.cat-bg-orange { background: var(--cat-orange); --tile-shadow: color-mix(in srgb, var(--cat-orange) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-orange { border-color: var(--cat-orange); } .cat-fg-orange { color: var(--cat-orange); }
+.cat-bg-sky { background: var(--cat-sky); --tile-shadow: color-mix(in srgb, var(--cat-sky) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-sky { border-color: var(--cat-sky); } .cat-fg-sky { color: var(--cat-sky); }
+.cat-bg-pink { background: var(--cat-pink); --tile-shadow: color-mix(in srgb, var(--cat-pink) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-pink { border-color: var(--cat-pink); } .cat-fg-pink { color: var(--cat-pink); }
+.cat-bg-yellow { background: var(--cat-yellow); --tile-shadow: color-mix(in srgb, var(--cat-yellow) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-yellow { border-color: var(--cat-yellow); } .cat-fg-yellow { color: var(--cat-yellow); }
+.cat-bg-green { background: var(--cat-green); --tile-shadow: color-mix(in srgb, var(--cat-green) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-green { border-color: var(--cat-green); } .cat-fg-green { color: var(--cat-green); }
+.cat-bg-blue { background: var(--cat-blue); --tile-shadow: color-mix(in srgb, var(--cat-blue) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-blue { border-color: var(--cat-blue); } .cat-fg-blue { color: var(--cat-blue); }
+.cat-bg-teal { background: var(--cat-teal); --tile-shadow: color-mix(in srgb, var(--cat-teal) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-teal { border-color: var(--cat-teal); } .cat-fg-teal { color: var(--cat-teal); }
+.cat-bg-graphite { background: var(--cat-graphite); --tile-shadow: color-mix(in srgb, var(--cat-graphite) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-graphite { border-color: var(--cat-graphite); } .cat-fg-graphite { color: var(--cat-graphite); }
+.cat-bg-purple { background: var(--cat-purple); --tile-shadow: color-mix(in srgb, var(--cat-purple) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-purple { border-color: var(--cat-purple); } .cat-fg-purple { color: var(--cat-purple); }
+.cat-bg-indigo { background: var(--cat-indigo); --tile-shadow: color-mix(in srgb, var(--cat-indigo) 35%, transparent); color: #FFFFFF; } .cat-bd-indigo { border-color: var(--cat-indigo); } .cat-fg-indigo { color: var(--cat-indigo); }
+.cat-bg-magenta { background: var(--cat-magenta); --tile-shadow: color-mix(in srgb, var(--cat-magenta) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-magenta { border-color: var(--cat-magenta); } .cat-fg-magenta { color: var(--cat-magenta); }
+.cat-bg-lime { background: var(--cat-lime); --tile-shadow: color-mix(in srgb, var(--cat-lime) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-lime { border-color: var(--cat-lime); } .cat-fg-lime { color: var(--cat-lime); }
+.cat-bg-sand { background: var(--cat-sand); --tile-shadow: color-mix(in srgb, var(--cat-sand) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-sand { border-color: var(--cat-sand); } .cat-fg-sand { color: var(--cat-sand); }
+.cat-bg-coral { background: var(--cat-coral); --tile-shadow: color-mix(in srgb, var(--cat-coral) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-coral { border-color: var(--cat-coral); } .cat-fg-coral { color: var(--cat-coral); }
+.cat-bg-amber { background: var(--cat-amber); --tile-shadow: color-mix(in srgb, var(--cat-amber) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-amber { border-color: var(--cat-amber); } .cat-fg-amber { color: var(--cat-amber); }
+.cat-bg-rust { background: var(--cat-rust); --tile-shadow: color-mix(in srgb, var(--cat-rust) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-rust { border-color: var(--cat-rust); } .cat-fg-rust { color: var(--cat-rust); }
+.cat-bg-rose { background: var(--cat-rose); --tile-shadow: color-mix(in srgb, var(--cat-rose) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-rose { border-color: var(--cat-rose); } .cat-fg-rose { color: var(--cat-rose); }
+.cat-bg-plum { background: var(--cat-plum); --tile-shadow: color-mix(in srgb, var(--cat-plum) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-plum { border-color: var(--cat-plum); } .cat-fg-plum { color: var(--cat-plum); }
+.cat-bg-violet { background: var(--cat-violet); --tile-shadow: color-mix(in srgb, var(--cat-violet) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-violet { border-color: var(--cat-violet); } .cat-fg-violet { color: var(--cat-violet); }
+.cat-bg-cyan { background: var(--cat-cyan); --tile-shadow: color-mix(in srgb, var(--cat-cyan) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-cyan { border-color: var(--cat-cyan); } .cat-fg-cyan { color: var(--cat-cyan); }
+.cat-bg-mint { background: var(--cat-mint); --tile-shadow: color-mix(in srgb, var(--cat-mint) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-mint { border-color: var(--cat-mint); } .cat-fg-mint { color: var(--cat-mint); }
+.cat-bg-olive { background: var(--cat-olive); --tile-shadow: color-mix(in srgb, var(--cat-olive) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
+.cat-bg-slate { background: var(--cat-slate); --tile-shadow: color-mix(in srgb, var(--cat-slate) 35%, transparent); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
 /* The slot the category palette deliberately excludes (see lib-ico-brand:
    categories never wear red; brand red is interactive-only). A goal glyph
    with no live area to borrow a color from wears the JARVIS red itself
    (Dave 2026-08-31, "default to Jarvis red"). --accent-glyph is #FF2B3C in
    BOTH themes, so no light/dark tx overrides exist or are needed; black
    clears it at 5.7:1 for the fill. */
-.cat-bg-brand { background: var(--accent-glyph); color: var(--on-fill-dark); }
+.cat-bg-brand { background: var(--accent-glyph); --tile-shadow: color-mix(in srgb, var(--accent-glyph) 35%, transparent); color: var(--on-fill-dark); }
 /* THE LOCKED LIGHT FILLS THAT CARRY WHITE (§AQ, 2026-09-27). Coral #D92C12,
    purple #9A30CF and grey #707070 are dark enough that black on them misses
    4.5:1 (4.32, 3.70, 4.24); white clears it (4.86, 5.68, 4.95). Indigo
@@ -1065,8 +1065,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    used to be sliced off flat along the bar's top edge, with slivers of a capsule or a duration showing above it. A
    24px ramp from the page colour to nothing sits just above the bar, behind it and under the toast and the return pill
    (z-index -1 in the dock's own stacking context, the pill and toast at 2), and takes no touch. */
-.voice-dock::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--s-6); z-index: -1;
-  background: linear-gradient(to top, var(--bg), transparent); pointer-events: none; }
+/* AMENDED (Dave 2026-10-11, visual catalog, Bottom Capsule and Tab Bar): the ramp is about 170px, from clear to the
+   ground's own foot colour (--ground-foot), and runs behind the dock as well, so content slides under the capsule
+   instead of stopping at it. Still behind the dock, under the toast and the pill, and takes no touch. */
+.voice-dock::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 170px; z-index: -1;
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--ground-foot, var(--bg)) 95%, transparent) 45%, var(--ground-foot, var(--bg)) 100%);
+  pointer-events: none; }
 /* BOTH ROUND BUTTONS ARE THE SAME OBJECT (2026-10-05, D3/D5). The bolt was --accent-tx (white in dark, a red slab in
    light) beside a search in --tx-2, so the pair differed from each other and from themselves by theme. Chrome icons are
    neutral: one size, one ink, one fill, outline glyphs, in both themes. */
@@ -2106,15 +2110,15 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 .nav-tile-orange, .nav-tile-blue, .nav-tile-sky, .nav-tile-purple,
 .nav-tile-yellow, .nav-tile-indigo, .nav-tile-teal, .nav-tile-green,
 .nav-tile-graphite, .nav-tile-red { color: var(--on-fill-dark); }
-.nav-tile-orange { background: var(--cat-orange); }
-.nav-tile-blue { background: var(--cat-blue); }
-.nav-tile-sky { background: var(--cat-sky); }
-.nav-tile-purple { background: var(--cat-purple); }
-.nav-tile-yellow { background: var(--cat-yellow); }
-.nav-tile-indigo { background: var(--cat-indigo); }
-.nav-tile-teal { background: var(--cat-teal); }
-.nav-tile-green { background: var(--cat-green); }
-.nav-tile-graphite { background: var(--cat-graphite); }
+.nav-tile-orange { background: var(--cat-orange); --tile-shadow: color-mix(in srgb, var(--cat-orange) 35%, transparent); }
+.nav-tile-blue { background: var(--cat-blue); --tile-shadow: color-mix(in srgb, var(--cat-blue) 35%, transparent); }
+.nav-tile-sky { background: var(--cat-sky); --tile-shadow: color-mix(in srgb, var(--cat-sky) 35%, transparent); }
+.nav-tile-purple { background: var(--cat-purple); --tile-shadow: color-mix(in srgb, var(--cat-purple) 35%, transparent); }
+.nav-tile-yellow { background: var(--cat-yellow); --tile-shadow: color-mix(in srgb, var(--cat-yellow) 35%, transparent); }
+.nav-tile-indigo { background: var(--cat-indigo); --tile-shadow: color-mix(in srgb, var(--cat-indigo) 35%, transparent); }
+.nav-tile-teal { background: var(--cat-teal); --tile-shadow: color-mix(in srgb, var(--cat-teal) 35%, transparent); }
+.nav-tile-green { background: var(--cat-green); --tile-shadow: color-mix(in srgb, var(--cat-green) 35%, transparent); }
+.nav-tile-graphite { background: var(--cat-graphite); --tile-shadow: color-mix(in srgb, var(--cat-graphite) 35%, transparent); }
 
 /* === Light theme contrast (2026-08-02) ===
    The brand accents are tuned for a black background. On white they land
@@ -2941,12 +2945,12 @@ button {
    and .tip-banner (glyph + Title Case + gray sub + X). */
 
 /* 1 · full tile palette */
-.nav-tile-red { background: var(--cat-red); }
-.nav-tile-coral { background: var(--cat-coral); }
-.nav-tile-sand { background: var(--cat-sand); color: var(--on-fill-dark); }
-.nav-tile-lime { background: var(--cat-lime); color: var(--on-fill-dark); }
-.nav-tile-magenta { background: var(--cat-magenta); }
-.nav-tile-pink { background: var(--cat-pink); }
+.nav-tile-red { background: var(--cat-red); --tile-shadow: color-mix(in srgb, var(--cat-red) 35%, transparent); }
+.nav-tile-coral { background: var(--cat-coral); --tile-shadow: color-mix(in srgb, var(--cat-coral) 35%, transparent); }
+.nav-tile-sand { background: var(--cat-sand); --tile-shadow: color-mix(in srgb, var(--cat-sand) 35%, transparent); color: var(--on-fill-dark); }
+.nav-tile-lime { background: var(--cat-lime); --tile-shadow: color-mix(in srgb, var(--cat-lime) 35%, transparent); color: var(--on-fill-dark); }
+.nav-tile-magenta { background: var(--cat-magenta); --tile-shadow: color-mix(in srgb, var(--cat-magenta) 35%, transparent); }
+.nav-tile-pink { background: var(--cat-pink); --tile-shadow: color-mix(in srgb, var(--cat-pink) 35%, transparent); }
 
 /* 2 · alignment grid */
 .card .row + .row, .card .task-row + .task-row { border-top: 0; position: relative; }
@@ -3061,28 +3065,20 @@ button {
 @media (prefers-reduced-motion: reduce) { .tip-banner { animation: none; } }
 
 /* 5 · MOTION (Catalog V3.1 H3). One spring for every arriving surface:
-   banners and tips ride the same curve the sheets already use. Lists
-   stagger ONLY on boot (body.boot-stagger, removed by main.tsx ~1.4s in),
-   so tab switches stay instant per the standing law. Numbers roll via
+   banners and tips ride the same curve the sheets already use. The boot
+   only row stagger (body.boot-stagger) is retired: the first open entrance
+   (Dave 2026-10-11, visual catalog, THE FIRST OPEN at the end of this file)
+   is the one entrance now, and rows rising inside a rising card was two
+   motions for one moment. Tab switches stay instant per the standing law. Numbers roll via
    RollingNumber in StatTiles; the day ring bursts at 100%. */
 .restore-banner, .tip-banner { animation: restoreIn var(--dur-slow) var(--ease-spring); }
-@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.boot-stagger .card > *:nth-child(-n+8) { animation: rowIn 300ms var(--ease-out) backwards; }
-.boot-stagger .card > *:nth-child(1) { animation-delay: 0ms; }
-.boot-stagger .card > *:nth-child(2) { animation-delay: 30ms; }
-.boot-stagger .card > *:nth-child(3) { animation-delay: 60ms; }
-.boot-stagger .card > *:nth-child(4) { animation-delay: 90ms; }
-.boot-stagger .card > *:nth-child(5) { animation-delay: 120ms; }
-.boot-stagger .card > *:nth-child(6) { animation-delay: 150ms; }
-.boot-stagger .card > *:nth-child(7) { animation-delay: 180ms; }
-.boot-stagger .card > *:nth-child(8) { animation-delay: 210ms; }
 /* Glass chrome: the bar keeps its blur and gains saturation so color under
    it stays alive (solid --nav-bg remains the fallback tint). */
 .tab-bar { -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   /* The faint warm material (Dave 2026-10-05): the bar is --nav-bg over a blur, with a hairline highlight on its top edge and no shadow. */
   border-top-color: var(--chrome-hairline); box-shadow: inset 0 0.5px 0 var(--rim-card); }
 @media (prefers-reduced-motion: reduce) {
-  .restore-banner, .tip-banner, .boot-stagger .card > * { animation: none; }
+  .restore-banner, .tip-banner { animation: none; }
 }
 
 /* === LIBRARY CHASSIS (Design 2, approved 2026-08-18, LOCKED-CSS FLAGGED) ===
@@ -3204,9 +3200,11 @@ button {
    nearly every screen in the app is .ruled, the 800 almost never painted.
    Two rules for one element, and the catalog documented the one that lost.
    He picked what actually ships, so it is stated once, here. */
-.sh2 .t { order: 0; font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: var(--track-head, 0.1em);
+/* AMENDED (Dave 2026-10-11, visual catalog, Section Headers): 12px at the type scale, 800, tracked 0.20em, so the
+   header leads; the dotted rule beside it recedes to white 18% in dark and a warm 22% in light (--kicker-rule). */
+.sh2 .t { order: 0; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.20em;
   text-transform: uppercase; color: var(--accent-chrome); }
-.sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
+.sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted var(--kicker-rule); align-self: center; }
 .sh2 .n { order: 2; font-size: var(--t-micro); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
 /* A head's own estimate ("About 2 Min" beside the Sweep capsule) is a fact span: sky (an estimate), the line's regular
    weight, never grey caps (Dave 2026-10-05, D4). The capsule beside it is the verb alone. */
@@ -3223,7 +3221,7 @@ button {
 .sh2.sh2-quiet .t { color: var(--tx-3); }
 /* THE LEADER IS SEEN IN BOTH THEMES (2026-10-05, the round 2 review: drawn in light, invisible in dark, because --divider is a 7% white over the charcoal).
    The structure grey at a little under half, so the same dotted hairline reads at the same strength on both grounds. */
-.sh2.sh2-quiet::after { border-top-color: color-mix(in srgb, var(--tx-4) 45%, transparent); }
+.sh2.sh2-quiet::after { border-top-color: var(--kicker-rule); }
 /* Today's brand bar rides the same chassis: sticky, glass on condense. */
 .today-pagebar .today-bar { padding-top: 0; height: 44px; width: 100%; }
 .sched-list.drop-target { outline: 2px solid var(--red); outline-offset: -2px; border-radius: var(--r-md); }
@@ -7763,3 +7761,57 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .conn-outcome-body { flex: 1 1 14rem; min-width: 0; }
 .conn-outcome-title { font-weight: var(--w-semi); }
 .conn-outcome-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+/* ==========================================================================
+   THE VISUAL CATALOG PICKS (Dave 2026-10-11, visual catalog). Each rule below is one of his picks, written once for both
+   themes: the geometry is shared and every colour is a token the theme block names (jarvis-design-system.css, THE
+   CATALOG PICKS), so light and dark differ only in colour. Nothing here glows.
+   ========================================================================== */
+
+/* THE CARD RIM (Dave 2026-10-11, visual catalog, Card Edge Light). A 1px rim on every page card: in dark a gradient,
+   white 22% at the top left to white 4% at 45% to red 8% at the bottom right; in light a clean white 90% edge. It is
+   painted by a masked layer over the card's own edge, not a border, so no card changes size or moves its content (the
+   card keeps its 0.5px border, now clear). A card inside a card is a row and a sheet is not a page card, so neither
+   takes it. */
+.card:not(.card .card):not(.sheet-scrim .card) { border-color: transparent; }
+.card:not(.card .card):not(.sheet-scrim .card)::after,
+.voice-bar::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: var(--card-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* The Add Anything capsule wears the same lit rim, a touch quieter in dark (white 14% to 4%). */
+.voice-bar { position: relative; }
+.voice-bar::after { background: var(--dock-rim); }
+
+/* THE RED BUTTON (Dave 2026-10-11, visual catalog) lives in glass-light.css and glass-dark.css beside the rest of the
+   button finish, the same members and values in both. */
+
+/* THE ICON TILE and THE ACTIVE TAB (Dave 2026-10-11, visual catalog) are finishes, so they live in glass-light.css and
+   glass-dark.css; each tile fill names its own shadow colour (--tile-shadow, the fill at 35%) above. The tab's chip
+   shape is shared: the same rounded chip in both themes, filled only in light. */
+.tab-bar .tab { border-radius: var(--r-tab); }
+
+/* THE CHECKLIST LINE (Dave 2026-10-11, visual catalog, Checklist Progress). A task with steps shows how far along it is
+   under its name: a 3px rounded track in the divider colour, filled done over total with the action red brightening
+   from 70% toward white. It hangs in the row's foot padding under the title column (the same left edge the row's
+   hairline starts at), so the row keeps its height. Only rows with steps. */
+.task-row .tr-progress { position: absolute; left: calc(var(--s-4) + 44px + var(--s-2h)); right: var(--s-4); bottom: 3px; height: 3px; border-radius: var(--r-xxs);
+  background: var(--progress-track); overflow: hidden; pointer-events: none; }
+.tr-progress-fill { display: block; height: 100%; border-radius: var(--r-xxs);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, white), var(--accent)); }
+
+/* THE GREETING'S ONE SERIF (Dave 2026-10-11, visual catalog, Greeting). "Good" stays the sans at its weight; the time of
+   day is Newsreader italic 500, at the same size and on the same line. */
+.today-title .greet-when { font-family: 'Newsreader', Georgia, serif; font-style: italic; font-weight: var(--w-regular); }
+
+/* THE FIRST OPEN (Dave 2026-10-11, visual catalog, Motion: "Use New"). On the first open of a screen in a launch its
+   cards rise 4px and fade in over 220ms, 40ms apart in document order, the stagger capped so the last starts by 200ms.
+   shared/screenEntrance.ts marks the cards and takes the mark off when each lands, so a return visit, a tab switch or a
+   later render never replays it (Dave 2026-07-29 still holds for those). Off under Reduce Motion, the phone's or the
+   app's own. */
+@keyframes cardRise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.card.card-enter { animation: cardRise 220ms var(--ease-out) both; animation-delay: calc(min(var(--enter-i, 0), 5) * 40ms); }
+html[data-motion="reduce"] .card.card-enter { animation: none; }
+@media (prefers-reduced-motion: reduce) { .card.card-enter { animation: none; } }

@@ -153,8 +153,11 @@ describe("Stylesheet: the small things that read as unfinished", () => {
     expect(rule("components.css", '[data-theme="light"] .switch.off.switch-locked')).toMatch(/background:\s*color-mix/);
   });
 
-  it("the quiet head's leader is the structure grey, so dark draws it as light does", () => {
-    expect(rule("components.css", ".sh2.sh2-quiet::after")).toMatch(/border-top-color:\s*color-mix\(in srgb,\s*var\(--tx-4\)/);
+  // AMENDED (Dave 2026-10-11, visual catalog, Section Headers: "the dotted rule beside them gets lighter, so the header
+  // leads and the rule recedes", white 18% in dark and a warm 22% in light). The leader is one token both themes name,
+  // so dark still draws it as light does, each at its picked strength.
+  it("the quiet head's leader is the picked kicker rule, so dark draws it as light does", () => {
+    expect(rule("components.css", ".sh2.sh2-quiet::after")).toMatch(/border-top-color:\s*var\(--kicker-rule\)/);
   });
 
   it("Add in the Life header is a round capsule, like every other add", () => {
