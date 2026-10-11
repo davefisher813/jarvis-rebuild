@@ -7768,16 +7768,11 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
    CATALOG PICKS), so light and dark differ only in colour. Nothing here glows.
    ========================================================================== */
 
-/* THE CARD RIM (Dave 2026-10-11, visual catalog, Card Edge Light). A 1px rim on every page card: in dark a gradient,
-   white 22% at the top left to white 4% at 45% to red 8% at the bottom right; in light a clean white 90% edge. It is
-   painted by a masked layer over the card's own edge, not a border, so no card changes size or moves its content (the
-   card keeps its 0.5px border, now clear). A card inside a card is a row and a sheet is not a page card, so neither
-   takes it. */
-.card:not(.card .card):not(.sheet-scrim .card) { border-color: transparent; }
-.card:not(.card .card):not(.sheet-scrim .card)::after,
+/* THE DOCK RIM (Dave 2026-10-11, visual catalog, Bottom Capsule). The Add Anything capsule wears a 1px lit rim, painted
+   by a masked layer over its own edge so nothing changes size. Page cards do NOT take it: Dave 2026-10-11, "I never
+   wanted [the card colour] changed"; every card keeps the surface, edge and shadow it had before the catalog release. */
 .voice-bar::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
-  background: var(--card-rim);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
