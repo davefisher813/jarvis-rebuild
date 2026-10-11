@@ -512,7 +512,8 @@
   --chip-fill: rgba(255,255,255,0.06);
   --chip-ring: rgba(255,255,255,0.08); --chip-hi: rgba(255,255,255,0.06);
   --kicker-rule: rgba(255,255,255,0.18);
-  --check-bd: rgba(255,255,255,0.26);
+  /* Raised to the 3:1 control guideline (Dave 2026-10-11: "darken just enough"): 3.3:1 on every dark card. */
+  --check-bd: rgba(255,255,255,0.36);
   --check-fill: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
   --check-hi: rgba(255,255,255,0.1); --check-hi-blur: 0px;
   --progress-track: rgba(255,255,255,0.08);
@@ -797,7 +798,8 @@
   --chip-fill: linear-gradient(180deg, #F7F2EB, #F0E9DF);
   --chip-ring: rgba(60,40,20,0.06); --chip-hi: #FFFFFF;
   --kicker-rule: rgba(60,40,20,0.22);
-  --check-bd: #C9BEB2;
+  /* Raised to the 3:1 control guideline (Dave 2026-10-11: "darken just enough"): 3.6:1 on a white card, 3.1:1 on the cream page. */
+  --check-bd: #91867C;
   --check-fill: linear-gradient(180deg, #FFFFFF, #FAF6F0);
   --check-hi: rgba(60,40,20,0.06); --check-hi-blur: 1px;
   --progress-track: #F1EBE2;
