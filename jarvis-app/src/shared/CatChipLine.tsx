@@ -20,6 +20,12 @@ export function chipArea(ref: string | null | undefined): { name: string; slot: 
   return name ? { name, slot: catColor(ref!) } : null;
 }
 
+/** The chip alone, for a row that sets it beside its own title (a note row, Dave 2026-10-11). No area, no chip. */
+export function CatChip({ category }: { category?: string | null }) {
+  const area = chipArea(category);
+  return area ? <span className={"cat-chip cat-fg-" + area.slot}>{area.name}</span> : null;
+}
+
 export default function CatChipLine({ category, text, sentence = false }: {
   /** A category id. Absent, unknown or nameless: no chip. */
   category?: string | null;
@@ -33,7 +39,7 @@ export default function CatChipLine({ category, text, sentence = false }: {
   if (!area && !words) return null;
   return (
     <span className="r-goal r-parent">
-      {area && <span className={"cat-chip cat-fg-" + area.slot}>{area.name}</span>}
+      {area && <CatChip category={category} />}
       {words ? <span className="r-goal-t" {...(sentence ? { "data-sentence": "" } : {})}>{words}</span> : null}
     </span>
   );
