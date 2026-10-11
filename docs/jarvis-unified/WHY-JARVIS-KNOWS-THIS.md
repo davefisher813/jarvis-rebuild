@@ -242,7 +242,9 @@ date; who set it is not recorded); a pointer at a missing id lands with
 confident task behind `memory_v1`: the follow up opener (`FOLLOW_UP_WITH` in
 `paste/deterministic.ts`, `\b(follow[\s-]?up|check in|reach out|circle back)
 with\b`) claims a short line that is not a question and not prose, a link or
-a copied message. The deterministic read sets `personId` to the one Mike and
+a copied message, and only when the phrase opens the line or follows a first
+person or to-do lead in ("Need to", "I'll"), never "Mike will follow up with
+me". The deterministic read sets `personId` to the one Mike and
 the stamp is `source = {type: "paste", ts, inferred: ["personId"]}`. The line
 never reaches the model, so AI on and AI off save the same record. The
 trigger then projects one `about` link with `created_by rule`, and `item_why`

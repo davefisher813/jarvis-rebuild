@@ -30,8 +30,25 @@ const SENTENCE = "Need to follow up with Mike about summer roster";
 let asked = 0;
 const aiOff = { available: false, complete: async () => { asked++; throw new Error("AI is off"); } } as unknown as AIService;
 
+// Search over one Store, the way SearchFlow loads its lists and passes the
+// flag (links: flagOn("memory_v1")).
+function searchOver(store: Store) {
+  const tasks = new TasksService(store, U);
+  const notes = new NotesService(store, U);
+  const schedule = new ScheduleService(store, U);
+  const people = new PeopleService(store, U);
+  return async (q: string) => {
+    const input: SearchInput = {
+      tasks: await tasks.listTasks(), events: await schedule.listEvents(), notes: await notes.listNotes(), people: await people.list(),
+      projects: [], accounts: [], goals: [], categories: [],
+    };
+    return runSearch(q, input, { links: flags.memoryOn });
+  };
+}
+
 async function world(person: { name: string; aliases?: string[] }) {
-  const store = new Store(new InMemoryAdapter());
+  const adapter = new InMemoryAdapter();
+  const store = new Store(adapter);
   const tasks = new TasksService(store, U);
   const notes = new NotesService(store, U);
   const schedule = new ScheduleService(store, U);
@@ -42,14 +59,10 @@ async function world(person: { name: string; aliases?: string[] }) {
     tasks, schedule, notes, categories: [], today: TODAY,
     people: capturePeople(await people.list()), peopleSvc: people,
   } as unknown as PasteDeps;
-  const search = async (q: string) => {
-    const input: SearchInput = {
-      tasks: await tasks.listTasks(), events: await schedule.listEvents(), notes: await notes.listNotes(), people: await people.list(),
-      projects: [], accounts: [], goals: [], categories: [],
-    };
-    return runSearch(q, input, { links: true });
-  };
-  return { deps, tasks, notes, people, mikeId, search };
+  // "Later" is a new session: a fresh Store over the same backend, nothing
+  // carried in memory from the capture.
+  const later = () => searchOver(new Store(adapter));
+  return { deps, store, tasks, notes, people, mikeId, search: searchOver(store), later };
 }
 
 beforeEach(() => { localStorage.clear(); asked = 0; flags.memoryOn = true; vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-11T09:00:00")); });
@@ -70,10 +83,11 @@ describe("Phase 0.5 exit test: a captured thought is found again through search,
     expect(t?.source).toMatchObject({ type: "paste", inferred: ["personId"] });
 
     vi.setSystemTime(new Date("2026-10-14T09:00:00"));
-    const byName = await w.search("Mike");
+    const search = w.later();
+    const byName = await search("Mike");
     expect(byName.people.map((p) => p.id)).toEqual([w.mikeId]);
     expect(byName.tasks.map((x) => x.id)).toEqual([s.id]);
-    const byWords = await w.search("summer roster");
+    const byWords = await search("summer roster");
     expect(byWords.tasks.map((x) => x.id)).toEqual([s.id]);
     // One tap on Mike: his card lists it as Still Open.
     const card = openWith({ id: w.mikeId, name: "Mike Rossi" }, (await w.tasks.listTasks()).map((x) => ({ id: x.id, text: x.data.text, done: x.data.done, due: x.data.due ?? null, personId: x.data.personId })), [], "2026-10-14");
@@ -97,5 +111,20 @@ describe("Phase 0.5 exit test: a captured thought is found again through search,
     const w = await world({ name: "Michael Rossi", aliases: ["Mike"] });
     const [s] = await smartPasteSave(SENTENCE, w.deps);
     expect((await w.search("summer roster")).tasks.map((x) => x.id)).toEqual([s!.id]);
+    // No link walk: "Michael" is not in the task, so flag off it is not found.
+    expect((await w.search("Michael")).tasks).toEqual([]);
+  });
+
+  it("offline: captured with no network, found at once, and found in a new session after reconnect", async () => {
+    const w = await world({ name: "Mike Rossi" });
+    w.store.goOffline();
+    const [s] = await smartPasteSave(SENTENCE, w.deps);
+    expect(asked).toBe(0);
+    expect(s).toMatchObject({ kind: "task", personId: w.mikeId });
+    expect((await w.search("Mike")).tasks.map((x) => x.id)).toEqual([s!.id]);
+    await w.store.reconnect();
+    vi.setSystemTime(new Date("2026-10-14T09:00:00"));
+    const found = await w.later()("summer roster");
+    expect(found.tasks.map((x) => x.text)).toEqual(["Need to Follow Up with Mike About Summer Roster"]);
   });
 });

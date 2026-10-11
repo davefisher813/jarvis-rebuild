@@ -247,10 +247,14 @@ restyle nothing. Flag off, every path below is today's byte for byte.
 `paste/deterministic.ts` still anchors at the start of the line. Behind
 `memory_v1`, `smartPaste` passes `followUp: true` and the alternative pattern
 `FOLLOW_UP_WITH`, `\b(follow[\s-]?up|check in|reach out|circle back) with\b`,
-makes "Need to follow up with Mike" a confident task. Two guards keep it
+makes "Need to follow up with Mike" a confident task. Three guards keep it
 honest: it never claims prose (over 160 characters, a URL, or more than two
-sentences, which stay a verbatim note) and never claims a question (a line
-ending in "?" still goes to the model). It sits after the event, decision,
+sentences, which stay a verbatim note), never claims a question (a line
+ending in "?" still goes to the model), and never claims someone else's
+doing: what comes before the phrase, date words aside, must be nothing or a
+first person or to-do lead in ("Need to", "I should", "I'll", "Remember
+to", "Let's"), so "Mike will follow up with me" stays unconfident and the
+model may still read it. It sits after the event, decision,
 person fact, self fact, reminder, bill and bare time reads, so those
 verdicts never move. The golden gate (`ai/golden/golden.test.ts`): none of
 the seven `CAPTURE_GOLD` inputs match the pattern and `classifyLine` gives

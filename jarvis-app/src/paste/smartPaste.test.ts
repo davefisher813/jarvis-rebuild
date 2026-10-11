@@ -218,6 +218,36 @@ describe("memory_v1 on: the follow up opener claims a short line, never copied p
     expect(next!.inferred).toBeUndefined();
     expect((await notes.note(next!.id))?.connections).toEqual([]);
   });
+
+  // Review fix: the opener is his own to-do, never a line about what someone
+  // else will do. Those stay unconfident: AI on, the model reads them as it
+  // did before Phase 0.5; AI off, the rule's task and person still stand.
+  it("someone else's doing is not claimed: the model may still read it", async () => {
+    let asked = 0;
+    const counting: Ai = { available: true, complete: async () => { asked++; return "not json"; } };
+    const { deps } = rig(counting);
+    await smartPasteSave("Mike will follow up with me about the roster", deps);
+    await smartPasteSave("Mike said he'd check in with the league", deps);
+    expect(asked).toBe(2);
+  });
+
+  it("someone else's doing, AI off: the rule's task and person still stand", async () => {
+    const { deps, tasks } = rig(aiOff);
+    const [s] = await smartPasteSave("Mike will follow up with me about the roster", deps);
+    expect(s).toMatchObject({ kind: "task", personId: "mike", inferred: ["personId"] });
+    expect((await tasks.task(s!.id))?.personId).toBe("mike");
+  });
+
+  it("a lead in, a date word or a phone's curly apostrophe still opens it, and the model is never asked", async () => {
+    let asked = 0;
+    const counting: Ai = { available: true, complete: async () => { asked++; return "{}"; } };
+    const { deps } = rig(counting);
+    const saved = await smartPasteSave("I’ll circle back with Mike\nTomorrow follow up with Mike\nRemember to reach out with Mike about cleats", deps);
+    expect(asked).toBe(0);
+    expect(saved.map((s) => [s.kind, s.personId, s.date ?? null])).toEqual([
+      ["task", "mike", null], ["task", "mike", "2026-08-16"], ["task", "mike", null],
+    ]);
+  });
 });
 
 describe("memory_v1 off: today's branch, byte for byte", () => {
