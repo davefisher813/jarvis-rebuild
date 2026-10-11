@@ -139,6 +139,10 @@ export default function NotesFlow({
   // it paints anything, so a stale note can no longer land in the editor. The
   // ref is set with the state and never separately.
   const currentIdRef = useRef<string | null>(null);
+  // Off once Notes unmounts: a load still in flight (a file just attached, a note just opened) stops at its next await
+  // instead of setting state on a screen that is gone.
+  const aliveRef = useRef(true);
+  useEffect(() => () => { aliveRef.current = false; }, []);
   const openCurrentId = useCallback((id: string | null) => { currentIdRef.current = id; setCurrentId(id); }, []);
   // ONE QUEUE FOR EVERY MUTATION (HMN-F-01, 2026-09-05). Every write to the
   // open note is read-modify-write, and two of those in flight read the same
@@ -341,7 +345,7 @@ export default function NotesFlow({
       // editor used to show the old note's blocks while currentId was the new
       // one, so typing went to blocks the open note does not have and was
       // dropped, and Delete Note removed the note that was NOT on screen.
-      if (currentIdRef.current !== id) return;
+      if (!aliveRef.current || currentIdRef.current !== id) return;
       setCurrent(d ? toEditorNote(d) : null);
       setVersions(d?.versions ?? []);
       const cs = d?.connections ?? [];
@@ -610,6 +614,7 @@ export default function NotesFlow({
     if (!ok) { await attemptWrite(() => svc.deleteNote(id!)); await loadList(); return; }
     openCurrentId(id);
     await loadCurrent(id);
+    if (!aliveRef.current) return;
     setScreen("editor");
   };
   const picker = usePickFile((f) => void onPicked(f));

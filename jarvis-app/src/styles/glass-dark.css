@@ -41,7 +41,8 @@ html[data-theme="dark"] .app-shell .screen { background: transparent; }
 /* THE CARD: the same charcoal, finer lit. The pane is SOLID, so the red ember never tints a card (Dave 2026-10-05: all
    cards the same colour). These are the colours the old translucent pane showed over black. */
 html[data-theme="dark"] .card,
-html[data-theme="dark"] .ruled .card {
+html[data-theme="dark"] .ruled .card,
+html[data-theme="dark"] .email-note.quiet {
   background:
     radial-gradient(520px 200px at 6% 0%, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 110px),
@@ -347,5 +348,5 @@ html[data-theme="dark"] .tab:active { transform: none; }
 
 @media (min-resolution: 2dppx) {
   html[data-theme="dark"] .card .card:not(.xs-group), html[data-theme="dark"] .ruled .card .card:not(.xs-group) { box-shadow: none; }
-  html[data-theme="dark"] .card, html[data-theme="dark"] .ruled .card { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.30), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.06), inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65), 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 14px 28px -12px rgba(0, 0, 0, 0.7); }
+  html[data-theme="dark"] .card, html[data-theme="dark"] .ruled .card, html[data-theme="dark"] .email-note.quiet { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.30), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.06), inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65), 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 14px 28px -12px rgba(0, 0, 0, 0.7); }
 }
