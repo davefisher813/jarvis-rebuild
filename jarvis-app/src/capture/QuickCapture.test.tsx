@@ -824,3 +824,35 @@ describe("QuickCapture: aliases reach the capture (memory_v1)", () => {
     expect(screen.queryByText("Linda Fisher", { selector: ".fact" })).toBeNull();
   });
 });
+
+// Phase 0.5 (PHASE05-DESIGN.md): the package's sentence is a confident task
+// behind memory_v1, so the receipt names Mike at once and no model is asked,
+// even with AI available.
+function SeedMike({ children }: { children: React.ReactNode }) {
+  const people = usePeople();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => { await people.create({ name: "Mike Rossi", group: "contacts" }); setReady(true); })();
+  }, [people]);
+  return ready ? <>{children}</> : null;
+}
+
+describe("QuickCapture: the first magic loop (memory_v1)", () => {
+  it("the follow up line names Mike on the receipt and never asks the model", async () => {
+    flags.memoryOn = true;
+    const complete = vi.fn(async () => "{}");
+    const ai = { available: true, complete } as unknown as AIService;
+    render(
+      <NotesProvider userId="u-loop-receipt">
+        <SeedMike><QuickCapture ai={ai} onClose={() => {}} /></SeedMike>
+      </NotesProvider>,
+    );
+    fireEvent.change(await screen.findByLabelText("Paste or Type"), { target: { value: "Need to follow up with Mike about summer roster" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
+    expect(screen.getByText("Need to Follow Up with Mike About Summer Roster")).toBeInTheDocument();
+    expect(screen.getByText("Mike Rossi", { selector: ".fact" })).toBeInTheDocument();
+    expect(complete).not.toHaveBeenCalled();
+    flags.memoryOn = false;
+  });
+});

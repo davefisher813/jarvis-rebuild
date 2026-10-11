@@ -26,6 +26,7 @@ import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
 import { lineCase } from "../shared/casing";
 import { flagOn } from "../substrate/flags";
+import { capturePeople } from "../paste/captureContext";
 import { heldText, savedToastText } from "../shared/saved";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
@@ -289,10 +290,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     // UP-CORE-01: who and which project, read fresh with the categories so a
     // contact added a minute ago is matchable now.
     // Phase 0 D11: aliases ride along behind memory_v1, so "Mom" matches Linda.
-    const ps = (await peopleSvc.list().catch(() => [])).map((p) => ({
-      id: p.id, name: p.data.name,
-      ...(flagOn("memory_v1") && p.data.aliases?.length ? { aliases: p.data.aliases } : {}),
-    }));
+    const ps = capturePeople(await peopleSvc.list().catch(() => []));
     const prs = (await projectsSvc.list().catch(() => [])).map((p) => ({ id: p.id, title: p.data.title }));
     setPeople(ps);
     setProjects(prs);

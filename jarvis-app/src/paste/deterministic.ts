@@ -196,6 +196,10 @@ export interface CaptureContext {
   // under the same narrow rules as the name (mentions.ts namePatterns).
   people?: { id: string; name: string; aliases?: string[] }[];
   projects?: { id: string; title: string }[];
+  // Phase 0.5 (PHASE05-DESIGN.md): the unanchored follow up opener named in
+  // Phase 0 D11. Passed by smartPaste behind memory_v1; absent, the anchored
+  // openers alone decide, byte for byte as before.
+  followUp?: boolean;
 }
 
 const REPEAT_RE = new RegExp(
@@ -275,6 +279,10 @@ function matchProject(raw: string, projects: { id: string; title: string }[]): s
 
 // The imperative openers that make a line read as a to-do.
 const TASK_OPENERS = /^(call|email|text|send|pay|buy|book|schedule|renew|cancel|fix|finish|check|review|remember to|pick up|drop off|order|sign|submit|follow up|confirm)\b/i;
+// Phase 0.5: "Need to follow up with Mike" puts the to-do mid line. Only these
+// four phrases (follow up spelt open, hyphenated or closed), and only with
+// "with" after them, so the line names someone.
+export const FOLLOW_UP_WITH = /\b(follow[\s-]?up|check in|reach out|circle back) with\b/i;
 
 // One line, one verdict.
 export function classifyLine(line: string, today: string, ctx: CaptureContext = {}): ParsedEntity {
@@ -394,8 +402,12 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   if (time) {
     return { kind: "event", title: titleCase(stripDateWords(t, spans)), date: today, start: time, ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who, inferred: [...who.inferred, "date"] };
   }
+  // Long prose, URLs, confirmation codes: kept verbatim as a note (below).
+  const prose = t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2;
   // A date without a time on a to-do-looking line: a task due that day.
-  if (TASK_OPENERS.test(t)) {
+  // Phase 0.5: the follow up opener never claims prose (a pasted message is
+  // copied text, kept verbatim) or a question (the model may know better).
+  if (TASK_OPENERS.test(t) || (ctx.followUp && !prose && !/\?\s*$/.test(t) && FOLLOW_UP_WITH.test(t))) {
     return { kind: "task", title: titleCase(stripDateWords(t, spans)), ...(date ? { date } : {}), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
   }
   // A REPEAT WITH NO CLOCK ("water the plants every week"): the repeat is the
@@ -410,7 +422,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
     return { kind: "task", title: titleCase(stripDateWords(t, spans)), date, confident: false, raw: t, ...who };
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
-  if (t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2) {
+  if (prose) {
     return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true, raw: t, inferred: [] };
   }
   // Short, no signal: a task is the cheapest honest read, but the AI

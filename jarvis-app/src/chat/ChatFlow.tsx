@@ -46,6 +46,8 @@ import ChatMessageRow from "./ChatMessageRow";
 import { haptics } from "../shared/haptics";
 import FilingSheet from "../ai/FilingSheet";
 import { chatFilingText } from "./filingText";
+import { flagOn } from "../substrate/flags";
+import { capturePeople } from "../paste/captureContext";
 
 // Chat (addendum item 23): one box that ANSWERS (deterministic Q&A first,
 // grounded AI second, honest refusal offline), ACTS (command parser under
@@ -562,6 +564,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
 
         // 4. Everything else is a capture: the Smart Paste pipeline, verbatim.
         const cats = await catsSvc.list().catch(() => []);
+        // Phase 0.5 (behind memory_v1): Chat matches the same contacts Quick
+        // Capture does, so a person named in a capture typed here is linked.
+        const ps = flagOn("memory_v1") ? capturePeople(await peopleSvc.list().catch(() => [])) : undefined;
         let saved: Awaited<ReturnType<typeof smartPasteSave>> = [];
         let refusedFact = false;
         const ok = await attemptWrite(async () => {
@@ -576,6 +581,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             // updates his card, the same as through Quick Add.
             ...(decisionsSvc ? { decisions: decisionsSvc } : {}),
             peopleSvc,
+            ...(ps ? { people: ps } : {}),
             onFactRefused: () => { refusedFact = true; },
           });
         });

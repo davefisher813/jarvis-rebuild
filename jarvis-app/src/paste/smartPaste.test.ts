@@ -31,6 +31,9 @@ vi.mock("../substrate/flags", async (orig) => {
 const TODAY = "2026-08-15";
 const U = "user1";
 const MIKE = "Need to follow up with Mike about summer roster";
+// Phase 0.5: behind memory_v1 the follow up opener makes MIKE confident, so the
+// AI paths are probed with a line no opener claims.
+const UNSURE = "Mike and the summer roster";
 const people = [{ id: "mike", name: "Mike Rossi" }];
 
 type Ai = Pick<AIService, "available" | "complete">;
@@ -42,6 +45,9 @@ const unreadable: Ai = { available: true, complete: async () => "not json" };
 // A double that resolves to something that is not a string (AIService.complete is typed string; the parse must not throw).
 const notAString: Ai = { available: true, complete: (async () => undefined) as unknown as Ai["complete"] };
 const reads: Ai = { available: true, complete: async () => JSON.stringify({ kind: "task", title: "Follow Up with Mike", personId: "mike" }) };
+// A model that drops the name, sends an id it was never offered, and files a note.
+const rewrites: Ai = { available: true, complete: async () => JSON.stringify({ kind: "task", title: "Summer Roster", personId: "not-a-contact" }) };
+const notes_: Ai = { available: true, complete: async () => JSON.stringify({ kind: "note", title: "Summer Roster", notes: "A summary in the model's words" }) };
 
 function rig(ai: Ai) {
   const store = new Store(new InMemoryAdapter());
@@ -89,29 +95,55 @@ describe("memory_v1 on: refused leaves the deterministic reading standing", () =
     }
   });
 
-  it("a 2xx answer that cannot be read still makes the honest note, with no guess on it", async () => {
+  it("a 2xx answer that cannot be read still makes the honest note, and the rule's person rides on it as a connection", async () => {
     const { deps, notes } = rig(unreadable);
-    const [s] = await smartPasteSave(MIKE, deps);
-    expect(s!.kind).toBe("note");
-    expect(s!.personId).toBeUndefined();
-    expect(s!.inferred).toBeUndefined();
+    const [s] = await smartPasteSave(UNSURE, deps);
+    expect(s).toMatchObject({ kind: "note", personId: "mike", inferred: ["targetId"] });
     const n = await notes.note(s!.id);
-    expect(n?.source).toEqual({ type: "paste", ts: n!.source!.ts });
+    expect(n?.source).toMatchObject({ type: "paste", inferred: ["targetId"] });
+    expect(n?.connections).toEqual([expect.objectContaining({ kind: "person", label: "Mike Rossi", targetId: "mike" })]);
+    expect(await notes.notesLinkedTo("mike")).toHaveLength(1);
   });
 
   it("an answer that is not a string is unreadable: the honest note, never a throw out of the save", async () => {
     const { deps, notes } = rig(notAString);
-    const [s] = await smartPasteSave(MIKE, deps);
+    const [s] = await smartPasteSave(UNSURE, deps);
     expect(s!.kind).toBe("note");
-    expect(s!.personId).toBeUndefined();
+    expect(s!.personId).toBe("mike");
     expect(await notes.note(s!.id)).toBeTruthy();
   });
 
-  it("the model's own reading is the model's: nothing on it is stamped as the rule's guess", async () => {
+  it("the model's reading keeps the rule's person: its words land, its ids never do", async () => {
     const { deps, tasks } = rig(reads);
+    const [s] = await smartPasteSave(UNSURE, deps);
+    expect(s).toMatchObject({ kind: "task", title: "Follow Up with Mike", personId: "mike", inferred: ["personId"] });
+    const t = await tasks.task(s!.id);
+    expect(t?.personId).toBe("mike");
+    expect(t?.source?.inferred).toEqual(["personId"]);
+  });
+
+  it("a model id it was never offered is dropped, and a title that lost words keeps the line in Notes", async () => {
+    const { deps, tasks } = rig(rewrites);
+    const [s] = await smartPasteSave(UNSURE, deps);
+    const t = await tasks.task(s!.id);
+    expect(t).toMatchObject({ text: "Summer Roster", personId: "mike", notes: UNSURE });
+  });
+
+  it("a model note keeps the line as typed, not the model's words", async () => {
+    const { deps, notes } = rig(notes_);
+    const [s] = await smartPasteSave(UNSURE, deps);
+    expect(s).toMatchObject({ kind: "note", personId: "mike" });
+    expect(JSON.stringify((await notes.note(s!.id))?.blocks)).toContain(UNSURE);
+  });
+
+  it("the package sentence is a confident task now: the model is never asked", async () => {
+    let asked = 0;
+    const counting: Ai = { available: true, complete: async () => { asked++; return "{}"; } };
+    const { deps, tasks } = rig(counting);
     const [s] = await smartPasteSave(MIKE, deps);
-    expect(s).toMatchObject({ kind: "task", title: "Follow Up with Mike" });
-    expect((await tasks.task(s!.id))?.source?.inferred).toBeUndefined();
+    expect(asked).toBe(0);
+    expect(s).toMatchObject({ kind: "task", title: "Need to Follow Up with Mike About Summer Roster", personId: "mike", inferred: ["personId"] });
+    expect((await tasks.task(s!.id))?.personId).toBe("mike");
   });
 
   it("a line that guessed nothing carries no inferred list at all", async () => {
@@ -122,13 +154,69 @@ describe("memory_v1 on: refused leaves the deterministic reading standing", () =
     expect(t?.source).toEqual({ type: "paste", ts: t!.source!.ts });
   });
 
-  it("a refile keeps only the guesses the copy still carries", async () => {
-    const { deps, notes } = rig(aiOff);
+  it("a refile to a note keeps the person as a connection, and back to a task as personId", async () => {
+    const { deps, notes, tasks } = rig(aiOff);
     const [s] = await smartPasteSave(MIKE, deps);
     const next = await refileSaved(s!, "note", deps);
-    expect(next!.kind).toBe("note");
+    expect(next).toMatchObject({ kind: "note", personId: "mike", inferred: ["targetId"] });
+    const n = await notes.note(next!.id);
+    expect(n?.source?.inferred).toEqual(["targetId"]);
+    expect(n?.connections).toEqual([expect.objectContaining({ kind: "person", targetId: "mike" })]);
+    const back = await refileSaved(next!, "task", deps);
+    expect(back).toMatchObject({ kind: "task", personId: "mike", inferred: ["personId"] });
+    expect((await tasks.task(back!.id))?.personId).toBe("mike");
+  });
+
+  it("a refile to an event drops the person, which an event cannot hold", async () => {
+    const { deps } = rig(aiOff);
+    const [s] = await smartPasteSave(MIKE, deps);
+    const next = await refileSaved(s!, "event", deps);
+    expect(next!.personId).toBeUndefined();
     expect(next!.inferred).toBeUndefined();
-    expect((await notes.note(next!.id))?.source?.inferred).toBeUndefined();
+  });
+});
+
+describe("memory_v1 on: the follow up opener claims a short line, never copied prose", () => {
+  beforeEach(() => { flags.memoryOn = true; });
+  const PROSE = "Thanks for the update. I'll reach out with the numbers once I hear back. Let me know if anything changes.";
+
+  it("a pasted message that says reach out with stays the verbatim note it was", async () => {
+    const { deps, notes } = rig(aiOff);
+    const [s] = await smartPasteSave(PROSE, deps);
+    expect(s!.kind).toBe("note");
+    expect(JSON.stringify((await notes.note(s!.id))?.blocks)).toContain(PROSE);
+  });
+
+  it("a line with a link stays a note", async () => {
+    const { deps } = rig(aiOff);
+    const [s] = await smartPasteSave("Roster is at https://example.com, circle back with Mike", deps);
+    expect(s!.kind).toBe("note");
+  });
+
+  it("a question is not claimed: it goes to the model like any unconfident line", async () => {
+    let asked = 0;
+    const counting: Ai = { available: true, complete: async () => { asked++; return "not json"; } };
+    const { deps } = rig(counting);
+    await smartPasteSave("Did you follow up with Mike?", deps);
+    expect(asked).toBe(1);
+  });
+
+  it("follow-up and followup are the same opener, and the model is never asked", async () => {
+    let asked = 0;
+    const counting: Ai = { available: true, complete: async () => { asked++; return "{}"; } };
+    const { deps } = rig(counting);
+    const saved = await smartPasteSave("Need to follow-up with Mike about summer roster\nfollowup with Mike re jerseys", deps);
+    expect(asked).toBe(0);
+    expect(saved.map((s) => [s.kind, s.personId])).toEqual([["task", "mike"], ["task", "mike"]]);
+  });
+
+  it("a refile to a note whose person is no longer in the list carries no person and claims no guess", async () => {
+    const { deps, notes } = rig(aiOff);
+    const [s] = await smartPasteSave(MIKE, deps);
+    const next = await refileSaved(s!, "note", { ...deps, people: [] } as PasteDeps);
+    expect(next!.personId).toBeUndefined();
+    expect(next!.inferred).toBeUndefined();
+    expect((await notes.note(next!.id))?.connections).toEqual([]);
   });
 });
 

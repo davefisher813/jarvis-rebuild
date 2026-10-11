@@ -25,7 +25,10 @@ export interface CaptureGold {
   // Exact-match fields. title compares case-insensitively (titleCase runs at
   // some call sites and casing is convention, not meaning). Omitted optional
   // fields mean "must be absent or empty".
-  expect: Pick<CaptureResult, "kind" | "title"> & Partial<Pick<CaptureResult, "date" | "start" | "category">>;
+  expect: Pick<CaptureResult, "kind" | "title"> & Partial<Pick<CaptureResult, "date" | "start" | "category" | "personId">>;
+  // Phase 0.5: the contacts the deterministic layer matches against (RULE_GOLD
+  // only; the model is never offered a contact id).
+  people?: { id: string; name: string; aliases?: string[] }[];
 }
 
 // 2026-08-21 is a Friday.
@@ -71,6 +74,28 @@ export const CAPTURE_GOLD: CaptureGold[] = [
     input: "grill night saturday",
     today: "2026-08-21",
     expect: { kind: "event", title: "Grill night", date: "2026-08-22" },
+  },
+];
+
+// ---- The deterministic layer (Phase 0.5) ----
+// Scored through classifyLine, never sent to the model, so the live harness's
+// capture score stays comparable run to run. The follow up opener (Phase 0
+// D11) is what makes the first case confident; the last guards against the
+// opener reading a plain sentence as a to-do.
+export const RULE_GOLD: CaptureGold[] = [
+  {
+    name: "follow up with a contact is a task about them",
+    input: "Need to follow up with Mike about summer roster",
+    today: "2026-10-11",
+    people: [{ id: "mike", name: "Mike Rossi" }],
+    expect: { kind: "task", title: "Need to Follow Up with Mike About Summer Roster", personId: "mike" },
+  },
+  {
+    name: "check in with a contact by alias",
+    input: "should check in with Mom about thanksgiving",
+    today: "2026-10-11",
+    people: [{ id: "linda", name: "Linda Fisher", aliases: ["Mom"] }],
+    expect: { kind: "task", title: "Should Check in with Mom About Thanksgiving", personId: "linda" },
   },
 ];
 

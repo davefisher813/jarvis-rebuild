@@ -33,6 +33,11 @@ function versionsAfterSave(note: NoteData, now: number): NoteVersion[] | undefin
   return [...prev, { at: now, doc: note.doc }].slice(-VERSION_CAP);
 }
 
+/** A connection to be born with a note (createNote's third argument). */
+export function newConnection(kind: string, label: string, targetId?: string): Connection {
+  return { id: genId("c"), kind, label, ...(targetId ? { targetId } : {}) };
+}
+
 function genId(prefix: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return prefix + "_" + crypto.randomUUID();

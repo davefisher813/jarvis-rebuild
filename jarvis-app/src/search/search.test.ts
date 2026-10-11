@@ -144,3 +144,55 @@ describe("search reaches inside things", () => {
     expect(runSearch("dentist", withBody).notes[0]!.why).toBe("Note: the dentist called back");
   });
 });
+
+// Phase 0.5, the first magic loop (PHASE05-DESIGN.md): aliases, task Notes and
+// the person a task or note is about, only with `links` on (memory_v1).
+describe("runSearch links (Phase 0.5)", () => {
+  const linked: SearchInput = {
+    ...data,
+    tasks: [
+      { id: "t1", data: { text: "Summer Roster", done: false, category: "", personId: "m1", notes: "Mike and the summer roster" } },
+      { id: "t2", data: { text: "Order jerseys", done: true, category: "", personId: "m1" } },
+      { id: "t3", data: { text: "Order cones", done: false, category: "", personId: "p1" } },
+    ],
+    notes: [{ id: "n9", ownerId: "u", entityType: "note", serverTime: 0, data: { title: "Roster Thoughts", blocks: [], category: "", connections: [{ id: "c1", kind: "person", label: "Michael Rossi", targetId: "m1" }] } as never }],
+    people: [
+      { id: "m1", data: { name: "Michael Rossi", group: "inner_circle", aliases: ["Mike"] } },
+      { id: "p1", data: { name: "Sam Rivera", group: "inner_circle", notes: "met through Mike" } },
+    ],
+  };
+
+  it("off: none of it, exactly as before", () => {
+    const r = runSearch("michael", linked);
+    expect(r.tasks).toEqual([]);
+    expect(r.notes).toEqual([]);
+    expect(runSearch("mike", linked).people.map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  it("an alias names the person, and says so", () => {
+    const r = runSearch("mike", linked, { links: true });
+    expect(r.people).toEqual([
+      { id: "m1", name: "Michael Rossi", why: "Also Called: Mike" },
+      { id: "p1", name: "Sam Rivera", why: "Notes: met through Mike" },
+    ]);
+  });
+
+  it("a task or note about the person is found through the link, done ones too, with an About line", () => {
+    const r = runSearch("michael", linked, { links: true });
+    expect(r.tasks).toEqual([
+      { id: "t1", text: "Summer Roster", why: "About: Michael Rossi" },
+      { id: "t2", text: "Order jerseys", why: "About: Michael Rossi" },
+    ]);
+    expect(r.notes).toEqual([{ id: "n9", title: "Roster Thoughts", why: "About: Michael Rossi" }]);
+  });
+
+  it("a hit in someone's notes is not the query naming them: Sam's task is not pulled in by 'mike'", () => {
+    expect(runSearch("mike", linked, { links: true }).tasks.map((t) => t.id)).toEqual(["t1", "t2"]);
+  });
+
+  it("a task's Notes are searched, and the Notes line wins over the About line", () => {
+    const r = runSearch("summer roster", linked, { links: true });
+    expect(r.tasks).toEqual([{ id: "t1", text: "Summer Roster" }]);
+    expect(runSearch("mike and the", linked, { links: true }).tasks).toEqual([{ id: "t1", text: "Summer Roster", why: "Notes: Mike and the summer roster" }]);
+  });
+});
