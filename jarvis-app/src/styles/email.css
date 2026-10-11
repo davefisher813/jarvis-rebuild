@@ -35,7 +35,9 @@
 .email-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
   margin: var(--s-2) var(--s-4) 0; padding: var(--s-2h) var(--s-4); border-radius: var(--r-md);
   background: var(--warn-tint); color: var(--warn); font-size: var(--t-sub); font-weight: var(--w-sub); line-height: 1.4; }
-.email-note.quiet { background: var(--press-3); color: var(--tx-3); }
+/* The quiet note is a card (Dave 2026-10-11: "the coloring is still off for these"): its surface, edge and shadow are the
+   card's own, set beside the card rule in glass-dark.css and glass-light.css, so it can never drift from the cards. */
+.email-note.quiet { color: var(--tx-3); }
 .email-note > span { min-width: 0; overflow-wrap: anywhere; }
 .email-note > .facts, .email-note > .conn-meta { flex: 1 1 auto; min-width: 0; margin-top: 0; }
 /* A banner of wrapping facts and an action: the action drops under the facts rather than squeezing them into a column of one word a line. */
