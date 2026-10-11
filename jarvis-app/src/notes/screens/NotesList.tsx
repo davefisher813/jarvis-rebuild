@@ -10,7 +10,8 @@ import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { catColor, catName } from "../../shared/categories";
-import CatChipLine from "../../shared/CatChipLine";
+import { CatChip } from "../../shared/CatChipLine";
+import WordFit from "../../shared/WordFit";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
@@ -39,8 +40,12 @@ export interface NoteListItem {
   pinned?: boolean;
   archived?: boolean;
   tags?: string[];
-  // C-20: candidates JARVIS found and he has not used yet.
+  // C-20: candidates JARVIS found and he has not used yet. Kept on the item for the note itself; a row never draws it
+  // (Dave 2026-10-11: "counts never render inside note rows").
   found?: number;
+  // The note's first lines with words in them, headings left out (docModel contentLines). The row's second line is read
+  // from these; absent, the row falls back to `first`.
+  lines?: string[];
   // Wave 3b: in Recently Deleted.
   deleted?: boolean;
 }
@@ -148,6 +153,46 @@ function dayDiff(edited: number, now: Date): number {
 // "Edited" rides only the freshest case: on a dated row the date is the
 // edit, and saying so on every line was the noise the catalog removed.
 // Title Case, like every line the app writes (Dave 2026-09-26, the pass-off).
+// A body that opens with a date ("Aug 24 · Attendees", the calendar's
+// meeting note) hands that date to the row and the rest to the preview.
+const LEADING_DATE = /^((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2})(?:,\s*\d{4})?(?!\d)\s*(?:\u00b7|\||:|-)?\s*/;
+export function leadingDate(first: string): { date: string; rest: string } | null {
+  const m = LEADING_DATE.exec(first.trim());
+  if (!m) return null;
+  const date = m[1]!.replace(/^([A-Z][a-z]{2})[a-z]*\.?/, "$1");
+  return { date, rest: first.trim().slice(m[0].length) };
+}
+
+// THE SECOND LINE IS ONE THING (Dave 2026-10-11): who the meeting was with, or the note's own words, never both and
+// never a label with nothing after it. A meeting note opens with "Aug 24 · Attendees" and the names are typed after
+// the label; with no names typed, that line says nothing and is skipped, and the row reads the next line instead.
+// "With Wei and Sam Okafor" on the first line is the same fact said the other way. Only the first line can name the
+// attendees, so a sentence further down that starts "With" stays a sentence.
+const ATTENDEES = /^attendees\b[\s:\u00b7,-]*(.*)$/i;
+const WITH = /^with\b[\s:]*(.*)$/i;
+const NAME = /^[A-Z][\p{L}'.-]*(?:\s+[A-Z][\p{L}'.-]*)*$/u;
+function namesIn(list: string, strict: boolean): string[] {
+  const parts = list.split(/\s*(?:,|;|&|\band\b)\s*/).map((x) => x.trim()).filter(Boolean);
+  if (strict && !parts.every((x) => NAME.test(x))) return [];
+  return parts;
+}
+export function rowLine(lines: string[]): { date: string; with: string[]; preview: string } {
+  let date = "";
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]!.trim();
+    if (i === 0) {
+      const lead = leadingDate(line);
+      if (lead) { date = lead.date; line = lead.rest; }
+      const a = ATTENDEES.exec(line);
+      if (a) { const names = namesIn(a[1]!, false); if (names.length) return { date, with: names, preview: "" }; continue; }
+      const w = WITH.exec(line);
+      if (w) { const names = namesIn(w[1]!, true); if (names.length) return { date, with: names, preview: "" }; }
+    }
+    if (line) return { date, with: [], preview: line };
+  }
+  return { date, with: [], preview: "" };
+}
+
 export function editedLabel(edited: number, now: Date = new Date()): string {
   if (!edited) return "";
   const d = dayDiff(edited, now);
@@ -311,7 +356,18 @@ export default function NotesList({
     // date; under Earlier, Pinned, Archived and Recently Deleted the head
     // is not a day, so the date stays.
     const dayHead = NOTES_GROUP === "when" && (group === "today" || group === "yesterday");
+    // ONE DATE PER ROW (Dave 2026-10-11: "Aug 24 · Attendees OCT 1" was two
+    // dates). A meeting note's body opens with the meeting's own date; that is
+    // the date that means something, so it moves out of the preview into the
+    // date slot and the edit date is not drawn. Any other note keeps the date
+    // it was last touched, said once as before.
+    const said = rowLine(n.lines ?? (n.first ? [n.first] : []));
+    const second = said.with.length ? "With: " + said.with.join(", ") : said.preview;
+    // ONE DATE, ON THE TITLE LINE (the approved mock, 2026-10-09 .note-date): when it was last touched, at the right of
+    // the title. A meeting note's own opening date ("Aug 24 · Attendees") is taken off its preview, so the row never
+    // says two dates.
     const when = dayHead ? "" : editedLabel(n.edited, now);
+    const chip = NOTES_ROW === "line" && !!area;
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
@@ -350,24 +406,20 @@ export default function NotesList({
               typed titles are shown in Title Case everywhere and stored
               unchanged). Only the drawn text is cased: n.title stays raw for
               search, selection and the aria labels. */}
-          <span className="task-name">{titleCase(n.title)}</span>
-          {NOTES_ROW === "line" && (!!area || !!n.first.trim() || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
-            <div className="r-k">
-              {/* THE UNIFIED CHIP (Dave 2026-10-09, the pass-off, item 14): the
-                  area as a small chip in its own colour with the note's own
-                  first line right next to it, the same piece a task row uses for
-                  its area and project. An unfiled note has no area to name, and
-                  a placeholder that says so is a line with nothing to say (§AK):
-                  it shows no chip, and its first line stands alone. */}
-              <CatChipLine category={area ? n.category : null} text={n.first} sentence />
-              {/* The line's gap separates its facts, as on a task row: no
-                  typed dots. The tags are one run, the row's one grey; what
-                  JARVIS found is work waiting for his review, so it is amber
-                  (§AM) with the number white, and the date is its own caps,
-                  so nothing else here is that grey. */}
-              {n.tags?.length ? <span className="r-goal r-cat">{n.tags.map((t) => "#" + t).join(" ")}</span> : null}
-              {(n.found ?? 0) > 0 && <span className="r-goal fact warn">JARVIS Found <b>{n.found}</b></span>}
-              {when && <span className="r-goal r-cat r-when">{when}</span>}
+          {/* THE APPROVED ROW (Dave 2026-10-11, "match the mock exactly": unified-chip-system-mockup-2026-10-09). Line
+              one is the title, and the date small and letter-spaced at its right. Line two is the area chip and the
+              note's preview beside it; an unfiled note has no chip and its preview stands alone, and a note with
+              neither has no second line. */}
+          <div className="note-line1">
+            <span className="task-name">{titleCase(n.title)}</span>
+            {when && <span className="note-date">{when}</span>}
+          </div>
+          {/* The preview is one thing (rowLine): who the meeting was with, or the note's own words; never a label with
+              nothing after it. It gives up whole words to fit (WordFit). Tags and what JARVIS found are not on the row. */}
+          {NOTES_ROW === "line" && (chip || !!second) && (
+            <div className="r-k note-sub">
+              {chip && <CatChip category={n.category} />}
+              {second && <WordFit text={second} className="r-goal note-preview" data-sentence="" />}
             </div>
           )}
           {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}

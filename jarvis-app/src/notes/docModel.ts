@@ -140,8 +140,34 @@ export function firstLineOf(doc: Doc | undefined): string {
     }
     return "";
   };
-  const t = lines(doc?.content ?? []);
-  return t.length > 80 ? t.slice(0, 79).trimEnd() + "…" : t;
+  return cutAtWord(lines(doc?.content ?? []), 80);
+}
+
+/** A line cut to at most `max` characters, at a word boundary, with an ellipsis (Dave 2026-10-11: never "pag..." or
+ *  "progressiv..."). A first word longer than the whole budget is the only thing cut inside a word. */
+export function cutAtWord(t: string, max: number): string {
+  if (t.length <= max) return t;
+  const room = t.slice(0, max - 1);
+  const space = room.lastIndexOf(" ");
+  const kept = space > 0 ? room.slice(0, space) : room;
+  return kept.replace(/[\s,;:\u00b7-]+$/, "") + "…";
+}
+
+/** THE LINES A NOTE ROW CAN SAY (Dave 2026-10-11). The note's first few lines with words in them, in order: each list
+ *  item is a line, and a heading is never one (a template's "Agenda" is a label, not something he wrote). */
+export function contentLines(doc: Doc | undefined, max = 4): string[] {
+  const out: string[] = [];
+  const walk = (nodes: JSONContent[]) => {
+    for (const n of nodes) {
+      if (out.length >= max) return;
+      if (n.type === "heading") continue;
+      if (LISTS.has(n.type ?? "")) { walk(n.content ?? []); continue; }
+      const t = nodePlainText(n).replace(/\s+/g, " ").trim();
+      if (t) out.push(cutAtWord(t, 120));
+    }
+  };
+  walk(doc?.content ?? []);
+  return out;
 }
 
 /** What a note is called wherever it is named: its title, or its first line
