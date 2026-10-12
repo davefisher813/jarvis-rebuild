@@ -47,6 +47,7 @@ import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 import { ChevronRight, PenLine, RotateCcw, Search } from "../shared/icons";
 import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { useConnectionStatus } from "../connections/useConnectionStatus";
@@ -63,7 +64,7 @@ import {
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
-  REVIEW_OPEN, reviewItemsLine, WAITING_TITLE,
+  REVIEW_OPEN, reviewItemsLine, WAITING_TITLE, waitingDeleted,
   ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
   SIGN_IN_FIRST, VIEW_DATE, VIEW_GROUPED, VIEW_LABEL, WAITING_SEGMENT_TITLE, selectAllLoaded, selectedWord,
 } from "./copy";
@@ -97,7 +98,7 @@ import { useReconnect } from "./useReconnect";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
 import { bannerModels, recoveryNotes } from "../connections/incidentView";
-import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
+import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, pausedOpenTarget, reconcileSend, reopenDraft, replyFields, saveDraft, sendApproved, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
 import { localDate, pausedSends, reviewCount, reviewList, threadsLatest, type EmailFocus, type LatestInThread, type PausedSends } from "./waiting";
@@ -827,6 +828,25 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       setWaitingItems((list) => [it, ...list.filter((w) => w.id !== it.id)]);
     }).catch(() => { /* the list's own refresh brings it */ });
   }, [waitingSvc, store]);
+  // DELETE A RESOLVED WAITING RECORD (2026-10-12). Only a resolved one: an open record keeps Resolve, the follow-up date
+  // and Draft Follow-Up. It leaves the list at once (the Open and Resolved counts with it), and Undo puts back the exact
+  // snapshot under the same id; an Undo sets a state, so a second tap finds it there and does nothing.
+  const deleteWaiting = useCallback(async (it: WaitingItem) => {
+    if (!waitingSvc || it.data.status !== "resolved") return;
+    const box: { gone: WaitingItem | null } = { gone: null };
+    if (!(await attemptWrite(async () => { box.gone = await waitingSvc.remove(it.id); }))) return;
+    const kept = box.gone ?? it;
+    delete tracked.current[it.id];
+    setWaitingItems((list) => list.filter((w) => w.id !== it.id));
+    setSegment("waiting");
+    setScreen({ kind: "root" });
+    showToast({ message: waitingDeleted(kept.data.title), actionLabel: UNDO, onAction: () => void (async () => {
+      const back = await attemptWrite(async () => { if (!(await waitingSvc.get(kept.id))) await waitingSvc.create(kept.data, kept.id); });
+      if (!back) return;
+      setWaitingItems((list) => (list.some((w) => w.id === kept.id) ? list : [kept, ...list]));
+      void loadWaiting();
+    })() });
+  }, [waitingSvc, loadWaiting]);
   // A focus from Today or a receipt: the inbox narrowed to its cards, or one record.
   useEffect(() => {
     if (!focus || !focusNonce) return;
@@ -913,6 +933,17 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const openDraft = (d: DraftRow) => {
     setSendFailure(null);
     setScreen({ kind: "compose", start: { localKey: d.id, draftId: d.id, accountId: d.account_id, fields: fieldsOf(d), revision: d.revision, failedLine: d.send_state === "failed" ? d.action_verb ?? null : null }, from: { kind: "drafts" } });
+  };
+  // A paused send (V10): released on the server as it opens (migration 0069), so its words land in an editable composer
+  // and Review Send makes a fresh review and a new hold. One that is still the send's opens its outcome instead.
+  const openPausedDraft = async (d: DraftRow) => {
+    if (!client) return;
+    setSendFailure(null);
+    const target = pausedOpenTarget(d, await reopenDraft(client, d.id));
+    if (target.kind === "gone") { void loadPaused(); return; }
+    if (target.kind === "outcome") { setCheckLine(null); setScreen({ kind: "outcome", draft: target.draft }); return; }
+    const x = target.draft;
+    setScreen({ kind: "compose", start: { localKey: x.id, draftId: x.id, accountId: x.account_id, fields: fieldsOf(x), revision: x.revision, failedLine: x.action_verb ?? null }, from: { kind: "paused" } });
   };
   const openLocal = (l: LocalDraft) => {
     setSendFailure(null);
@@ -1059,7 +1090,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   if (screen.kind === "paused" && client) {
     return <div className={pushCls}>
       <PausedScreen paused={paused} failure={pausedFailure} onBack={() => setScreen({ kind: "root" })} onRetry={() => void loadPaused()}
-        onOpen={(d) => { setSendFailure(null); setScreen({ kind: "compose", start: { localKey: d.id, draftId: d.id, accountId: d.account_id, fields: fieldsOf(d), revision: d.revision, failedLine: d.action_verb ?? null }, from: { kind: "paused" } }); }} />
+        onOpen={(d) => void openPausedDraft(d)} />
     </div>;
   }
   if (screen.kind === "accounts") {
@@ -1082,7 +1113,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         onBack={() => { setSegment("waiting"); setScreen({ kind: "root" }); }}
         onChanged={(data) => setWaitingItems((list) => list.map((w) => (w.id === it.id ? { id: w.id, data } : w)))}
         onOpenMessage={(id) => void openMessageById(id)}
-        onDraftFollowUp={(start) => startFollowUp(it, start)} />
+        onDraftFollowUp={(start) => startFollowUp(it, start)}
+        {...(waitingSvc && it.data.status === "resolved" ? { onDelete: () => void deleteWaiting(it) } : {})} />
     </div>;
   }
   if (screen.kind === "compose" && client) {

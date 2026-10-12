@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  badAddresses, canonicalFields, clearLocalDraft, emptyFields, hasManagedSignature, isAddress, loadLocalDrafts, normalizeAddress, outcomeOf, replaceSignature, replyFields, reviewExpired, sameFields,
-  saveLocalDraft, signatureUntouched, splitAddresses, stripSignature, unsavedLocal, withSignature, type DraftFields, type DraftRow, type LocalDraft,
+  badAddresses, canonicalFields, clearLocalDraft, emptyFields, hasManagedSignature, isAddress, loadLocalDrafts, normalizeAddress, outcomeOf, pausedOpenTarget, replaceSignature, replyFields, reviewExpired, sameFields,
+  saveLocalDraft, signatureUntouched, splitAddresses, stripSignature, unsavedLocal, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Reopened,
 } from "./drafts";
 import type { EmailAccount, MessageDetail } from "./emailClient";
 
@@ -142,5 +142,27 @@ describe("outcomes and expiry", () => {
     expect(reviewExpired("2026-10-03T15:05:00Z", new Date("2026-10-03T15:04:59Z"))).toBe(false);
     expect(reviewExpired("2026-10-03T15:05:00Z", new Date("2026-10-03T15:05:00Z"))).toBe(true);
     expect(reviewExpired("garbage", new Date())).toBe(true);
+  });
+});
+
+describe("opening a paused send (migration 0069)", () => {
+  const row = (o: Partial<DraftRow> = {}): DraftRow => ({ ...emptyFields(), id: "d-1", account_id: "acct-dave", account: "dave@example.test", send_state: "sending", saved_at: "2026-10-12T10:00:00Z", revision: 3, updated_at: "2026-10-12T10:00:00Z",
+    sent_action_id: "act-1", provider_message_id: null, action_state: "approved", action_verb: null, outbox_state: "failed", error_code: "PROVIDER_AUTH", provider_ack: null, ...o });
+  const answer = (o: Partial<Reopened>): { ok: true; value: Reopened } => ({ ok: true, value: { ...row(), released: true, editable: true, ...o } });
+
+  it("a released draft opens in the composer with the server's words and revision as they are now", () => {
+    const t = pausedOpenTarget(row(), answer({ send_state: "failed", body_text: "Newer words.", revision: 4 }));
+    expect(t.kind).toBe("compose");
+    expect(t.kind === "compose" && [t.draft.send_state, t.draft.body_text, t.draft.revision]).toEqual(["failed", "Newer words.", 4]);
+  });
+
+  it("one that is still the send's (held, sending, unknown) never opens a composer: it opens its outcome", () => {
+    for (const st of ["sending", "unknown", "sent"] as const) expect(pausedOpenTarget(row(), answer({ send_state: st, released: false, editable: false })).kind).toBe("outcome");
+  });
+
+  it("gone is gone; any other refusal falls back to the row as listed, where the server's own guards still decide", () => {
+    expect(pausedOpenTarget(row(), { ok: false, code: "NOT_FOUND", data: {} })).toEqual({ kind: "gone" });
+    const listed = row({ body_text: "As listed." });
+    expect(pausedOpenTarget(listed, { ok: false, code: "UNAVAILABLE", data: {} })).toEqual({ kind: "compose", draft: listed });
   });
 });

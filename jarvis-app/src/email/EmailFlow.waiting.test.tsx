@@ -17,7 +17,7 @@ import EmailFlow from "./EmailFlow";
 import { WaitingService } from "../substrate/waiting/WaitingService";
 import { TasksService } from "../tasks/TasksService";
 import { ScheduleService } from "../schedule/ScheduleService";
-import { CLEAR_DATE, DRAFT_FOLLOW_UP, FOLLOW_UP_DATE, NEW_REPLY, PICK_RECIPIENT, REOPEN, RESOLVE, REVIEW_LIST_TITLE, REVIEW_REPLY, SOURCE_DELETED } from "./copy";
+import { CLEAR_DATE, DELETE_WAITING, DRAFT_FOLLOW_UP, FOLLOW_UP_DATE, NEW_REPLY, PICK_RECIPIENT, REOPEN, RESOLVE, REVIEW_LIST_TITLE, REVIEW_REPLY, SOURCE_DELETED } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import type { WaitingData } from "../substrate/waiting/types";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
@@ -245,5 +245,59 @@ describe("T1: a focus from Today", () => {
     view.rerender(<EmailFlow client={r.client} token="jwt" userId={USER} categories={[]} now={() => NOW} zone="America/New_York" onOpenConnections={() => {}} onOpenModule={() => {}} waiting={r.world.waiting} focus={{ kind: "waiting", id }} focusNonce={2} />);
     await waitFor(() => expect(screen.getByRole("button", { name: RESOLVE })).toBeInTheDocument());
     expect(within(document.body).getByText("Peña's Transcript")).toBeInTheDocument();
+  });
+});
+
+describe("Delete, for resolved records only (2026-10-12)", () => {
+  const chipN = (label: string) => screen.getByRole("button", { name: new RegExp("^" + label) }).querySelector(".email-chip-n")?.textContent;
+
+  it("an open record offers no Delete; a resolved one does, as the last quiet action, in the destructive red", async () => {
+    const r = rig();
+    const open = await r.world.waiting.create(openItem());
+    const done = await r.world.waiting.create(openItem({ title: "Field Trip Form", status: "resolved", resolvedAt: "2026-10-03T12:00:00Z", startedAt: "2026-10-01T15:10:00Z" }));
+    mount(r);
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Waiting" })).toBeInTheDocument());
+    await goWaiting();
+    fireEvent.click(document.querySelector(`[data-waiting='${open}']`) as HTMLElement);
+    await waitFor(() => expect(screen.getByRole("button", { name: RESOLVE })).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: DELETE_WAITING })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Email/ }));
+    await waitFor(() => expect(document.querySelector("[data-waiting]")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /^Resolved/ }));
+    fireEvent.click(await waitFor(() => { const x = document.querySelector(`[data-waiting='${done}']`) as HTMLElement; expect(x).toBeTruthy(); return x; }));
+    const del = await screen.findByRole("button", { name: DELETE_WAITING });
+    expect(del).toHaveClass("quiet-action", "btn-danger-text");
+    const acts = del.parentElement!.querySelectorAll("button");
+    expect(acts[acts.length - 1]).toBe(del);
+  });
+
+  it("Delete takes it off the list at once (the Resolved count with it), with Undo that puts back the exact record under its own id", async () => {
+    const r = rig();
+    await r.world.waiting.create(openItem());
+    const data = openItem({ title: "Field Trip Form", status: "resolved", resolvedAt: "2026-10-03T12:00:00Z", resolutionNote: "Signed", startedAt: "2026-10-01T15:10:00Z" });
+    const done = await r.world.waiting.create(data);
+    mount(r);
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Waiting" })).toBeInTheDocument());
+    await goWaiting();
+    expect(chipN("Resolved")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: /^Resolved/ }));
+    fireEvent.click(await waitFor(() => { const x = document.querySelector(`[data-waiting='${done}']`) as HTMLElement; expect(x).toBeTruthy(); return x; }));
+    fireEvent.click(await screen.findByRole("button", { name: DELETE_WAITING }));
+    await waitFor(() => expect(chipN("Resolved")).toBe("0"));
+    expect(chipN("Open")).toBe("1");
+    expect(document.querySelector(`[data-waiting='${done}']`)).toBeNull();
+    expect(await r.world.waiting.get(done)).toBeNull();
+    // Nothing went to the server as a Waiting write, and nothing was sent.
+    expect(r.calls.filter((c) => c.fn.startsWith("waiting_"))).toEqual([]);
+    expect(r.posts.filter((u) => u.includes("/api/email/send"))).toEqual([]);
+    const toast = toasts.find((t) => t.message === "Deleted · Field Trip Form");
+    expect(toast?.actionLabel).toBe("Undo");
+    toast!.onAction!();
+    await waitFor(() => expect(chipN("Resolved")).toBe("1"));
+    expect((await r.world.waiting.get(done))?.data).toEqual(data);
+    // An Undo sets a state: a second tap finds it there and changes nothing.
+    toast!.onAction!();
+    await waitFor(() => expect(chipN("Resolved")).toBe("1"));
+    expect(await itemCount(r)).toBe(2);
   });
 });

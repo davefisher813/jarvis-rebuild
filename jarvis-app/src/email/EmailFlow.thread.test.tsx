@@ -209,6 +209,29 @@ describe("V10: Today's paused card opens the recovery list", () => {
     await waitFor(() => expect(screen.getByLabelText("Subject")).toHaveValue("Re: Roster"));
     expect(r.posts.some((p) => /send/.test(p))).toBe(false);
   });
+
+  it("a send stopped before Gmail but still marked sending (migration 0069): opening releases it, the words are editable, and Review Send reviews it fresh", async () => {
+    const base = { ...emptyFields(), id: "d-2", account_id: "acct-dave", account: DAVE, to_addresses: ["coach@example.test"], subject: "Re: Bus", body_text: "Leaving at 7.", saved_at: NOW.toISOString(), revision: 4, updated_at: NOW.toISOString(), sent_action_id: "act-old", provider_message_id: null, action_state: "approved", action_verb: "Sent Reply to coach@example.test", outbox_state: "failed", error_code: "PROVIDER_AUTH", provider_ack: null };
+    const stuck = { ...base, send_state: "sending", paused_reason: "PROVIDER_AUTH", is_reply: true };
+    const released = { ...base, send_state: "failed", released: true, editable: true };
+    const exact = { account_id: "acct-dave", from_identity: DAVE, to: ["coach@example.test"], cc: [], bcc: [], subject: "Re: Bus", body_text: "Leaving at 7.", attachments: [], reply_headers: { in_reply_to: null, references: [], thread_id: null }, draft_id: "d-2", draft_revision: 4, client_message_id: "<d-2.4@jarvis.local>" };
+    const r = rig({
+      paused_sends: () => ({ count: 1, replies: 1, drafts: [stuck] }),
+      draft_reopen: () => released,
+      send_review: () => ({ review: { action_id: "act-new", review_nonce: "ab".repeat(32), payload_hash: "cd".repeat(32), expires_at: new Date(NOW.getTime() + 300000).toISOString(), outbox_id: "ob-new" }, exact, warnings: [], verb: "Sent Reply to coach@example.test", draft_revision: 4 }),
+    });
+    mount(r, { focus: { kind: "paused" }, focusNonce: 1 });
+    const item = await waitFor(() => { const x = document.querySelector('[data-paused="d-2"]') as HTMLElement; expect(x).toBeTruthy(); return x; });
+    fireEvent.click(item);
+    await waitFor(() => expect(screen.getByLabelText("Subject")).toHaveValue("Re: Bus"));
+    expect(r.calls.find((c) => c.fn === "draft_reopen")?.args).toEqual({ p_draft: "d-2" });
+    expect(screen.queryByText("Already Sent · Nothing Left to Change")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Review Send" }));
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "send_review")).toBe(true));
+    expect(r.calls.find((c) => c.fn === "send_review")?.args).toEqual({ p_draft: "d-2", p_expected_revision: 4 });
+    // Nothing was sent: reviewing is not sending; the new hold comes only from its own approval.
+    expect(r.posts.some((p) => /send/.test(p))).toBe(false);
+  });
 });
 
 describe("ruling 7: Answered X of Y in the reply composer", () => {
