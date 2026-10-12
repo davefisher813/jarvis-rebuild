@@ -43,13 +43,45 @@ export const WORKER_HEADER = "x-jarvis-worker";
 export const INCIDENT_WORKER = "incidents";
 
 /** L5: phone notifications are private by default. The spec's default text for a connection incident, and the ONLY text an
- *  incident alert may carry: no account name or address, no sender, no subject, no excerpt, no amount, in the payload, a
- *  URL, a tag or any metadata. */
+ *  incident alert carries unless the person turned Show Previews on: no account name or address, no sender, no subject, no
+ *  excerpt, no amount, in the payload, a URL, a tag or any metadata. With previews on, the account label is added to the
+ *  text (alertTextFor) and nothing else; the collapse id and every other field stay the same. */
 export const INCIDENT_ALERT_TEXT = "JARVIS needs your attention";
+
+/** THE PERSON'S OWN SWITCHES (Notifications, Email; 2026-10-12, spec 10 and L5), read at dispatch from their profile
+ *  (item, entity_type 'profile', data.notify): Email Alerts off sends nothing; Show Previews on may add the account's
+ *  display label and nothing else (no sender, subject, excerpt or amount, ever, from this worker). Absent reads as the
+ *  defaults: alerts on, previews off. */
+export interface EmailAlertPrefs { alerts: boolean; previews: boolean }
+export const DEFAULT_EMAIL_ALERT_PREFS: EmailAlertPrefs = { alerts: true, previews: false };
+
+/** The stored switches, or the defaults where the profile says nothing. Pure. */
+export function emailAlertPrefsOf(data: unknown): EmailAlertPrefs {
+  const notify = (data && typeof data === "object" ? (data as { notify?: unknown }).notify : undefined) as { emailAlerts?: unknown; emailPreviews?: unknown } | undefined;
+  return {
+    alerts: typeof notify?.emailAlerts === "boolean" ? notify.emailAlerts : DEFAULT_EMAIL_ALERT_PREFS.alerts,
+    previews: typeof notify?.emailPreviews === "boolean" ? notify.emailPreviews : DEFAULT_EMAIL_ALERT_PREFS.previews,
+  };
+}
+
+/** The alert's words: the private default, or with previews on the account label after it. Never anything more. */
+export function alertTextFor(prefs: EmailAlertPrefs, accountLabel: string): string {
+  const label = accountLabel.trim();
+  return prefs.previews && label ? `${INCIDENT_ALERT_TEXT} · ${label}` : INCIDENT_ALERT_TEXT;
+}
+
+/** This owner's switches, read at dispatch. Null when the profile could not be read: the alert stays pending (a switch
+ *  that may be off is never guessed on). */
+export async function readEmailAlertPrefs(env: EmailEnv, owner: string): Promise<EmailAlertPrefs | null> {
+  const rows = await serviceSelect<{ data?: unknown }>(env, "item", `owner_id=eq.${encodeURIComponent(owner)}&entity_type=eq.profile&select=data&order=updated_at.desc&limit=1`);
+  if (rows === null) return null;
+  return emailAlertPrefsOf(rows[0]?.data);
+}
 
 /** What an incident alert carries to a transport. Nothing else is ever put in it. */
 export interface AlertPayload {
-  text: typeof INCIDENT_ALERT_TEXT;
+  /** INCIDENT_ALERT_TEXT, or with Show Previews on that text and the account label (alertTextFor). */
+  text: string;
   /** The logical alert type (the spec's uniqueness key is owner, incident, alert type); not an identifier of anyone. */
   kind: "connection";
 }
@@ -184,9 +216,12 @@ async function settle(env: EmailEnv, a: ClaimedAlert, status: "unavailable" | "f
 
 export interface IncidentWorkerDeps {
   transportFor: (env: EmailEnv, owner: string) => Promise<AlertTransport | NoTransport | null>;
+  /** The owner's Email Alerts and Show Previews switches. Absent: the profile is read (readEmailAlertPrefs). */
+  prefsFor?: (env: EmailEnv, owner: string) => Promise<EmailAlertPrefs | null>;
 }
 
 export async function runIncidentWorker(req: Request, deps: IncidentWorkerDeps = { transportFor }): Promise<Response> {
+  const prefsFor = deps.prefsFor ?? readEmailAlertPrefs;
   if (req.method !== "POST") return json({ code: "METHOD_NOT_ALLOWED" }, 405, { allow: "POST" });
   const env = readEnv();
   if (!env) return failResponse(fail("UNAVAILABLE"));
@@ -220,7 +255,18 @@ export async function runIncidentWorker(req: Request, deps: IncidentWorkerDeps =
       continue;
     }
 
-    // Still broken at 15 minutes. Whether this owner can be reached is the transport's to say.
+    // Still broken at 15 minutes. The person's own switches first (spec 10: "recheck ... notification permission/preferences"
+    // at dispatch): Email Alerts off records the alert unavailable for that reason and sends nothing. The in-app status is
+    // unaffected either way.
+    let prefs: EmailAlertPrefs | null;
+    try { prefs = await prefsFor(env, a.owner_id); } catch { prefs = null; }
+    if (prefs === null) { counts.deferred++; continue; } // unreadable: still pending; the lease brings it back
+    if (!prefs.alerts) {
+      if (await settle(env, a, "unavailable", "email_alerts_off")) counts.unavailable++;
+      else counts.lost++;
+      continue;
+    }
+    // Whether this owner can be reached is the transport's to say.
     let found: AlertTransport | NoTransport | null;
     try { found = await deps.transportFor(env, a.owner_id); } catch { counts.deferred++; continue; } // still pending; the lease brings it back
     if (!found || "unavailable" in found) {
@@ -232,7 +278,7 @@ export async function runIncidentWorker(req: Request, deps: IncidentWorkerDeps =
     // Marked before the call: a send that may have left is never sent again.
     if (!(await settle(env, a, "unknown", "dispatching"))) { counts.lost++; continue; }
     let outcome: AlertOutcome;
-    try { outcome = await transport.send({ text: INCIDENT_ALERT_TEXT, kind: "connection" }); } catch { outcome = "unknown"; }
+    try { outcome = await transport.send({ text: alertTextFor(prefs, address), kind: "connection" }); } catch { outcome = "unknown"; }
     if (outcome === "unknown") { counts.unknown++; continue; }
     if (await settle(env, a, outcome, null)) counts[outcome]++;
     else counts.unknown++;

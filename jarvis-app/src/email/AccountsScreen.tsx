@@ -14,13 +14,20 @@ import { ACCOUNTS_TITLE, ADD_GMAIL, CATCHING_UP, DRAFTS_AND_SENT, EDIT_SIGNATURE
 import EmailFacts from "./EmailFacts";
 import { checkedFacts, isCatchingUp, type EmailFact } from "./format";
 import type { EmailAccount } from "./emailClient";
-import type { ClientView } from "../connections/connectionStatus";
+import type { AccountStatus, ClientView } from "../connections/connectionStatus";
 import type { RpcClient } from "../substrate/commands/errors";
 import EmptyState from "./EmptyState";
 import SignatureSheet from "./SignatureSheet";
+import AccountStatusSheet, { STATUS_SHEET_TITLE } from "./AccountStatusSheet";
 
-export default function AccountsScreen({ accounts, views, client, userId, onBack, onOpenConnections, onOpenDrafts, onSignatureSaved }: {
+export default function AccountsScreen({ accounts, views, statuses, client, userId, onBack, onOpenConnections, onReconnect, onRetrySync, onOpenDrafts, onSignatureSaved }: {
   accounts: EmailAccount[];
+  /** The server's answer per account (sendReady, delivery), for the status sheet's Sending row. */
+  statuses?: readonly AccountStatus[];
+  /** The one-tap reconnect for an exact address (useReconnect.start), the same path as the banner's. Absent: the head goes to Connections. */
+  onReconnect?: (email: string) => void;
+  /** Catch the mailboxes up now (the status sheet's Retry Sync). */
+  onRetrySync?: () => void;
   /** The proven status of each mailbox (Foundation Fix Spec 1), keyed by lowercase address. When there is one it speaks for the mailbox; the cache row's own state is only the answer until the first proof arrives. */
   views?: ReadonlyMap<string, ClientView>;
   /** The session's client, for the signature editor's one RPC. No client, no menu: a row with no working door to open is not offered one. */
@@ -35,7 +42,18 @@ export default function AccountsScreen({ accounts, views, client, userId, onBack
 }) {
   const [menuFor, setMenuFor] = useState<EmailAccount | null>(null);
   const [editing, setEditing] = useState<EmailAccount | null>(null);
+  const [statusFor, setStatusFor] = useState<EmailAccount | null>(null);
+  const needsReconnect = (a: EmailAccount) => {
+    if (a.state === "disconnected") return false;
+    const v = views?.get(a.address.toLowerCase());
+    return v ? v.offerReconnect : a.state === "reauth";
+  };
+  const stuck = accounts.find(needsReconnect) ?? null;
   const needsReauth = views && views.size > 0 ? [...views.values()].some((v) => v.offerReconnect) : accounts.some((a) => a.state === "reauth");
+  // Reconnect in one tap (2026-10-12): the head's Reconnect opens Google for the exact mailbox that needs it, as the banner
+  // does. Add Gmail, and a build with no one-tap path, still go to Connections.
+  const headAction = () => (needsReauth && stuck && onReconnect ? onReconnect(stuck.address) : onOpenConnections());
+  const statusOf = (a: EmailAccount) => statuses?.find((s) => s.email.toLowerCase() === a.address.toLowerCase());
   return (
     <div className="screen ruled">
       <PageHeader title={ACCOUNTS_TITLE} back={EMAIL_TITLE} onBack={onBack} />
@@ -55,7 +73,7 @@ export default function AccountsScreen({ accounts, views, client, userId, onBack
               column, as every section head does, so its title lines up with the card's edge. */}
           <div className="sh2 sh2-quiet">
             <span className="t">{MAILBOXES}</span><span className="n">{accounts.length}</span>
-            <button className="see-all pill-action" onClick={onOpenConnections}>{needsReauth ? RECONNECT : ADD_GMAIL}</button>
+            <button className="see-all pill-action" onClick={headAction}>{needsReauth ? RECONNECT : ADD_GMAIL}</button>
           </div>
           <div className="pad-x">
             <div className="card list-card-ruled">
@@ -80,8 +98,9 @@ export default function AccountsScreen({ accounts, views, client, userId, onBack
                       {a.sync_error && a.state !== "disconnected" && <EmailFacts wrap facts={[{ text: a.sync_error, tone: "warn" }]} />}
                     </div>
                     {/* 2026-10-10: a quiet trailing door, never the row's own tap target (that still opens
-                        Connections). No client, no menu: a row with nothing that can work is not offered one. */}
-                    {client && <RowMenuButton what={a.address} onMenu={() => setMenuFor(a)} />}
+                        Connections). It holds the signature editor (with a client) and the status sheet (with a proven
+                        status); a row with nothing in it that can work is not offered one. */}
+                    {(client || views) && <RowMenuButton what={a.address} onMenu={() => setMenuFor(a)} />}
                   </div>
                 );
               })}
@@ -93,7 +112,15 @@ export default function AccountsScreen({ accounts, views, client, userId, onBack
       )}
       <div className="screen-foot" />
       {menuFor && (
-        <RowActionSheet title={menuFor.address} actions={[{ label: EDIT_SIGNATURE, onPick: () => setEditing(menuFor) }]} onCancel={() => setMenuFor(null)} />
+        <RowActionSheet title={menuFor.address} actions={[
+          // The status sheet (spec 2.5, 8.1): Sign-In, Sync and Sending as three separate rows.
+          ...(menuFor.state !== "disconnected" ? [{ label: STATUS_SHEET_TITLE, onPick: () => setStatusFor(menuFor) }] : []),
+          ...(client ? [{ label: EDIT_SIGNATURE, onPick: () => setEditing(menuFor) }] : []),
+        ]} onCancel={() => setMenuFor(null)} />
+      )}
+      {statusFor && (
+        <AccountStatusSheet account={statusFor} view={views?.get(statusFor.address.toLowerCase())} status={statusOf(statusFor)}
+          {...(onReconnect ? { onReconnect } : {})} {...(onRetrySync ? { onRetrySync } : {})} onClose={() => setStatusFor(null)} />
       )}
       {editing && client && (
         <SignatureSheet client={client} userId={userId ?? ""} account={editing} onClose={() => { setEditing(null); setMenuFor(null); }}

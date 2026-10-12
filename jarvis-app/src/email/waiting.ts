@@ -17,6 +17,7 @@ import type { Candidate } from "./candidates";
 import type { DraftRow } from "./drafts";
 import { fmtTime } from "../schedule/calendar";
 import type { EmailFact } from "./format";
+import { isAutoSubject } from "./autoReply";
 
 export interface WaitingWrite {
   action_id?: string | null;
@@ -63,7 +64,7 @@ export type EmailFocus = { kind: "candidates" } | { kind: "paused" } | { kind: "
 export const threadMessages = (client: RpcClient, thread: string, accountId: string | null = null) =>
   callCommand<ThreadMessage[]>(client, "thread_messages", { p_thread: thread, p_account: accountId });
 
-export interface LatestInThread { message_id: string; internal_date: string; from_address: string; from_name: string; subject: string; account_id: string }
+export interface LatestInThread { message_id: string; internal_date: string; from_address: string; from_name: string; subject: string; account_id: string; auto_reply?: boolean }
 export const threadsLatest = (client: RpcClient, threads: string[]) =>
   callCommand<Record<string, LatestInThread>>(client, "threads_latest", { p_threads: threads });
 
@@ -143,9 +144,12 @@ export function followUpState(followUpOn: string | undefined, today: string): Fo
   return n < 0 ? "overdue" : n === 0 ? "today" : "upcoming";
 }
 
-/** A reply is a newer cached message in the thread from someone other than the person. It is shown, never acted on. */
+/** A reply is a newer cached message in the thread from someone other than the person. It is shown, never acted on.
+ *  An automatic reply (an out-of-office, a vacation responder) is not one (spec 5.3): threads_latest skips them once
+ *  migration 0071 is applied, and the subject fallback here says the same thing about a database without it. */
 export function newReply(item: Pick<WaitingData, "startedAt" | "threadId" | "status">, latest: LatestInThread | undefined, own: readonly string[]): LatestInThread | null {
   if (!latest || !item.threadId || item.status !== "open") return null;
+  if (latest.auto_reply === true || isAutoSubject(latest.subject)) return null;
   if (Date.parse(latest.internal_date) <= Date.parse(item.startedAt)) return null;
   const mine = new Set(own.map((a) => a.toLowerCase()));
   if (mine.has(latest.from_address.toLowerCase())) return null;

@@ -19,7 +19,7 @@ import type { WaitingData, WaitingItem } from "../substrate/waiting/types";
 import { monthDay } from "../money/bills";
 import {
   ACCOUNT_LABEL, CLEAR_DATE, DELETE_WAITING, DRAFT_FOLLOW_UP, EMAIL_TITLE, FOLLOW_UP_DATE, FOR_LABEL, NEW_REPLY, NO_RECIPIENT, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, PICK_RECIPIENT, REOPEN,
-  RESOLUTION_NOTE, RESOLUTION_NOTE_LABEL, RESOLVE, RESOLVED_WORD, REVIEW_REPLY, SINCE, SOURCE_DELETED, SOURCE_DISCONNECTED, SOURCE_MESSAGE, TRACKED_FROM, WAITED, WAITING_ON, WAITING_TITLE,
+  ORIGINAL_UNAVAILABLE, READING_THREAD, RESOLUTION_NOTE, RESOLUTION_NOTE_LABEL, RESOLVE, RESOLVED_WORD, REVIEW_REPLY, SINCE, SOURCE_DELETED, SOURCE_DISCONNECTED, SOURCE_MESSAGE, TRACKED_FROM, WAITED, WAITING_ON, WAITING_TITLE,
 } from "./copy";
 import EmailFacts from "./EmailFacts";
 import { whenFacts, whenWords } from "./format";
@@ -49,6 +49,9 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
   const d = item.data;
   const [thread, setThread] = useState<ThreadMessage[] | null>(null);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
+  // A read that failed is a state of its own (spec 5.3, "Original email unavailable"), never a button left greyed forever.
+  const [threadFailed, setThreadFailed] = useState(false);
+  const [evidenceFailed, setEvidenceFailed] = useState(false);
   const [note, setNote] = useState("");
   const [noting, setNoting] = useState(false);
   const [date, setDate] = useState(d.followUpOn ?? "");
@@ -59,8 +62,10 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
 
   useEffect(() => {
     let alive = true;
-    if (d.threadId) void threadMessages(client, d.threadId).then((r) => { if (alive && r.ok) setThread(r.value); });
-    if (d.sourceEvidenceId) void readEvidence(client, d.sourceEvidenceId).then((r) => { if (alive && r.ok) setEvidence(r.value); });
+    setThreadFailed(false);
+    setEvidenceFailed(false);
+    if (d.threadId) void threadMessages(client, d.threadId).then((r) => { if (!alive) return; if (r.ok) setThread(r.value); else setThreadFailed(true); }).catch(() => { if (alive) setThreadFailed(true); });
+    if (d.sourceEvidenceId) void readEvidence(client, d.sourceEvidenceId).then((r) => { if (!alive) return; if (r.ok) setEvidence(r.value); else setEvidenceFailed(true); }).catch(() => { if (alive) setEvidenceFailed(true); });
     return () => { alive = false; };
   }, [client, d.threadId, d.sourceEvidenceId]);
   useEffect(() => { setDate(d.followUpOn ?? ""); }, [d.followUpOn]);
@@ -91,6 +96,12 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
   const fu = followUpWord(d.followUpOn, today);
   const age = ageWord(d.startedAt, today, zone);
 
+  // Still reading the thread: the button waits, and says so on itself. Read, failed, or no thread at all: it opens the
+  // composer, with the thread's own address when there is one and an empty To (and the line that says why) when not.
+  const readingThread = !!d.threadId && thread === null && !threadFailed;
+  const evidenceShown = !!evidence && (evidence.availability === "deleted" || evidence.availability === "disconnected");
+  const sourceGone = !!d.threadId && thread !== null && !(source && !source.deleted);
+  const unavailable = !evidenceShown && (threadFailed || evidenceFailed || (sourceGone && !evidence));
   const draftFollowUp = () => {
     const to = followUpRecipients(thread ?? [], own);
     const newest = thread?.[0] ?? null;
@@ -140,6 +151,7 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="eyebrow email-eyebrow">{TRACKED_FROM}</div>
         {evidence && <div className="email-quote">{evidence.excerpt}</div>}
+        {unavailable && <div className="email-note quiet" data-source="unavailable"><span>{ORIGINAL_UNAVAILABLE}</span></div>}
         {evidence?.availability === "deleted" && <div className="email-note quiet"><span>{SOURCE_DELETED}</span></div>}
         {evidence?.availability === "disconnected" && <div className="email-note quiet"><span>{SOURCE_DISCONNECTED}</span></div>}
         {source && !source.deleted && <div className="row" {...rowDoor(() => onOpenMessage(source.id))}><div className="row-grow"><div className="conn-name">{SOURCE_MESSAGE}</div></div><div className="chev"></div></div>}
@@ -155,7 +167,7 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
       <div className="email-sheet-acts email-compose-acts">
         <button className="btn btn-primary" onClick={() => void (d.status === "open" ? resolve() : reopen())} disabled={busy !== null || offline}>{d.status === "open" ? RESOLVE : REOPEN}</button>
         {d.status === "open" && !noting && <button className="quiet-action" onClick={() => setNoting(true)}>{RESOLUTION_NOTE}</button>}
-        <button className="quiet-action" onClick={draftFollowUp} disabled={offline || thread === null && !!d.threadId}>{DRAFT_FOLLOW_UP}</button>
+        <button className="quiet-action" onClick={draftFollowUp} disabled={readingThread}>{readingThread ? READING_THREAD : DRAFT_FOLLOW_UP}</button>
         {/* A resolved record can be deleted: the destructive verb is the last of the quiet actions, red only because it
             deletes (Undo is on the toast, so no confirm). An open record has no Delete here. */}
         {d.status === "resolved" && onDelete && <button className="quiet-action btn-danger-text" onClick={onDelete} disabled={busy !== null || offline}>{DELETE_WAITING}</button>}

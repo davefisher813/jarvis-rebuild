@@ -33,7 +33,8 @@ export const NOT_SYNCED = "Not Synced Yet";
 // Email v1 spec 8.1 and AC39: connected is not current. While the 90-day window is still being listed and reconciled, the
 // header says so, never a time and never "Nothing in Your Inbox". When it is current, the time it was checked.
 export const CATCHING_UP = "Catching Up on Mail";
-export const CHECKED = "Checked";
+// Spec microcopy (3.1, 2026-10-12): the home freshness reads "Last Checked 9:12 AM".
+export const CHECKED = "Last Checked";
 
 // Empty states: each one carries its action (law L7). 2026-10-05: every sub is Title Case, like every other line the
 // app writes ("New mail lands here" was sentence case); the casing boundary names only chat, note bodies, onboarding and field notes.
@@ -291,6 +292,10 @@ export const SOURCE_DISCONNECTED = "Mailbox Disconnected · Excerpt Kept";
 export const TRACKED_FROM = "Tracked from an Email";
 export const PICK_RECIPIENT = "Pick the Address from the Source";
 export const NO_RECIPIENT = "No Address in the Source · Type One";
+/** Spec 5.3: the thread or the excerpt could not be read, and the approved record survives it. */
+export const ORIGINAL_UNAVAILABLE = "Original Email Unavailable";
+/** Draft Follow-Up while the thread is still being read: a greyed button says why. */
+export const READING_THREAD = "Reading the Thread";
 // 2026-10-05: FOLLOW_UP_IS_LOCAL and REPLY_NEVER_RESOLVES are gone, and NO_FOLLOW_UP with them. Two described how the
 // app works (a manual under the page, true on an empty database) and one said "no date" under an empty date field (a
 // placeholder that states nothing). The behaviour is unchanged: a reply is shown and never closes anything, and a

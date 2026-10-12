@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { isAutoReplyHeaders } from "./autoReply";
 import { ageWord, daysBetween, emailTodayRows, followUpRecipients, followUpState, localDate, newReply, orderWaiting, pausedLine, type ThreadMessage } from "./waiting";
 import type { WaitingItem } from "../substrate/waiting/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -46,6 +47,18 @@ describe("New Reply and the follow-up's address (E12, E14)", () => {
     expect(newReply(item, { ...latest, internal_date: "2026-10-02T15:00:00Z" }, [])).toBeNull();
     expect(newReply({ ...item, status: "resolved" }, latest, [])).toBeNull();
     expect(newReply(item, undefined, [])).toBeNull();
+  });
+  it("an automatic reply is not a New Reply (spec 5.3): the auto_reply fact (0071), or a subject that starts like one", () => {
+    const item = { startedAt: "2026-10-02T15:10:00Z", threadId: "t-a2", status: "open" as const };
+    expect(newReply(item, { ...latest, auto_reply: true }, [])).toBeNull();
+    for (const subject of ["Automatic reply: Transcript", "Out of Office: Re: Transcript", "out of the office until Monday", "Auto: Away", "AutoReply: Transcript", "Auto-Reply: Transcript"]) {
+      expect(newReply(item, { ...latest, subject }, []), subject).toBeNull();
+    }
+    // Conservative: only a subject that STARTS with the marker. A person writing about office hours is still a reply.
+    expect(newReply(item, { ...latest, subject: "Re: Out of office hours next week" }, [])).toEqual({ ...latest, subject: "Re: Out of office hours next week" });
+    expect(isAutoReplyHeaders("auto-replied", null)).toBe(true);
+    expect(isAutoReplyHeaders("no", "list")).toBe(false);
+    expect(isAutoReplyHeaders(null, "junk")).toBe(true);
   });
   it("recipients come from the thread's own senders, Reply-To first, never the person, each once", () => {
     const msg = (o: Partial<ThreadMessage>): ThreadMessage => ({ id: "m", account_id: "a", account: "dave@example.test", provider_id: "p", thread_id: "t", internal_date: "2026-10-03T00:00:00Z", from_address: "coach@example.test", from_name: "Coach", to_addresses: [], cc_addresses: [], subject: "", snippet: "", has_body: true, deleted: false, source_hash: "s", reply_to: "", message_id_header: "", references: [], ...o });

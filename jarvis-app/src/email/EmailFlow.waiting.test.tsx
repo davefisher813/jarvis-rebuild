@@ -17,7 +17,7 @@ import EmailFlow from "./EmailFlow";
 import { WaitingService } from "../substrate/waiting/WaitingService";
 import { TasksService } from "../tasks/TasksService";
 import { ScheduleService } from "../schedule/ScheduleService";
-import { CLEAR_DATE, DELETE_WAITING, DRAFT_FOLLOW_UP, FOLLOW_UP_DATE, NEW_REPLY, PICK_RECIPIENT, REOPEN, RESOLVE, REVIEW_LIST_TITLE, REVIEW_REPLY, SOURCE_DELETED } from "./copy";
+import { CLEAR_DATE, DELETE_WAITING, DRAFT_FOLLOW_UP, FOLLOW_UP_DATE, NEW_REPLY, NO_RECIPIENT, ORIGINAL_UNAVAILABLE, PICK_RECIPIENT, READING_THREAD, REOPEN, RESOLVE, REVIEW_LIST_TITLE, REVIEW_REPLY, SOURCE_DELETED } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import type { WaitingData } from "../substrate/waiting/types";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
@@ -43,11 +43,12 @@ interface Rig { client: RpcClient; calls: Array<{ fn: string; args: Record<strin
 
 const openItem = (o: Partial<WaitingData> = {}): WaitingData => ({ title: "Peña's Transcript", waitingFor: "the transcript", counterpartyDisplay: "Coach Miller", status: "open", startedAt: "2026-10-02T15:10:00Z", threadId: "t-a2", account: DAVE, sourceEvidenceId: "ev-1", ...o });
 
-function rig(o: { reply?: boolean; evidenceDeleted?: boolean; secondSender?: boolean } = {}): Rig {
+function rig(o: { reply?: boolean; evidenceDeleted?: boolean; secondSender?: boolean; threadDown?: boolean; threadHang?: boolean; evidenceDown?: boolean; autoReply?: boolean; twoAccounts?: boolean } = {}): Rig {
   const store = new Store(new InMemoryAdapter());
   const world: World = {
     store, waiting: new WaitingService(store, USER), tasks: new TasksService(store, USER), schedule: new ScheduleService(store, USER), actions: [],
     threads: { "t-a2": [
+      ...(o.autoReply ? [{ id: "u-m7", account_id: "acct-dave", account: DAVE, provider_id: "m7", thread_id: "t-a2", internal_date: "2026-10-03T14:30:00Z", from_address: "coach@example.test", from_name: "Coach Miller", to_addresses: [], cc_addresses: [], subject: "Automatic reply: Peña transcript", snippet: "I am away until Monday.", has_body: true, deleted: false, source_hash: "sh-7", reply_to: "", message_id_header: "<m7@example.test>", references: [] }] : []),
       ...(o.reply ? [{ id: "u-m9", account_id: "acct-dave", account: DAVE, provider_id: "m9", thread_id: "t-a2", internal_date: "2026-10-03T14:00:00Z", from_address: "coach@example.test", from_name: "Coach Miller", to_addresses: [], cc_addresses: [], subject: "Re: Peña transcript", snippet: "Sent it this morning.", has_body: true, deleted: false, source_hash: "sh-9", reply_to: "", message_id_header: "<m9@example.test>", references: ["<m2@example.test>"] }] : []),
       ...(o.secondSender ? [{ id: "u-m8", account_id: "acct-dave", account: DAVE, provider_id: "m8", thread_id: "t-a2", internal_date: "2026-10-02T18:00:00Z", from_address: "registrar@school.test", from_name: "Registrar", to_addresses: [], cc_addresses: [], subject: "Re: Peña transcript", snippet: "Looping in.", has_body: true, deleted: false, source_hash: "sh-8", reply_to: "", message_id_header: "<m8@example.test>", references: [] }] : []),
       { id: "u-m2", account_id: "acct-dave", account: DAVE, provider_id: "m2", thread_id: "t-a2", internal_date: "2026-10-02T15:05:00Z", from_address: "coach@example.test", from_name: "Coach Miller", to_addresses: [], cc_addresses: [], subject: "Re: Peña transcript", snippet: "I'll get it over.", has_body: true, deleted: !!o.evidenceDeleted, source_hash: "sh-1", reply_to: "", message_id_header: "<m2@example.test>", references: [] },
@@ -66,7 +67,7 @@ function rig(o: { reply?: boolean; evidenceDeleted?: boolean; secondSender?: boo
     return { action_id: `act-${world.actions.length}`, receipt_id: `r-${world.actions.length}`, item_id: id, item_updated_at: NOW.toISOString(), data, state: "confirmed", safe_message: verb };
   };
   const table: Record<string, Fn> = {
-    email_accounts: () => [account()],
+    email_accounts: () => (o.twoAccounts ? [account(), { ...account(), id: "acct-work", address: "dave@work.test" }] : [account()]),
     email_inbox: (a) => ({ rows: rows.slice(0, a.p_limit as number), cached_total: rows.length, page: a.p_limit }),
     email_message_read: (a) => { const r = rows.find((x) => x.id === a.p_message); return r ? detailOf(r) : { error: "NOT_FOUND" }; },
     substrate_readiness: () => ({ registered: ["money_bill", "money_receipt", "task", "event", "waiting"] }),
@@ -75,9 +76,9 @@ function rig(o: { reply?: boolean; evidenceDeleted?: boolean; secondSender?: boo
     waiting_resolve: (a) => written(a.p_item as string, { status: "resolved", resolvedAt: NOW.toISOString(), ...(a.p_note ? { resolutionNote: String(a.p_note) } : {}) }, [], "waiting_resolve", "Resolved · Peña's Transcript"),
     waiting_reopen: (a) => written(a.p_item as string, { status: "open" }, ["resolvedAt", "resolutionNote"], "waiting_reopen", "Reopened · Peña's Transcript"),
     waiting_follow_up: (a) => a.p_date ? written(a.p_item as string, { followUpOn: String(a.p_date) }, [], "waiting_follow_up", `Follow Up ${a.p_date} · Peña's Transcript`) : written(a.p_item as string, {}, ["followUpOn"], "waiting_follow_up", "Follow Up Cleared · Peña's Transcript"),
-    thread_messages: (a) => world.threads[a.p_thread as string] ?? [],
+    thread_messages: (a) => (o.threadHang ? new Promise(() => {}) : o.threadDown ? { error: "UNAVAILABLE" } : world.threads[a.p_thread as string] ?? []),
     threads_latest: (a) => Object.fromEntries((a.p_threads as string[]).flatMap((t) => { const m = (world.threads[t] ?? []).filter((x) => !x.deleted)[0]; return m ? [[t, { message_id: m.id, internal_date: m.internal_date, from_address: m.from_address, from_name: m.from_name, subject: m.subject, account_id: m.account_id }]] : []; })),
-    evidence_read: (a) => world.evidence[a.p_evidence as string] ?? { error: "NOT_FOUND" },
+    evidence_read: (a) => (o.evidenceDown ? { error: "UNAVAILABLE" } : world.evidence[a.p_evidence as string] ?? { error: "NOT_FOUND" }),
     candidate_review_count: () => ({ count: 0, messages: 0 }),
     draft_save: (a) => ({ draft_id: "d-1", revision: 1, saved_at: NOW.toISOString(), send_state: "draft", fields: a.p_fields }),
   };
@@ -232,6 +233,65 @@ describe("E14: Draft Follow-Up", () => {
     expect(await screen.findByText(PICK_RECIPIENT)).toBeInTheDocument();
     fireEvent.click(screen.getByText("registrar@school.test"));
     await waitFor(() => expect(screen.getByLabelText("To")).toHaveValue("registrar@school.test"));
+  });
+});
+
+describe("V12 (2026-10-12): Waiting never dead-ends, and a machine's answer is not a reply", () => {
+  const open = async (r: Rig) => {
+    const id = await r.world.waiting.create(openItem());
+    mount(r);
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Waiting" })).toBeInTheDocument());
+    await goWaiting();
+    return id;
+  };
+
+  it("a thread that cannot be read: Original Email Unavailable, and Draft Follow-Up still opens the composer with an empty To and the reason", async () => {
+    const r = rig({ threadDown: true, evidenceDown: true });
+    const id = await open(r);
+    fireEvent.click(document.querySelector(`[data-waiting='${id}']`) as HTMLElement);
+    expect(await screen.findByText(ORIGINAL_UNAVAILABLE)).toBeInTheDocument();
+    const btn = await screen.findByRole("button", { name: DRAFT_FOLLOW_UP });
+    expect(btn).toBeEnabled();
+    fireEvent.click(btn);
+    await waitFor(() => expect(screen.getByLabelText("To")).toHaveValue(""));
+    expect(toasts.some((t) => t.message === NO_RECIPIENT)).toBe(true);
+  });
+
+  it("while the thread is still being read, the greyed button says why on itself", async () => {
+    const r = rig({ threadHang: true });
+    const id = await open(r);
+    fireEvent.click(document.querySelector(`[data-waiting='${id}']`) as HTMLElement);
+    const btn = await screen.findByRole("button", { name: READING_THREAD });
+    expect(btn).toBeDisabled();
+    expect(screen.queryByRole("button", { name: DRAFT_FOLLOW_UP })).toBeNull();
+  });
+
+  it("a thread that reads fine says nothing about availability", async () => {
+    const r = rig();
+    const id = await open(r);
+    fireEvent.click(document.querySelector(`[data-waiting='${id}']`) as HTMLElement);
+    await waitFor(() => expect(screen.getByRole("button", { name: DRAFT_FOLLOW_UP })).toBeEnabled());
+    expect(screen.queryByText(ORIGINAL_UNAVAILABLE)).toBeNull();
+  });
+
+  it("an out-of-office answer is not New Reply, on the list or the record (spec 5.3)", async () => {
+    const r = rig({ autoReply: true });
+    const id = await open(r);
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "threads_latest")).toBe(true));
+    const rowEl = document.querySelector(`[data-waiting='${id}']`) as HTMLElement;
+    expect(rowEl).not.toHaveTextContent(NEW_REPLY);
+    fireEvent.click(rowEl);
+    await screen.findByRole("button", { name: RESOLVE });
+    expect(screen.queryByText(NEW_REPLY)).toBeNull();
+  });
+
+  it("with two mailboxes each row says which one it came from, as a small-caps fact beside the one grey", async () => {
+    const r = rig({ twoAccounts: true });
+    const id = await open(r);
+    const rowEl = await waitFor(() => { const x = document.querySelector(`[data-waiting='${id}']`) as HTMLElement; expect(x.querySelectorAll(".fact.date").length).toBe(2); return x; });
+    const facts = [...rowEl.querySelectorAll(".conn-meta .fact")];
+    expect(facts.map((f) => f.textContent)).toContain("example.test");
+    expect(rowEl.querySelectorAll(".conn-meta .fact:not(.date):not(.warn):not(.red):not(.good)")).toHaveLength(1);
   });
 });
 

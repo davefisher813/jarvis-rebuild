@@ -75,7 +75,7 @@ import {
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
 import { accountLabels, dayGroups, homeFreshness, isCatchingUp, senderOf } from "./format";
-import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, loadOverrides, loadView, loadedWord, moveToSection, saveView, sameContent as sameContentOf, sectionOf, type HomeView, type Overrides } from "./sections";
+import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, loadOverrides, loadView, loadedWord, recordMove, saveView, sameContent as sameContentOf, sectionOf, type HomeView, type Overrides } from "./sections";
 import { OP_OF, REVERSE, attentionLine, doneLine, pickOf, reasonsOf, runBatch, tally, type BatchOutcome, type Picked, type TrayVerb } from "./bulk";
 import MailSelectTray from "./MailSelectTray";
 import type { BatchOp } from "./emailClient";
@@ -94,11 +94,12 @@ import { isHeld, type HoldStatus } from "./drafts";
 import type { HeldSend } from "./sendHold";
 import DraftsScreen from "./DraftsScreen";
 import ConnectionBanner from "./ConnectionBanner";
+import { CHECK_SEND, OPEN_CONNECTIONS, RETRY_SYNC, VIEW_ACCOUNTS, statusHeadline, type HeadlineAction } from "./statusHeadline";
 import { useReconnect } from "./useReconnect";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
 import { bannerModels, recoveryNotes } from "../connections/incidentView";
-import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, pausedOpenTarget, reconcileSend, reopenDraft, replyFields, saveDraft, sendApproved, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
+import { emptyFields, fieldsOf, getDraft, listDrafts, newLocalKey, outcomeOf, pausedOpenTarget, reconcileSend, reopenDraft, replyFields, saveDraft, sendApproved, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
 import { localDate, pausedSends, reviewCount, reviewList, threadsLatest, type EmailFocus, type LatestInThread, type PausedSends } from "./waiting";
@@ -276,6 +277,10 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [reviewRows, setReviewRows] = useState<InboxRow[] | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [paused, setPaused] = useState<PausedSends | null>(null);
+  // How many replies are paused, read while a banner is up, so View Paused Actions is offered only when there is one to view.
+  const [pausedCount, setPausedCount] = useState<number | null>(null);
+  // The sent rows (draft_list), for the send tier of the headline: an unknown outcome is its own state (spec 8.1, 10).
+  const [sentRows, setSentRows] = useState<DraftRow[]>([]);
   const [pausedFailure, setPausedFailure] = useState<CommandFailure | null>(null);
   /** Waiting records this screen just saw saved, by id: shown at once, before the list's own cache catches up. */
   const tracked = useRef<Record<string, WaitingItem>>({});
@@ -700,7 +705,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // statement of the failure, and it carries the reconnect and the other two ways out itself.
   const incidents = useIncidentLedger(token ? userId : null);
   const banners = conn.answer ? bannerModels(conn.answer.accounts, incidents.ledger) : [];
-  const recovery = conn.answer ? recoveryNotes(conn.answer.accounts, incidents.ledger) : [];
+  // "Mail Up to Date" only when the mailbox's own sync state is current (spec 8.1), never on a finished page alone.
+  const recovery = conn.answer ? recoveryNotes(conn.answer.accounts, incidents.ledger, new Date(), (email) => accounts.find((a) => a.address.toLowerCase() === email)?.sync_state) : [];
   // ONE-TAP RECONNECT (Foundation Fix Spec 4): the banner's button opens Google for the exact account, and the server proves the
   // result before anything shows green. Without a Google session in this build it goes where it always went, to Connections.
   const google = useOptionalGoogle();
@@ -708,11 +714,20 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     token, reconnect: google ? google.reconnect : null, knownEmails: accounts.map((a) => a.address),
     refreshStatus: conn.refresh, catchUp: () => load("refresh"), fallback: onOpenConnections,
   });
-  const reauth = banners.length === 0 && (conn.answer ? conn.needsReconnect : accounts.some((a) => a.state === "reauth"));
-  // Anything short of connected that is not a reconnect: an outage, a throttle, a stale answer. It says what it is and offers nothing to tap.
-  const statusNote = banners.length === 0 && conn.worst && !conn.worst.view.offerReconnect && conn.worst.view.state !== "offline"
-    ? conn.worst.view.headline + (conn.worst.view.detail ? " · " + conn.worst.view.detail : "")
-    : null;
+  // THE ONE HEADLINE (spec 2.5, 8.1; 2026-10-12): user Pause or Remove, then authorization, then a send that needs
+  // checking, then catch-up or staleness, then the healthy timestamp the header already shows. While a banner is up it is
+  // the statement of the authorization or sync failure, so those two tiers draw nothing more; the person's own choice and
+  // an unknown send are different states (spec 2.9) and still say so.
+  const headline = statusHeadline({ accounts, views: conn.views, sent: sentRows, scope: accountFilter });
+  const headlineShown = headline.facts.length > 0 && !(banners.length > 0 && (headline.tier === "auth" || headline.tier === "sync"));
+  const runHeadline = (a: HeadlineAction) => {
+    if (a.kind === "reconnect") void reconnect.start(a.email);
+    else if (a.kind === "accounts") setScreen({ kind: "accounts" });
+    else if (a.kind === "connections") onOpenConnections();
+    else if (a.kind === "retry_sync") void load("refresh");
+    else { setCheckLine(null); setScreen({ kind: "outcome", draft: a.draft }); }
+  };
+  const headlineLabel = (a: HeadlineAction): string => (a.kind === "reconnect" ? RECONNECT : a.kind === "check_send" ? CHECK_SEND : a.kind === "retry_sync" ? RETRY_SYNC : a.kind === "connections" ? OPEN_CONNECTIONS : VIEW_ACCOUNTS);
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
 
   // ---- select mode (spec 11) --------------------------------------------------
@@ -903,6 +918,22 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     void reviewCount(client).then((r) => { if (alive && r.ok) setReviewTotal(Number(r.value.count) || 0); }).catch(() => {});
     return () => { alive = false; };
   }, [client, offline, cardsKey]);
+  // The sends whose outcome is unknown: read on arrival at the mail home, so a send checked elsewhere drops off when it is back.
+  useEffect(() => {
+    if (!client || offline || screen.kind !== "root") return;
+    let alive = true;
+    void listDrafts(client).then((r) => { if (alive && r.ok) setSentRows(r.value.sent ?? []); }).catch(() => {});
+    return () => { alive = false; };
+  }, [client, offline, screen.kind]);
+  const bannerUp = banners.length > 0;
+  useEffect(() => {
+    if (!client || offline || !bannerUp) return;
+    let alive = true;
+    void pausedSends(client).then((r) => { if (alive) setPausedCount(r.ok ? Number(r.value.count) || 0 : null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [client, offline, bannerUp]);
+  // Something is paused: the paused list says so, or (before it answers, or where it cannot) the status's own counts do.
+  const somethingPaused = pausedCount !== null ? pausedCount > 0 : banners.some((m) => m.pausedCount > 0);
   const openMessageById = async (id: string) => {
     if (!client) return;
     const r = await readMessage(client, id);
@@ -1050,8 +1081,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const moveSheet = movingRow ? (
     <RowActionSheet title={MOVE_TO_SECTION}
       actions={[
-        ...SECTION_KEYS.filter((k) => k !== sectionOf(movingRow, overrides)).map((k) => ({ label: SECTION_NAME[k], onPick: () => { setOverrides(moveToSection(userId, movingRow.id, k)); setMovingRow(null); } })),
-        ...(overrides[movingRow.id] ? [{ label: PUT_BACK_SECTION, onPick: () => { setOverrides(moveToSection(userId, movingRow.id, null)); setMovingRow(null); } }] : []),
+        ...SECTION_KEYS.filter((k) => k !== sectionOf(movingRow, overrides)).map((k) => ({ label: SECTION_NAME[k], onPick: () => { setOverrides(recordMove(userId, movingRow, k)); setMovingRow(null); } })),
+        ...(overrides[movingRow.id] ? [{ label: PUT_BACK_SECTION, onPick: () => { setOverrides(recordMove(userId, movingRow, null)); setMovingRow(null); } }] : []),
       ]}
       onCancel={() => setMovingRow(null)} />
   ) : null;
@@ -1100,7 +1131,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       return next;
     });
     return <div className={pushCls}>
-      <AccountsScreen accounts={accounts} views={conn.views} client={client} userId={userId} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} onSignatureSaved={onSignatureSaved} />
+      <AccountsScreen accounts={accounts} views={conn.views} statuses={conn.answer?.accounts} client={client} userId={userId} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections}
+        onReconnect={(email) => void reconnect.start(email)} onRetrySync={() => void load("refresh")} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} onSignatureSaved={onSignatureSaved} />
     </div>;
   }
   if (screen.kind === "waiting" && client) {
@@ -1244,9 +1276,16 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
       <div className={"email-pull" + (armed || refreshing ? " on" : "")} aria-hidden="true">{refreshing ? REFRESHING : PULL_HINT}</div>
       {offline && <div className="email-note quiet"><span>{OFFLINE_LINE}</span></div>}
-      <ConnectionBanner models={banners} notes={recovery} onReconnect={(email) => void reconnect.start(email)} busyEmail={reconnect.busy} outcome={reconnect.outcome} checking={reconnect.checking} onOutcomeAction={reconnect.act} {...(client ? { onViewPaused: () => setScreen({ kind: "drafts" }) } : {})} onAcknowledge={incidents.acknowledge} onSeen={incidents.seen} />
-      {reauth && <div className="email-note"><span>{REAUTH_LINE}</span><button className="quiet-action" onClick={onOpenConnections}>{RECONNECT}</button></div>}
-      {statusNote && <div className="email-note quiet"><span>{statusNote}</span></div>}
+      <ConnectionBanner models={banners} notes={recovery} onReconnect={(email) => void reconnect.start(email)} busyEmail={reconnect.busy} outcome={reconnect.outcome} checking={reconnect.checking} onOutcomeAction={reconnect.act} {...(client && somethingPaused ? { onViewPaused: openPaused } : {})} onAcknowledge={incidents.acknowledge} onSeen={incidents.seen} />
+      {/* Reconnect is one tap, the same path as the banner's (useReconnect), never a detour through Connections. */}
+      {headlineShown && headline.tier === "auth" && headline.action?.kind === "reconnect" ? (
+        <div className="email-note" data-headline="auth"><span>{REAUTH_LINE}</span><button className="quiet-action" onClick={() => runHeadline(headline.action!)} disabled={reconnect.busy !== null}>{RECONNECT}</button></div>
+      ) : headlineShown && (
+        <div className={"email-note" + (headline.action ? "" : " quiet")} data-headline={headline.tier}>
+          <EmailFacts facts={headline.facts} />
+          {headline.action && <button className="quiet-action" onClick={() => runHeadline(headline.action!)}>{headlineLabel(headline.action)}</button>}
+        </div>
+      )}
       {issueLines.map((l) => <div className="email-note quiet" key={l}><span>{l}</span></div>)}
       {error && rows.length > 0 && <div className="email-note quiet"><span>{REFRESH_FAILED}</span><button className="quiet-action" onClick={() => void load("refresh")}>{RETRY}</button></div>}
 

@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor, render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { useReconnect, type ReconnectDeps } from "./useReconnect";
+import { RECONNECT_FALLBACK_LINE, useReconnect, type ReconnectDeps } from "./useReconnect";
 import ConnectionBanner from "./ConnectionBanner";
 import { ReconnectCancelled, ReconnectDenied, ReconnectOutcomeError, writePending, readPending } from "../connections/google/reconnect";
 
@@ -75,7 +75,7 @@ describe("the tap", () => {
     expect(result.current.outcome!.copy.actions).not.toContain("finish");
   });
 
-  it("Not Now puts it away, Try Again starts a fresh attempt, and a second tap while one is open is refused by the button being disabled", async () => {
+  it("Not Now puts it away, Reconnect starts a fresh attempt, and a second tap while one is open is refused by the button being disabled", async () => {
     const d = deps({ reconnect: vi.fn(async () => { throw new ReconnectOutcomeError("unverified", DAVE, { retryable: true }); }) });
     const { result } = renderHook(() => useReconnect(d));
     await act(async () => { await result.current.start(DAVE); });
@@ -84,6 +84,17 @@ describe("the tap", () => {
     await act(async () => { await result.current.start(DAVE); });
     await act(async () => { result.current.act("retry"); });
     await waitFor(() => expect(d.reconnect).toHaveBeenCalledTimes(3));
+  });
+});
+
+describe("an error with nothing to say", () => {
+  it("says what to do, in Title Case, never a bare \"Try again.\"", async () => {
+    const d = deps({ reconnect: vi.fn(async () => { throw new Error(""); }) });
+    const { result } = renderHook(() => useReconnect(d));
+    await act(async () => { await result.current.start(DAVE); });
+    expect(result.current.outcome!.copy.lines).toEqual([RECONNECT_FALLBACK_LINE]);
+    expect(RECONNECT_FALLBACK_LINE).toBe("Tap Reconnect to Open Google Again");
+    expect(result.current.outcome!.copy.actions).toEqual(["retry", "not_now"]);
   });
 });
 
@@ -137,7 +148,7 @@ describe("a killed app, on reopen", () => {
 });
 
 describe("the banner draws it", () => {
-  const model = { incidentId: "JC-1", email: DAVE, kind: "auth" as const, title: "Gmail Needs Reconnecting", address: DAVE, lines: ["Mail last updated Oct 6 at 8:12 PM.", "New mail may be missing."] as [string, string], paused: null, reconnect: true, strip: false };
+  const model = { incidentId: "JC-1", email: DAVE, kind: "auth" as const, title: "Gmail Needs Reconnecting", address: DAVE, lines: ["Mail last updated Oct 6 at 8:12 PM.", "New mail may be missing."] as [string, string], paused: null, pausedCount: 0, reconnect: true, strip: false };
 
   it("the button names the exact account, and is disabled while one reconnect is open", () => {
     const onReconnect = vi.fn();
@@ -148,13 +159,16 @@ describe("the banner draws it", () => {
     expect(screen.getByText("Connecting")).toBeDisabled();
   });
 
-  it("the wrong-account card is three short lines with Try Again and Not Now, and the red banner stays above it", () => {
+  it("the wrong-account card is three short lines with Reconnect and Not Now, and the amber banner stays above it", () => {
     const onOutcomeAction = vi.fn();
     render(<ConnectionBanner models={[model]} notes={[]} onReconnect={() => {}} onAcknowledge={() => {}} onSeen={() => {}} onOutcomeAction={onOutcomeAction}
       outcome={{ email: DAVE, status: "wrong_account", copy: { title: "That's a Different Google Account", lines: ["You selected other@gmail.com.", `JARVIS is reconnecting ${DAVE}.`], actions: ["retry", "not_now"] } }} />);
     expect(screen.getByText("That's a Different Google Account")).toBeInTheDocument();
     expect(screen.getByText("You selected other@gmail.com.")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveClass("conn-banner");
+    // "Try again" must not ambiguously resend (spec 2.6): the retry says what it does.
+    const outcome = screen.getByText("That's a Different Google Account").closest(".conn-outcome")!;
+    expect([...outcome.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Reconnect", "Not Now"]);
     fireEvent.click(screen.getByText("Not Now"));
     expect(onOutcomeAction).toHaveBeenCalledWith("not_now");
   });

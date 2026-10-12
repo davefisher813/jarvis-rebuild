@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EmailFlow, { CRAWL_MAX_IDLE, CRAWL_MAX_ROUNDS } from "./EmailFlow";
-import { EMPTY_INBOX, OFFLINE_LINE, REAUTH_LINE, RECONNECT, READ_CONFLICT, READ_FAILED, EMPTY_SEARCH, SEARCH_FAILED, EMPTY_FILTER, EMPTY_WAITING, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, GENERIC_WHY, ATTACHMENT_TOO_BIG, IMAGES_OFF, SHOW_IMAGES, ARCHIVED, UNDO, UNSUPPORTED_ACTION, RETENTION_NOTE, LOAD_MORE, STATE_WORD } from "./copy";
+import { EMPTY_INBOX, OFFLINE_LINE, REAUTH_LINE, RECONNECT, READ_CONFLICT, READ_FAILED, EMPTY_SEARCH, SEARCH_FAILED, EMPTY_FILTER, EMPTY_WAITING, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, GENERIC_WHY, ATTACHMENT_TOO_BIG, IMAGES_OFF, SHOW_IMAGES, ARCHIVED, UNDO, UNSUPPORTED_ACTION, RETENTION_NOTE, LOAD_MORE, STATE_WORD, PAUSED_TITLE, UNKNOWN_TITLE } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import { newestFirst } from "./emailClient";
 import { saveSnapshot } from "./deviceCache";
@@ -24,6 +24,9 @@ import { saveView } from "./sections";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 import type { Category } from "../categories/types";
 import { deriveStatus } from "../connections/connectionStatus";
+import { PAUSED_LABEL } from "../connections/incidentView";
+import { emptyFields } from "./drafts";
+import { CHECK_SEND, SEND_NEEDS_CHECKING } from "./statusHeadline";
 
 const NOW = new Date("2026-10-03T15:00:00Z");
 const USER = "user-1";
@@ -127,9 +130,9 @@ describe("M1: the inbox", () => {
     expect(r.posts.filter((p) => p.path.endsWith("/api/email/sync")).map((p) => p.body.email).sort()).toEqual([DAVE, WORK]);
     expect(r.calls.filter((c) => c.fn === "email_inbox").length).toBe(1);
     expect(screen.getByText("That's everything.")).toBeInTheDocument();
-    // Spec 3.1, "Checked 9:12 AM": two facts and no middle dot in a string; the word is the line's one grey, the clock small caps.
+    // Spec 3.1, "Last Checked 9:12 AM": two facts and no middle dot in a string; the word is the line's one grey, the clock small caps.
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Last Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
     expect(fresh[1]).toHaveClass("date");
     // The account picker beside it names the mailboxes it shows.
     expect(document.querySelector(".email-acct")).toHaveTextContent("All Accounts");
@@ -362,7 +365,7 @@ describe("E21, E22, E28: accounts and states", () => {
     incident: { id: "JC-0A1B2C3D", kind: "auth", openedAt: "2026-10-07T09:00:00.000Z", cause: null }, paused: { replies: 2, other: 1 }, ...extra,
   });
 
-  it("a confirmed loss is a red banner at the top: the exact words, the three ways out, no dismiss, and it replaces the quieter note", async () => {
+  it("a confirmed loss is an amber banner at the top: the exact words, the three ways out, no dismiss, and it replaces the quieter note", async () => {
     const r = rig({ routes: statusRoute(lostAccount()) });
     const { onOpenConnections } = mount(r);
     const banner = await screen.findByRole("alert");
@@ -409,6 +412,46 @@ describe("E21, E22, E28: accounts and states", () => {
     expect(within(banner).queryByText(/^Reconnect /)).toBeNull();
   });
 
+  it("the banner is amber (Banner color: Dave ruled AMBER, 2026-10-12), and View Paused Actions opens the paused replies list", async () => {
+    const draft = { ...emptyFields(), id: "d-1", account_id: "acct-dave", account: DAVE, to_addresses: ["coach@example.test"], subject: "Re: Roster", body_text: "Tuesday works.", send_state: "draft", saved_at: NOW.toISOString(), revision: 3, updated_at: NOW.toISOString(), sent_action_id: null, provider_message_id: null, action_state: null, action_verb: null, outbox_state: null, error_code: null, provider_ack: null, paused_reason: "PROVIDER_AUTH", is_reply: true };
+    const r = rig({ routes: statusRoute(lostAccount()), rpc: { paused_sends: () => ({ count: 1, replies: 1, drafts: [draft] }) } });
+    mount(r);
+    const banner = await screen.findByRole("alert");
+    fireEvent.click(within(banner).getByText(PAUSED_LABEL));
+    await waitFor(() => expect(screen.getAllByText(PAUSED_TITLE).length).toBeGreaterThan(0));
+    await waitFor(() => expect(document.querySelector('[data-paused="d-1"]')).toBeTruthy());
+  });
+
+  it("with nothing paused there is no View Paused Actions: a button to an empty list is not offered", async () => {
+    const r = rig({ routes: statusRoute(lostAccount({ paused: { replies: 0, other: 0 } })), rpc: { paused_sends: () => ({ count: 0, replies: 0, drafts: [] }) } });
+    mount(r);
+    const banner = await screen.findByRole("alert");
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "paused_sends")).toBe(true));
+    expect(within(banner).queryByText(PAUSED_LABEL)).toBeNull();
+    expect([...banner.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Reconnect dave@example.test", "Open Gmail"]);
+  });
+
+  it("a send whose outcome is unknown is its own headline, A Send Needs Checking, and Check Send opens its Check Again screen", async () => {
+    const unknown = { ...emptyFields(), id: "d-9", account_id: "acct-dave", account: DAVE, to_addresses: ["coach@example.test"], subject: "Re: Bus", body_text: "7.", send_state: "unknown", saved_at: NOW.toISOString(), revision: 2, updated_at: NOW.toISOString(), sent_action_id: "act-9", provider_message_id: null, action_state: "outcome_unknown", action_verb: null, outbox_state: "outcome_unknown", error_code: null, provider_ack: null };
+    const r = rig({ rpc: { draft_list: () => ({ drafts: [], sent: [unknown] }) } });
+    mount(r);
+    const note = await waitFor(() => { const n = document.querySelector('[data-headline="send"]') as HTMLElement; expect(n).toBeTruthy(); return n; });
+    expect(note).toHaveTextContent(SEND_NEEDS_CHECKING);
+    expect(note.querySelector(".fact.warn")).toHaveTextContent(SEND_NEEDS_CHECKING);
+    fireEvent.click(within(note).getByRole("button", { name: CHECK_SEND }));
+    expect(await screen.findAllByText(UNKNOWN_TITLE)).not.toHaveLength(0);
+  });
+
+  it("a confirmed loss outranks an unknown send: the banner speaks for it, and the send still says so (different states)", async () => {
+    const unknown = { ...emptyFields(), id: "d-9", account_id: "acct-dave", account: DAVE, to_addresses: [], subject: "Re: Bus", body_text: "", send_state: "unknown", saved_at: NOW.toISOString(), revision: 2, updated_at: NOW.toISOString(), sent_action_id: "act-9", provider_message_id: null, action_state: null, action_verb: null, outbox_state: null, error_code: null, provider_ack: null };
+    const r = rig({ accounts: [account({ state: "reauth" })], rpc: { draft_list: () => ({ drafts: [], sent: [unknown] }) } });
+    mount(r);
+    await waitFor(() => expect(screen.getByText(REAUTH_LINE)).toBeInTheDocument());
+    // Precedence: authorization first, so the headline is the reconnect line, not the send.
+    expect(document.querySelector('[data-headline="auth"]')).toBeTruthy();
+    expect(document.querySelector('[data-headline="send"]')).toBeNull();
+  });
+
   it("recovery: the banner goes, Access Restored shows by itself, and Mail Up to Date is a separate note after a later sync", async () => {
     const first = mount(rig({ routes: statusRoute(lostAccount()) }));
     await screen.findByRole("alert");
@@ -429,7 +472,7 @@ describe("E21, E22, E28: accounts and states", () => {
     const r = rig({ accounts: [accounts[0]!, account({ id: "acct-work", address: WORK, state: "disconnected", cached: 1 })] });
     mount(r);
     await waitFor(() => expect(subjects()).toEqual(["m3", "m1", "m0"]));
-    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked\s?\d{1,2}:\d{2} (AM|PM)$/);
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Last Checked\s?\d{1,2}:\d{2} (AM|PM)$/);
     fireEvent.click(document.querySelector(".email-fresh") as HTMLElement);
     await waitFor(() => expect(screen.getAllByText("Accounts").length).toBeGreaterThan(0));
     expect(screen.getByText(STATE_WORD.disconnected)).toBeInTheDocument();
@@ -534,9 +577,9 @@ describe("the coverage crawl, as the inbox shows it", () => {
   it("keeps the crawl moving while open, then says Checked and the time once the mailbox is current, and stops calling", async () => {
     const r = crawling(3, { rows });
     mount(r);
-    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked\s?\d{1,2}:\d{2} (AM|PM)$/));
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Last Checked\s?\d{1,2}:\d{2} (AM|PM)$/));
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Last Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
     expect(fresh[1]).toHaveClass("date");
     // The open's sync, then two more, one after the other; each crawl call reads the cache's first page again.
     expect(syncs(r)).toBe(3);

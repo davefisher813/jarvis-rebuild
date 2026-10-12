@@ -50,8 +50,8 @@ describe("freshness", () => {
       account({ id: "b", address: "work@example.test", last_sync_at: "2026-10-03T09:05:00" }),
       account({ id: "c", address: "old@example.test", state: "disconnected", last_sync_at: "2026-09-01T09:05:00" }),
     ], NOW);
-    // Spec 3.1, "Checked 9:12 AM": the word is the one grey, the clock is a neutral small-caps fact; the account picker beside it says how many.
-    expect(f.map((x) => x.text)).toEqual(["Checked", expect.stringMatching(/^9:05 AM$/)]);
+    // Spec 3.1, "Last Checked 9:12 AM": the word is the one grey, the clock is a neutral small-caps fact; the account picker beside it says how many.
+    expect(f.map((x) => x.text)).toEqual(["Last Checked", expect.stringMatching(/^9:05 AM$/)]);
     expect(f.map((x) => x.tone)).toEqual([undefined, "date"]);
     for (const x of f) expect(x.text).not.toMatch(/\u00B7/);
   });
@@ -71,11 +71,11 @@ describe("freshness", () => {
     // Before a first good sync it is still catching up, not "Not Synced Yet": the crawl has started.
     expect(texts(homeFreshness([account({ sync_state: "catching_up" })], NOW))).toEqual(["Catching Up on Mail"]);
     // A disconnected mailbox catching up does not hold the header.
-    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:50:00", sync_state: "current" }), account({ id: "c", state: "disconnected", sync_state: "catching_up" })], NOW))[0]).toBe("Checked");
+    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:50:00", sync_state: "current" }), account({ id: "c", state: "disconnected", sync_state: "catching_up" })], NOW))[0]).toBe("Last Checked");
   });
   it("when current, is the verified time; with no sync facts (before migration 0065) it is the last good sync, as before", () => {
-    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:55:00", verified_through_at: "2026-10-03T09:12:00", sync_state: "current" })], NOW))).toEqual(["Checked", "9:12 AM"]);
-    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T09:12:00" })], NOW))).toEqual(["Checked", "9:12 AM"]);
+    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:55:00", verified_through_at: "2026-10-03T09:12:00", sync_state: "current" })], NOW))).toEqual(["Last Checked", "9:12 AM"]);
+    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T09:12:00" })], NOW))).toEqual(["Last Checked", "9:12 AM"]);
     expect(texts(homeFreshness([account({ sync_state: "not_started" })], NOW))).toEqual(["Not Synced Yet"]);
   });
   it("isCatchingUp is catching_up or syncing on a mailbox that is not disconnected", () => {
@@ -94,7 +94,7 @@ describe("a time and a copy line are facts, never one string joined by middle do
     expect(f.every((x) => x.tone === "date")).toBe(true);
     expect(whenWords("2026-10-03T09:12:00", NOW)).toMatch(/^Today 9:12/);
     expect(whenWords("2026-10-03T09:12:00", NOW)).not.toMatch(/\u00B7/);
-    expect(checkedFacts("2026-10-02T09:12:00", NOW).map((x) => x.text)).toEqual(["Checked Yesterday", "9:12 AM"]);
+    expect(checkedFacts("2026-10-02T09:12:00", NOW).map((x) => x.text)).toEqual(["Last Checked Yesterday", "9:12 AM"]);
     expect(checkedFacts("2026-10-02T09:12:00", NOW)[1]!.tone).toBe("date");
   });
   it("dotFacts splits a copy constant at its dots: the first fact takes the tone, the rest are the one grey", () => {

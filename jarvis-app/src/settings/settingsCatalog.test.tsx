@@ -11,7 +11,7 @@ import * as webPush from "../shared/webPush";
 import { lineCase } from "../shared/casing";
 import { ChatService } from "../chat/ChatService";
 import { subscribeToast, resetToasts } from "../shared/toast";
-import { newSectionId, type EmailSection } from "../messages/emailSections";
+import { recordMove } from "../email/sections";
 import { updateHealthSettings } from "../health/settings";
 import AccountPage from "./AccountPage";
 import NotificationsPage from "./NotificationsPage";
@@ -314,26 +314,15 @@ describe("Advanced, Backup and Brain", () => {
 });
 
 describe("Email Sections", () => {
-  const sec = (name: string, texts: string[]): EmailSection => ({ id: newSectionId(), name, matchers: texts.map((text) => ({ field: "sender" as const, text })) });
-  let profile: ReturnType<typeof useProfile> | null = null;
-  function Grab() { profile = useProfile(); return null; }
-
-  it("a section's matchers are one grey fact with no typed dot, and a section with none shows no line", async () => {
-    profile = null;
+  it("a move's row is one grey (the sender) beside its section as a small-caps fact, with no typed dot", async () => {
     const user = "u-cat-sections-" + Math.random().toString(36).slice(2);
-    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
-    await waitFor(() => expect(profile).toBeTruthy());
-    await profile!.save({ name: "Alex", emailSections: [sec("Team", ["marco", "ada", "grace", "linus", "ken"]), sec("Bare", [])] });
-    view.rerender(<NotesProvider userId={user}><Grab /><EmailSectionsPage onBack={() => {}} /></NotesProvider>);
-    await screen.findByText("Team");
-    const team = screen.getByText("Team").closest(".row")!;
-    const metas = team.querySelectorAll(".conn-meta .fact");
-    expect(metas).toHaveLength(1);
-    expect(norm(metas[0]!)).toBe("marco, ada, grace, +2 More");
-    expect(team.querySelector(".conn-meta")!.textContent).not.toContain(MIDDOT);
-    expect(screen.getByText("Bare").closest(".row")!.querySelector(".conn-meta")).toBeNull();
-    expect(screen.queryByText("No Matchers")).toBeNull();
-    expect(scan(document.body, (t) => /^marco/.test(t))).toEqual([]);
+    recordMove(user, { id: "m1", subject: "Your October Bill", from_name: "Con Edison", from_address: "billing@conedison.test" }, "money");
+    render(<NotesProvider userId={user}><EmailSectionsPage onBack={() => {}} userId={user} /></NotesProvider>);
+    const r = (await screen.findByText("Your October Bill")).closest(".row")!;
+    const facts = [...r.querySelectorAll(".conn-meta .fact")];
+    expect(facts.map(norm)).toEqual(["In Money", "Con Edison"]);
+    expect(r.querySelectorAll(".conn-meta .fact:not(.date)")).toHaveLength(1);
+    expect(r.querySelector(".conn-meta")!.textContent).not.toContain(MIDDOT);
   });
 });
 
