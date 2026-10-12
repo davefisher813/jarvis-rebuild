@@ -274,6 +274,9 @@ export const SINCE = "Since";
 export const RESOLVE = "Resolve";
 export const REOPEN = "Reopen";
 export const RESOLVED_WORD = "Resolved";
+export const DELETE_WAITING = "Delete";
+/** The toast after a resolved Waiting record is deleted (Undo puts it back as it was). */
+export const waitingDeleted = (title: string): string => `Deleted · ${title || "Waiting"}`;
 export const DRAFT_FOLLOW_UP = "Draft Follow-Up";
 export const FOLLOW_UP_DATE = "Follow-Up Date";
 export const CLEAR_DATE = "Clear Date";

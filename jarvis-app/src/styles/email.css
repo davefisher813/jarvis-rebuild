@@ -159,6 +159,9 @@
 .email-compose-acts { flex-direction: column; align-items: center; gap: var(--s-2h); padding: var(--s-2) var(--s-4) 0; }
 .email-compose-acts .btn-primary { min-width: 240px; min-height: 48px; }
 .email-compose-acts .quiet-action { width: 100%; }
+/* A destructive quiet action (Delete on a resolved Waiting record): the same capsule, its words in the destructive red
+   (.btn-danger-text's token), restated here because .quiet-action's own grey ink is declared later and would win. */
+.email-compose-acts .quiet-action.btn-danger-text { color: var(--danger-tx); }
 .email-review-card { padding: var(--s-3h) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2h); }
 .email-review-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--t-body); line-height: 1.45; padding-top: var(--s-1h); border-top: 0.5px solid var(--divider); }
 .email-review-attachments { padding-top: var(--s-1); }

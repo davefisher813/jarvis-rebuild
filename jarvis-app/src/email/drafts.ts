@@ -99,6 +99,24 @@ export function saveDraft(client: RpcClient, draftId: string | null, accountId: 
 export function getDraft(client: RpcClient, id: string): Promise<CommandResult<DraftRow>> {
   return callCommand<DraftRow>(client, "draft_get", { p_draft: id });
 }
+/** draft_reopen's answer (migration 0069): the draft as it stands, whether this open released it, and whether the composer may take it. */
+export interface Reopened extends DraftRow { released: boolean; editable: boolean }
+/** Open a paused draft. A send that stopped before Gmail (failed or cancelled, never dispatched) comes back editable in the same transaction; a held, sending, sent or unknown one is returned as it is. */
+export function reopenDraft(client: RpcClient, id: string): Promise<CommandResult<Reopened>> {
+  return callCommand<Reopened>(client, "draft_reopen", { p_draft: id });
+}
+export type PausedOpen = { kind: "compose"; draft: DraftRow } | { kind: "outcome"; draft: DraftRow } | { kind: "gone" };
+/**
+ * Where a row on the paused list goes, from draft_reopen's answer. Editable: the composer, with the server's words and
+ * revision as they are now. Not editable (it is the send's: held, sending, sent, unknown): the outcome screen, never a
+ * composer that would offer a second send. Gone: back to the list. Any other refusal (offline, a server without the
+ * door yet): the composer with the row as listed, where the server's own save and review guards still decide.
+ */
+export function pausedOpenTarget(listed: DraftRow, answer: CommandResult<Reopened>): PausedOpen {
+  if (answer.ok) return answer.value.editable ? { kind: "compose", draft: answer.value } : { kind: "outcome", draft: answer.value };
+  if (answer.code === "NOT_FOUND") return { kind: "gone" };
+  return { kind: "compose", draft: listed };
+}
 export function listDrafts(client: RpcClient): Promise<CommandResult<{ drafts: DraftRow[]; sent: DraftRow[] }>> {
   return callCommand(client, "draft_list", {});
 }

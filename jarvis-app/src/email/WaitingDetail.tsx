@@ -18,7 +18,7 @@ import { lineFor, newRequestId, type CommandFailure, type RpcClient } from "../s
 import type { WaitingData, WaitingItem } from "../substrate/waiting/types";
 import { monthDay } from "../money/bills";
 import {
-  ACCOUNT_LABEL, CLEAR_DATE, DRAFT_FOLLOW_UP, EMAIL_TITLE, FOLLOW_UP_DATE, FOR_LABEL, NEW_REPLY, NO_RECIPIENT, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, PICK_RECIPIENT, REOPEN,
+  ACCOUNT_LABEL, CLEAR_DATE, DELETE_WAITING, DRAFT_FOLLOW_UP, EMAIL_TITLE, FOLLOW_UP_DATE, FOR_LABEL, NEW_REPLY, NO_RECIPIENT, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, PICK_RECIPIENT, REOPEN,
   RESOLUTION_NOTE, RESOLUTION_NOTE_LABEL, RESOLVE, RESOLVED_WORD, REVIEW_REPLY, SINCE, SOURCE_DELETED, SOURCE_DISCONNECTED, SOURCE_MESSAGE, TRACKED_FROM, WAITED, WAITING_ON, WAITING_TITLE,
 } from "./copy";
 import EmailFacts from "./EmailFacts";
@@ -29,7 +29,7 @@ import { ageWord, followUpRecipients, newReply, readEvidence, reopenWaiting, res
 
 export interface FollowUpStart { to: string; message: ThreadMessage | null }
 
-export default function WaitingDetail({ client, item, own, today, zone, offline, latest, onBack, onChanged, onOpenMessage, onDraftFollowUp }: {
+export default function WaitingDetail({ client, item, own, today, zone, offline, latest, onBack, onChanged, onOpenMessage, onDraftFollowUp, onDelete }: {
   client: RpcClient;
   item: WaitingItem;
   own: readonly string[];
@@ -43,6 +43,8 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
   onOpenMessage: (messageId: string) => void;
   /** Open the composer to this address, threaded under the message when there is one. */
   onDraftFollowUp: (start: FollowUpStart) => void;
+  /** Delete a RESOLVED record (the screen offers Undo). Open records keep their own actions and are never offered this. */
+  onDelete?: () => void;
 }) {
   const d = item.data;
   const [thread, setThread] = useState<ThreadMessage[] | null>(null);
@@ -154,6 +156,9 @@ export default function WaitingDetail({ client, item, own, today, zone, offline,
         <button className="btn btn-primary" onClick={() => void (d.status === "open" ? resolve() : reopen())} disabled={busy !== null || offline}>{d.status === "open" ? RESOLVE : REOPEN}</button>
         {d.status === "open" && !noting && <button className="quiet-action" onClick={() => setNoting(true)}>{RESOLUTION_NOTE}</button>}
         <button className="quiet-action" onClick={draftFollowUp} disabled={offline || thread === null && !!d.threadId}>{DRAFT_FOLLOW_UP}</button>
+        {/* A resolved record can be deleted: the destructive verb is the last of the quiet actions, red only because it
+            deletes (Undo is on the toast, so no confirm). An open record has no Delete here. */}
+        {d.status === "resolved" && onDelete && <button className="quiet-action btn-danger-text" onClick={onDelete} disabled={busy !== null || offline}>{DELETE_WAITING}</button>}
       </div>
       {picking && <RowActionSheet title={PICK_RECIPIENT} actions={picking.map((to) => ({ label: to, onPick: () => { setPicking(null); onDraftFollowUp({ to, message: thread?.[0] ?? null }); } }))} onCancel={() => setPicking(null)} />}
       <div className="screen-foot" />
