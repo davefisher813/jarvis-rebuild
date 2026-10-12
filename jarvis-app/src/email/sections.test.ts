@@ -37,8 +37,17 @@ describe("the resolver, rule by rule", () => {
     expect(isCalendar(row("1", { attachment_metadata: [{ filename: "bill.pdf", mime: "application/pdf", attachmentId: "a", size: 1 }] }))).toBe(false);
   });
 
-  it("Money: no registered sender template exists, so nothing resolves there; an amount, a filename or an invoice word is not enough", () => {
+  it("Money: an exact registered sender and subject format, from list-time metadata alone; an amount, a filename or an invoice word from anyone else is not enough", () => {
     expect(sectionOf(row("1", { subject: "Invoice #42 · $142.30", attachment_metadata: [{ filename: "invoice.pdf", mime: "application/pdf", attachmentId: "a", size: 1 }] }))).toBe("other");
+    // Unopened (has_body false, no attachments): the registered sender and its bill format are enough.
+    expect(sectionOf(row("1", { from_address: "noreply@billing.coned.com", subject: "Your Con Edison Bill Is Due" }))).toBe("money");
+    expect(sectionOf(row("1", { from_address: "no_reply@email.apple.com", subject: "Your receipt from Apple." }))).toBe("money");
+    // The same sender's marketing is not Money; with a List-Unsubscribe it is a Mailing List.
+    expect(sectionOf(row("1", { from_address: "no_reply@email.apple.com", subject: "Your Subscription Price Increase" }))).toBe("other");
+    expect(sectionOf(row("1", { from_address: "no_reply@email.apple.com", subject: "Your Subscription Price Increase", list_unsubscribe: "<u>" }))).toBe("lists");
+    // The registered format from a lookalike sender, or forwarded by a person, is not Money.
+    expect(sectionOf(row("1", { from_address: "noreply@billing.coned.com.example.test", subject: "Your Con Edison Bill Is Due" }))).toBe("other");
+    expect(sectionOf(row("1", { from_address: "dave@example.test", subject: "Fwd: Your Con Edison Bill Is Due" }))).toBe("other");
   });
 
   it("Mailing Lists: a List-ID or List-Unsubscribe header with something in it", () => {
@@ -55,6 +64,12 @@ describe("the resolver's order (3.2: one primary section, the first rule that ma
     expect(sectionOf(row("1", everything))).toBe("conversations");
     expect(sectionOf(row("1", { ...everything, own_reply: false }))).toBe("schedule");
     expect(sectionOf(row("1", { ...everything, own_reply: false, mime_type: null }))).toBe("lists");
+    // Money sits after Schedule and before Mailing Lists.
+    const bill: Partial<InboxRow> = { from_address: "noreply@billing.coned.com", subject: "Your Con Edison Bill Is Ready" };
+    expect(sectionOf(row("1", { ...everything, ...bill }))).toBe("conversations");
+    expect(sectionOf(row("1", { ...everything, ...bill, own_reply: false }))).toBe("schedule");
+    expect(sectionOf(row("1", { ...everything, ...bill, own_reply: false, mime_type: null }))).toBe("money");
+    expect(sectionOf(row("1", { ...everything, ...bill, own_reply: false, mime_type: null }), { "1": "lists" })).toBe("lists");
     // A Conversation that is also a list is still one row, in Conversations.
     expect(sectionOf(row("1", { own_reply: true, list_id: "<l>" }))).toBe("conversations");
   });
