@@ -122,3 +122,22 @@ describe("viewOf: the device judges the answer again", () => {
     expect(viewOf(revoked, later(STATUS_STALE_MS + 1), true).state).toBe("stale");
   });
 });
+
+describe("every status line is Title Case (2026-10-12, V09)", () => {
+  it("the headline and the detail of each state", () => {
+    const now = new Date("2026-10-12T15:00:00Z");
+    const at = "2026-10-12T14:00:00Z";
+    const base = deriveStatus({ email: "d@x.test", refresh: { ok: true, scope: "gmail.send" }, read: { ok: true, status: 200, emailAddress: "d@x.test" }, lastSyncAt: at, now });
+    const cases = [
+      viewOf({ ...base, checkedAt: "2026-10-12T10:00:00Z" }, now, true),
+      viewOf({ ...base, state: "pending_auth", lastErrorAt: at, checkedAt: now.toISOString() }, now, true),
+      viewOf({ ...base, state: "error", lastError: "identity_mismatch", checkedAt: now.toISOString() }, now, true),
+      viewOf({ ...base, state: "error", lastError: "http_403", checkedAt: now.toISOString() }, now, true),
+      viewOf({ ...base, state: "warning", transient: "service_unavailable", checkedAt: now.toISOString() }, now, true),
+      viewOf({ ...base, delivery: { kind: "poll", liveness: "stale" }, checkedAt: now.toISOString() }, now, true),
+      viewOf({ ...base, delivery: { kind: "poll", liveness: "never" }, lastSuccessfulSyncAt: null, checkedAt: now.toISOString() }, now, true),
+    ];
+    expect(cases.map((v) => v.detail?.replace(/ (Oct|\d).*$/, ""))).toEqual(["Last Checked", "Stopped Working", "Signed In as a Different Account", "Gmail Refused the Last Check", "JARVIS Keeps Retrying", "Last Updated", "Nothing Synced Yet"]);
+    for (const v of cases) expect(v.detail ?? "", v.detail ?? "").not.toMatch(/\b(checked|working|retrying|updated|synced|refused|signed)\b/);
+  });
+});

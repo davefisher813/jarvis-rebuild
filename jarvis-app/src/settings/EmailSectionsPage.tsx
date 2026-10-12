@@ -1,205 +1,87 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { showToast } from "../shared/toast";
 import { Mail } from "../shared/icons";
-import { Head, Card, Row, Menu, Foot, DangerRow, focusField } from "./kit";
-import { useEmailSections } from "../messages/useEmailSections";
-import {
-  FIELD_LABEL, SECTION_FIELDS, addSectionBlock, isCapError, newSectionId, removeSection, restoreSection,
-  upsertSection, validateSection, type EmailSection, type SectionField,
-} from "../messages/emailSections";
+import RowActionSheet from "../shared/RowActionSheet";
+import { Head, Card, Row, Foot } from "./kit";
+import { useUserId } from "../data/NotesProvider";
+import { loadSnapshot } from "../email/deviceCache";
+import { SECTION_NAME, listMoves, putBack, recordMove, type SectionMove } from "../email/sections";
 
-// EMAIL SECTIONS (2026-09-29): a plain editable list of the person's own local
-// filters for the Email tab. Add, Edit, Delete with Undo, in the settings
-// kit's own rows. No preview and no simulator: the chips on the Email tab are
-// the preview.
+// EMAIL SECTIONS (2026-10-12, Email v1 spec 2.7 and 3.2). Settings holds "explicit section overrides", and nothing else
+// for sections: no rules builder. The five sections are a fixed, deterministic resolver (src/email/sections.ts); the one
+// thing a person changes is where ONE message sits, with Move to Section on the Email tab. This page lists those moves,
+// newest first, each with Put Back, which returns the message to the section its own facts give it. Undo on the toast
+// moves it again.
 //
-// WHAT THIS SCREEN NEVER DOES: call AI, or touch Gmail. A section is a saved
-// filter over mail already loaded on the phone (messages/emailSections.ts).
+// The moves live on this device (the Email tab's Move to Section writes them there). Nothing here calls AI or touches
+// Gmail: a move never archives, changes a read flag or changes a Gmail label.
 //
-// ERRORS ARE SHOWN, NOT FIXED. A name over 60 characters, a matcher over 200,
-// a duplicate name, an empty matcher: each says so under its own field, and
-// nothing is trimmed or dropped to make it fit. Errors for an empty field wait
-// until the first Save, so opening a fresh section does not open red; the
-// length caps speak as soon as they are crossed.
-//
-// A SAVE THAT FAILS KEEPS THE EDITOR OPEN with everything as typed, and the
-// list only changes once the write has landed (useEmailSections.commit).
-// Offline, the write queues like every profile write and the foot says so.
+// The matcher-based section builder that used to be here is gone from Settings (spec 2.7: "No rules builder"). Its data
+// module (messages/emailSections.ts) stays for the older Messages screen that still reads it.
 
-const FIELD_OPTIONS = SECTION_FIELDS.map((f) => ({ value: f, label: FIELD_LABEL[f] }));
+export const MOVES_HEAD = "Your Moves";
+export const PUT_BACK = "Put Back";
+export const NO_MOVES_TITLE = "No Moves Yet";
+export const NO_MOVES_SUB = "Move to Section on a Message Puts It Here";
+export const OPEN_EMAIL = "Open Email";
+export const MOVES_FOOT = "Moves stay on this phone, and nothing changes in Gmail";
+export const UNTITLED_MOVE = "A Moved Message";
+export const putBackDone = (subject: string | null): string => `Put Back · ${subject || UNTITLED_MOVE}`;
 
-interface Editing { isNew: boolean; index: number; draft: EmailSection; attempted: boolean }
+export default function EmailSectionsPage({ onBack, onOpenEmail, userId: givenUser }: {
+  onBack: () => void;
+  /** The Email tab, where Move to Section is. The empty state's door. */
+  onOpenEmail?: () => void;
+  /** A test passes its own; undefined means the signed-in person's. */
+  userId?: string;
+}) {
+  const ctxUser = useUserId();
+  const userId = givenUser ?? ctxUser ?? "";
+  const known = () => { try { return loadSnapshot(userId)?.rows ?? []; } catch { return []; } };
+  const [moves, setMoves] = useState<SectionMove[]>(() => listMoves(userId, known()));
+  const [menuFor, setMenuFor] = useState<SectionMove | null>(null);
+  const reread = () => setMoves(listMoves(userId, known()));
 
-// THE ROW'S ONE GREY LINE (2026-10-05, the catalog gate). It was a string with
-// a middle dot typed between the matchers, drawn into the row's meta line (a
-// §AM F3 break: the separator is the stylesheet's), and "No Matchers" under a
-// section with nothing to match was a placeholder (a row with nothing to say
-// shows nothing). The matchers are one run of the row's one grey, comma
-// joined, with the overflow count as part of the same run; nothing at all
-// when there is nothing to show.
-const summary = (s: EmailSection): ReactNode => {
-  const texts = s.matchers.map((m) => m.text.trim()).filter(Boolean);
-  if (texts.length === 0) return undefined;
-  const shown = texts.slice(0, 3).join(", ") + (texts.length > 3 ? ", +" + (texts.length - 3) + " More" : "");
-  return <span className="fact">{shown}</span>;
-};
-
-export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
-  const { sections, loaded, available, current, commit, pending } = useEmailSections();
-  const [editing, setEditing] = useState<Editing | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [capNote, setCapNote] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
-
-  const startNew = () => {
-    const why = addSectionBlock(current());
-    setCapNote(why);
-    if (why) return;
-    setEditing({ isNew: true, index: current().length, attempted: false, draft: { id: newSectionId(), name: "", matchers: [{ field: "sender", text: "" }] } });
-  };
-  const startEdit = (s: EmailSection, index: number) => {
-    setCapNote(null);
-    setEditing({ isNew: false, index, attempted: false, draft: { ...s, matchers: s.matchers.map((m) => ({ ...m })) } });
-  };
-  const patch = (fn: (d: EmailSection) => EmailSection) => setEditing((e) => (e ? { ...e, draft: fn(e.draft) } : e));
-
-  const others = editing ? current().filter((x) => x.id !== editing.draft.id) : [];
-  const check = editing ? validateSection(editing.draft, others) : null;
-
-  const save = async () => {
-    if (!editing || saving) return;
-    setEditing({ ...editing, attempted: true });
-    if (!validateSection(editing.draft, others).ok) return;
-    setSaving(true);
-    const ok = await commit(upsertSection(current(), editing.draft));
-    setSaving(false);
-    if (!ok) return;
-    setQueued(pending());
-    setEditing(null);
-  };
-
-  const remove = async (s: EmailSection) => {
-    if (saving) return;
-    const at = current().findIndex((x) => x.id === s.id);
-    setSaving(true);
-    const ok = await commit(removeSection(current(), s.id));
-    setSaving(false);
-    if (!ok) return;
-    setQueued(pending());
-    setEditing(null);
+  const back = (m: SectionMove) => {
+    putBack(userId, m.id);
+    reread();
     showToast({
-      message: "Section Deleted · Mail Untouched",
+      message: putBackDone(m.subject),
       actionLabel: "Undo",
-      onAction: () => void (async () => {
-        if (await commit(restoreSection(current(), s, at))) setQueued(pending());
-      })(),
+      onAction: () => { recordMove(userId, { id: m.id, subject: m.subject ?? "", from_name: m.from ?? "", from_address: "" }, m.key, m.at ? new Date(m.at) : new Date()); reread(); },
     });
   };
-
-  const show = (msg: string | undefined) => (editing && msg && (editing.attempted || isCapError(msg)) ? msg : undefined);
 
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Email Sections" back="Settings" onBack={onBack} />
-
-      {editing && check && (
+      <Head label={MOVES_HEAD} count={moves.length > 0 ? moves.length : undefined} />
+      {moves.length === 0 ? (
+        <div className="empty-state empty-compact">
+          {/* D9: a crafted empty state, a glyph in its type's colour (Email is teal), the title, one warm line, its door. */}
+          <div className="empty-icon cat-fg-teal"><Mail className="ic" /></div>
+          <div className="empty-title">{NO_MOVES_TITLE}</div>
+          <div className="empty-sub">{NO_MOVES_SUB}</div>
+          {onOpenEmail && <button className="btn btn-primary" onClick={onOpenEmail}>{OPEN_EMAIL}</button>}
+        </div>
+      ) : (
         <>
-          <Head label={editing.isNew ? "New Section" : "Edit Section"} />
           <Card>
-            <div className="row set-row" onClick={focusField}>
-              <div className="conn-name">Name</div>
-              <input className="set-field" aria-label="Section Name" placeholder="Section Name" value={editing.draft.name}
-                onChange={(e) => patch((d) => ({ ...d, name: e.target.value }))} />
-            </div>
-            {show(check.name) && <div className="input-error set-err" role="alert">{check.name}</div>}
+            {moves.map((m) => (
+              // The row's one grey is the sender; the section it was moved to is a small-caps fact. A tap opens Put Back
+              // in the row's sheet: no pill inside the row.
+              <Row key={m.id} label={m.subject || UNTITLED_MOVE} onClick={() => setMenuFor(m)} chev
+                meta={<><span className="fact date">{`In ${SECTION_NAME[m.key]}`}</span>{m.from && <span className="fact">{m.from}</span>}</>} />
+            ))}
           </Card>
-          {/* THE MATCHERS ARE A GROUP, AND THE GROUP'S ACTIONS ARE ITS HEAD'S
-              (Dave 2026-10-05, locked: no capsule rows inside a card). Add
-              Matcher rides the group's own head; Remove rides each matcher's. */}
-          {editing.draft.matchers.map((m, i) => (
-            <MatcherRows
-              key={i}
-              n={i + 1}
-              field={m.field}
-              text={m.text}
-              error={show(check.matchers[i])}
-              onField={(f) => patch((d) => ({ ...d, matchers: d.matchers.map((x, j) => (j === i ? { ...x, field: f } : x)) }))}
-              onText={(t) => patch((d) => ({ ...d, matchers: d.matchers.map((x, j) => (j === i ? { ...x, text: t } : x)) }))}
-              onRemove={() => patch((d) => ({ ...d, matchers: d.matchers.filter((_, j) => j !== i) }))}
-              onAdd={i === editing.draft.matchers.length - 1 ? () => patch((d) => ({ ...d, matchers: [...d.matchers, { field: "sender", text: "" }] })) : undefined}
-            />
-          ))}
-          {show(check.section) && <div className="pad-x"><div className="input-error" role="alert">{check.section}</div></div>}
-          <div className="pad-x sheet-actions">
-            <button type="button" className="btn btn-primary btn-block" onClick={() => void save()} disabled={saving}>{saving ? "Saving" : "Save Section"}</button>
-            <button type="button" className="btn btn-secondary btn-block" onClick={() => setEditing(null)} disabled={saving}>Cancel</button>
-          </div>
-          {!editing.isNew && <Card><DangerRow label="Delete Section" onClick={() => void remove(editing.draft)} disabled={saving} /></Card>}
-          <Foot>Any matcher can match, it is not case sensitive, and text is matched exactly as typed</Foot>
+          <Foot>{MOVES_FOOT}</Foot>
         </>
       )}
-
-      {/* THE ONE ADD IS THE HEAD'S (Dave 2026-10-05, locked): a list's create action never sits as a row inside its card,
-          and a card that held only the button is not drawn (rule 12). With no sections the head and its capsule stand
-          alone above the empty words. */}
-      {!editing && loaded && (
-        <Head label="Sections" count={sections.length > 0 ? sections.length : undefined}
-          action={{ label: "Add Section", onClick: startNew, disabled: !available }} />
-      )}
-      {!editing && loaded && sections.length === 0 && (
-        <div className="empty-state empty-compact">
-          {/* D9: a crafted empty state, a glyph in its type's colour (Email is teal), the title, one warm line. */}
-          <div className="empty-icon cat-fg-teal"><Mail className="ic" /></div>
-          <div className="empty-title">No Sections Yet</div>
-          <div className="empty-sub">Filters Appear as Chips on Email</div>
-        </div>
-      )}
-      {!editing && sections.length > 0 && (
-        <Card>
-          {sections.map((s, i) => (
-            <Row key={s.id} label={s.name} meta={summary(s)} chev onClick={() => startEdit(s, i)} />
-          ))}
-        </Card>
-      )}
-      {capNote && <div className="pad-x"><div className="input-error" role="alert">{capNote}</div></div>}
-      {/* One note at a time (2026-10-05, found rendering the editor): while a section is open its own note is on screen, and the
-          list's note under it said a second thing about the same page. */}
-      {sections.length > 0 && !editing && (
-        <Foot>{queued ? "Saved on this phone and will sync" : "Filters work over mail already loaded, and nothing changes in Gmail"}</Foot>
+      {menuFor && (
+        <RowActionSheet title={menuFor.subject || UNTITLED_MOVE} actions={[{ label: PUT_BACK, onPick: () => back(menuFor) }]} onCancel={() => setMenuFor(null)} />
       )}
       <div className="screen-foot" />
     </div>
-  );
-}
-
-function MatcherRows({ n, field, text, error, onField, onText, onRemove, onAdd }: {
-  n: number;
-  field: SectionField;
-  text: string;
-  error: string | undefined;
-  onField: (f: SectionField) => void;
-  onText: (t: string) => void;
-  onRemove: () => void;
-  /** Only the last matcher's head carries Add Matcher, so there is one of it on the page. */
-  onAdd?: () => void;
-}) {
-  return (
-    <>
-      <div className="sh2 sh2-quiet"><span className="t">{`Matcher ${n}`}</span>
-        <span className="sec-left">
-          <button type="button" className="see-all pill-action" aria-label={`Remove Matcher ${n}`} onClick={onRemove}>Remove</button>
-          {onAdd && <button type="button" className="see-all pill-action" onClick={onAdd}>Add Matcher</button>}
-        </span>
-      </div>
-      <Card>
-        <Menu label="Match" value={field} options={FIELD_OPTIONS} onPick={(v) => onField(v as SectionField)} ariaLabel={`Match Type ${n}`} />
-        <div className="row set-row" onClick={focusField}>
-          <div className="conn-name">Text</div>
-          <input className="set-field" aria-label={`Text to Match ${n}`} placeholder="Text to Match" value={text} onChange={(e) => onText(e.target.value)} />
-        </div>
-        {error && <div className="input-error set-err" role="alert">{error}</div>}
-      </Card>
-    </>
   );
 }

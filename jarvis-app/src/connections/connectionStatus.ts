@@ -214,7 +214,8 @@ function clock(iso_: string | null): string {
   return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-/** The same answer, judged again by this device's clock. A frozen "healthy"
+/** The same answer, judged again by this device's clock. Every headline and detail is Title Case (2026-10-12): they are
+ *  status lines, drawn into the catalog's lines, never sentences. A frozen "healthy"
  *  response cannot mask staleness: the answer is only as good as how long ago
  *  the server proved it, and an offline phone says so instead of inventing a
  *  fresh status. */
@@ -222,15 +223,15 @@ export function viewOf(a: AccountStatus, now: Date, online: boolean): ClientView
   if (!online) return { state: "offline", headline: "Offline", detail: OFFLINE_LINE, offerReconnect: false };
   const age = now.getTime() - new Date(a.checkedAt).getTime();
   if (!Number.isFinite(age) || age > STATUS_STALE_MS) {
-    return { state: "stale", headline: "Status Unconfirmed", detail: `Last checked ${clock(a.checkedAt) || "a while ago"}`, offerReconnect: false };
+    return { state: "stale", headline: "Status Unconfirmed", detail: `Last Checked ${clock(a.checkedAt) || "a While Ago"}`, offerReconnect: false };
   }
-  if (a.state === "pending_auth") return { state: "pending_auth", headline: "Needs Reconnecting", detail: a.lastErrorAt ? `Stopped working ${clock(a.lastErrorAt)}` : null, offerReconnect: true };
-  if (a.state === "error") return { state: "error", headline: "Can't Read Mail", detail: a.lastError === "identity_mismatch" ? "Signed in as a different account" : "Gmail refused the last check", offerReconnect: false };
+  if (a.state === "pending_auth") return { state: "pending_auth", headline: "Needs Reconnecting", detail: a.lastErrorAt ? `Stopped Working ${clock(a.lastErrorAt)}` : null, offerReconnect: true };
+  if (a.state === "error") return { state: "error", headline: "Can't Read Mail", detail: a.lastError === "identity_mismatch" ? "Signed In as a Different Account" : "Gmail Refused the Last Check", offerReconnect: false };
   if (a.state === "warning") {
-    return { state: "warning", headline: a.transient === "temporarily_limited" ? "Temporarily Limited" : "Service Unavailable", detail: "JARVIS keeps retrying", offerReconnect: false };
+    return { state: "warning", headline: a.transient === "temporarily_limited" ? "Temporarily Limited" : "Service Unavailable", detail: "JARVIS Keeps Retrying", offerReconnect: false };
   }
   if (a.delivery.liveness !== "fresh") {
-    return { state: "warning", headline: "Mail Not Updating", detail: a.lastSuccessfulSyncAt ? `Last updated ${clock(a.lastSuccessfulSyncAt)}` : "Nothing synced yet", offerReconnect: false };
+    return { state: "warning", headline: "Mail Not Updating", detail: a.lastSuccessfulSyncAt ? `Last Updated ${clock(a.lastSuccessfulSyncAt)}` : "Nothing Synced Yet", offerReconnect: false };
   }
   return { state: "connected", headline: "Connected", detail: null, offerReconnect: false };
 }

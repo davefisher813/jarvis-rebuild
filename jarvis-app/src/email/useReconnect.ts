@@ -19,6 +19,9 @@ import {
   type AttemptStatus, type OutcomeCopy,
 } from "../connections/google/reconnect";
 
+/** When a reconnect failed with nothing more to say: Title Case, and it says what to do (spec 2.6: never an ambiguous "Try again"). */
+export const RECONNECT_FALLBACK_LINE = "Tap Reconnect to Open Google Again";
+
 export interface Outcome { email: string; status: AttemptStatus | "interrupted" | "failed"; copy: OutcomeCopy }
 export type OutcomeAction = "finish" | "not_now" | "retry" | "permissions";
 
@@ -69,7 +72,7 @@ export function useReconnect(d: ReconnectDeps) {
         const copy = copyFor(e.status, { intended: e.intended || email, ...(e.selected ? { selected: e.selected } : {}), again: (tries.current[email] ?? 0) >= 2 });
         if (copy) setOutcome({ email, status: e.status, copy });
       } else {
-        setOutcome({ email, status: "failed", copy: { title: "Couldn't Reconnect", lines: [e instanceof Error && e.message ? e.message : "Try again."], actions: ["retry", "not_now"] } });
+        setOutcome({ email, status: "failed", copy: { title: "Couldn't Reconnect", lines: [e instanceof Error && e.message ? e.message : RECONNECT_FALLBACK_LINE], actions: ["retry", "not_now"] } });
       }
       // The server decided: whatever it decided, what the screen says about the account is re-read, never assumed.
       void live.current.refreshStatus(true);

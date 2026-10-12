@@ -242,7 +242,7 @@ export class ReconnectOutcomeError extends Error {
   readonly retryable: boolean;
   constructor(status: AttemptStatus, intended: string, o: { selected?: string; retryable?: boolean } = {}) {
     const c = copyFor(status, { intended, ...(o.selected ? { selected: o.selected } : {}) });
-    super(c ? [c.title, ...c.lines].join(" · ") : "Reconnect did not complete");
+    super(c ? [c.title, ...c.lines].join(" · ") : "Reconnect Did Not Complete");
     this.name = "ReconnectOutcomeError";
     this.status = status;
     this.intended = intended;

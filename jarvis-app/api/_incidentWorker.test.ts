@@ -7,7 +7,7 @@
 // sent; one logical attempt, ever; and the answer carries counts, never an address, an incident ID or a token.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import statusHandler from "./connections/status";
-import { INCIDENT_ALERT_TEXT, recheck, runIncidentWorker, type AlertPayload, type AlertTransport } from "./_incidentWorker";
+import { INCIDENT_ALERT_TEXT, alertTextFor, emailAlertPrefsOf, recheck, runIncidentWorker, type AlertPayload, type AlertTransport } from "./_incidentWorker";
 import { resetProviderToken } from "./_apns";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -30,6 +30,8 @@ interface World {
   devices: { token: string; environment: string }[] | "down";
   /** Apple's answer to one push. */
   apple: (url: string, init: RequestInit) => Response;
+  /** The owner's profile data (Notifications' Email switches live in data.notify); "down" = storage refuses. */
+  profile: Record<string, unknown> | null | "down";
 }
 let w: World;
 let calls: { url: string; body: Record<string, unknown> | null }[] = [];
@@ -43,7 +45,7 @@ const row = (o: Partial<Row> = {}): Row => ({
 });
 
 function stub(over: Partial<World> = {}): World {
-  w = { rows: [row()], account: { state: "reauth", last_sync_at: "2026-10-10T11:00:00.000Z", connection_health: null, connection_health_at: null }, grant: { state: "DEAD", dead_at: DETECTED, last_refresh_ok_at: null, consecutive_failures: 0, last_auth_error: { oauthRefreshFailedAt: DETECTED } }, tokenOk: true, devices: [], apple: () => res(null), ...over };
+  w = { rows: [row()], account: { state: "reauth", last_sync_at: "2026-10-10T11:00:00.000Z", connection_health: null, connection_health_at: null }, grant: { state: "DEAD", dead_at: DETECTED, last_refresh_ok_at: null, consecutive_failures: 0, last_auth_error: { oauthRefreshFailedAt: DETECTED } }, tokenOk: true, devices: [], apple: () => res(null), profile: null, ...over };
   calls = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
@@ -78,6 +80,10 @@ function stub(over: Partial<World> = {}): World {
       return res(w.devices);
     }
     if (url.startsWith("https://api.push.apple.com/") || url.startsWith("https://api.sandbox.push.apple.com/")) return w.apple(url, init!);
+    if (url.includes("/rest/v1/item?")) {
+      if (w.profile === "down") return res({}, 503);
+      return res(w.profile ? [{ data: w.profile }] : []);
+    }
     if (url.includes("/rest/v1/google_tokens")) return res(w.grant ? [{ email: DAVE, ...w.grant }] : []);
     if (url.includes("/rest/v1/email_account?")) {
       if (w.account === "down") return res({}, 503);
@@ -203,6 +209,40 @@ describe("the transport seam (for when a user-scoped sender exists)", () => {
     expect(JSON.stringify(sent)).not.toMatch(/dave|gmail|@|JC-/i);
     expect(statusAtSend).toEqual(["unknown"]);
     expect(w.rows[0]!.alert_status).toBe("submitted");
+  });
+
+  it("Email Alerts off (Notifications, 2026-10-12): nothing is sent, the alert is recorded unavailable with that reason", async () => {
+    stub({ profile: { notify: { emailAlerts: false } } });
+    const send = vi.fn(async (): Promise<"submitted"> => "submitted");
+    const transportFor = vi.fn(async () => ({ send }));
+    const r = await runIncidentWorker(post("good"), { transportFor });
+    expect(await r.json()).toMatchObject({ unavailable: 1, submitted: 0 });
+    expect(w.rows[0]).toMatchObject({ alert_status: "unavailable", alert_reason: "email_alerts_off" });
+    expect(send).not.toHaveBeenCalled();
+    expect(transportFor).not.toHaveBeenCalled();
+    // The switch is read from this owner's profile, at dispatch.
+    expect(calls.some((c) => c.url.includes("/rest/v1/item?") && c.url.includes(`owner_id=eq.${USER}`) && c.url.includes("entity_type=eq.profile"))).toBe(true);
+  });
+
+  it("Show Previews off (the default): the private text; on: that text and the account label, and never a subject, sender or excerpt", async () => {
+    for (const [profile, text] of [[null, INCIDENT_ALERT_TEXT], [{ notify: { emailPreviews: false } }, INCIDENT_ALERT_TEXT], [{ notify: { emailPreviews: true } }, `${INCIDENT_ALERT_TEXT} · ${DAVE}`]] as const) {
+      stub({ profile });
+      const sent: AlertPayload[] = [];
+      await runIncidentWorker(post("good"), { transportFor: async () => ({ send: async (p) => { sent.push(p); return "submitted"; } }) });
+      expect(sent).toEqual([{ text, kind: "connection" }]);
+    }
+    expect(emailAlertPrefsOf(undefined)).toEqual({ alerts: true, previews: false });
+    expect(emailAlertPrefsOf({ notify: { emailAlerts: "no", emailPreviews: 1 } })).toEqual({ alerts: true, previews: false });
+    expect(alertTextFor({ alerts: true, previews: true }, "  ")).toBe(INCIDENT_ALERT_TEXT);
+  });
+
+  it("a profile that cannot be read is not guessed at: the alert stays pending for the next tick", async () => {
+    stub({ profile: "down" });
+    const send = vi.fn(async (): Promise<"submitted"> => "submitted");
+    const r = await runIncidentWorker(post("good"), { transportFor: async () => ({ send }) });
+    expect(await r.json()).toMatchObject({ deferred: 1, submitted: 0 });
+    expect(w.rows[0]!.alert_status).toBe("pending");
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("a transport that throws leaves the outcome unknown, recorded, and it is never blindly resent", async () => {

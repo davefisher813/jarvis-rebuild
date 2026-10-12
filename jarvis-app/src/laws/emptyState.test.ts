@@ -128,10 +128,9 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   "brain/HealthBody.tsx · Nothing to Read Yet": "Log Something sits under this card, on this screen",
   // ADDED (Dave 2026-10-05, locked: a section's action lives in the section head, and a card holding only an action
   // is not drawn). The empty-day card keeps its own words and loses the Plan My Day capsule that sat inside it; the
-  // capsule is the Today head's, one line above, on this screen. The Email Sections page is the same: Add Section is
-  // the head's capsule right above the empty words.
+  // capsule is the Today head's, one line above, on this screen. (The Email Sections page was the same until
+  // 2026-10-12; its rules builder is gone and its empty state, No Moves Yet, carries its own Open Email door, so it left the roster.)
   "today/YourDay.tsx · #1": "Plan My Day is the Today head's capsule, directly above the card (Dave 2026-10-05)",
-  "settings/EmailSectionsPage.tsx · No Sections Yet": "Add Section is the head's capsule right above these words (Dave 2026-10-05)",
   // Booking (round-1 review, 2026-10-05, D9): the two crafted empty states, a glyph, a title and one warm line, each filled by the capsule
   // on the head directly above it (Publish My Times on Your Link, Add a Day Off on Days Off).
   "settings/BookingPage.tsx · No Link Yet": "Publish My Times is the Your Link head's capsule, directly above these words (Dave 2026-10-05)",

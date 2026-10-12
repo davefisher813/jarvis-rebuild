@@ -6,10 +6,13 @@
 // email_signature_set, and an empty save is accepted as explicit (spec:
 // "Empty is valid").
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AccountsScreen from "./AccountsScreen";
-import { EDIT_SIGNATURE, SIGNATURE_SAVED } from "./copy";
+import { CATCHING_UP, EDIT_SIGNATURE, RECONNECT, SIGNATURE_SAVED } from "./copy";
+import { NOT_CONFIRMED, READY_TO_SEND, SENDING_LABEL, SIGNED_IN, SIGN_IN_LABEL, STATUS_SHEET_TITLE, SYNC_LABEL, UP_TO_DATE, sendFacts } from "./AccountStatusSheet";
+import { RETRY_SYNC } from "./statusHeadline";
+import { deriveStatus, viewOf, type AccountStatus } from "../connections/connectionStatus";
 import type { EmailAccount, RpcClient } from "./emailClient";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 
@@ -98,5 +101,67 @@ describe("the signature editor (AC17, AC18, AC19's own settings half)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("Signature")).toBeNull();
     expect(r.calls).toEqual([]);
+  });
+});
+
+// V09 (2026-10-12): the per-account status sheet (spec 2.5, 8.1) and the one-tap reconnect from the head.
+describe("the account's status sheet and the head's Reconnect", () => {
+  const proven = (o: Partial<AccountStatus> = {}): AccountStatus => ({
+    ...deriveStatus({ email: DAVE, refresh: { ok: true, scope: "https://www.googleapis.com/auth/gmail.modify" }, read: { ok: true, status: 200, emailAddress: DAVE }, lastSyncAt: "2026-10-12T09:00:00Z", now: new Date() }), ...o,
+  });
+  const lostStatus = () => deriveStatus({ email: DAVE, refresh: { ok: false, error: "invalid_grant" }, read: null, lastSyncAt: "2026-10-12T09:00:00Z", now: new Date() });
+  const openStatus = () => {
+    fireEvent.click(screen.getByRole("button", { name: `More Actions for ${DAVE}` }));
+    fireEvent.click(screen.getByRole("button", { name: STATUS_SHEET_TITLE }));
+    return screen.getByRole("dialog", { name: `${STATUS_SHEET_TITLE} ${DAVE}` });
+  };
+  const dims = (sheet: HTMLElement) => Object.fromEntries([...sheet.querySelectorAll("[data-dimension]")].map((r) => [r.getAttribute("data-dimension"), [...r.querySelectorAll(".fact")].map((f) => [f.textContent, f.className])]));
+
+  it("shows Sign-In, Sync and Sending as three separate rows: a healthy, current mailbox, with no action to take", () => {
+    const st = proven();
+    render(<AccountsScreen accounts={[account({ sync_state: "current", verified_through_at: "2026-10-12T09:00:00Z" })]} views={new Map([[DAVE, viewOf(st, new Date(), true)]])} statuses={[st]} onBack={() => {}} onOpenConnections={() => {}} onReconnect={vi.fn()} onRetrySync={vi.fn()} />);
+    const sheet = openStatus();
+    const d = dims(sheet);
+    expect(Object.keys(d)).toEqual([SIGN_IN_LABEL, SYNC_LABEL, SENDING_LABEL]);
+    expect(d[SIGN_IN_LABEL]![0]).toEqual([SIGNED_IN, "fact good"]);
+    expect(d[SYNC_LABEL]![0]).toEqual([UP_TO_DATE, "fact good"]);
+    expect(d[SYNC_LABEL]![1]![0]).toMatch(/^Last Checked/);
+    expect(d[SENDING_LABEL]![0]).toEqual([READY_TO_SEND, "fact good"]);
+    expect(within(sheet).queryByRole("button", { name: RECONNECT })).toBeNull();
+    expect(within(sheet).queryByRole("button", { name: RETRY_SYNC })).toBeNull();
+    // One grey per row at most.
+    for (const r of sheet.querySelectorAll("[data-dimension]")) expect(r.querySelectorAll(".fact:not(.good):not(.warn):not(.red):not(.date)").length).toBeLessThanOrEqual(1);
+  });
+
+  it("a lost sign-in offers Reconnect (one tap, that address); a mailbox still catching up says so and offers Retry Sync", () => {
+    const st = lostStatus();
+    const onReconnect = vi.fn();
+    const onRetrySync = vi.fn();
+    render(<AccountsScreen accounts={[account({ state: "reauth", sync_state: "catching_up" })]} views={new Map([[DAVE, viewOf(st, new Date(), true)]])} statuses={[st]} onBack={() => {}} onOpenConnections={() => {}} onReconnect={onReconnect} onRetrySync={onRetrySync} />);
+    let sheet = openStatus();
+    const d = dims(sheet);
+    expect(d[SIGN_IN_LABEL]![0]).toEqual(["Needs Reconnecting", "fact warn"]);
+    expect(d[SYNC_LABEL]![0]).toEqual([CATCHING_UP, "fact warn"]);
+    expect(d[SENDING_LABEL]![0]![1]).toBe("fact warn");
+    fireEvent.click(within(sheet).getByRole("button", { name: RECONNECT }));
+    expect(onReconnect).toHaveBeenCalledWith(DAVE);
+    sheet = openStatus();
+    fireEvent.click(within(sheet).getByRole("button", { name: RETRY_SYNC }));
+    expect(onRetrySync).toHaveBeenCalledTimes(1);
+  });
+
+  it("the head's Reconnect reconnects that exact mailbox in one tap, through the same path as the banner", () => {
+    const st = lostStatus();
+    const onReconnect = vi.fn();
+    const onOpenConnections = vi.fn();
+    render(<AccountsScreen accounts={[account({ state: "reauth" })]} views={new Map([[DAVE, viewOf(st, new Date(), true)]])} statuses={[st]} onBack={() => {}} onOpenConnections={onOpenConnections} onReconnect={onReconnect} />);
+    fireEvent.click(screen.getByRole("button", { name: RECONNECT }));
+    expect(onReconnect).toHaveBeenCalledWith(DAVE);
+    expect(onOpenConnections).not.toHaveBeenCalled();
+  });
+
+  it("sending reasons are Title Case words, never the raw sentence", () => {
+    expect(sendFacts(proven({ sendReady: { ready: false, reason: "Send permission missing" } }))).toEqual([{ text: "Send Permission Missing", tone: "warn" }]);
+    expect(sendFacts(undefined)).toEqual([{ text: NOT_CONFIRMED, tone: "warn" }]);
   });
 });

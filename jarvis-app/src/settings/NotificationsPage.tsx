@@ -33,17 +33,36 @@ const webMeta = (status: WebPushStatus): string | undefined => WEB_META[status];
 // room for (the steps, or the way out) and nothing for a state the row has said whole. The three states that have a working
 // switch (off, on) keep their sentence, because the row has nothing to say there; each is one sentence with no typed dot.
 // An empty string draws no note at all.
+// 2026-10-12 (V14): the web note never claims what web push does not deliver. Email connection alerts go only to the
+// iPhone app (api/_incidentWorker.ts sends by Apple push to registered phones and never by web push), so the note says
+// where they arrive instead of promising them here.
 export function webNote(status: WebPushStatus | null): string {
   if (status === null) return "";
   if (status === "off") return "Turn on Alerts on This Phone and iOS will ask to allow notifications, and it is all alerts or none, since the switches below only shape the Notifications screen inside the app";
-  if (status === "on") return "Alerts arrive on this phone, all alerts or none, and the switches below only shape the Notifications screen inside the app";
+  if (status === "on") return "JARVIS alerts arrive on this phone, all or none, and the switches below only shape the Notifications screen inside the app";
   if (status === "not-standalone") return "Tap Share, then Add to Home Screen, then open JARVIS from there";
   if (status === "denied") return "Turn them on under Notifications, JARVIS in iOS Settings";
   return "";
 }
 
-type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
-const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
+type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; emailAlerts: boolean; emailPreviews: boolean };
+// Email Alerts on and Show Previews OFF by default (L5: phone notifications are private by default).
+const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true, emailAlerts: true, emailPreviews: false };
+
+// THE EMAIL SWITCHES' WORDS (2026-10-12, V14). Connection alerts are sent only by Apple push to the iPhone app, so on the
+// web the row says where they arrive rather than claiming this browser gets them; the in-app status shows either way.
+export const EMAIL_ALERTS = "Email Alerts";
+export const SHOW_PREVIEWS = "Show Previews";
+export function emailAlertsMeta(native: boolean): string {
+  return native ? "When a Mailbox Needs You for 15 Min" : "Arrive in the iPhone App";
+}
+export const PREVIEWS_META = "Account Name Only";
+export function emailFoot(native: boolean): string {
+  return native
+    ? "Alerts say only that JARVIS needs your attention, and Show Previews adds the account's name, never a sender, subject or message"
+    : "Email connection alerts arrive in the iPhone app and show inside JARVIS, never in this browser";
+}
+export const EMAIL_WRITE_FAILED = "Couldn't Save Email Alerts · Your Last Setting Stands";
 
 export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   const svc = useProfile();
@@ -87,12 +106,15 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   // SHELL-F-14 (2026-09-05): the switch flipped, the write failed, nothing
   // said so, and the old setting was back on the next launch. Guarded, and
   // the switch goes back to what is actually stored.
+  const [emailLine, setEmailLine] = useState<string | null>(null);
   const set = async (patch: Partial<Prefs>) => {
     const prev = prefs;
     const next = { ...prefs, ...patch };
     setPrefs(next);
+    setEmailLine(null);
     const ok = await attemptWrite(() => svc.save({ notify: next }));
-    if (!ok) { setPrefs(prev); return; }
+    // A write that did not land puts the switch back and, for the email pair, says so on the page (a soft failure).
+    if (!ok) { setPrefs(prev); if ("emailAlerts" in patch || "emailPreviews" in patch) setEmailLine(EMAIL_WRITE_FAILED); return; }
     if (Object.values(patch).some((on) => on === true)) await requestNotificationPermission();
     // SHARED-F-02: whatever the ask returned, re-read the OS state so the
     // foot and the locks below tell the truth about the answer just given.
@@ -193,7 +215,8 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             app schedules those: the web build has nothing for them to do, so
             it does not show them. A locked tap says why. */}
         <Switch label="Overdue and Due Tasks" meta="On the Notifications Tab Only" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
-        <Switch label="Today's Events" meta="Lock-Screen Alert 15 Min Before" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
+        {/* The lock-screen alert is scheduled only by the phone app; on the web the switch shapes the in-app screen (2026-10-12). */}
+        <Switch label="Today's Events" meta={native ? "Lock-Screen Alert 15 Min Before" : "On the Notifications Tab Only"} on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
         {native && <Switch label="Daily Check-Ins" meta="Morning and Night Prompts" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
         <Switch label="Goal and Life-Area Nudges" meta="When a Goal Falls Behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
         {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
@@ -202,6 +225,14 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             on by default. */}
         {native && <Switch label="Rest Timer" meta="A Buzz When the Rest Is Over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
       </Card>
+      {/* EMAIL (2026-10-12, Email v1 spec 10, L5): the server reads both switches at dispatch. Off by default for previews. */}
+      <Head label="Email" />
+      <Card>
+        <Switch label={EMAIL_ALERTS} meta={emailAlertsMeta(native)} on={prefs.emailAlerts} onToggle={() => void set({ emailAlerts: !prefs.emailAlerts })} />
+        <Switch label={SHOW_PREVIEWS} meta={PREVIEWS_META} on={prefs.emailPreviews} locked={!prefs.emailAlerts}
+          onLocked={() => showToast({ message: "Turn on Email Alerts First" })} onToggle={() => void set({ emailPreviews: !prefs.emailPreviews })} />
+      </Card>
+      {emailLine ? <div className="pad-x"><div className="input-error" role="alert">{emailLine}</div></div> : <Foot>{emailFoot(native)}</Foot>}
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with switches on it
           reads as phone alerts. On the web these switches only decide what

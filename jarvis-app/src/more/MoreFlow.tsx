@@ -99,10 +99,10 @@ export default function MoreFlow({
   if (route === "account") return <AccountPage onBack={() => setRoute("settings")} onEditProfile={() => setRoute("profile")} onSignOut={onSignOut} />;
   if (route === "notifsettings") return <NotificationsPage onBack={() => setRoute("settings")} />;
   if (route === "aicontrol") return <AIControlPage onBack={() => setRoute("settings")} />;
-  // Email Sections (2026-09-29): the person's own local filters for the Email tab.
-  if (route === "emailsections") return <EmailSectionsPage onBack={() => setRoute("settings")} />;
+  // Email Sections (2026-10-12): the section moves made on the Email tab, each with Put Back; the empty state opens Email.
+  if (route === "emailsections") return <EmailSectionsPage onBack={() => setRoute("settings")} onOpenEmail={() => onOpenExtra("messages")} />;
   // Email Signatures (2026-10-12): the per-mailbox signature, where a person looks for it.
-  if (route === "emailsignatures") return <EmailSignaturesPage onBack={() => setRoute("settings")} />;
+  if (route === "emailsignatures") return <EmailSignaturesPage onBack={() => setRoute("settings")} onOpenConnections={() => setRoute("connections")} />;
   if (route === "learned") return <LearnedRulesPage onBack={() => setRoute("settings")} />;
   // Brain Manual v1: Export and Erase for the categorized memory.
   if (route === "brainsettings") return <BrainSettingsPage onBack={() => setRoute("settings")} />;

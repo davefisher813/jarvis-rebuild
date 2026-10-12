@@ -1,7 +1,8 @@
 // THE LOUD BANNER (Foundation Fix Spec 3, failure-modes section 16a).
 //
-// A confirmed connection loss is shown at the top of Email, in red with white
-// text, for as long as it is true. There is no dismiss button: tapping the
+// A confirmed connection loss is shown at the top of Email, in amber with dark
+// text ("Banner color: Dave ruled AMBER", 2026-10-12: a recoverable problem is
+// amber; red is for late and destructive), for as long as it is true. There is no dismiss button: tapping the
 // banner or any of its three ways out ACKNOWLEDGES it, and an acknowledged
 // banner compacts to one persistent strip. The failure never leaves the screen
 // while it is open, and this component never says "All Caught Up" or shows a
@@ -20,7 +21,8 @@ import { OPEN_GMAIL_LABEL, PAUSED_LABEL, RECONNECT_LABEL, gmailUrlFor, type Bann
 import { CHECKING_LINE } from "../connections/google/reconnect";
 import type { Outcome, OutcomeAction } from "./useReconnect";
 
-const ACTION_LABEL: Record<OutcomeAction, string> = { finish: "Finish Reconnecting", not_now: "Not Now", retry: "Try Again", permissions: "Open Google Permissions" };
+// "Try again" must not ambiguously resend (spec 2.6): the retry of a reconnect says what it does.
+const ACTION_LABEL: Record<OutcomeAction, string> = { finish: "Finish Reconnecting", not_now: "Not Now", retry: "Reconnect", permissions: "Open Google Permissions" };
 
 export default function ConnectionBanner({ models, notes, onReconnect, onViewPaused, onAcknowledge, onSeen, busyEmail = null, outcome = null, checking = false, onOutcomeAction }: {
   models: BannerModel[];
@@ -34,7 +36,8 @@ export default function ConnectionBanner({ models, notes, onReconnect, onViewPau
   /** The app was killed mid-reconnect and is asking the server what became of it. */
   checking?: boolean;
   onOutcomeAction?: (a: OutcomeAction) => void;
-  /** Omitted where there is nowhere to see paused actions (no mailbox client). */
+  /** Opens the paused replies list. Omitted where there is nowhere to see them (no mailbox client) or nothing is paused:
+   *  a button to an empty list is not offered. */
   onViewPaused?: () => void;
   onAcknowledge: (incidentId: string) => void;
   onSeen: (incidentId: string) => void;

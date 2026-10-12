@@ -130,3 +130,22 @@ describe("email.css: every class in it is rendered somewhere (no subtext class w
     expect(dead, "dead classes are how a stale 13px grey rule survives").toEqual([]);
   });
 });
+
+describe("the connection banner is amber (Banner color: Dave ruled AMBER, 2026-10-12)", () => {
+  // "Banner color: Dave ruled AMBER" (2026-10-12). A lost or stalled mailbox is recoverable (spec 2.8: waiting and recoverable
+  // failures use amber; red is for late or destructive), so the banner and its strip wear the system amber fill with the
+  // dark on-fill ink, in both themes, through tokens only.
+  const ALL = rules(ALL_SHEETS);
+  const body = (sel: string) => ALL.filter((r) => r.sel === sel).map((r) => r.body).join(";");
+  for (const sel of [".conn-banner", ".conn-strip"]) {
+    it(`${sel} is the amber fill with dark words, never the red`, () => {
+      expect(body(sel)).toMatch(/background:\s*var\(--warn-fill\)/);
+      expect(body(sel)).toMatch(/color:\s*var\(--on-fill-dark\)/);
+      expect(body(sel)).not.toMatch(/--red|--sys-red|#fff\b/i);
+    });
+  }
+  it("its buttons are drawn in the banner's own two tokens, never white on red", () => {
+    for (const sel of [".conn-banner-act", ".conn-banner-act.primary", ".conn-strip-act"]) expect(body(sel)).not.toMatch(/--red|#fff\b/i);
+    expect(body(".conn-banner-act.primary")).toMatch(/background:\s*var\(--on-fill-dark\)/);
+  });
+});

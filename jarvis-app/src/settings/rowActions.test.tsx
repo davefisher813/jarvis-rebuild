@@ -9,7 +9,7 @@ import { NotesProvider, useProfile, useRules } from "../data/NotesProvider";
 import { AuthProvider } from "../auth/AuthProvider";
 import { capsulesInCards } from "../laws/catalogCheck";
 import { lineCase } from "../shared/casing";
-import { newSectionId } from "../messages/emailSections";
+import { recordMove } from "../email/sections";
 import * as textZoom from "../appearance/textZoom";
 import { extrasFor } from "../shell/destinations";
 import AppearancePage from "./AppearancePage";
@@ -53,36 +53,23 @@ const wrap = (ui: React.ReactElement, user = "u-ra") => (
 beforeEach(() => { try { localStorage.clear(); } catch { /* ignore */ } });
 afterEach(() => { vi.restoreAllMocks(); });
 
-describe("Email Sections: the Add and the form's buttons", () => {
-  it("Add Section is the Sections head's capsule, and no capsule sits in a card", async () => {
-    let profile: ReturnType<typeof useProfile> | null = null;
-    const Grab = () => { profile = useProfile(); return null; };
+describe("Email Sections: the moves and Put Back", () => {
+  it("a move's Put Back is in the row's sheet, never a capsule in the row or the card", async () => {
     const user = "u-ra-sections";
-    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
-    await waitFor(() => expect(profile).toBeTruthy());
-    await profile!.save({ name: "Alex", emailSections: [{ id: newSectionId(), name: "Team Mail", matchers: [{ field: "sender", text: "marco" }] }] });
-    view.rerender(<NotesProvider userId={user}><Grab /><EmailSectionsPage onBack={noop} /></NotesProvider>);
-    const add = await screen.findByRole("button", { name: "Add Section" });
-    expect(add.closest(".sh2"), "Add Section lives in the head").not.toBeNull();
-    expect(add.closest(".card")).toBeNull();
+    recordMove(user, { id: "m1", subject: "Your October Bill", from_name: "Con Edison", from_address: "billing@conedison.test" }, "money");
+    render(wrap(<EmailSectionsPage onBack={noop} userId={user} />, user));
+    const r = await screen.findByText("Your October Bill");
     expect(capsulesInCards(document.body)).toEqual([]);
-    // Editing: Add Matcher and Remove ride the matcher's head, Save is the one filled button below the cards.
-    fireEvent.click(add);
-    const addMatcher = await screen.findByRole("button", { name: "Add Matcher" });
-    expect(addMatcher.closest(".sh2")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Remove Matcher 1" }).closest(".sh2")).not.toBeNull();
-    const save = screen.getByRole("button", { name: "Save Section" });
-    expect(save.className).toContain("btn-primary");
-    expect(save.closest(".card")).toBeNull();
-    expect(capsulesInCards(document.body)).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Put Back" })).toBeNull();
+    fireEvent.click(r);
+    expect(await screen.findByRole("button", { name: "Put Back" })).toBeInTheDocument();
   });
 
-  it("with no sections the head and its capsule stand alone above the empty words, and no box holds only the button", async () => {
-    const { container } = render(wrap(<EmailSectionsPage onBack={noop} />, "u-ra-sections-empty"));
-    const add = await screen.findByRole("button", { name: "Add Section" });
-    expect(add.closest(".sh2")).not.toBeNull();
-    expect(await screen.findByText("No Sections Yet")).toBeInTheDocument();
-    expect(container.querySelector(".empty-state button")).toBeNull();
+  it("with no moves the empty words carry their own door, and no box holds only the button", async () => {
+    const { container } = render(wrap(<EmailSectionsPage onBack={noop} onOpenEmail={noop} />, "u-ra-sections-empty"));
+    expect(await screen.findByText("No Moves Yet")).toBeInTheDocument();
+    expect(container.querySelector(".empty-state .empty-title")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Open Email" })).toBeInTheDocument();
   });
 });
 

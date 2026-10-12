@@ -18,7 +18,7 @@ import BrainSettingsPage from "./BrainSettingsPage";
 import AIControlPage from "./AIControlPage";
 import EmailSectionsPage from "./EmailSectionsPage";
 import LearnedRulesPage from "./LearnedRulesPage";
-import NotificationsPage, { webNote } from "./NotificationsPage";
+import NotificationsPage, { emailFoot, webNote } from "./NotificationsPage";
 import { Head, DangerRow } from "./kit";
 import ConnectionsPage from "../connections/ConnectionsPage";
 import CategoriesPage from "../categories/screens/CategoriesPage";
@@ -198,7 +198,8 @@ describe("Notifications: the way to turn the dead-looking Alerts switch on sits 
     vi.spyOn(webPush, "currentStatus").mockResolvedValue("no-sw");
     const { container } = render(<NotesProvider userId="u-sweep-notif-nosw"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     await screen.findByText("Not Supported in This Browser");
-    expect(container.querySelector(".input-hint"), "the row said it; a second line would say it twice").toBeNull();
+    // The only foot on the page is the Email card's (2026-10-12), which says where email alerts arrive: none under Alerts.
+    expect([...container.querySelectorAll(".input-hint")].map(norm), "the row said it; a second line would say it twice").toEqual([emailFoot(false)]);
   });
 
   it("no switch line wraps a sentence: each is a short fragment", async () => {
@@ -312,12 +313,13 @@ describe("Empty states are crafted (D9): a glyph in its type's colour, a title, 
   });
 
   it("Email Sections", async () => {
-    const { container } = render(<NotesProvider userId="u-sweep-sections"><EmailSectionsPage onBack={() => {}} /></NotesProvider>);
+    const { container } = render(<NotesProvider userId="u-sweep-sections"><EmailSectionsPage onBack={() => {}} onOpenEmail={() => {}} /></NotesProvider>);
     await waitFor(() => expect(container.querySelector(".empty-state")).not.toBeNull());
     glyphed(container.querySelector(".empty-state"));
-    expect(norm(container.querySelector(".empty-sub"))).toBe("Filters Appear as Chips on Email");
-    // the one capsule that fills it is on the head directly above
-    expect(screen.getByRole("button", { name: "Add Section" }).closest(".sh2")).not.toBeNull();
+    expect(norm(container.querySelector(".empty-sub"))).toBe("Move to Section on a Message Puts It Here");
+    // 2026-10-12: the rules builder is gone (spec 2.7); the empty state carries its own door, to Email, where a move is made.
+    expect(screen.getByRole("button", { name: "Open Email" }).closest(".empty-state")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Add Section" })).toBeNull();
   });
 
   it("Booking: the two empty states and the head capsules that fill them", async () => {

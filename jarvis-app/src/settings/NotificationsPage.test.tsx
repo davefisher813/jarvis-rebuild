@@ -10,7 +10,7 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import * as notifications from "../shared/notifications";
 import * as webPush from "../shared/webPush";
 import { reasonFor } from "../shared/webPush";
-import NotificationsPage from "./NotificationsPage";
+import NotificationsPage, { EMAIL_ALERTS, EMAIL_WRITE_FAILED, PREVIEWS_META, SHOW_PREVIEWS, emailAlertsMeta, emailFoot } from "./NotificationsPage";
 import { readHealthSettings, updateHealthSettings } from "../health/settings";
 
 describe("NotificationsPage", () => {
@@ -314,5 +314,59 @@ describe("NotificationsPage, the Rest timer switch and the rest buzz share one s
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
     render(<NotesProvider userId="u-rest-denied-foot"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/the rest timer and event alerts wait until you turn them on there/)).toBeInTheDocument());
+  });
+});
+
+// V14 (2026-10-12): the Email pair, and the web's words matching what the web can deliver.
+describe("NotificationsPage: Email Alerts and Show Previews", () => {
+  afterEach(() => vi.restoreAllMocks());
+  const sw = (label: string) => screen.getByText(label).closest(".row")!.querySelector(".switch")!;
+
+  it("Email Alerts on and Show Previews off by default, and each saves to the profile the server reads at dispatch", async () => {
+    const save = vi.spyOn(ProfileService.prototype, "save");
+    render(<NotesProvider userId="u-email-prefs"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText(EMAIL_ALERTS);
+    expect(sw(EMAIL_ALERTS).getAttribute("aria-checked")).toBe("true");
+    expect(sw(SHOW_PREVIEWS).getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText(PREVIEWS_META)).toBeInTheDocument();
+    fireEvent.click(sw(SHOW_PREVIEWS));
+    await waitFor(() => expect(sw(SHOW_PREVIEWS).getAttribute("aria-checked")).toBe("true"));
+    expect(save).toHaveBeenLastCalledWith({ notify: expect.objectContaining({ emailAlerts: true, emailPreviews: true }) });
+    fireEvent.click(sw(EMAIL_ALERTS));
+    await waitFor(() => expect(sw(EMAIL_ALERTS).getAttribute("aria-checked")).toBe("false"));
+    expect(save).toHaveBeenLastCalledWith({ notify: expect.objectContaining({ emailAlerts: false }) });
+  });
+
+  it("a write that did not land puts the switch back and says so on the page", async () => {
+    vi.spyOn(ProfileService.prototype, "save").mockRejectedValue(new Error("network"));
+    render(<NotesProvider userId="u-email-prefs-fail"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText(EMAIL_ALERTS);
+    fireEvent.click(sw(EMAIL_ALERTS));
+    expect(await screen.findByText(EMAIL_WRITE_FAILED)).toBeInTheDocument();
+    expect(sw(EMAIL_ALERTS).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("on the web: email alerts are said to arrive in the iPhone app, and Today's Events claims no lock-screen alert", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("on");
+    const { container } = render(<NotesProvider userId="u-email-web"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText(EMAIL_ALERTS);
+    expect(screen.getByText(emailAlertsMeta(false))).toBeInTheDocument();
+    expect(screen.getByText(emailFoot(false))).toBeInTheDocument();
+    expect(emailFoot(false)).toMatch(/iPhone app/);
+    const events = screen.getByText("Today's Events").closest(".row")!;
+    expect(events.textContent).not.toMatch(/Lock-Screen/);
+    // Nothing on the web page says this browser receives email alerts.
+    expect(container.textContent).not.toMatch(/email alerts arrive (here|in this browser|on this phone)/i);
+  });
+
+  it("on the phone: the lock-screen line stays, and the email foot says what a preview may show", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
+    render(<NotesProvider userId="u-email-native"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText(EMAIL_ALERTS);
+    expect(screen.getByText("Lock-Screen Alert 15 Min Before")).toBeInTheDocument();
+    expect(screen.getByText(emailAlertsMeta(true))).toBeInTheDocument();
+    expect(screen.getByText(emailFoot(true))).toBeInTheDocument();
   });
 });

@@ -10,7 +10,7 @@ import { monthDay } from "../money/bills";
 import type { WaitingItem } from "../substrate/waiting/types";
 import { EMPTY_RESOLVED, EMPTY_WAITING, FOLLOW_UP_TODAY, NEW_REPLY, OPEN_VIEW, RESOLVED_VIEW, RESOLVED_WORD, WAITING_ON, followUpOnWord, followUpWas } from "./copy";
 import EmailFacts from "./EmailFacts";
-import type { EmailFact } from "./format";
+import { accountLabels, type EmailFact } from "./format";
 import EmptyState from "./EmptyState";
 import ListFloor from "../shared/ListFloor";
 import { ageWord, followUpState, newReply, orderWaiting, windowTone, type LatestInThread } from "./waiting";
@@ -43,6 +43,14 @@ export default function WaitingList({ items, latest, own, today, zone, view, onV
   onShowInbox: () => void;
 }) {
   const { open, resolved } = orderWaiting(items, today);
+  // Which mailbox it came from (2026-10-12): the same short label the inbox rows wear, a small-caps fact, and only when
+  // there is more than one mailbox to tell apart (one mailbox has nothing to say).
+  const labels = own.length > 1 ? accountLabels(own) : {};
+  const accountOf = (address: string | undefined): string | null => {
+    if (!address) return null;
+    const hit = Object.keys(labels).find((a) => a.toLowerCase() === address.toLowerCase());
+    return hit ? labels[hit]! : null;
+  };
   const list = view === "open" ? open : resolved;
   return (
     <>
@@ -67,6 +75,7 @@ export default function WaitingList({ items, latest, own, today, zone, view, onV
               const line: EmailFact[] = [
                 ...(fu ? [{ text: fu.word, tone: fu.tone }] : []),
                 view === "open" ? { text: ageWord(d.startedAt, today, zone), tone: "date" as const } : { text: `${RESOLVED_WORD}${d.resolvedAt ? " " + monthDay(d.resolvedAt.slice(0, 10)) : ""}`, tone: "good" as const },
+                ...(accountOf(d.account) ? [{ text: accountOf(d.account)!, tone: "date" as const }] : []),
                 { text: `${WAITING_ON} ${d.counterpartyDisplay || "Someone"}` },
               ];
               return (

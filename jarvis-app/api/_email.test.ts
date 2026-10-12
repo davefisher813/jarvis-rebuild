@@ -4,7 +4,7 @@
 // entities decoded, attachment metadata and never bytes, Gmail's refusals
 // as the vocabulary's codes, and the one order every list keeps.
 import { describe, it, expect } from "vitest";
-import { addressList, attachmentsOf, decodeEntities, fail, firstAddress, gmailFail, headerOf, newestFirst, toCachedRow } from "./_email";
+import { META_FIELDS, addressList, attachmentsOf, decodeEntities, fail, firstAddress, gmailFail, headerOf, newestFirst, toCachedRow } from "./_email";
 
 describe("addresses", () => {
   it("splits a header into parts, lowercases the address and keeps the name", () => {
@@ -70,6 +70,16 @@ describe("a cached row", () => {
     expect(row).toMatchObject({ rfc_message_id: "<abc@mail.test>", list_id: "<news.list.test>", list_unsubscribe: "<mailto:off@news.test>", mime_type: "text/calendar", content_class: "urn:content-classes:calendarmessage" });
     // Absent headers are null, never an empty string the resolver could mistake for a fact.
     expect(toCachedRow({ id: "m4" })).toMatchObject({ rfc_message_id: null, list_id: null, list_unsubscribe: null, mime_type: null, content_class: null });
+  });
+  it("marks a machine's message as an automatic reply from its own headers (migration 0071), and asks Gmail for them", () => {
+    const hs = (h: Array<{ name: string; value: string }>) => toCachedRow({ id: "m5", payload: { headers: [{ name: "From", value: "a@b.test" }, ...h] } } as Parameters<typeof toCachedRow>[0]);
+    expect(hs([{ name: "Auto-Submitted", value: "auto-replied" }]).auto_reply).toBe(true);
+    expect(hs([{ name: "Precedence", value: "auto_reply" }]).auto_reply).toBe(true);
+    expect(hs([{ name: "Precedence", value: "Bulk" }]).auto_reply).toBe(true);
+    expect(hs([{ name: "Auto-Submitted", value: "no" }]).auto_reply).toBe(false);
+    expect(hs([]).auto_reply).toBe(false);
+    expect(META_FIELDS).toContain("metadataHeaders=Auto-Submitted");
+    expect(META_FIELDS).toContain("metadataHeaders=Precedence");
   });
   it("falls back to the message id for the thread and to now for a missing time", () => {
     const before = Date.now();

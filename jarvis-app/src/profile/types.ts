@@ -40,6 +40,11 @@ export interface ProfileData {
     quietHours?: boolean; quietFrom?: string; quietTo?: string;
     defaultFollowUp?: boolean;
     privateAlerts?: boolean;
+    // EMAIL ALERTS (2026-10-12, Email v1 spec 10 and L5). Read by the server at dispatch (api/_incidentWorker.ts):
+    // emailAlerts off sends no connection-incident push; emailPreviews on may add the account label to it, and nothing
+    // more. Absent reads as alerts on, previews off.
+    emailAlerts?: boolean;
+    emailPreviews?: boolean;
   };
   // Open tracking on outgoing mail (2026-08-09). Default ON preserves what
   // the app always did; the point of the field is that it is now a VISIBLE

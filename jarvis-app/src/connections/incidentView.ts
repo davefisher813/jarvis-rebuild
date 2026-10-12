@@ -59,6 +59,8 @@ export interface BannerModel {
   /** Two lines: when mail last updated, and that new mail may be missing. */
   lines: [string, string];
   paused: string | null;
+  /** Replies and other actions paused on this mailbox, as the status counted them (0 when none). */
+  pausedCount: number;
   /** Reconnect only where the loss is confirmed to be the grant. A degraded incident never offers it. */
   reconnect: boolean;
   /** Acknowledged: compact to one line. The failure itself stays on screen. */
@@ -79,6 +81,7 @@ export function bannerModels(accounts: AccountStatus[], ledger: Ledger): BannerM
       address: a.email,
       lines: updatedLines(a.lastSuccessfulSyncAt),
       paused: a.paused ? pausedLine(a.paused) : null,
+      pausedCount: a.paused ? (Number(a.paused.replies) || 0) + (Number(a.paused.other) || 0) : 0,
       reconnect: inc.kind === "auth",
       strip: !!ledger.acked[inc.id],
     });
@@ -95,13 +98,21 @@ export function checkedLine(at: string, now: Date): string {
 
 export interface RecoveryNote { incidentId: string; email: string; state: "restored" | "caught_up"; title: string; detail: string }
 
-/** After a loss is resolved: access restored first, mail caught up only once a sync has finished after that. Shown once, until seen. */
-export function recoveryNotes(accounts: AccountStatus[], ledger: Ledger, now: Date = new Date()): RecoveryNote[] {
+/** The account's sync dimension (spec 8.1; migration 0065), by lowercase address. Undefined where it is not known. */
+export type SyncStateOf = (email: string) => string | null | undefined;
+
+/** After a loss is resolved: access restored first, mail caught up only once a sync has finished after that. Shown once, until seen.
+ *  "Mail Up to Date" also needs the account's own sync state to be current (2026-10-12, spec 8.1: "Connected" does not mean
+ *  "Current"): a mailbox the server says is still catching up stays "Access Restored · Catching Up", whatever the ledger saw.
+ *  Where the sync state is not known (a database before 0065) the ledger's finished sync decides alone. */
+export function recoveryNotes(accounts: AccountStatus[], ledger: Ledger, now: Date = new Date(), syncStateOf?: SyncStateOf): RecoveryNote[] {
   const out: RecoveryNote[] = [];
   const open = new Set(accounts.filter((a) => a.incident).map((a) => a.email.toLowerCase()));
   for (const [id, r] of Object.entries(ledger.resolved) as [string, ResolvedEntry][]) {
     if (r.seen || open.has(r.email)) continue;
-    out.push(r.caughtUpAt
+    const sync = syncStateOf?.(r.email.toLowerCase());
+    const current = sync === undefined || sync === null || sync === "current";
+    out.push(r.caughtUpAt && current
       ? { incidentId: id, email: r.email, state: "caught_up", title: CAUGHT_UP_TITLE, detail: `${r.email} · ${checkedLine(r.caughtUpAt, now)}` }
       : { incidentId: id, email: r.email, state: "restored", title: RESTORED_TITLE, detail: `${r.email} · ${RESTORED_DETAIL}` });
   }

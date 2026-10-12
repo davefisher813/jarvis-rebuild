@@ -9,6 +9,7 @@
 
 import { getAccessToken, type GoogleClients, type TokenSource } from "./_google";
 import { extractBody, extractHtml, type GmailFull, type GmailHeader, type GmailMeta, type GmailPart } from "../src/connections/google/map";
+import { isAutoReplyHeaders } from "../src/email/autoReply";
 
 export interface EmailEnv {
   supaUrl: string;
@@ -304,6 +305,8 @@ export interface CachedRow {
   list_unsubscribe: string | null;
   mime_type: string | null;
   content_class: string | null;
+  /** A machine wrote it (Auto-Submitted or Precedence; migration 0071). Before 0071 the writer ignores it. */
+  auto_reply: boolean;
 }
 
 export function toCachedRow(meta: GmailMeta & { historyId?: string; threadId?: string }): CachedRow {
@@ -328,6 +331,7 @@ export function toCachedRow(meta: GmailMeta & { historyId?: string; threadId?: s
     list_unsubscribe: headerOf(hs, "List-Unsubscribe").trim() || null,
     mime_type: ((meta.payload as { mimeType?: string } | undefined)?.mimeType ?? "").trim().toLowerCase() || null,
     content_class: headerOf(hs, "Content-Class").trim().toLowerCase() || null,
+    auto_reply: isAutoReplyHeaders(headerOf(hs, "Auto-Submitted"), headerOf(hs, "Precedence")),
   };
 }
 
@@ -344,7 +348,9 @@ export function decodeEntities(s: string): string {
 // Message-ID, List-Id, List-Unsubscribe and Content-Class are the mail home's facts (Email v1 spec 3.2, 3.3; migration 0067):
 // the section resolver reads them and the Same Content label matches on the exact Message-ID. Headers only, never a body.
 export const META_FIELDS = "format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date"
-  + "&metadataHeaders=Message-ID&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Content-Class";
+  + "&metadataHeaders=Message-ID&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Content-Class"
+  // An automatic reply says so in these two (migration 0071; Email v1 spec 5.3): it is never New Reply evidence on Waiting.
+  + "&metadataHeaders=Auto-Submitted&metadataHeaders=Precedence";
 
 /** Metadata for many ids, a few at a time; a 404 is a message that left. */
 export async function fetchMetas(auth: string | MailboxAuth, ids: readonly string[], concurrency = 6): Promise<{ rows: CachedRow[]; gone: string[]; failed: Fail | null }> {

@@ -175,3 +175,50 @@ export function moveToSection(userId: string, id: string, key: SectionKey | null
   try { storage?.setItem(overridesKey(userId), JSON.stringify(next)); } catch { /* private mode */ }
   return next;
 }
+
+// ---- the moves, listed (Settings, Email Sections; 2026-10-12) ----------------------
+
+/** What a move remembers about its message so Settings can name it without the inbox loaded: never a body, only the row's
+ *  own subject and sender, which are already on this device. */
+export interface MoveInfo { subject: string; from: string; at: string }
+export interface SectionMove { id: string; key: SectionKey; subject: string | null; from: string | null; at: string | null }
+
+const moveInfoKey = (userId: string) => `jarvis.email.sectionMoveInfo.v1:${userId}`;
+
+function loadMoveInfo(userId: string, storage: Store | null): Record<string, MoveInfo> {
+  try {
+    const raw = JSON.parse(storage?.getItem(moveInfoKey(userId)) || "{}") as unknown;
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, MoveInfo>) : {};
+  } catch { return {}; }
+}
+
+/** Move to Section from the Email tab: the override, and the words Settings will name it by. Null puts it back. */
+export function recordMove(userId: string, row: Pick<InboxRow, "id" | "subject" | "from_name" | "from_address">, key: SectionKey | null,
+  now: Date = new Date(), storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): Overrides {
+  const next = moveToSection(userId, row.id, key, storage);
+  const info = { ...loadMoveInfo(userId, storage) };
+  if (key) info[row.id] = { subject: row.subject, from: row.from_name.trim() || row.from_address, at: now.toISOString() };
+  else delete info[row.id];
+  try { storage?.setItem(moveInfoKey(userId), JSON.stringify(info)); } catch { /* private mode */ }
+  return next;
+}
+
+/** Every move on this device, newest first. A move made before its words were kept has no subject; `known` (the device's
+ *  cached inbox rows) names it when it can. */
+export function listMoves(userId: string, known: readonly Pick<InboxRow, "id" | "subject" | "from_name" | "from_address">[] = [],
+  storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): SectionMove[] {
+  const info = loadMoveInfo(userId, storage);
+  const rows = new Map(known.map((r) => [r.id, r]));
+  return Object.entries(loadOverrides(userId, storage))
+    .map(([id, key]) => {
+      const i = info[id];
+      const r = rows.get(id);
+      return { id, key, subject: i?.subject ?? r?.subject ?? null, from: i?.from ?? (r ? r.from_name.trim() || r.from_address : null), at: i?.at ?? null };
+    })
+    .sort((a, b) => (b.at ?? "").localeCompare(a.at ?? "") || a.id.localeCompare(b.id));
+}
+
+/** Put Back: the message goes back to the section its own facts give it. */
+export function putBack(userId: string, id: string, storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): Overrides {
+  return recordMove(userId, { id, subject: "", from_name: "", from_address: "" }, null, new Date(), storage);
+}

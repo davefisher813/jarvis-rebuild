@@ -7,7 +7,7 @@ import type { BannerModel, RecoveryNote } from "../connections/incidentView";
 
 const model = (o: Partial<BannerModel> = {}): BannerModel => ({
   incidentId: "JC-0A1B2C3D", email: "dave@gmail.com", kind: "auth", title: "Gmail Needs Reconnecting", address: "dave@gmail.com",
-  lines: ["Mail last updated Oct 6 at 8:12 PM.", "New mail may be missing."], paused: "2 Replies Unsent · 1 Other Action Paused", reconnect: true, strip: false, ...o,
+  lines: ["Mail last updated Oct 6 at 8:12 PM.", "New mail may be missing."], paused: "2 Replies Unsent · 1 Other Action Paused", pausedCount: 3, reconnect: true, strip: false, ...o,
 });
 const handlers = () => ({ onReconnect: vi.fn(), onViewPaused: vi.fn(), onAcknowledge: vi.fn(), onSeen: vi.fn() });
 

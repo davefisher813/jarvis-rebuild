@@ -75,4 +75,20 @@ describe("recovery notes", () => {
     const id = Object.keys(l3.resolved)[0]!;
     expect(recoveryNotes([synced], { ...l3, resolved: { [id]: { ...l3.resolved[id]!, seen: true } } })).toEqual([]);
   });
+
+  it("Mail Up to Date only when the account's sync state is current: still catching up stays Access Restored (spec 8.1)", () => {
+    const l1 = planAnnouncements(emptyLedger("u"), [lost()], NOW).ledger;
+    const healthy = { ...deriveStatus({ email: E, refresh: { ok: true, scope: "gmail.send" }, read: { ok: true, status: 200, emailAddress: E }, lastSyncAt: null, now: NOW }), incident: null };
+    const l2 = planAnnouncements(l1, [healthy], NOW).ledger;
+    const later = new Date(NOW.getTime() + 600e3);
+    const synced = { ...healthy, lastSuccessfulSyncAt: later.toISOString(), checkedAt: later.toISOString() };
+    const l3 = planAnnouncements(l2, [synced], later).ledger;
+    const notes = (state: string | null | undefined) => recoveryNotes([synced], l3, later, () => state);
+    expect(notes("catching_up").map((n) => [n.title, n.state])).toEqual([["Access Restored", "restored"]]);
+    expect(notes("syncing").map((n) => n.title)).toEqual(["Access Restored"]);
+    expect(notes("stale").map((n) => n.title)).toEqual(["Access Restored"]);
+    expect(notes("current").map((n) => n.title)).toEqual(["Mail Up to Date"]);
+    // Not known (a database before 0065): the finished sync decides alone, as before.
+    expect(notes(undefined).map((n) => n.title)).toEqual(["Mail Up to Date"]);
+  });
 });
