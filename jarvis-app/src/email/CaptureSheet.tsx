@@ -3,8 +3,7 @@
 // kind: the typed fields, the words that came from the email beside the words
 // the person typed, the source quoted, and ONE primary that commits exactly
 // what the fields say (Save Bill, Save Receipt, Add Task, Add to Schedule,
-// Track This), once, with no second question. Save Changes keeps an edit on
-// the card and writes nothing anywhere else. A field the rules could not
+// Track This), once, with no second question; an edit is kept as part of it. A field the rules could not
 // read is named, and the primary stays shut until it is filled; a time that
 // happens twice asks for the offset; a module that is not ready says so and
 // keeps its door shut while the card stays. Manual capture is this sheet
@@ -21,7 +20,7 @@ import type { DestinationAdapter, PrepareContext } from "../substrate/destinatio
 import type { CaptureKind, CapturePayload } from "../substrate/contracts";
 import { readNumber } from "../substrate/extract/money";
 import { instantOf } from "../substrate/extract/dates";
-import { EMAIL_CHANGED, ENTERED_BY_YOU, FROM_THE_EMAIL, KEEP_IN_EMAIL, NOT_SAVED_YET, NO_DUE_DATE, SAVES_ONLY, SAVE_CHANGES, SOURCE_EVIDENCE, UNDO } from "./copy";
+import { EMAIL_CHANGED, ENTERED_BY_YOU, FROM_THE_EMAIL, KEEP_IN_EMAIL, NOT_SAVED_YET, NO_DUE_DATE, SAVES_ONLY, SOURCE_EVIDENCE, UNDO } from "./copy";
 import { KIND_WORD, PRIMARY, shortZone, toCard, type Candidate } from "./candidates";
 import type { InboxRow } from "./emailClient";
 
@@ -200,16 +199,6 @@ export default function CaptureSheet({ client, candidate, row, ctx, ready, ready
     return { ...candidate, revision: r.value.revision, payload_hash: r.value.payload_hash ?? candidate.payload_hash, payload: built.payload, missing_fields: check.missing, status: r.value.status as Candidate["status"] };
   };
 
-  const onSaveChanges = async () => {
-    if (busy) return;
-    setBusy("edit"); setLine(null);
-    const next = await saveChanges();
-    setBusy(null);
-    if (!next) return;
-    await onChanged();
-    onClose();
-  };
-
   const commit = async () => {
     if (busy || !check.ok) return;
     if (!ready(kind)) { setLine(readyLine(kind)); return; }
@@ -296,8 +285,11 @@ export default function CaptureSheet({ client, candidate, row, ctx, ready, ready
         {provLine && <Note>{provLine}</Note>}
         <Note>{SAVES_ONLY[kind]}</Note>
       </Group>
+      {/* ONE SAVE (spec 5.2: a capture card is its own review, and its Save commits it; Alfred's live
+          check 2026-10-12: Track This, then the old Save Changes, kept the edit on the card and nothing landed in Waiting).
+          The primary at the foot is the header's own primary: it keeps the edit AND commits it, in one tap. */}
       <div className="email-sheet-acts">
-        <button className="quiet-action" onClick={() => void onSaveChanges()} disabled={!dirty || busy !== null}>{SAVE_CHANGES}</button>
+        <button className="btn btn-primary" onClick={() => void commit()} disabled={!check.ok || !ready(kind) || offline || busy !== null}>{PRIMARY[kind]}</button>
         <button className="quiet-action" onClick={onClose}>{KEEP_IN_EMAIL}</button>
       </div>
     </FormSheet>
