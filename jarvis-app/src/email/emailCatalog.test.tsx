@@ -432,11 +432,14 @@ describe("The message head and its attachments", () => {
     );
     return document.body;
   };
-  it("the head is ONE wrapping line under the subject: the sender is the one grey, the day, time and mailbox small caps, the area a dot and its name", () => {
+  it("V02 head: the name in white beside its face, the day and time small caps at the right, the address the one grey, then To with the mailbox and the area", () => {
     const body = message();
     const head = body.querySelector(".email-head")!;
-    expect(head.querySelectorAll(".conn-meta").length).toBe(1);
-    expect(texts(head, ".fact")).toEqual(["Coach Miller", "Today", "9:12 AM", "dave@example.test", "Money"]);
+    expect(head.querySelector(".email-from-name")?.textContent).toBe("Coach Miller");
+    expect(head.querySelector(".email-avatar")?.textContent).toBe("C");
+    expect(texts(head, ".fact")).toEqual(["Today", "9:12 AM", "coach@example.test", "dave@example.test", "Money"]);
+    expect(head.querySelector(".email-to-k")?.textContent).toBe("To");
+    expect([...head.querySelectorAll(".fact")].filter((f) => f.className === "fact").length).toBe(1);
     expect(head.querySelector(".fact.cat .cd")).toBeTruthy();
     expect(head.querySelector(".email-meta")).toBeNull();
     expect(catalogViolations(body)).toEqual([]);

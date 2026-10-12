@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FormSheet, Group, FieldRow, MenuRow, Note, SwitchRow, TextRow, ErrorLine } from "../shared/FormSheet";
 import { Calendar, Clock, DollarSign, Hourglass, Tag } from "../shared/icons";
 import { showToast } from "../shared/toast";
-import { approveCapture, editCandidate, undoCapture, UNDO_TOAST_MS } from "../substrate/commands/captures";
+import { approveCapture, editCandidate, undoCapture, UNDO_TOAST_MS, type ActionResult } from "../substrate/commands/captures";
 import { lineFor, type RpcClient } from "../substrate/commands/errors";
 import { adapterFor } from "../substrate/destinations/registry";
 import type { DestinationAdapter, PrepareContext } from "../substrate/destinations/types";
@@ -144,7 +144,7 @@ const FIELD_WORD: Record<string, string> = {
 };
 export const missingLine = (missing: string[]): string | null => (missing.length ? `Needs ${missing.map((m) => FIELD_WORD[m] ?? m).join(", ")}` : null);
 
-export default function CaptureSheet({ client, candidate, row, ctx, ready, readyLine, offline, evidenceText, onClose, onChanged }: {
+export default function CaptureSheet({ client, candidate, row, ctx, ready, readyLine, offline, evidenceText, onClose, onChanged, onSaved }: {
   client: RpcClient;
   candidate: Candidate;
   row: Pick<InboxRow, "id" | "thread_id" | "account" | "snippet">;
@@ -156,6 +156,8 @@ export default function CaptureSheet({ client, candidate, row, ctx, ready, ready
   evidenceText?: string;
   onClose: () => void;
   onChanged: () => void | Promise<void>;
+  /** The card was saved: the record exists now (Waiting reads it back at once). */
+  onSaved?: (c: Candidate, a: ActionResult) => void;
 }) {
   const kind = candidate.kind;
   const initial = useMemo(() => draftOf(candidate.payload, ctx.zone), [candidate.payload, ctx.zone]);
@@ -226,6 +228,7 @@ export default function CaptureSheet({ client, candidate, row, ctx, ready, ready
       return;
     }
     const a = r.value;
+    onSaved?.(current, a);
     await onChanged();
     const canUndo = !!a.item_updated_at && !a.already;
     showToast({ message: a.safe_message, ...(canUndo ? { actionLabel: UNDO, onAction: () => void (async () => { const u = await undoCapture(client, a.action_id, a.item_updated_at!); showToast({ message: u.ok ? u.value.safe_message : lineFor(u) }); await onChanged(); })() } : {}) }, UNDO_TOAST_MS);

@@ -17,7 +17,7 @@ import EmailFlow from "./EmailFlow";
 import { WaitingService } from "../substrate/waiting/WaitingService";
 import { TasksService } from "../tasks/TasksService";
 import { ScheduleService } from "../schedule/ScheduleService";
-import { CLEAR_DATE, DRAFT_FOLLOW_UP, FOLLOW_UP_DATE, NEW_REPLY, PICK_RECIPIENT, REOPEN, RESOLVE, REVIEW_FILTER, REVIEW_REPLY, SHOW_ALL_ROWS, SOURCE_DELETED } from "./copy";
+import { CLEAR_DATE, DRAFT_FOLLOW_UP, FOLLOW_UP_DATE, NEW_REPLY, PICK_RECIPIENT, REOPEN, RESOLVE, REVIEW_LIST_TITLE, REVIEW_REPLY, SOURCE_DELETED } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import type { WaitingData } from "../substrate/waiting/types";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
@@ -236,14 +236,12 @@ describe("E14: Draft Follow-Up", () => {
 });
 
 describe("T1: a focus from Today", () => {
-  it("the review focus narrows the inbox to rows with cards and offers Show All; a waiting focus opens the record", async () => {
+  it("the review focus opens the review list (on a database without 0067 it shows only what is loaded and has cards); a waiting focus opens the record", async () => {
     const r = rig();
     const id = await r.world.waiting.create(openItem());
     const view = mount(r, { focus: { kind: "candidates" }, focusNonce: 1 });
-    await waitFor(() => expect(screen.getByText(new RegExp(REVIEW_FILTER))).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText(REVIEW_LIST_TITLE).length).toBeGreaterThan(0));
     expect(screen.getAllByRole("button").filter((b) => b.className.includes("mrow")).length).toBe(0);
-    fireEvent.click(screen.getByRole("button", { name: SHOW_ALL_ROWS }));
-    await waitFor(() => expect(screen.getAllByRole("button").filter((b) => b.className.includes("mrow")).length).toBe(1));
     view.rerender(<EmailFlow client={r.client} token="jwt" userId={USER} categories={[]} now={() => NOW} zone="America/New_York" onOpenConnections={() => {}} onOpenModule={() => {}} waiting={r.world.waiting} focus={{ kind: "waiting", id }} focusNonce={2} />);
     await waitFor(() => expect(screen.getByRole("button", { name: RESOLVE })).toBeInTheDocument());
     expect(within(document.body).getByText("Peña's Transcript")).toBeInTheDocument();

@@ -27,8 +27,10 @@ import {
 export const COVERAGE_DEBOUNCE_MS = 300;
 
 export default function ReplyCoverage({
-  requirements, text, attachments, overrides, onOverride, debounceMs = COVERAGE_DEBOUNCE_MS,
+  requirements, text, attachments, overrides, onOverride, debounceMs = COVERAGE_DEBOUNCE_MS, quiet = false,
 }: {
+  /** The Email tab's composer (ruling 7, 2026-10-12): the count is one quiet grey line, the door to the same checklist. */
+  quiet?: boolean;
   /** Undefined means the thread was not analysed: nothing is shown. */
   requirements: ReplyRequirements | undefined;
   /** The draft's own words. */
@@ -61,6 +63,23 @@ export default function ReplyCoverage({
   const summary = coverageSummary(result, requirements.completeSource);
   if (!summary) return null;
   const toggle = () => { haptics.selection(); setOpen((v) => !v); };
+  if (quiet) {
+    return (
+      <div className="cov-quiet">
+        {/* One grey fact, the count; a partial read adds its one amber fact. The line is the door to the checklist. */}
+        <div className="row cov-quiet-row" {...rowDoor(toggle)} aria-expanded={open} aria-label={summary.label}>
+          <Facts facts={[{ text: summary.label }, summary.incomplete && { text: "Not Every Message Was Read", tone: "warn" }]} />
+        </div>
+        {open && (
+          <div className="card">
+            {result.items.map((item) => (
+              <Line key={item.requirement.id} item={item} mark={overrides[coverageKey(item.requirement)]} onOverride={onOverride} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="card">
       {/* Clean rows (Dave 2026-10-05, locked): the row is the door that opens the checklist; no Check, Hide or Review Requests

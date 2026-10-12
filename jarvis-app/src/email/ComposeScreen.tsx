@@ -27,6 +27,10 @@ import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
 import SignatureSheet from "./SignatureSheet";
 import { announceSignature } from "./signatureBus";
+import ReplyCoverage from "../messages/coverage/ReplyCoverage";
+import type { CoverageOverride, CoverageOverrides } from "../messages/replyCoverage";
+import type { ThreadBriefAI } from "../messages/threadBrief";
+import { replyThreadOf, useEmailReplyRequirements } from "./useEmailReplyRequirements";
 import {
   withSignature, attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, replaceSignature, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, signatureUntouched, sha256Hex, splitAddresses,
   type AttachmentRef, type DraftFields, type DraftRow, type LocalDraft, type Review,
@@ -51,7 +55,7 @@ export const SERVER_SAVE_MS = 1000;
 
 type SaveWord = "" | "local" | "saving" | "saved" | "failed";
 
-export default function ComposeScreen({ client, userId, accounts, offline, fileStore, start, now, onBack, onReview, onDiscarded }: {
+export default function ComposeScreen({ client, userId, accounts, offline, fileStore, start, now, onBack, onReview, onDiscarded, briefAI }: {
   client: RpcClient;
   userId: string;
   accounts: EmailAccount[];
@@ -64,6 +68,8 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
   onReview: (draftId: string, revision: number, fields: DraftFields, review: Review) => void;
   /** Discarded, with the copy an Undo can save again. */
   onDiscarded: (copy: { accountId: string; fields: DraftFields } | null) => void;
+  /** The one thread reading (ruling 7, "Answered X of Y"); absent or unavailable means no indicator at all. */
+  briefAI?: ThreadBriefAI | null;
 }) {
   const [fields, setFields] = useState<DraftFields>(() => canonicalFields(start.fields));
   const [accountId, setAccountId] = useState(start.accountId);
@@ -90,6 +96,13 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
 
   const account = accounts.find((a) => a.id === accountId) ?? null;
   const connected = accounts.filter((a) => a.state === "connected");
+
+  // ANSWERED X OF Y (ruling 7, 2026-10-12), replies only. What the thread asked is read once per thread revision
+  // (cached per account and thread); the draft is checked against it locally, 300 ms after the last keystroke.
+  // Quiet, never blocking Review Send; with AI off nothing is drawn.
+  const requirements = useEmailReplyRequirements({ client, ai: briefAI, userId, account: account?.address ?? null, threadId: replyThreadOf(start.fields), selfEmails: accounts.map((a) => a.address) });
+  const [coverageMarks, setCoverageMarks] = useState<CoverageOverrides>({});
+  const markCoverage = (key: string, mark: CoverageOverride | null) => setCoverageMarks((m) => { const next = { ...m }; if (mark) next[key] = mark; else delete next[key]; return next; });
 
   // ---- the words this device holds -----------------------------------------
   const writeLocal = useCallback((f: DraftFields, serverSavedAt: string | null, id: string | null, key: string, rev: number | null) => {
@@ -327,6 +340,11 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
         </div>
       </div></div>
       <div className="pad-x" onBlur={commitAddresses} />
+      {requirements && (
+        <div className="pad-x email-coverage" data-coverage="">
+          <ReplyCoverage quiet requirements={requirements} text={fields.body_text} attachments={fields.attachment_refs.map((r) => ({ filename: r.filename, ...(r.mime_type ? { mime: r.mime_type } : {}) }))} overrides={coverageMarks} onOverride={markCoverage} />
+        </div>
+      )}
 
       {/* AC19: an edited or absent managed block is never silently rewritten; this is the explicit Replace choice
           (Dave's locked row-actions rule: a quiet text action in the key colour, never a capsule). */}

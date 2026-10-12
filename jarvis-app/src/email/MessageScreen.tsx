@@ -25,7 +25,7 @@ import { createPortal } from "react-dom";
 import { BarAction } from "../shared/PageHeader";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 import SkeletonRows from "../shared/SkeletonRows";
-import { Archive as ArchiveIcon, Hourglass, Mail, MoreHorizontal, Sparkles } from "../shared/icons";
+import { Archive as ArchiveIcon, CornerUpLeft, FileText, Hourglass, MoreHorizontal, Share, Sparkles } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
 import { showToast } from "../shared/toast";
 import { saveFile } from "../shared/saveFile";
@@ -36,15 +36,17 @@ import { openExternal } from "../messages/openExternal";
 import type { Category } from "../categories/types";
 import type { CaptureKind } from "../substrate/contracts";
 import {
-  ADD_TO_JARVIS, ARCHIVE, ATTACHMENTS, ATTACHMENT_FAILED, ATTACHMENT_SAVED, ATTACHMENT_SHARED, ATTACHMENT_TOO_BIG, BODY_PENDING, COPIED_ID, COPY_ID, DOWNLOADING,
+  ADD_TO_JARVIS, ARCHIVE, ATTACHMENT_FAILED, ATTACHMENT_SAVED, ATTACHMENT_SHARED, ATTACHMENT_TOO_BIG, BODY_PENDING, COPIED_ID, COPY_ID, DOWNLOADING,
   EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
   IMAGES_OFF, PUT_BACK, READ_CONFLICT, READ_FAILED, RESTORED, RETRY, SHOW_HEADERS, SHOW_IMAGES, SOURCE_GONE, TRASH, UNREAD_FAILED, UNSUPPORTED_ACTION,
   FORWARD_IN_GMAIL, FORWARD_WHY, REPLY, REPLY_ALL,
 } from "./copy";
-import { attachmentBlob, downloadAttachment, gmailLink, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
+import { attachmentBlob, attachmentText, downloadAttachment, gmailLink, isCalendarFile, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
 import { loadMessage, saveMessage } from "./deviceCache";
-import { hasRemoteImages, senderOf, sizeLine, whenFacts, type EmailFact } from "./format";
+import { hasRemoteImages, sizeLine, whenFacts, type EmailFact } from "./format";
 import EmailFacts from "./EmailFacts";
+import { leadFor } from "../messages/rowAnatomy";
+import "../styles/mail-rows.css";
 import { KIND_WORD, PRIMARY, textOf } from "./candidates";
 
 const MAX_ATTACHMENT = 20 * 1024 * 1024;
@@ -67,7 +69,7 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, moreActions, onBodyText, onReply, onCapture }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
@@ -86,6 +88,10 @@ export default function MessageScreen({ client, token, userId, row, account, off
   onFileUnder: (row: InboxRow, categoryId: string) => void;
   /** The message's cards (slice 06), drawn by the flow. */
   cards?: ReactNode;
+  /** The finish card (ruling 6, 2026-10-12): a confirmed meeting or booking's Add to Schedule, drawn at the top of the message. */
+  finish?: ReactNode;
+  /** A calendar file attached to the message, read as text once per message version, for the rules to read its event. */
+  onCalendarFile?: (text: string) => void;
   /** Extra rows for the More menu (Find Useful Details, Capture, dismissed suggestions). */
   moreActions?: RowAction[];
   /** The body as text, once it is known, for the rules to read. */
@@ -176,6 +182,23 @@ export default function MessageScreen({ client, token, userId, row, account, off
     toldRules.current = key;
     onBodyText(textOf(m));
   }, [m, onBodyText]);
+  // A .ics ATTACHMENT (ruling 6): today only an invite pasted into the body was read. The file is fetched through
+  // the same authorised attachment route a Download uses, once per message version, and handed to the rules as
+  // text. Nothing is added to the calendar by this; the card it makes waits for the person's tap. Never an RSVP.
+  const readCal = useRef<string | null>(null);
+  useEffect(() => {
+    if (!m || !onCalendarFile || !token || offline || m.deleted) return;
+    const file = (m.attachments ?? []).find(isCalendarFile);
+    if (!file) return;
+    const key = `${m.id}:${m.source_hash}:${file.attachmentId}`;
+    if (readCal.current === key) return;
+    readCal.current = key;
+    void (async () => {
+      const r = await downloadAttachment(token, m.account, m.provider_id, file.attachmentId);
+      if (!r.ok) { readCal.current = null; return; }
+      try { onCalendarFile(attachmentText(r.value)); } catch { /* not text: nothing to read */ }
+    })();
+  }, [m, onCalendarFile, token, offline]);
   const can = (what: "archive" | "trash") => !!account?.capabilities?.[what];
 
   const toggleUnread = async () => {
@@ -256,12 +279,19 @@ export default function MessageScreen({ client, token, userId, row, account, off
 
   const attachments = m?.attachments?.length ? m.attachments : row.attachment_metadata;
   const area = categoryId ? categories.find((c) => c.id === categoryId)?.data : undefined;
-  const headFacts: EmailFact[] = [
-    { text: senderOf(m ?? row) },
-    ...whenFacts(m?.internal_date ?? row.internal_date),
-    { text: row.account, tone: "date" },
+  // V02 (the approved detail visual, 2026-10-12): the sender's circle, the name in white, the address as the head's
+  // one grey, the day and time small caps at the right, and To with the real addresses in white. The mailbox is
+  // named only when it is not already one of the recipients; the area rides on the To line as its dot and name.
+  const fromName = (m?.from_name ?? row.from_name).trim();
+  const fromAddress = m?.from_address ?? row.from_address;
+  const face = leadFor({ from: fromName, fromEmail: fromAddress, displayName: fromName || fromAddress }, new Date());
+  const recipients = m ? [...m.to_addresses, ...m.cc_addresses].map((a) => a.address).filter(Boolean) : [];
+  const mailboxShown = recipients.some((a) => a.toLowerCase() === row.account.toLowerCase());
+  const toFacts: EmailFact[] = recipients.length > 0 || !mailboxShown ? [
+    ...(recipients.length ? [{ text: recipients.join(", "), strong: true }] : []),
+    ...(!mailboxShown ? [{ text: row.account, tone: "date" as const }] : []),
     ...(area ? [{ text: area.name, cat: area.color }] : []),
-  ];
+  ] : [];
 
   const archiveDisabled = !can("archive") || !token || offline || !m;
   const archiveLabel = can("archive") ? ARCHIVE : `${ARCHIVE} · ${UNSUPPORTED_ACTION}`;
@@ -280,11 +310,20 @@ export default function MessageScreen({ client, token, userId, row, account, off
         <div className="pad-x sheet-list">
           <div className="email-head">
             <div className="email-subject">{(m?.subject ?? row.subject).trim() || "(No Subject)"}</div>
-            {/* 2026-10-05: ONE line of facts under the subject (it was two grey lines, each a string joined by middle dots,
-                and the first held a time with a dot of its own). The sender is the one grey, the day and time and the
-                mailbox are small caps, the area is a dot and its name. It wraps: nothing on it may be cut. */}
-            <EmailFacts wrap facts={headFacts} />
+            <div className="email-from">
+              <span className={"email-avatar mface cat-bg-" + face.face} aria-hidden="true">{((fromName || fromAddress)[0] ?? "?").toUpperCase()}</span>
+              <div className="email-from-who">
+                <div className="email-from-top">
+                  <span className="email-from-name">{fromName || fromAddress}</span>
+                  <EmailFacts facts={whenFacts(m?.internal_date ?? row.internal_date)} />
+                </div>
+                {fromName && <EmailFacts wrap facts={[{ text: fromAddress }]} />}
+                {toFacts.length > 0 && <div className="email-to"><span className="email-to-k">To</span><EmailFacts wrap facts={toFacts} /></div>}
+              </div>
+            </div>
           </div>
+
+          {finish}
 
           {headers && m && (
             <dl className="email-headers">
@@ -331,18 +370,19 @@ export default function MessageScreen({ client, token, userId, row, account, off
 
           {attachments.length > 0 && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">{ATTACHMENTS}</span><span className="n">{attachments.length}</span></div>
-              <div className="card list-card-ruled">
-                {attachments.map((a) => (
-                  <div className="row" key={a.attachmentId} {...rowDoor(() => void download(a))} aria-label={`${a.filename} · ${sizeLine(a.size)}`}>
+              {/* V02: each file is its own card: the type tile, the name in white, the size, the chevron. A tap downloads it. */}
+              {attachments.map((a) => (
+                <div className="card list-card-ruled email-attachment" key={a.attachmentId}>
+                  <div className="row" {...rowDoor(() => void download(a))} aria-label={`${a.filename} · ${sizeLine(a.size)}`}>
+                    <div className="sec-ico ico-blue" aria-hidden="true"><FileText className="ic" /></div>
                     <div className="row-grow">
                       <div className="conn-name truncate">{a.filename}</div>
-                      {/* 2026-10-05: the size is a white number and the row's only fact; the file type repeated the name's own extension, and two greys were the old line. */}
                       <EmailFacts facts={[{ text: sizeLine(a.size), strong: true }, ...(downloading === a.attachmentId ? [{ text: DOWNLOADING }] : [])]} />
                     </div>
+                    <div className="chev"></div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
               {attachmentLine && <div className="email-note quiet"><span>{attachmentLine}</span></div>}
             </>
           )}
@@ -354,26 +394,30 @@ export default function MessageScreen({ client, token, userId, row, account, off
               capture door the More menu's own Capture entry already opens
               (EmailFlow's startCapture); Archive and Open in Gmail are the
               message's own provider commands, promoted off the overflow. */}
-          <div className="card list-card-ruled">
+          <div className="card list-card-ruled email-actions">
             {onCapture && (
               <div className="row" {...rowDoor(() => setAddingKind(true))}>
                 <div className="sec-ico ico-blue" aria-hidden="true"><Sparkles className="ic" /></div>
                 <div className="row-grow"><div className="conn-name">{ADD_TO_JARVIS}</div></div>
+                <div className="chev"></div>
               </div>
             )}
             {onCapture && (
               <div className="row" {...rowDoor(() => onCapture("waiting"))}>
                 <div className="sec-ico ico-teal" aria-hidden="true"><Hourglass className="ic" /></div>
                 <div className="row-grow"><div className="conn-name">{PRIMARY.waiting}</div></div>
+                <div className="chev"></div>
               </div>
             )}
             <div className={"row" + (archiveDisabled ? " dim" : "")} {...(archiveDisabled ? {} : rowDoor(() => void leave("archive")))}>
               <div className="sec-ico ico-warn" aria-hidden="true"><ArchiveIcon className="ic" /></div>
               <div className="row-grow"><div className="conn-name">{archiveLabel}</div></div>
+              {!archiveDisabled && <div className="chev"></div>}
             </div>
             <div className="row" {...rowDoor(openGmail)}>
-              <div className="sec-ico ico-violet" aria-hidden="true"><Mail className="ic" /></div>
+              <div className="sec-ico ico-violet" aria-hidden="true"><Share className="ic" /></div>
               <div className="row-grow"><div className="conn-name">{openGmailLabel}</div></div>
+              <div className="chev"></div>
             </div>
           </div>
           {gmailWhy && !link.exact && <div className="email-note quiet"><span>{GENERIC_WHY}</span></div>}
@@ -382,7 +426,7 @@ export default function MessageScreen({ client, token, userId, row, account, off
 
         {onReply && m && !m.deleted && (
           <div className="pad-x sheet-actions">
-            <button className="btn btn-primary btn-launch btn-block" onClick={() => onReply(m, false)} disabled={replyDisabled}>{REPLY}</button>
+            <button className="btn btn-primary btn-launch btn-block" onClick={() => onReply(m, false)} disabled={replyDisabled}><CornerUpLeft className="ic" />{REPLY}</button>
             {othersOn(m, account) && <button className="quiet-action" onClick={() => onReply(m, true)} disabled={replyDisabled}>{REPLY_ALL}</button>}
           </div>
         )}

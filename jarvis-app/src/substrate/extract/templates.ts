@@ -54,6 +54,14 @@ const OWED_WORDS = /\b(amount due|balance due|payment due|total due|minimum (?:p
 const PAID_WORDS = /\b(receipt|total paid|amount paid|payment received|payment confirmation|thank you for your (?:payment|purchase|order)|thanks for your (?:payment|purchase|order)|you paid|paid in full|order confirmation|your order|was charged|has been charged|refund(?:ed)?)\b/i;
 const MEETING_WORDS = /\b(call|meeting|meet|chat|appointment|interview|practice|game|session|visit|conference|webinar|class|lesson|rehearsal|checkup|check-up|consult(?:ation)?)\b/i;
 const FLIGHT_WORDS = /\b(flight|depart(?:s|ure|ing)?|itinerary|boarding)\b/i;
+// BOOKINGS (Dave 2026-10-12, ruling 6): a restaurant, hotel, tee time or appointment the sender CONFIRMED,
+// with a concrete date and a clock, is a Schedule card like a meeting. Both words are needed: the thing
+// booked, and the word that says it is settled. Marketing ("Book now", "Reserve your table today") names
+// the thing and settles nothing; it is refused unless the mail also carries a confirmation number.
+const BOOKING_NOUN = /\b(reservation|reserved|booking|booked|table for (?:\d+|two|three|four|five|six|eight)|tee time|check-?in|appointment|your stay|hotel stay)\b/i;
+const BOOKING_SETTLED = /\b(confirm(?:ed|ation|s)?|accepted|is set|(?:you're|you are|you’re) all set|see you|we look forward|reserved|booked|has been scheduled|is scheduled)\b/i;
+const BOOKING_CODE = /\b(confirmation (?:number|code|#|no\.?)|confirm(?:ation)? ?#|booking (?:reference|ref|number|#)|reservation (?:number|#|code))/i;
+const MARKETING = /\b(book now|reserve now|book today|book your|book a |reserve your|limited time|\d+% off|on sale|save up to|offer ends|deal of)/i;
 
 const span = (h: { start: number; end: number }): Provenance => ({ source: "email", text_start: h.start, text_end: h.end });
 const issuerOf = (input: TemplateInput): string => {
@@ -219,6 +227,8 @@ export function eventTemplate(input: TemplateInput, billDates: Set<string>): Ext
       }
     }
   }
+  const booking = bookingTemplate(input);
+  if (booking) return booking;
   const anchorISO = anchor(input);
   for (const s of sentencesOf(text)) {
     const meeting = MEETING_WORDS.exec(s.text);
@@ -242,6 +252,32 @@ export function eventTemplate(input: TemplateInput, billDates: Set<string>): Ext
     const dateAbs: DateHit = { ...date, start: s.start + date.start, end: s.start + date.end };
     const timeAbs: TimeHit = { ...time, start: s.start + time.start, end: s.start + time.end };
     return eventFromClock(input, title, dateAbs, timeAbs, zoneHint, duration, { source: "email", text_start: s.start, text_end: s.end }, null, flight ? "event.flight" : "event.meeting");
+  }
+  return null;
+}
+
+/**
+ * A confirmed booking (ruling 6, 2026-10-12): the booked thing and the word that settles it, then the first
+ * EXPLICIT calendar date (never a weekday or "tomorrow" alone) with a clock within reach of it. A date with
+ * no clock is not a timed event and makes no card here; nothing is invented. Marketing makes nothing.
+ */
+export function bookingTemplate(input: TemplateInput): Extracted | null {
+  const { text } = input;
+  const noun = BOOKING_NOUN.exec(text);
+  if (!noun || !BOOKING_SETTLED.test(text)) return null;
+  if (MARKETING.test(text) && !BOOKING_CODE.test(text)) return null;
+  const dates = findDates(text, anchor(input)).filter((d) => d.iso && !d.relative && !d.ambiguous);
+  const times = findTimes(text);
+  for (const date of dates) {
+    const time = times.find((t) => t.start >= date.end && t.start - date.end <= 80) ?? times.find((t) => t.end <= date.start && date.start - t.end <= 40);
+    if (!time) continue;
+    const word = noun[1]!.toLowerCase();
+    const kindWord = /tee time/.test(word) ? "Tee Time" : /check/.test(word) ? "Check-In" : /appointment/.test(word) ? "Appointment" : /stay/.test(word) ? "Stay" : /booking|booked/.test(word) ? "Booking" : "Reservation";
+    const at = /\b(?:[Rr]eservation|[Tt]able|[Bb]ooking|[Ss]tay|[Tt]ee [Tt]ime|[Aa]ppointment)\s+(?:at|with)\s+([A-Z][\w'’&.-]*(?:\s+(?:[A-Z][\w'’&.-]*|of|the|&))*)/.exec(text);
+    const place = tidy(at?.[1]?.replace(/\s+(?:of|the|&)$/, "") ?? "") || issuerOf(input);
+    const title = titleCase(`${kindWord} at ${place}`).slice(0, 80);
+    const zoneHint = zoneIn(text.slice(Math.max(0, date.start - 40), time.end + 40));
+    return eventFromClock(input, title, date, time, zoneHint, durationIn(text), { source: "email", text_start: noun.index, text_end: noun.index + noun[0].length }, null, "event.booking");
   }
   return null;
 }

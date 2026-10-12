@@ -12,6 +12,7 @@
 // No card here is red: the screen's one red belongs to the screen.
 
 import { useState } from "react";
+import { CalendarPlus } from "../shared/icons";
 import { showToast } from "../shared/toast";
 import { approveCapture, undoCapture, UNDO_TOAST_MS, type ActionResult } from "../substrate/commands/captures";
 import { dismissCandidate, restoreCandidate } from "../substrate/commands/captures";
@@ -27,8 +28,16 @@ import type { InboxRow } from "./emailClient";
 export const SHOWN_AT_FIRST = 2;
 
 
-export default function CandidateCards({ client, candidates, row, ctx, ready, readyLine, offline, evidenceExcerpt, showDismissed, conflictOf, now, onChanged, onDetails, onReview, onReceipt, onOpenModule }: {
+/** Kinds drawn as the message's FINISH CARD (ruling 6, 2026-10-12): a confirmed meeting or booking, at the top, one tap. */
+export const FINISH_KINDS: readonly CaptureKind[] = ["event"];
+const isFinish = (c: Pick<Candidate, "kind">): boolean => FINISH_KINDS.includes(c.kind);
+
+export default function CandidateCards({ client, candidates: all, row, ctx, ready, readyLine, offline, evidenceExcerpt, showDismissed, conflictOf, now, onChanged, onDetails, onReview, onReceipt, onOpenModule, onSaved, place = "all" }: {
   client: RpcClient;
+  /** Where these cards draw: the finish card at the top of a message (events), the rest under it, or every card (the list). */
+  place?: "finish" | "rest" | "all";
+  /** A card was saved: the record exists now (Waiting reads it back at once). */
+  onSaved?: (c: Candidate, a: ActionResult) => void;
   /** This message's cards, every status. */
   candidates: Candidate[];
   row: Pick<InboxRow, "id" | "thread_id" | "account" | "source_hash">;
@@ -56,6 +65,12 @@ export default function CandidateCards({ client, candidates, row, ctx, ready, re
   const [lines, setLines] = useState<Record<string, string>>({});
   const [separate, setSeparate] = useState<Record<string, true>>({});
   const clock = now ?? (() => new Date());
+  const finish = place === "finish";
+  // An invite's own calendar file is the event's structured truth: while a card read from it is open, a card the
+  // rules read from the words ("can we meet Friday at 10") is the same meeting said loosely, and is not drawn twice.
+  const structured = all.some((c) => c.kind === "event" && isProvisional(c) && c.payload.kind === "event" && !!c.payload.external_uid);
+  const loose = (c: Candidate): boolean => structured && c.kind === "event" && isProvisional(c) && c.payload.kind === "event" && !c.payload.external_uid;
+  const candidates = (place === "all" ? all : all.filter((c) => (c.status === "dismissed" ? !finish : finish === isFinish(c)))).filter((c) => !loose(c));
 
   const provisional = candidates.filter((c) => isProvisional(c));
   const saved = candidates.filter((c) => c.status === "saved");
@@ -81,6 +96,7 @@ export default function CandidateCards({ client, candidates, row, ctx, ready, re
       return;
     }
     const a: ActionResult = r.value;
+    onSaved?.(c, a);
     await onChanged();
     const undo = a.item_updated_at && !a.already
       ? async () => {
@@ -120,6 +136,28 @@ export default function CandidateCards({ client, candidates, row, ctx, ready, re
     const conflict = !separate[c.id] && !!conflictOf?.(c);
     const sibling = c.saved_sibling;
     const line = lines[c.id];
+    if (finish) {
+      // THE FINISH CARD: the meeting or booking itself, big, at the top of the message; one tap on Add to Schedule
+      // approves exactly what it shows through the same atomic door; Details opens the sheet; the cross dismisses it.
+      return (
+        <div className={"email-card email-finish " + c.kind + (stale ? " stale" : "")} key={c.id} data-candidate={c.id} data-finish="">
+          <div className="email-finish-row">
+            <div className="sec-ico ico-blue" aria-hidden="true"><CalendarPlus className="ic" /></div>
+            <div className="row-grow">
+              <div className="email-card-value">{value}</div>
+              <EmailFacts wrap facts={stale ? [{ text: EMAIL_CHANGED, tone: "warn" }] : notReady ? dotFacts(readyLine(c.kind), "warn").slice(0, 1) : facts} />
+            </div>
+            <button className="email-card-x" aria-label={`${DISMISS} · ${value}`} onClick={() => void dismiss(c)} disabled={busy === c.id}>{"×"}</button>
+          </div>
+          {line && <div className="input-error" role="alert">{line}</div>}
+          <div className="email-card-acts">
+            {stale ? <button className="pill-act" onClick={() => onReview(c)} disabled={busy === c.id}>{REVIEW_LATEST}</button>
+              : <button className="pill-act" onClick={() => void (needs ? onDetails(c) : save(c))} disabled={busy === c.id || (!needs && (notReady || offline))}>{PRIMARY[c.kind]}</button>}
+            <button className="quiet-action" onClick={() => onDetails(c)}>{DETAILS}</button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={"email-card " + c.kind + (stale ? " stale" : "")} key={c.id} data-candidate={c.id}>
         <div className="email-card-head">

@@ -12,7 +12,9 @@ import { callCommand, newRequestId, type CommandResult, type RpcClient } from ".
 import type { WaitingData, WaitingItem } from "../substrate/waiting/types";
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
-import type { MailAddress } from "./emailClient";
+import type { InboxRow, MailAddress } from "./emailClient";
+import type { Candidate } from "./candidates";
+import type { DraftRow } from "./drafts";
 import { fmtTime } from "../schedule/calendar";
 import type { EmailFact } from "./format";
 
@@ -56,8 +58,8 @@ export interface ThreadMessage {
   references: string[];
 }
 
-/** Where a Today row or a card sends the Email tab: the inbox narrowed to its cards, or one waiting record. */
-export type EmailFocus = { kind: "candidates" } | { kind: "waiting"; id: string };
+/** Where a Today row or a card sends the Email tab: the review list of every card to review, the paused sends (V10), or one waiting record. */
+export type EmailFocus = { kind: "candidates" } | { kind: "paused" } | { kind: "waiting"; id: string };
 export const threadMessages = (client: RpcClient, thread: string, accountId: string | null = null) =>
   callCommand<ThreadMessage[]>(client, "thread_messages", { p_thread: thread, p_account: accountId });
 
@@ -80,6 +82,21 @@ export interface Evidence {
 export const readEvidence = (client: RpcClient, id: string) => callCommand<Evidence>(client, "evidence_read", { p_evidence: id });
 
 export const reviewCount = (client: RpcClient): Promise<CommandResult<{ count: number; messages: number }>> => callCommand(client, "candidate_review_count", {});
+
+/** Every card the count counts, with its message (migration 0067). Absent on a database without 0067: the caller falls back to the loaded pages. */
+export interface ReviewList { count: number; rows: InboxRow[]; candidates: Candidate[] }
+export const reviewList = (client: RpcClient, limit = 200): Promise<CommandResult<ReviewList>> => callCommand(client, "candidates_to_review", { p_limit: limit });
+
+/** Sends stopped before they reached Gmail, each needing its own fresh review (spec section 7, V10; migration 0067). */
+export interface PausedSends { count: number; replies: number; drafts: Array<DraftRow & { paused_reason: string; is_reply: boolean }> }
+export const pausedSends = (client: RpcClient): Promise<CommandResult<PausedSends>> => callCommand(client, "paused_sends", {});
+
+/** L2 (Dave's locked words, Title Case): "2 Replies Need Your Review" when every paused send is a reply; "Messages" when any is not. */
+export function pausedLine(count: number, replies: number): string {
+  const allReplies = replies === count;
+  const noun = allReplies ? (count === 1 ? "Reply" : "Replies") : (count === 1 ? "Message" : "Messages");
+  return `${count} ${noun} ${count === 1 ? "Needs" : "Need"} Your Review`;
+}
 
 // ---- the words, from the record and the local date ---------------------------
 
@@ -168,8 +185,8 @@ export const TODAY_EMAIL_CAP = 5;
 export type TodayEmailFact = EmailFact;
 
 export interface TodayEmailRow {
-  kind: "review" | "task" | "event" | "waiting";
-  /** The destination item id, or "review" for the count. */
+  kind: "paused" | "task" | "event" | "waiting";
+  /** The destination item id, or "paused" for the combined paused-sends card. */
   id: string;
   title: string;
   /** What sits under the title, as FACTS (the catalog: separate .fact spans, the separator is drawn by CSS,
@@ -183,9 +200,6 @@ export interface TodayEmailRow {
 export const emailOriginTask = (t: TaskItem): boolean => !!t.data.fromThread || t.data.source?.type === "email";
 export const emailOriginEvent = (e: EventItem): boolean => e.data.source?.type === "email" || (e.data.emailIds?.length ?? 0) > 0;
 
-export function reviewLine(n: number): string {
-  return `${n} Email ${n === 1 ? "Item" : "Items"} to Review`;
-}
 
 /** 10:00 AM to 10:15 AM from "10:00", "10:15": 12-hour with AM/PM, as every clock time is written (Dave 2026-09-26). */
 function timeSpan(start: string, end?: string): string {
@@ -199,8 +213,8 @@ function monthDayOf(date: string): string {
   return new Date(Date.UTC(y ?? 2000, (m ?? 1) - 1, d ?? 1)).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/** The rows Today may show for Email: the review count, then committed email-origin tasks due today or overdue, events today, and open waiting items whose follow-up is today or overdue. Five at most, each destination once, nothing padded, and never anything for tomorrow. */
-export function emailTodayRows(input: { count: number; tasks: readonly TaskItem[]; events: readonly EventItem[]; waiting: readonly WaitingItem[]; today: string; excludeIds?: ReadonlySet<string>; cap?: number }): TodayEmailRow[] {
+/** The rows Today may show for Email (spec section 7): the one combined paused-sends card when there is paused work, then committed email-origin tasks due today or overdue, events today, and open waiting items whose follow-up is today or overdue. Five at most, each destination once, nothing padded, and never anything for tomorrow. */
+export function emailTodayRows(input: { paused?: { count: number; replies: number } | null; tasks: readonly TaskItem[]; events: readonly EventItem[]; waiting: readonly WaitingItem[]; today: string; excludeIds?: ReadonlySet<string>; cap?: number }): TodayEmailRow[] {
   const cap = input.cap ?? TODAY_EMAIL_CAP;
   const rows: TodayEmailRow[] = [];
   const seen = new Set<string>(input.excludeIds ?? []);
@@ -224,6 +238,8 @@ export function emailTodayRows(input: { count: number; tasks: readonly TaskItem[
     take({ kind: "waiting", id: w.id, title: d.title, facts: [overdue ? { text: "Follow Up Was " + monthDayOf(d.followUpOn), tone: "red" } : { text: "Follow Up Today", tone: "warn" }, { text: `Waiting On ${d.counterpartyDisplay || "Someone"}` }], sort: [overdue ? 0 : 1, d.followUpOn, w.id] });
   }
   rows.sort((a, b) => a.sort[0] - b.sort[0] || a.sort[1].localeCompare(b.sort[1]) || a.sort[2].localeCompare(b.sort[2]));
-  const head: TodayEmailRow[] = input.count > 0 ? [{ kind: "review", id: "review", title: reviewLine(input.count), facts: [], sort: [-1, "", ""] }] : [];
+  // The generic proposal-review count is NOT here (spec section 7, Dave 2026-10-12): it stays on the Email surface.
+  const p = input.paused;
+  const head: TodayEmailRow[] = p && p.count > 0 ? [{ kind: "paused", id: "paused", title: pausedLine(p.count, p.replies), facts: [], sort: [-1, "", ""] }] : [];
   return [...head, ...rows].slice(0, cap);
 }
