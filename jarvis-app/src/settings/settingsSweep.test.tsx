@@ -51,11 +51,11 @@ describe("Settings hub: every row wears its own type's colour, one glyph style, 
   it("no row is the flat brand red, and the colours are the types' own", () => {
     const { container } = view();
     const rows = [...container.querySelectorAll(".lib-row")];
-    expect(rows.length).toBe(16);
+    expect(rows.length).toBe(17);
     expect(container.querySelector(".lib-ico-brand"), "the 2026-08-18 all-red wash is superseded").toBeNull();
     const by = Object.fromEntries(rows.map((r) => [norm(r.querySelector(".lib-name")), tone(r.querySelector(".lib-ico")!)]));
     expect(by).toMatchObject({
-      Notifications: "cat-fg-orange", "Email Sections": "cat-fg-teal", Brain: "cat-fg-purple", Connections: "cat-fg-blue",
+      Notifications: "cat-fg-orange", "Email Sections": "cat-fg-teal", "Email Signatures": "cat-fg-teal", Brain: "cat-fg-purple", Connections: "cat-fg-blue",
       Backup: "cat-fg-graphite", About: "cat-fg-graphite",
     });
     // A SETTINGS PAGE IS CHROME, NOT AN ENTITY (round 2 review): no row borrows Event's sky or Task's red.

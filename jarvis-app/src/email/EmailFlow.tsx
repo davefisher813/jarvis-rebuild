@@ -74,8 +74,8 @@ import ComposeScreen, { type ComposeStart } from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
 import HeldSendView from "./HeldSendView";
+import { onSignatureSaved as listenSignature } from "./signatureBus";
 import { isHeld, type HoldStatus } from "./drafts";
-import { flagOn } from "../substrate/flags";
 import type { HeldSend } from "./sendHold";
 import DraftsScreen from "./DraftsScreen";
 import ConnectionBanner from "./ConnectionBanner";
@@ -186,6 +186,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
   const snapshot = useMemo(() => loadSnapshot(userId), [userId]);
   const [accounts, setAccounts] = useState<EmailAccount[]>(snapshot?.accounts ?? []);
+  // A signature saved in Settings (Email Signatures) is the one the next compose inserts, without a reload.
+  useEffect(() => listenSignature(({ accountId, text, revision }) =>
+    setAccounts((prev) => prev.map((a) => (a.id === accountId ? { ...a, signature_text: text, signature_revision: revision } : a)))), []);
   const [rows, setRows] = useState<InboxRow[]>(snapshot?.rows ?? []);
   const [cachedTotal, setCachedTotal] = useState<number>(snapshot?.rows.length ?? 0);
   const [providerNext, setProviderNext] = useState<Record<string, string | null>>({});
@@ -735,8 +738,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (sending || !client) return;
     setSending(true);
     setSendFailure(null);
-    const hold = flagOn("email_hold_v1");
-    const r = await sendApproved(token, { draft_id: s.draftId, review_nonce: s.review.review.review_nonce, shown_payload_hash: s.review.review.payload_hash, request_id: s.requestId, ...(hold ? { hold: true as const } : {}) });
+    // Every send is held on the server for 30 seconds with Undo (Dave's locked decision 4). No flag: the hold is the send.
+    const r = await sendApproved(token, { draft_id: s.draftId, review_nonce: s.review.review.review_nonce, shown_payload_hash: s.review.review.payload_hash, request_id: s.requestId, hold: true });
     setSending(false);
     if (!r.ok) { setSendFailure(r); return; }
     if (isHeld(r.value)) {
@@ -863,7 +866,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     const s = screen;
     const backToCompose = () => { void cancelCommand(client, s.review.review.action_id); setSendFailure(null); setScreen({ kind: "compose", start: s.start, from: s.from }); };
     return <div className={pushCls}>
-      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} hold={flagOn("email_hold_v1")} onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
+      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} hold onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
     </div>;
   }
   if (screen.kind === "held" && client) {

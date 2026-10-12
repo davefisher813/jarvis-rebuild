@@ -25,13 +25,6 @@ import { saveLocalDraft, type DraftFields, type DraftRow } from "./drafts";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 import { HELD_TITLE, HOLD_FIRST_USE, HOLD_WINDOW, UNDO_SEND, UNDONE_LINE } from "./copy";
 
-// Email v1: the 30-second hold is behind the email_hold_v1 flag. Off everywhere except the tests below that turn it on.
-const holdFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../substrate/flags", async (orig) => {
-  const m = await orig<typeof import("../substrate/flags")>();
-  return { ...m, flagOn: (f: string, flags?: ReadonlySet<string>) => (f === "email_hold_v1" ? holdFlag.on : m.flagOn(f as never, flags as never)) };
-});
-
 const NOW = new Date("2026-10-03T15:00:00Z");
 const USER = "user-1";
 const DAVE = "dave@example.test";
@@ -405,12 +398,10 @@ describe("E17: Reply carries the message's own headers", () => {
   });
 });
 
-describe("Email v1: the 30-second hold (flag on)", () => {
-  afterEach(() => { holdFlag.on = false; });
+describe("Email v1: the 30-second hold (every send, no flag)", () => {
   const heldAnswer = (action: string) => ({ ok: true, held: true, action_id: action, replay: false, hold_until: "2026-10-03T15:00:30.000Z", dispatch_deadline: "2026-10-03T15:01:00.000Z", server_now: "2026-10-03T15:00:00.000Z", outbox_state: "queued", draft: null });
 
   it("the tap asks for the hold; the answer is Waiting to Send with Not Sent Yet, nothing sent; Undo brings the draft back", async () => {
-    holdFlag.on = true;
     let cancelled = false;
     const r = rig({
       send: (body, w) => { const rv = w.reviews[String(body.review_nonce)]!; w.drafts[rv.draft] = { ...w.drafts[rv.draft]!, send_state: "sending", sent_action_id: rv.action }; return { status: 200, body: heldAnswer(rv.action) }; },
@@ -438,7 +429,6 @@ describe("Email v1: the 30-second hold (flag on)", () => {
   });
 
   it("the reminder after the first time is the short one", async () => {
-    holdFlag.on = true;
     localStorage.setItem("jarvis.email.holdSeen", "1");
     const r = rig();
     await openCompose(r);
@@ -447,14 +437,12 @@ describe("Email v1: the 30-second hold (flag on)", () => {
     expect(screen.queryByText(HOLD_FIRST_USE)).toBeNull();
   });
 
-  it("with the flag off the tap does not ask for a hold and the review says nothing about one", async () => {
+  it("every send asks for the hold: there is no path that sends at once", async () => {
     const r = rig();
     await openCompose(r);
     await writeAndReview(r);
-    expect(screen.queryByText(HOLD_FIRST_USE)).toBeNull();
-    expect(screen.queryByText(HOLD_WINDOW)).toBeNull();
     fireEvent.click(byRole(SEND_THIS));
-    await waitFor(() => expect(screen.getAllByText(SENT_TITLE).length).toBeGreaterThan(0), { timeout: 4000 });
-    expect(sendsPosted(r)[0]!.body).not.toHaveProperty("hold");
+    await waitFor(() => expect(sendsPosted(r).length).toBe(1), { timeout: 4000 });
+    expect(sendsPosted(r)[0]!.body).toMatchObject({ hold: true });
   });
 });

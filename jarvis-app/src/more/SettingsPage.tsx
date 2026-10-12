@@ -29,6 +29,7 @@ const ITEMS: Item[] = [
   { label: "Edit Tabs", route: "edittabs", group: 1 },
   { label: "Connections", route: "connections", group: 2 },
   { label: "Email Sections", route: "emailsections", group: 2 },
+  { label: "Email Signatures", route: "emailsignatures", group: 2 },
   { label: "AI Control", route: "aicontrol", group: 2 },
   { label: "What JARVIS Learned", route: "learned", group: 2 },
   // Brain Manual v1: Export and Erase live one level below Settings, next to
@@ -49,7 +50,7 @@ const GROUPS = [0, 1, 2, 3];
 const TONE: Record<string, string> = {
   account: "cat-fg-graphite", notifsettings: "cat-fg-orange", appearance: "cat-fg-indigo", feedbackstyle: "cat-fg-pink",
   categories: "cat-fg-green", training: "cat-fg-lime", booking: "cat-fg-cyan", edittabs: "cat-fg-graphite",
-  connections: "cat-fg-blue", emailsections: "cat-fg-teal", aicontrol: "cat-fg-purple", learned: "cat-fg-yellow",
+  connections: "cat-fg-blue", emailsections: "cat-fg-teal", emailsignatures: "cat-fg-teal", aicontrol: "cat-fg-purple", learned: "cat-fg-yellow",
   brainsettings: "cat-fg-purple", backup: "cat-fg-graphite", advanced: "cat-fg-graphite", about: "cat-fg-graphite",
 };
 

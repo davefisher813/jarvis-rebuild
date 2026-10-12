@@ -128,6 +128,11 @@ export const EDIT_SIGNATURE = "Edit Signature";
 export const SIGNATURE_LABEL = "Signature";
 export const SIGNATURE_NOTE = "Appears Once, at the End of New Messages and Replies from This Account";
 export const SIGNATURE_SAVED = "Signature Saved";
+export const SIGNATURES_TITLE = "Email Signatures";
+export const NO_SIGNATURE = "Not Set";
+export const NO_SIGNATURE_NOTE = "No Signature for This Account";
+export const ADD_SIGNATURE = "Add Signature";
+export const SIGNATURES_FOOT = "Added Once, at the End of New Messages and Replies";
 export const USE_SAVED_SIGNATURE = "Use Saved Signature";
 export const SIGNATURE_OFFER_NOTE = "This Account's Signature Isn't in This Draft";
 
