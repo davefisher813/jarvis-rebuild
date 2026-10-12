@@ -455,3 +455,18 @@ export function saveBrief(lastMsgId: string, brief: Brief, scope?: MailScope): v
   for (const k of keys.slice(-CAP)) trimmed[k] = cache[k]!;
   try { localStorage.setItem(KEY, JSON.stringify(trimmed)); } catch { /* private mode */ }
 }
+
+/** The prompt for the requirements alone. The item shape is the brief's, so the brief's validator reads it. */
+export function replyNeedsPrompt(convo: string): string {
+  return (
+    "Read this email conversation.\n\n" +
+    'Reply with ONLY: {"replyRequirements":[...]}\n\n' +
+    "In each item, messageId is copied from a header and quote is copied EXACTLY from that message's own text, one sentence or phrase, never from quoted history.\n" +
+    "replyRequirements: what the people writing to the reader are still waiting to hear back, at most 8 items, as " +
+    "[{\"messageId\":\"...\",\"quote\":\"...\",\"kind\":\"question|request|decision|commitment\",\"label\":\"<2 to 3 words>\"," +
+    "\"match\":{\"kind\":\"choice|date_time|quantity|attachment|free_text\",\"topicTerms\":[\"<up to 4 words a reply would use>\"],\"choices\":[\"<each option>\"],\"evidenceTerms\":[\"<up to 4 other words>\"]}}]. " +
+    "Only questions, requests, decisions and commitments addressed TO the reader. Leave out greetings, rhetorical questions, promises the sender makes about themselves, asks already answered by a later message from the reader, and requests aimed at someone else. " +
+    "Use kind attachment when the sender wants a file. Use choices only when the sender offered options. Keep quotes short. Use [] when nothing is being asked.\n\n" +
+    convo
+  );
+}

@@ -25,6 +25,8 @@ import {
 
 /** The pause after the last keystroke before the check runs. */
 export const COVERAGE_DEBOUNCE_MS = 300;
+/** The quiet line when the thread was read and nothing in it is waiting on this reply. */
+export const NOTHING_TO_ANSWER = "Nothing Left to Answer";
 
 export default function ReplyCoverage({
   requirements, text, attachments, overrides, onOverride, debounceMs = COVERAGE_DEBOUNCE_MS, quiet = false,
@@ -61,7 +63,9 @@ export default function ReplyCoverage({
   );
   if (!requirements || !result) return null;
   const summary = coverageSummary(result, requirements.completeSource);
-  if (!summary) return null;
+  // The Email composer says the read happened even when nothing is asked (Alfred's live check 2026-10-12: a silent
+  // composer read as a missing feature). The older Messages composer keeps its silence.
+  if (!summary) return quiet ? <div className="cov-quiet"><div className="row cov-quiet-row"><Facts facts={[{ text: NOTHING_TO_ANSWER }]} /></div></div> : null;
   const toggle = () => { haptics.selection(); setOpen((v) => !v); };
   if (quiet) {
     return (

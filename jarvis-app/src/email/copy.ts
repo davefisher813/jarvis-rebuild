@@ -156,7 +156,6 @@ export const NEEDS_DETAILS = "Needs Details";
 export const AGENT_SUGGESTION = "Assistant Suggestion";
 export const EMAIL_CHANGED = "Email Changed · Review These Details";
 export const REVIEW_LATEST = "Review Latest Details";
-export const SAVE_CHANGES = "Save Changes";
 export const KEEP_IN_EMAIL = "Keep in Email";
 export const VIEW_RECEIPT = "View";
 export const MAY_EXIST = "This May Already Be Saved";

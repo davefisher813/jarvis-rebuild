@@ -310,20 +310,20 @@ describe("E24: manual capture, with every AI off", () => {
     expect(r.posts.some((u) => u.includes("/api/ai"))).toBe(false);
   });
 
-  it("the sheet's Save Changes edits the card and writes nothing anywhere else", async () => {
+  it("the sheet has one save: the foot's primary keeps the edit and commits it, nothing else saves half-way (spec 5.2)", async () => {
     const r = rig();
     mount(r);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
     fireEvent.click(within(cardFor("bill")!).getByText("Details"));
     await waitFor(() => expect(screen.getAllByText("Bill · Not Saved Yet").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Save Changes")).toBeNull();
     fireEvent.change(screen.getByLabelText("Issuer"), { target: { value: "Con Edison NY" } });
-    fireEvent.click(screen.getByText("Save Changes"));
-    await waitFor(() => expect(r.calls.find((c) => c.fn === "candidate_edit")).toBeTruthy());
+    const foot = screen.getAllByRole("button", { name: "Save Bill" }).find((b) => b.className.includes("btn-primary"))!;
+    await waitFor(() => expect(foot).not.toBeDisabled());
+    fireEvent.click(foot);
+    await waitFor(() => expect(r.world.items.length).toBe(1));
     expect(r.calls.find((c) => c.fn === "candidate_edit")!.args).toMatchObject({ p_user_fields: ["issuer"] });
-    expect(r.calls.filter((c) => c.fn === "capture_approve")).toEqual([]);
-    expect(r.world.items).toEqual([]);
-    await waitFor(() => expect(cardFor("bill")).toHaveTextContent("Con Edison NY"));
-    expect(cardFor("bill")).toHaveTextContent("Not Saved Yet");
+    expect(r.calls.filter((c) => c.fn === "capture_approve").length).toBe(1);
   });
 });
 

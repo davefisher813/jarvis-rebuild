@@ -1,7 +1,8 @@
 // WHAT THIS REPLY HAS TO ANSWER, FOR THE EMAIL TAB'S COMPOSER (Dave 2026-10-12, ruling 7: "Answered X of Y").
 //
-// The reading is the thread's one brief (messages/threadBrief.ts): the same single-flight door, the same cache by
-// account and content revision, so a thread is read at most once per revision on this phone. It runs when the
+// The reading is the thread's reply needs (messages/threadBrief.ts ensureReplyNeeds): the requirements alone, so a long
+// thread's answer fits the output cap (2026-10-12: the whole brief ran past it, arrived cut off and showed nothing).
+// Single-flight and cached by account and content revision, so a thread is read at most once per revision here. It runs when the
 // SOURCE changes (the mailbox, the thread), never as the words are typed; the check of the draft against what was
 // asked is local and debounced (messages/coverage/ReplyCoverage.tsx). The thread comes from the server's mail cache
 // (thread_messages, then each message's text), not from Gmail.
@@ -11,10 +12,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { aiCallAllowed, effectiveLevel } from "../ai/aiGate";
 import { getAIControl, isAdminAiBlocked } from "../ai/levelStore";
-import { briefFor, isCurrentBrief, loadBriefs } from "../messages/brief";
-import { revisionOf, type SourceInput } from "../messages/briefSource";
+import type { SourceInput } from "../messages/briefSource";
 import type { ReplyRequirements } from "../messages/mailContracts";
-import { ensureThreadBrief, type ThreadBriefAI } from "../messages/threadBrief";
+import { cachedReplyNeeds, ensureReplyNeeds, type ThreadBriefAI } from "../messages/threadBrief";
 import type { RpcClient } from "../substrate/commands/errors";
 import { readMessage } from "./emailClient";
 import { textOf } from "./candidates";
@@ -62,18 +62,18 @@ export function useEmailReplyRequirements(a: {
       if (!on) return;
       if (!t.ok || t.value.length === 0) { done(undefined); return; }
       const msgs = [...t.value].filter((m) => !m.deleted).sort((x, y) => x.internal_date.localeCompare(y.internal_date) || x.id.localeCompare(y.id)).slice(-COVERAGE_MESSAGES);
-      const revision = revisionOf(msgs, threadId);
-      const cached = briefFor(revision, loadBriefs(), scope);
-      if (isCurrentBrief(cached)) { done(cached.replyRequirements); return; }
+      // The cache is keyed on the thread's content; the snippets stand in for it until the bodies are read.
+      const sources = (bodies: (string | null)[]): SourceInput[] => msgs.map((m, i) => ({ id: m.id, from: m.from_name || m.from_address, fromEmail: m.from_address, dateMs: Date.parse(m.internal_date), body: bodies[i] ?? m.snippet }));
+      const quick = cachedReplyNeeds(scope, sources(msgs.map(() => null)), threadId);
+      if (quick) { done(quick); return; }
       if (!gate.read || !a.ai) { done(undefined); return; }
-      const bodies: SourceInput[] = [];
+      const bodies: (string | null)[] = [];
       for (const m of msgs) {
         const r = m.has_body ? await readMessage(client, m.id) : null;
         if (!on) return;
-        bodies.push({ id: m.id, from: m.from_name || m.from_address, fromEmail: m.from_address, dateMs: Date.parse(m.internal_date), body: r && r.ok ? textOf(r.value) : m.snippet });
+        bodies.push(r && r.ok ? textOf(r.value) : null);
       }
-      const r = await ensureThreadBrief({ ai: a.ai, scope, threadId, subject: msgs[msgs.length - 1]?.subject, messages: bodies, selfEmails: a.selfEmails });
-      done(r.brief?.replyRequirements);
+      done(await ensureReplyNeeds({ ai: a.ai, scope, threadId, subject: msgs[msgs.length - 1]?.subject, messages: sources(bodies), selfEmails: a.selfEmails }));
     })();
     return () => { on = false; };
     // The source is the whole dependency: typing never restarts this.

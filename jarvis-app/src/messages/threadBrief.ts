@@ -1,6 +1,6 @@
 import type { AIMessage } from "../ai/AIService";
 import {
-  BRIEF_SYSTEM, briefFor, briefPrompt, isCurrentBrief, loadBriefs, parseBrief, saveBrief,
+  BRIEF_SYSTEM, briefFor, briefPrompt, replyNeedsPrompt, isCurrentBrief, loadBriefs, parseBrief, saveBrief,
   type Brief, type BriefContext,
 } from "./brief";
 import {
@@ -8,7 +8,8 @@ import {
   type Chunk, type SourceInput, type SourceMessage,
 } from "./briefSource";
 import { singleFlight } from "./inboxRefresh";
-import { BRIEF_SCHEMA_VERSION, type MeetingCandidate, type PromptLink, type ReplyRequirement } from "./mailContracts";
+import { BRIEF_SCHEMA_VERSION, type MeetingCandidate, type PromptLink, type ReplyRequirement, type ReplyRequirements } from "./mailContracts";
+import { validateReplyRequirements } from "./briefValidate";
 import { mailMessageKey, type MailScope } from "./mailIdentity";
 import { deviceZone, isValidZone, wallInZone, weekdayOfIso } from "./zoneTime";
 
@@ -222,4 +223,74 @@ export function ensureThreadBrief(args: ThreadBriefArgs): Promise<ThreadBriefRes
   });
   // A caller that joined a flight already running made no call of its own.
   return flight.then((r) => (mine ? r : { ...r, calls: 0 }));
+}
+
+// ---- what a reply has to answer, on its own (Email fix order item 7; Alfred's live check 2026-10-12) ----
+//
+// The full brief asks for a summary, replies, meetings and the requirements in one answer. On a long thread that
+// answer ran past the proxy's output cap (1024 tokens), arrived cut off, failed to parse, and the composer's
+// "Answered X of Y" never appeared. This read asks for the requirements ONLY, from the newest part of the thread,
+// bounded to MAX_REQUIREMENTS short items, so the answer always fits. Same validation as the brief's (quotes must
+// be in the message shown, only what someone else asked), cached per account and content revision, single-flight.
+
+const NEEDS_KEY = "jarvis.mail.replyneeds.v1";
+const NEEDS_CAP = 40;
+
+type NeedsMap = Record<string, ReplyRequirements>;
+function readNeeds(): NeedsMap {
+  try {
+    const raw = JSON.parse(localStorage.getItem(NEEDS_KEY) || "{}") as unknown;
+    return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as NeedsMap) : {};
+  } catch { return {}; }
+}
+function writeNeeds(key: string, v: ReplyRequirements): void {
+  const all = readNeeds();
+  delete all[key];
+  all[key] = v;
+  const out: NeedsMap = {};
+  for (const k of Object.keys(all).slice(-NEEDS_CAP)) out[k] = all[k]!;
+  try { localStorage.setItem(NEEDS_KEY, JSON.stringify(out)); } catch { /* private mode */ }
+}
+const needsKey = (scope: MailScope, revision: string) => mailMessageKey(scope, revision) + ":needs:v1";
+
+/** A requirements list already read for this exact thread revision, or undefined. Never calls anything. */
+export function cachedReplyNeeds(scope: MailScope, messages: readonly SourceInput[], threadId: string): ReplyRequirements | undefined {
+  return readNeeds()[needsKey(scope, revisionOf(messages, threadId))];
+}
+
+/** The one read of what a reply must answer. Never throws: a failed read is undefined, and nothing is cached. */
+export function ensureReplyNeeds(args: Omit<ThreadBriefArgs, "links">): Promise<ReplyRequirements | undefined> {
+  const revision = revisionOf(args.messages, args.threadId);
+  const key = needsKey(args.scope, revision);
+  const hit = readNeeds()[key];
+  if (hit) return Promise.resolve(hit);
+  if (!args.ai.available || args.messages.length === 0) return Promise.resolve(undefined);
+  const zone = isValidZone(args.zone) ? args.zone : deviceZone();
+  return singleFlight(key, async () => {
+    try {
+      const src = sourceMessages(args.messages, args.selfEmails);
+      const plan = planChunks(src);
+      const chunk = plan.chunks[0];
+      if (!chunk) return undefined;
+      const raw = await args.ai.complete([{ role: "user", content: replyNeedsPrompt(renderChunk(chunk, zone, stamp)) }], BRIEF_SYSTEM);
+      const obj = parseJsonObject(raw);
+      if (!obj || !Array.isArray(obj.replyRequirements)) return undefined;
+      const items = validateReplyRequirements(obj.replyRequirements, {
+        account: args.scope.account, threadId: args.threadId, ...(args.subject ? { subject: args.subject } : {}), messages: shownMessages(chunk), zone,
+      });
+      const out: ReplyRequirements = { items, completeSource: plan.completeSource && plan.chunks.length === 1, sourceRevision: revision };
+      writeNeeds(key, out);
+      return out;
+    } catch { return undefined; }
+  });
+}
+
+/** The first JSON object in a model's answer, or null. */
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
+  if (s < 0 || e <= s) return null;
+  try {
+    const v = JSON.parse(raw.slice(s, e + 1)) as unknown;
+    return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch { return null; }
 }

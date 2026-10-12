@@ -254,6 +254,33 @@ describe("ruling 7: Answered X of Y in the reply composer", () => {
     expect(screen.getByRole("button", { name: "Review Send" })).toBeEnabled();
   });
 
+  it("asks for the requirements alone, so a long thread's answer fits; the prompt carries no summary or replies (Alfred, 2026-10-12)", async () => {
+    const calls: string[] = [];
+    const { ai, complete } = fakeAI();
+    compose(threadClient(calls), ai);
+    await waitFor(() => expect(document.querySelector("[data-coverage] .cov-quiet-row")).toHaveTextContent("Answered 0 of 1"));
+    const prompt = String((complete.mock.calls[0] as unknown as [{ content: string }[]])[0][0]!.content);
+    expect(prompt).toContain('{"replyRequirements":[...]}');
+    expect(prompt).not.toMatch(/"summary"|"replies"|meetingCandidates/);
+  });
+
+  it("a thread with nothing left to answer says so in one quiet line, instead of showing nothing", async () => {
+    const calls: string[] = [];
+    const complete = vi.fn(async () => JSON.stringify({ replyRequirements: [] }));
+    compose(threadClient(calls), { available: true, complete } as ThreadBriefAI);
+    await waitFor(() => expect(document.querySelector("[data-coverage] .cov-quiet-row")).toHaveTextContent("Nothing Left to Answer"));
+  });
+
+  it("a cut-off answer shows nothing and is not cached, so the next open reads again", async () => {
+    const calls: string[] = [];
+    const complete = vi.fn(async () => '{"replyRequirements":[{"messageId":"u-p2","quote":"Which day');
+    compose(threadClient(calls), { available: true, complete } as ThreadBriefAI);
+    await waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
+    await new Promise((res) => setTimeout(res, 50));
+    expect(document.querySelector("[data-coverage] .cov-quiet-row")).toBeNull();
+    expect(localStorage.getItem("jarvis.mail.replyneeds.v1") ?? "{}").toBe("{}");
+  });
+
   it("with AI off it shows nothing, says nothing and reads nothing", async () => {
     setAIControl({ level: "off" });
     const calls: string[] = [];
