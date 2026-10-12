@@ -4179,6 +4179,8 @@ describe("LAW 12: a write survives the refresh racing it, and one thing never re
       "brain/BrainFlow.tsx",
       "brain/manual/FiledRows.tsx",
       "brain/manual/TriageScreen.tsx",
+      // Email's Waiting list (2026-10-12): a Track This lands on the server, and the cached list repaints when it arrives.
+      "email/EmailFlow.tsx",
       "gym/GymFlow.tsx",
       "money/MoneyFlow.tsx",
       "notes/NotesFlow.tsx",

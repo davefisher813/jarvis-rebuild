@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ageWord, daysBetween, emailTodayRows, followUpRecipients, followUpState, localDate, newReply, orderWaiting, reviewLine, type ThreadMessage } from "./waiting";
+import { ageWord, daysBetween, emailTodayRows, followUpRecipients, followUpState, localDate, newReply, orderWaiting, pausedLine, type ThreadMessage } from "./waiting";
 import type { WaitingItem } from "../substrate/waiting/types";
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
@@ -55,22 +55,25 @@ describe("New Reply and the follow-up's address (E12, E14)", () => {
 });
 
 describe("Today's Email rows (12, E15, T1)", () => {
-  it("the count leads when there is one, labelled per card, and is omitted when there is none", () => {
-    expect(reviewLine(4)).toBe("4 Email Items to Review");
-    expect(reviewLine(1)).toBe("1 Email Item to Review");
-    expect(emailTodayRows({ count: 4, tasks: [], events: [], waiting: [], today: TODAY }).map((r) => r.title)).toEqual(["4 Email Items to Review"]);
-    expect(emailTodayRows({ count: 0, tasks: [], events: [], waiting: [], today: TODAY })).toEqual([]);
+  it("the combined paused card leads only while paused sends exist, in Dave's words; the generic review count is never on Today", () => {
+    expect(pausedLine(2, 2)).toBe("2 Replies Need Your Review");
+    expect(pausedLine(1, 1)).toBe("1 Reply Needs Your Review");
+    expect(pausedLine(1, 0)).toBe("1 Message Needs Your Review");
+    expect(pausedLine(3, 2)).toBe("3 Messages Need Your Review");
+    expect(emailTodayRows({ paused: { count: 2, replies: 2 }, tasks: [], events: [], waiting: [], today: TODAY }).map((r) => r.title)).toEqual(["2 Replies Need Your Review"]);
+    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: [], events: [], waiting: [], today: TODAY })).toEqual([]);
+    expect(emailTodayRows({ paused: null, tasks: [], events: [], waiting: [], today: TODAY })).toEqual([]);
   });
   it("committed email-origin items due today or overdue, overdue first, then by time; tomorrow never; nothing padded", () => {
     const rows = emailTodayRows({
-      count: 2, today: TODAY,
+      paused: { count: 2, replies: 2 }, today: TODAY,
       tasks: [task("t-today", TODAY), task("t-over", "2026-10-01"), task("t-tomorrow", "2026-10-04"), task("t-done", TODAY, { done: true }), task("t-plain", TODAY, { fromThread: undefined, source: undefined } as Partial<TaskItem["data"]>), task("t-nodue", null)],
       events: [event("e-today", TODAY, "10:00"), event("e-tomorrow", "2026-10-04", "10:00"), event("e-plain", TODAY, "09:00", { source: undefined, emailIds: [] })],
       waiting: [w("w-today", { followUpOn: TODAY }), w("w-over", { followUpOn: "2026-10-02" }), w("w-later", { followUpOn: "2026-10-09" }), w("w-none"), w("w-resolved", { followUpOn: TODAY, status: "resolved" })],
       cap: 10,
     });
     // Overdue first by date; then today's, the dated ones before the timed one, each by its key.
-    expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(["review:review", "task:t-over", "waiting:w-over", "task:t-today", "waiting:w-today", "event:e-today"]);
+    expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(["paused:paused", "task:t-over", "waiting:w-over", "task:t-today", "waiting:w-today", "event:e-today"]);
     expect(rows[1]!.facts).toEqual([{ text: "Was Due Oct 1", tone: "red" }]);
     expect(rows[3]!.facts).toEqual([{ text: "Due Today", tone: "warn" }]);
     // The toned fact leads and the free-text name is last: a facts line ellipsizes only its last fact.
@@ -79,21 +82,21 @@ describe("Today's Email rows (12, E15, T1)", () => {
   });
   it("five at most including the count: 0, 1, 3, 5 and 8 eligible items", () => {
     const many = (n: number) => Array.from({ length: n }, (_, i) => task(`t${i}`, TODAY));
-    expect(emailTodayRows({ count: 1, tasks: many(0), events: [], waiting: [], today: TODAY }).length).toBe(1);
-    expect(emailTodayRows({ count: 1, tasks: many(1), events: [], waiting: [], today: TODAY }).length).toBe(2);
-    expect(emailTodayRows({ count: 1, tasks: many(3), events: [], waiting: [], today: TODAY }).length).toBe(4);
-    expect(emailTodayRows({ count: 1, tasks: many(5), events: [], waiting: [], today: TODAY }).length).toBe(5);
-    expect(emailTodayRows({ count: 1, tasks: many(8), events: [], waiting: [], today: TODAY }).length).toBe(5);
-    expect(emailTodayRows({ count: 0, tasks: many(8), events: [], waiting: [], today: TODAY }).length).toBe(5);
-    expect(emailTodayRows({ count: 0, tasks: many(2), events: [], waiting: [], today: TODAY }).length).toBe(2);
+    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(0), events: [], waiting: [], today: TODAY }).length).toBe(1);
+    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(1), events: [], waiting: [], today: TODAY }).length).toBe(2);
+    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(3), events: [], waiting: [], today: TODAY }).length).toBe(4);
+    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(5), events: [], waiting: [], today: TODAY }).length).toBe(5);
+    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(8), events: [], waiting: [], today: TODAY }).length).toBe(5);
+    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: many(8), events: [], waiting: [], today: TODAY }).length).toBe(5);
+    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: many(2), events: [], waiting: [], today: TODAY }).length).toBe(2);
   });
   it("each destination once: an item Today already shows elsewhere is left to it, and a duplicate id is one row", () => {
-    const rows = emailTodayRows({ count: 0, tasks: [task("dealt", TODAY), task("other", TODAY)], events: [], waiting: [], today: TODAY, excludeIds: new Set(["dealt"]) });
+    const rows = emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: [task("dealt", TODAY), task("other", TODAY)], events: [], waiting: [], today: TODAY, excludeIds: new Set(["dealt"]) });
     expect(rows.map((r) => r.id)).toEqual(["other"]);
-    expect(emailTodayRows({ count: 0, tasks: [task("same", TODAY), task("same", "2026-10-01")], events: [], waiting: [], today: TODAY }).length).toBe(1);
+    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: [task("same", TODAY), task("same", "2026-10-01")], events: [], waiting: [], today: TODAY }).length).toBe(1);
   });
-  it("no proposed title ever rides along: the only Email words are the count's", () => {
-    const rows = emailTodayRows({ count: 3, tasks: [], events: [], waiting: [], today: TODAY });
-    expect(rows[0]).toMatchObject({ kind: "review", id: "review", title: "3 Email Items to Review", facts: [] });
+  it("no proposed title ever rides along: the only Email words are the paused card's", () => {
+    const rows = emailTodayRows({ paused: { count: 3, replies: 3 }, tasks: [], events: [], waiting: [], today: TODAY });
+    expect(rows[0]).toMatchObject({ kind: "paused", id: "paused", title: "3 Replies Need Your Review", facts: [] });
   });
 });

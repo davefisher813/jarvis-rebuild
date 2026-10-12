@@ -63,7 +63,7 @@ import {
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
-  REVIEW_FILTER, moreInOlderMail, SHOW_ALL_ROWS, WAITING_TITLE,
+  REVIEW_OPEN, reviewItemsLine, WAITING_TITLE,
   ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
   SIGN_IN_FIRST, VIEW_DATE, VIEW_GROUPED, VIEW_LABEL, WAITING_SEGMENT_TITLE, selectAllLoaded, selectedWord,
 } from "./copy";
@@ -100,7 +100,12 @@ import { bannerModels, recoveryNotes } from "../connections/incidentView";
 import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
-import { localDate, reviewCount, threadsLatest, type EmailFocus, type LatestInThread } from "./waiting";
+import { localDate, pausedSends, reviewCount, reviewList, threadsLatest, type EmailFocus, type LatestInThread, type PausedSends } from "./waiting";
+import ReviewListScreen from "./ReviewListScreen";
+import PausedScreen from "./PausedScreen";
+import type { ActionResult } from "../substrate/commands/captures";
+import { useFreshLists } from "../data/useFreshLists";
+import type { ThreadBriefAI } from "../messages/threadBrief";
 import { WaitingService } from "../substrate/waiting/WaitingService";
 import type { WaitingItem } from "../substrate/waiting/types";
 import { replySubject } from "../connections/google/map";
@@ -120,7 +125,11 @@ export const CRAWL_MAX_IDLE = 2;
 
 type Screen =
   | { kind: "root" }
-  | { kind: "message"; row: InboxRow; from: "inbox" | "search" }
+  | { kind: "message"; row: InboxRow; from: "inbox" | "search" | "review" }
+  // Every card the review count counts, with its message (Dave 2026-10-12: the count lives in Email, all of it reachable).
+  | { kind: "reviewList" }
+  // V10: the sends that stopped before Gmail, each reviewed on its own.
+  | { kind: "paused" }
   | { kind: "search" }
   | { kind: "accounts" }
   | { kind: "receipt"; actionId: string; from: Screen }
@@ -161,7 +170,7 @@ export function manualStart(kind: CaptureKind, row: InboxRow, zone: string, now:
   }
 }
 
-export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, focus, focusNonce, onFocusConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), zone: givenZone, initialScreen, waiting: givenWaiting }: {
+export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, focus, focusNonce, onFocusConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), zone: givenZone, initialScreen, waiting: givenWaiting, briefAI: givenBriefAI }: {
   onOpenConnections: () => void;
   /** A life record's own screen (a receipt's destination). */
   onOpenEntity?: (kind: string, id: string) => void;
@@ -187,6 +196,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   onFocusConsumed?: () => void;
   /** The Waiting store. A test passes its own; undefined means the app's. */
   waiting?: WaitingService | null;
+  /** The thread reading behind a reply's "Answered X of Y", from the shell. Absent: no coverage line, and nothing else changes. */
+  briefAI?: ThreadBriefAI | null;
 }) {
   const client: RpcClient | null = given === undefined ? supabase : given;
   const session = useOptionalSession();
@@ -197,6 +208,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const ledger = useOptionalLedger();
   const store = useStore();
   const zone = givenZone ?? readerZone();
+  // The thread reading is handed in from the shell: this module imports no model client (SUBSTRATE law 5), and with
+  // none given, or with AI off, the composer simply shows no coverage line.
+  const briefAI: ThreadBriefAI | null = givenBriefAI ?? null;
 
   const snapshot = useMemo(() => loadSnapshot(userId), [userId]);
   const [accounts, setAccounts] = useState<EmailAccount[]>(snapshot?.accounts ?? []);
@@ -255,13 +269,19 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [waitingItems, setWaitingItems] = useState<WaitingItem[]>([]);
   const [waitingView, setWaitingView] = useState<WaitingView>("open");
   const [waitingLatest, setWaitingLatest] = useState<Record<string, LatestInThread>>({});
-  const [reviewOnly, setReviewOnly] = useState(false);
-  /** Today's count, read once when the review focus opens: the loaded pages may not hold all of it. */
+  /** The server's review count (the number Today used to carry), read on each load: the door to the review list. */
   const [reviewTotal, setReviewTotal] = useState<number | null>(null);
+  /** The review list's messages; null until read. */
+  const [reviewRows, setReviewRows] = useState<InboxRow[] | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [paused, setPaused] = useState<PausedSends | null>(null);
+  const [pausedFailure, setPausedFailure] = useState<CommandFailure | null>(null);
+  /** Waiting records this screen just saw saved, by id: shown at once, before the list's own cache catches up. */
+  const tracked = useRef<Record<string, WaitingItem>>({});
   // The message is a sheet over whichever screen it opened from (Astra's
   // bottom-sheet design, 2026-10-10), not a push: its depth is its parent's,
   // so the dimmed inbox or search list underneath never slides.
-  const depth = screen.kind === "message" ? (screen.from === "search" ? 1 : 0)
+  const depth = screen.kind === "message" ? (screen.from === "search" || screen.from === "review" ? 1 : 0)
     : screen.kind === "root" ? 0
       : screen.kind === "receipt" || screen.kind === "review" || screen.kind === "outcome" || screen.kind === "drafts" ? 2
         : screen.kind === "compose" && screen.from.kind !== "root" ? 2 : 1;
@@ -352,6 +372,19 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     return proposals.length;
   }, [client, offline, userId, zone, loadCards]);
 
+  // A calendar file attached to an opened message (ruling 6): its event, read once per message version, and only
+  // its event (an invite's text is not a bill or a task). The card it proposes waits for the person's tap.
+  const readCalendarFile = useCallback(async (row: InboxRow, ics: string): Promise<void> => {
+    if (!client || offline || !/BEGIN:VCALENDAR/.test(ics)) return;
+    const key = readingKey(row.account_id, row.id, row.source_hash) + ":ics";
+    if (readingsOf(userId).has(key)) return;
+    const proposals = readWithRules(row, zone, ics).filter((p) => p.kind === "event");
+    let kept = true;
+    if (proposals.length) kept = (await proposeExtracted(client, proposals, { id: row.id, source_hash: row.source_hash })).failed === 0;
+    if (kept) rememberReading(userId, key);
+    if (proposals.length) await loadCards([row.id]);
+  }, [client, offline, userId, zone, loadCards]);
+
   useEffect(() => {
     // Dismissed cards shown or hidden: the page reads again.
     const ids = Object.keys(cards);
@@ -405,11 +438,11 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (made) setSheet({ candidate: made, row, text });
   }, [client, zone, now, showDismissed]);
 
-  const cardsFor = (row: InboxRow): ReactNode => {
+  const cardsFor = (row: InboxRow, place: "finish" | "rest" | "all" = "all"): ReactNode => {
     const list = cards[row.id];
     if (!client || !list || list.length === 0) return null;
     return (
-      <CandidateCards client={client} candidates={list} row={row} ctx={contextFor(row, zone, nowFn)} ready={ready} readyLine={readyLine} offline={offline}
+      <CandidateCards place={place} onSaved={onCardSaved} client={client} candidates={list} row={row} ctx={contextFor(row, zone, nowFn)} ready={ready} readyLine={readyLine} offline={offline}
         evidenceExcerpt={bodyText.current[row.id]?.slice(0, 2000)} showDismissed={showDismissed} conflictOf={conflictOf} now={nowFn}
         onChanged={() => loadCards([row.id])} onDetails={(c) => setSheet({ candidate: c, row, text: bodyText.current[row.id] })} onReview={(c) => void reviewLatest(c, row)}
         onReceipt={(actionId) => setScreen((s) => ({ kind: "receipt", actionId, from: s }))}
@@ -648,12 +681,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const chips = useMemo(() => categories.filter((c) => (counts[c.id] ?? 0) > 0), [categories, counts]);
   // The person's areas filter All by Date; the five sections are the grouped view's organisation and no chip narrows them.
   const chipOn = view === "date" ? chip : null;
-  const visible = useMemo(() => {
-    const base = chipOn ? accountRows.filter((r) => catOf(r) === chipOn) : accountRows;
-    return reviewOnly ? base.filter((r) => (cards[r.id] ?? []).some(isToReview)) : base;
-  }, [accountRows, chipOn, catOf, reviewOnly, cards]);
-  // The review focus counts cards, as Today does, never rows: the two numbers are the same number.
-  const loadedToReview = useMemo(() => (reviewOnly ? visible.reduce((n, r) => n + (cards[r.id] ?? []).filter(isToReview).length, 0) : 0), [reviewOnly, visible, cards]);
+  const visible = useMemo(() => (chipOn ? accountRows.filter((r) => catOf(r) === chipOn) : accountRows), [accountRows, chipOn, catOf]);
   const groups = useMemo(() => (view === "grouped"
     ? groupSections(visible, overrides).map((g) => ({ label: SECTION_NAME[g.key], rows: g.rows, count: loadedWord(g.rows.length), slot: SECTION_SLOT[g.key] }))
     : dayGroups(visible, now)), [view, visible, overrides, now]);
@@ -771,27 +799,90 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const loadWaiting = useCallback(async () => {
     if (!waitingSvc) return;
     try {
-      const items = await waitingSvc.list();
+      const listed = await waitingSvc.list();
+      // A record saved from this screen a moment ago may not be in the list's cached copy yet (the list answers
+      // from the device cache and refreshes behind it): it stays shown until the list has it.
+      const extra = Object.values(tracked.current).filter((t) => !listed.some((i) => i.id === t.id));
+      for (const i of listed) delete tracked.current[i.id];
+      const items = [...extra, ...listed];
       setWaitingItems(items);
       const threads = [...new Set(items.filter((i) => i.data.status === "open" && i.data.threadId).map((i) => i.data.threadId!))];
       if (client && threads.length) { const r = await threadsLatest(client, threads); if (r.ok) setWaitingLatest(r.value); }
     } catch { /* the list stays as it was */ }
   }, [waitingSvc, client]);
   useEffect(() => { if (segment === "waiting") void loadWaiting(); }, [segment, loadWaiting]);
+  // The background refresh behind the cached list found a change (a Track This that landed on the server): read it again.
+  useFreshLists(["waiting"], () => { if (segment === "waiting") { store?.invalidateAll(); void loadWaiting(); } });
+  // TRACK THIS LANDS IN WAITING (ruling 8, 2026-10-12). capture_approve writes the record on the server, not through
+  // the Store, so the Waiting list (which answers from the device's cached copy first) did not have it: the person
+  // tapped Track This and Email > Waiting still said Nothing You're Waiting On. The saved record is read back by its
+  // id at once and kept on screen until the list carries it. Only an explicit save gets here; nothing is created.
+  const onCardSaved = useCallback((c: Candidate, a: ActionResult) => {
+    if (c.kind !== "waiting" || !a.destination_id || !waitingSvc) return;
+    const id = a.destination_id;
+    store?.invalidateAll();
+    void waitingSvc.get(id).then((it) => {
+      if (!it) return;
+      tracked.current[it.id] = it;
+      setWaitingItems((list) => [it, ...list.filter((w) => w.id !== it.id)]);
+    }).catch(() => { /* the list's own refresh brings it */ });
+  }, [waitingSvc, store]);
   // A focus from Today or a receipt: the inbox narrowed to its cards, or one record.
   useEffect(() => {
     if (!focus || !focusNonce) return;
-    if (focus.kind === "candidates") {
-      setSegment("inbox"); setChip(null); setReviewOnly(true); setScreen({ kind: "root" });
-      // Today's number, so the line can say how much of it is past the loaded pages (one read, on the tap).
-      setReviewTotal(null);
-      if (client && !offline) void reviewCount(client).then((r) => setReviewTotal(r.ok ? r.value.count : null));
-    }
+    if (focus.kind === "candidates") openReview();
+    else if (focus.kind === "paused") openPaused();
     else { setSegment("waiting"); setScreen({ kind: "waiting", id: focus.id }); void loadWaiting(); }
     onFocusConsumed?.();
     // The nonce is the signal; the focus value rides with it.
   }, [focusNonce]);
   const todayLocal = localDate(now.toISOString(), zone);
+
+  // ---- the review list (every counted card) and the paused sends ----------
+  function openReview() {
+    setSegment("inbox"); setChip(null); setScreen({ kind: "reviewList" });
+    void loadReview();
+  }
+  async function loadReview() {
+    if (!client) return;
+    setReviewLoading(true);
+    const r = await reviewList(client);
+    setReviewLoading(false);
+    if (r.ok) {
+      const list = r.value.rows ?? [];
+      setReviewRows(list);
+      setReviewTotal(Number(r.value.count) || 0);
+      setCards((prev) => {
+        const next = { ...prev };
+        for (const row of list) next[row.id] = [];
+        for (const c of r.value.candidates ?? []) (next[c.message_id] ??= []).push(c);
+        return next;
+      });
+      return;
+    }
+    // A database without migration 0068: the loaded pages are what can be shown, and only what is shown is claimed.
+    setReviewRows(rows.filter((x) => (cards[x.id] ?? []).some(isToReview)));
+  }
+  function openPaused() {
+    setScreen({ kind: "paused" });
+  }
+  async function loadPaused() {
+    if (!client) return;
+    setPausedFailure(null);
+    const r = await pausedSends(client);
+    if (r.ok) setPaused(r.value);
+    else { setPaused(null); setPausedFailure(r); }
+  }
+  // Read on every arrival, so a draft reviewed and approved (or kept) is gone when the person comes back.
+  useEffect(() => { if (screen.kind === "paused") void loadPaused(); }, [screen.kind]);
+  // The review count, on the Email surface: read with each load of the inbox and after a card changes.
+  const cardsKey = Object.values(cards).reduce((n, l) => n + l.filter(isToReview).length, 0);
+  useEffect(() => {
+    if (!client || offline) return;
+    let alive = true;
+    void reviewCount(client).then((r) => { if (alive && r.ok) setReviewTotal(Number(r.value.count) || 0); }).catch(() => {});
+    return () => { alive = false; };
+  }, [client, offline, cardsKey]);
   const openMessageById = async (id: string) => {
     if (!client) return;
     const r = await readMessage(client, id);
@@ -897,7 +988,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
   const sheetEl = sheet && client ? (
     <CaptureSheet client={client} candidate={sheet.candidate} row={sheet.row} ctx={contextFor(sheet.row, zone, nowFn)} ready={ready} readyLine={readyLine} offline={offline}
-      evidenceText={sheet.text ?? bodyText.current[sheet.row.id]} onClose={() => setSheet(null)} onChanged={() => loadCards([sheet.row.id])} />
+      evidenceText={sheet.text ?? bodyText.current[sheet.row.id]} onClose={() => setSheet(null)} onChanged={() => loadCards([sheet.row.id])} onSaved={onCardSaved} />
   ) : null;
   const captureEl = capturing ? (
     <RowActionSheet title={CAPTURE_TITLE} actions={(["bill", "receipt", "task", "event", "waiting"] as CaptureKind[]).map((k) => ({ label: CAPTURE_KIND[k]!, onPick: () => void startCapture(capturing.row, k, capturing.text) }))} onCancel={() => setCapturing(null)} />
@@ -937,11 +1028,12 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     <>
       <MessageScreen client={client} token={token} userId={userId} row={messageCurrent} account={accountOf(messageScreen.row)} offline={offline}
         categories={categories} categoryId={catOf(messageScreen.row)}
-        onBack={() => setScreen(messageScreen.from === "search" ? { kind: "search" } : { kind: "root" })}
+        onBack={() => setScreen(messageScreen.from === "search" ? { kind: "search" } : messageScreen.from === "review" ? { kind: "reviewList" } : { kind: "root" })}
         onRowChanged={patchRow}
         onLeftInbox={leftInbox}
         onFileUnder={(r, c) => void onFileUnder(r, c)}
-        cards={cardsFor(messageCurrent)} moreActions={messageMore} onBodyText={(text) => void readBody(messageCurrent, text)}
+        finish={cardsFor(messageCurrent, "finish")} cards={cardsFor(messageCurrent, "rest")} moreActions={messageMore} onBodyText={(text) => void readBody(messageCurrent, text)}
+        onCalendarFile={(text) => void readCalendarFile(messageCurrent, text)}
         onReply={(m, all) => startReply(m, all, messageScreen)}
         onCapture={(kind) => void startCapture(messageCurrent, kind, bodyText.current[messageCurrent.id])}
         alsoIn={same[messageCurrent.id] ?? []} />
@@ -954,6 +1046,20 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         categories={categories} categoryOf={catOf} categoryId={searchChip} onCategory={setSearchChip} now={now}
         onBack={() => setScreen({ kind: "root" })} onOpen={(row) => { setScreen({ kind: "message", row, from: "search" }); void loadCards([row.id]); }} />
       {messageOverlay}
+    </div>;
+  }
+  if ((screen.kind === "reviewList" || messageScreen?.from === "review") && client) {
+    return <div className={pushCls}>
+      <ReviewListScreen rows={reviewRows} loading={reviewLoading} labels={labels} now={now} onBack={() => setScreen({ kind: "root" })}
+        onOpen={(row) => setScreen({ kind: "message", row, from: "review" })}
+        renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
+      {messageOverlay}{!messageScreen && sheetEl}
+    </div>;
+  }
+  if (screen.kind === "paused" && client) {
+    return <div className={pushCls}>
+      <PausedScreen paused={paused} failure={pausedFailure} onBack={() => setScreen({ kind: "root" })} onRetry={() => void loadPaused()}
+        onOpen={(d) => { setSendFailure(null); setScreen({ kind: "compose", start: { localKey: d.id, draftId: d.id, accountId: d.account_id, fields: fieldsOf(d), revision: d.revision, failedLine: d.action_verb ?? null }, from: { kind: "paused" } }); }} />
     </div>;
   }
   if (screen.kind === "accounts") {
@@ -983,7 +1089,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     const from = screen.from;
     const start = screen.start;
     return <div className={pushCls}>
-      <ComposeScreen client={client} userId={userId} accounts={accounts} offline={offline} fileStore={fileStore} start={start} now={nowFn}
+      <ComposeScreen client={client} userId={userId} accounts={accounts} offline={offline} fileStore={fileStore} start={start} now={nowFn} briefAI={briefAI}
         onBack={() => { setDraftsReload((n) => n + 1); setScreen(from.kind === "review" || from.kind === "compose" ? { kind: "root" } : from); }}
         onReview={(draftId, revision, fields, review) => setScreen({ kind: "review", draftId, revision, fields, review, requestId: newRequestId(), start: { ...start, localKey: draftId, draftId, fields, revision }, from })}
         onDiscarded={(copy) => discarded(copy, from)} />
@@ -1130,8 +1236,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       ) : (
         <EmptyState copy={EMPTY_WAITING} onAction={() => setSegment("inbox")} />
       ))}
-      {client && segment === "inbox" && reviewOnly && (
-        <div className="email-note quiet"><span>{REVIEW_FILTER} · {loadedToReview}{reviewTotal !== null && reviewTotal > loadedToReview ? ` · ${moreInOlderMail(reviewTotal - loadedToReview)}` : ""}</span><button className="quiet-action" onClick={() => setReviewOnly(false)}>{SHOW_ALL_ROWS}</button></div>
+      {/* The review count stays on the Email surface (spec section 7): one quiet line, the door to every card it counts. */}
+      {client && segment === "inbox" && reviewTotal !== null && reviewTotal > 0 && (
+        <div className="email-note quiet" data-review-count={reviewTotal}><span>{reviewItemsLine(reviewTotal)}</span><button className="quiet-action" onClick={openReview}>{REVIEW_OPEN}</button></div>
       )}
 
       {client && segment === "inbox" && !pending && !error && accounts.length === 0 && (

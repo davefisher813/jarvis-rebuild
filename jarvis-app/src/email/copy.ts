@@ -297,10 +297,6 @@ export const WAITED = "Waited";
 export const FOR_LABEL = "For";
 export const ACCOUNT_LABEL = "Account";
 export const EMPTY_RESOLVED = { title: "Nothing Resolved Yet", sub: "Resolve a Request Here When It Arrives", action: "Show Open" };
-export const REVIEW_FILTER = "Showing Items to Review";
-/** The rest of Today's count sits on mail older than the loaded pages (the list is newest first). */
-export const moreInOlderMail = (n: number): string => `${n} More in Older Mail`;
-export const SHOW_ALL_ROWS = "Show All";
 export const EMAIL_BAND_TITLE = "Email";
 export const OPEN_EMAIL = "Open Email";
 // 2026-10-05: OPEN_TO_REVIEW ("Open Email to Review") is gone. It was the grey line under "5 Email Items to Review" on the Today
@@ -313,6 +309,22 @@ export function followUpWas(monthDayWord: string): string {
 export function followUpOnWord(monthDayWord: string): string {
   return `Follow Up ${monthDayWord}`;
 }
+// ---- the review list and the paused sends (2026-10-12, Dave's rulings) ------------------------------------------------
+/** The Email surface keeps the review count (spec section 7): a quiet line on the inbox, the door to every card it counts. */
+export const reviewItemsLine = (n: number): string => `${n} ${n === 1 ? "Item" : "Items"} to Review`;
+export const REVIEW_LIST_TITLE = "To Review";
+export const REVIEW_OPEN = "Review";
+export const EMPTY_REVIEW = { title: "Nothing to Review", sub: "Cards from Your Mail Wait Here Until You Decide", action: "Show Inbox" };
+/** The V10 recovery list: every send stopped before Gmail, each reviewed and approved on its own. */
+export const PAUSED_TITLE = "Needs Your Review";
+export const EMPTY_PAUSED = { title: "Nothing Paused", sub: "Every Send Went Out or Is Still a Draft", action: "Show Inbox" };
+export const PAUSED_REASON: Record<string, string> = {
+  HOLD_EXPIRED: "Held Too Long",
+  APPROVAL_EXPIRED: "Approval Expired",
+  NOT_APPROVED: "Approval Expired",
+  PROVIDER_AUTH: "Reconnect Gmail",
+};
+export const PAUSED_DEFAULT = "Not Sent";
 
 // The mail home (Email v1 spec 3.1 to 3.3, 11; Dave's ruling 2026-10-12).
 export const INBOX_TITLE = "Inbox";

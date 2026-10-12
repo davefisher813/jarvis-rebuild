@@ -1,11 +1,13 @@
-// EMAIL ON TODAY, RESTRAINED (docs/jarvis-unified, slice 08;
-// IMPLEMENTATION-SPEC.md 08 E15, 09 T1, 12). Inside the Today page's own
-// mail band: one generic line, "N Email Items to Review", counted per card
-// on the server and carrying no title and no amount; then committed
-// email-origin records that are due, at most five rows in all, nothing
-// padded, nothing for tomorrow, each destination once and never one Today
-// already shows on its own. Bills stay with Money's own Today line. A tap
-// opens Email narrowed to its cards, or the record's own module.
+// EMAIL ON TODAY, RESTRAINED (Email v1 spec section 7, V10; Dave 2026-10-12).
+// Inside the Today page's own mail band: the ONE combined paused-sends card,
+// "2 Replies Need Your Review", only while a send stopped before it reached
+// Gmail waits for a fresh review (never an ordinary draft, a held send, a sent
+// message or an unknown outcome); then committed email-origin records that are
+// due, at most five rows in all, nothing padded, nothing for tomorrow, each
+// destination once and never one Today already shows on its own. The generic
+// proposal-review count is gone from Today: it stays on the Email surface.
+// Bills stay with Money's own Today line. A tap opens Email's recovery list,
+// or the record's own module. Nothing here sends; there is no Send All.
 
 import { useEffect, useState } from "react";
 import { rowDoor } from "../shared/rowDoor";
@@ -14,7 +16,7 @@ import type { RpcClient } from "../substrate/commands/errors";
 import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
 import type { WaitingService } from "../substrate/waiting/WaitingService";
-import { emailTodayRows, reviewCount, type EmailFocus, type TodayEmailRow } from "../email/waiting";
+import { emailTodayRows, pausedSends, type EmailFocus, type TodayEmailRow } from "../email/waiting";
 import EmailFacts from "../email/EmailFacts";
 
 export default function EmailToday({ client, tasks, schedule, waiting, today, excludeIds = [], refreshKey = 0, onOpenEmail, onOpenEntity, onEmptyChange }: {
@@ -34,14 +36,15 @@ export default function EmailToday({ client, tasks, schedule, waiting, today, ex
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const [count, t, e, w] = await Promise.all([
-        client ? reviewCount(client).then((r) => (r.ok ? r.value.count : 0)).catch(() => 0) : Promise.resolve(0),
+      // A database without migration 0068 has no paused_sends: the card is simply not drawn.
+      const [paused, t, e, w] = await Promise.all([
+        client ? pausedSends(client).then((r) => (r.ok ? { count: Number(r.value.count) || 0, replies: Number(r.value.replies) || 0 } : null)).catch(() => null) : Promise.resolve(null),
         tasks ? tasks.listTasks().catch(() => []) : Promise.resolve([]),
         schedule ? schedule.eventsOn(today).catch(() => []) : Promise.resolve([]),
         waiting ? waiting.list().catch(() => []) : Promise.resolve([]),
       ]);
       if (!alive) return;
-      setRows(emailTodayRows({ count, tasks: t, events: e, waiting: w, today, excludeIds: new Set(excludeIds) }));
+      setRows(emailTodayRows({ paused, tasks: t, events: e, waiting: w, today, excludeIds: new Set(excludeIds) }));
     })();
     return () => { alive = false; };
     // excludeIds is a fresh array each render; its content is what matters.
@@ -50,14 +53,14 @@ export default function EmailToday({ client, tasks, schedule, waiting, today, ex
 
   if (rows.length === 0) return null;
   const open = (r: TodayEmailRow) => {
-    if (r.kind === "review") onOpenEmail({ kind: "candidates" });
+    if (r.kind === "paused") onOpenEmail({ kind: "paused" });
     else if (r.kind === "waiting") onOpenEmail({ kind: "waiting", id: r.id });
     else onOpenEntity(r.kind, r.id);
   };
-  const Icon = (k: TodayEmailRow["kind"]) => k === "review" ? Mail : k === "task" ? CheckSquare : k === "event" ? Calendar : Hourglass;
+  const Icon = (k: TodayEmailRow["kind"]) => k === "paused" ? Mail : k === "task" ? CheckSquare : k === "event" ? Calendar : Hourglass;
   // A TYPE ICON CARRIES ITS TYPE'S COLOUR (Dave 2026-10-05: the envelope and the check were flat black in light).
   // The tones are the ones the sheets already use for these types: Email teal, Task red, Event sky, Waiting purple.
-  const Tone = (k: TodayEmailRow["kind"]) => k === "review" ? "teal" : k === "task" ? "red" : k === "event" ? "sky" : "purple";
+  const Tone = (k: TodayEmailRow["kind"]) => k === "paused" ? "teal" : k === "task" ? "red" : k === "event" ? "sky" : "purple";
   return (
     <div className="card list-card-ruled email-today-band" data-email-today={rows.length}>
       {rows.map((r) => {

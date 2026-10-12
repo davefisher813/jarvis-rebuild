@@ -18,7 +18,10 @@ import type { RpcClient } from "../substrate/commands/errors";
 
 const USER = "user-1";
 const TODAY = "2026-10-03";
-const client = (count: number): RpcClient => ({ rpc: async (fn) => ({ data: fn === "candidate_review_count" ? { count, messages: Math.min(count, 3) } : { error: "NOT_FOUND" }, error: null }) });
+// paused_sends (migration 0068): `count` paused sends, `replies` of them replies. candidate_review_count is answered
+// too, with a big number, so a test proves Today never draws it (spec section 7, Dave 2026-10-12).
+const client = (count: number, replies = count): RpcClient => ({ rpc: async (fn) => ({ data: fn === "paused_sends" ? { count, replies, drafts: [] } : fn === "candidate_review_count" ? { count: 9, messages: 3 } : { error: "NOT_FOUND" }, error: null }) });
+const missing: RpcClient = { rpc: async () => ({ data: null, error: { code: "PGRST202", message: "Could not find the function public.paused_sends" } }) };
 
 async function world() {
   const store = new Store(new InMemoryAdapter());
@@ -34,14 +37,25 @@ const rows = () => [...document.querySelectorAll("[data-email-row]")].map((r) =>
 afterEach(cleanup);
 
 describe("Email on Today", () => {
-  it("the count leads, labelled per card, carries no title or amount, and opens Email on the review focus", async () => {
+  it("the paused card leads in Dave's words, carries no title or amount, and opens Email's recovery list; the review count is never on Today", async () => {
     const w = await world();
     const opened: unknown[] = [];
-    render(<EmailToday client={client(4)} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={(f) => opened.push(f)} onOpenEntity={() => {}} />);
-    await waitFor(() => expect(rows()).toEqual(["review:4 Email Items to Review"]));
-    expect(document.body.textContent).not.toMatch(/\$|Con Edison|142/);
-    fireEvent.click(document.querySelector("[data-email-row='review']") as HTMLElement);
-    expect(opened).toEqual([{ kind: "candidates" }]);
+    render(<EmailToday client={client(2)} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={(f) => opened.push(f)} onOpenEntity={() => {}} />);
+    await waitFor(() => expect(rows()).toEqual(["paused:2 Replies Need Your Review"]));
+    expect(document.body.textContent).not.toMatch(/\$|Con Edison|142|to Review|Items/);
+    fireEvent.click(document.querySelector("[data-email-row='paused']") as HTMLElement);
+    expect(opened).toEqual([{ kind: "paused" }]);
+  });
+
+  it("a mixed or compose-only pause says Messages; no paused send, or a database without 0068, draws no card", async () => {
+    const w = await world();
+    render(<EmailToday client={client(3, 2)} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={() => {}} onOpenEntity={() => {}} />);
+    await waitFor(() => expect(rows()).toEqual(["paused:3 Messages Need Your Review"]));
+    cleanup();
+    const empty: boolean[] = [];
+    render(<EmailToday client={missing} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={() => {}} onOpenEntity={() => {}} onEmptyChange={(e) => empty.push(e)} />);
+    await waitFor(() => expect(empty.at(-1)).toBe(true));
+    expect(document.querySelector("[data-email-today]")).toBeNull();
   });
 
   it("committed email-origin items due today or overdue ride under the count; a plain task, a done task and a tomorrow callback do not; five at most, nothing padded", async () => {
@@ -59,7 +73,7 @@ describe("Email on Today", () => {
     const empty: boolean[] = [];
     render(<EmailToday client={client(2)} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={() => {}} onOpenEntity={() => {}} onEmptyChange={(e) => empty.push(e)} />);
     await waitFor(() => expect(rows().length).toBe(5));
-    expect(rows()).toEqual(["review:2 Email Items to Review", "task:Review the transcript", "task:Submit the roster", "waiting:Peña's Transcript", "event:Quick Call About the Deposit"]);
+    expect(rows()).toEqual(["paused:2 Replies Need Your Review", "task:Review the transcript", "task:Submit the roster", "waiting:Peña's Transcript", "event:Quick Call About the Deposit"]);
     expect(document.body.textContent).not.toMatch(/Tomorrow/);
     expect(empty.at(-1)).toBe(false);
   });
@@ -114,9 +128,9 @@ describe("Email on Today follows the visual catalog", () => {
     return document.querySelector(".email-today-band") as HTMLElement;
   }
 
-  it("the review row has a title and no subtext line", async () => {
+  it("the paused row has a title and no subtext line", async () => {
     const root = await band();
-    const row = root.querySelector('[data-email-row="review"]')!;
+    const row = root.querySelector('[data-email-row="paused"]')!;
     expect(row.querySelector(".facts")).toBeNull();
     expect(row.textContent).not.toMatch(/Open Email to Review/);
   });
@@ -152,11 +166,11 @@ describe("Email on Today follows the visual catalog", () => {
     expect(facts.at(-1)).not.toHaveClass("red");
   });
 
-  it("a row with a fact is one facts line, and the review row, which has none, draws no line at all", async () => {
+  it("a row with a fact is one facts line, and the paused row, which has none, draws no line at all", async () => {
     const root = await band();
     for (const row of root.querySelectorAll("[data-email-row]")) {
       const lines = row.querySelectorAll(".facts").length;
-      expect(lines).toBe(row.getAttribute("data-email-row") === "review" ? 0 : 1);
+      expect(lines).toBe(row.getAttribute("data-email-row") === "paused" ? 0 : 1);
     }
   });
 });

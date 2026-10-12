@@ -223,6 +223,20 @@ export function attachmentBlob(d: Downloaded): Blob {
   return new Blob([copy], { type: d.mime || "application/octet-stream" });
 }
 
+/** The largest calendar file read for its event (ruling 6): an invite is a few kilobytes; anything bigger is not one. */
+export const MAX_CALENDAR_FILE = 256 * 1024;
+
+/** A calendar file attached to a message: text/calendar, application/ics, or a .ics name. */
+export function isCalendarFile(a: Pick<AttachmentMeta, "filename" | "mime" | "size">): boolean {
+  const mime = (a.mime || "").toLowerCase();
+  return (mime === "text/calendar" || mime === "application/ics" || /\.ics$/i.test(a.filename || "")) && (!a.size || a.size <= MAX_CALENDAR_FILE);
+}
+
+/** The provider's bytes as UTF-8 text, for a calendar file the rules read. */
+export function attachmentText(d: Pick<Downloaded, "data">): string {
+  return new TextDecoder("utf-8").decode(b64urlDecodeBytes(d.data));
+}
+
 /**
  * E20: the exact Gmail thread when the account and thread id are known and
  * look like Gmail's own (hex), the account's inbox when they are not. The

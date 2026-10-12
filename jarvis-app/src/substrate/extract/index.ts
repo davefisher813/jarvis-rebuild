@@ -19,7 +19,7 @@ import { excerptOf, sourceText } from "./text";
 export type { Extracted, Provenance, TemplateInput };
 
 /** Moves when a rule changes what it reads; a message is read once per version (10.1 step 1). */
-export const EXTRACTOR_VERSION = "rules-2026-10-03";
+export const EXTRACTOR_VERSION = "rules-2026-10-12";
 
 export interface ExtractInput {
   account_id: string;
