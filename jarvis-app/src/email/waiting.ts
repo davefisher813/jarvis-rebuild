@@ -83,11 +83,11 @@ export const readEvidence = (client: RpcClient, id: string) => callCommand<Evide
 
 export const reviewCount = (client: RpcClient): Promise<CommandResult<{ count: number; messages: number }>> => callCommand(client, "candidate_review_count", {});
 
-/** Every card the count counts, with its message (migration 0067). Absent on a database without 0067: the caller falls back to the loaded pages. */
+/** Every card the count counts, with its message (migration 0068). Absent on a database without 0068: the caller falls back to the loaded pages. */
 export interface ReviewList { count: number; rows: InboxRow[]; candidates: Candidate[] }
 export const reviewList = (client: RpcClient, limit = 200): Promise<CommandResult<ReviewList>> => callCommand(client, "candidates_to_review", { p_limit: limit });
 
-/** Sends stopped before they reached Gmail, each needing its own fresh review (spec section 7, V10; migration 0067). */
+/** Sends stopped before they reached Gmail, each needing its own fresh review (spec section 7, V10; migration 0068). */
 export interface PausedSends { count: number; replies: number; drafts: Array<DraftRow & { paused_reason: string; is_reply: boolean }> }
 export const pausedSends = (client: RpcClient): Promise<CommandResult<PausedSends>> => callCommand(client, "paused_sends", {});
 

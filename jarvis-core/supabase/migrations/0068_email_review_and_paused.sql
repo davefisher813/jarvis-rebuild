@@ -1,5 +1,5 @@
--- Migration 0067: two reads for Email v1 (2026-10-12, Dave's rulings 8 and the L2 change). Additive: two new
--- functions, no table, no column, no change to any existing body. Rollback: rollback/0067_email_review_and_paused_down.sql.
+-- Migration 0068: two reads for Email v1 (2026-10-12, Dave's rulings 8 and the L2 change). Additive: two new
+-- functions, no table, no column, no change to any existing body. Rollback: rollback/0068_email_review_and_paused_down.sql.
 --
 -- 1. candidates_to_review(p_limit)
 --    Email's own review list. candidate_review_count (0051) counts every proposed or needs_details card on a

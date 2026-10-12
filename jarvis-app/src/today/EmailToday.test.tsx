@@ -18,7 +18,7 @@ import type { RpcClient } from "../substrate/commands/errors";
 
 const USER = "user-1";
 const TODAY = "2026-10-03";
-// paused_sends (migration 0067): `count` paused sends, `replies` of them replies. candidate_review_count is answered
+// paused_sends (migration 0068): `count` paused sends, `replies` of them replies. candidate_review_count is answered
 // too, with a big number, so a test proves Today never draws it (spec section 7, Dave 2026-10-12).
 const client = (count: number, replies = count): RpcClient => ({ rpc: async (fn) => ({ data: fn === "paused_sends" ? { count, replies, drafts: [] } : fn === "candidate_review_count" ? { count: 9, messages: 3 } : { error: "NOT_FOUND" }, error: null }) });
 const missing: RpcClient = { rpc: async () => ({ data: null, error: { code: "PGRST202", message: "Could not find the function public.paused_sends" } }) };
@@ -47,7 +47,7 @@ describe("Email on Today", () => {
     expect(opened).toEqual([{ kind: "paused" }]);
   });
 
-  it("a mixed or compose-only pause says Messages; no paused send, or a database without 0067, draws no card", async () => {
+  it("a mixed or compose-only pause says Messages; no paused send, or a database without 0068, draws no card", async () => {
     const w = await world();
     render(<EmailToday client={client(3, 2)} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={() => {}} onOpenEntity={() => {}} />);
     await waitFor(() => expect(rows()).toEqual(["paused:3 Messages Need Your Review"]));

@@ -236,7 +236,7 @@ describe("E14: Draft Follow-Up", () => {
 });
 
 describe("T1: a focus from Today", () => {
-  it("the review focus opens the review list (on a database without 0067 it shows only what is loaded and has cards); a waiting focus opens the record", async () => {
+  it("the review focus opens the review list (on a database without 0068 it shows only what is loaded and has cards); a waiting focus opens the record", async () => {
     const r = rig();
     const id = await r.world.waiting.create(openItem());
     const view = mount(r, { focus: { kind: "candidates" }, focusNonce: 1 });

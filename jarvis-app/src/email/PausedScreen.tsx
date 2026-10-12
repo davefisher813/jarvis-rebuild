@@ -1,6 +1,6 @@
 // THE PAUSED SENDS (Email v1 spec section 7, V10; Dave 2026-10-12). Today's one combined card ("2 Replies Need Your
 // Review") opens this: every send that stopped before it reached Gmail (a failed preflight, a dispatch window that
-// closed, a mailbox that needed reconnecting), read from the server (paused_sends, migration 0067). Each row opens
+// closed, a mailbox that needed reconnecting), read from the server (paused_sends, migration 0068). Each row opens
 // that draft exactly as it stands; from there it is reviewed and approved on its own, with its own 30-second hold.
 // There is no Send All here, and nothing on this screen sends.
 import PageHeader from "../shared/PageHeader";

@@ -261,8 +261,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    in the hero's own stacking context) and takes it from nothing at the bar to full a few rows down; the foot of the wash
    already fades the same way. */
 .today-hero { position: relative; isolation: isolate; }
-.today-hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--s-6); z-index: -1; pointer-events: none;
-  background: linear-gradient(180deg, var(--bg), transparent); }
+/* THE HEADER IS THE PAGE (Dave 2026-10-11: "All of this should blend in. It shouldn't look like a card"). The daypart
+   washes faded to the flat --bg, but the page is the --ground gradient now, so the hero read as a lighter box. The
+   date, greeting and lines sit straight on the ground: no wash, no ramp, no fill, in either theme. */
+.today-hero, .today-hero.hero-morning, .today-hero.hero-evening { background: none; }
 .today-summary { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 /* The evening's line is a door onto the day (2026-10-06): a 44px hit area around one line of text, and the press. */
 .today-summary[role="button"] { position: relative; cursor: pointer; }
@@ -1300,11 +1302,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    body and the air that belongs above it is a step, not a page's worth. */
 .sh2 + .empty-state.empty-compact { padding-top: var(--s-3); }
 
-/* Time-of-day hero tint: a whisper of warmth in the morning, cool dim in the
-   evening. Gradient only; no layout change. Dark theme only: on light
-   surfaces the same gradients read as dirty color bands (light QA 2026-07-29). */
-[data-theme="dark"] .today-hero.hero-morning { background: linear-gradient(180deg, rgba(255,159,10,0.07), transparent 85%); }
-[data-theme="dark"] .today-hero.hero-evening { background: linear-gradient(180deg, rgba(94,155,255,0.06), transparent 85%); }
 
 
 /* Tap/press feedback on interactive rows + buttons. Press uses press-5 so the
@@ -2969,13 +2966,6 @@ button {
   box-shadow: inset 0 0.5px 0 rgba(255,240,225,0.09); }
 [data-theme="light"] .stat-tile { background-image: none; box-shadow: none; }
 .stat-num { letter-spacing: -0.5px; }
-/* THE WASH FADES INTO THE PAGE, IT DOES NOT END (2026-10-05, the review: "a visible straight line under the stat tiles"). The
-   diagonal glow is still strong at the hero's bottom-left corner, so the box's edge showed as a seam in both themes. A second
-   layer, the page's own colour fading in from clear, sits over it and takes the glow to nothing at the foot. */
-[data-theme="dark"] .today-hero.hero-morning {
-  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(255,31,48,0.13), rgba(255,120,40,0.06) 45%, transparent 80%); }
-[data-theme="dark"] .today-hero.hero-evening {
-  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(94,120,255,0.12), rgba(140,90,255,0.05) 45%, transparent 80%); }
 /* The gradient-and-glow fill that lived here was removed 2026-09-01 (ruled:
    the ring is flat, one colour, no glow; see ruled.css). */
 .row[role="button"]:active, .lib-row:active, .tip-banner .tip-x:active {
@@ -4643,13 +4633,6 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    light-scoped polish that tokens alone cannot carry: the hero's daypart
    light, the floating chrome, and the pieces that melted into the page.
    ============================================================ */
-/* The hero gets its own weather. Dark's daypart washes glow out of black;
-   these are their daylight sisters: a warm sunrise breath in the morning,
-   a cool indigo one in the evening, both fading before the first card. */
-[data-theme="light"] .today-hero.hero-morning {
-  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(209,36,22,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
-[data-theme="light"] .today-hero.hero-evening {
-  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(88,86,214,0.14), rgba(120,90,255,0.07) 45%, transparent 80%); }
 
 /* The floating chrome floats. The capture bar was a gray pill on a gray
    page; it is a white instrument on the desk now, same for its two

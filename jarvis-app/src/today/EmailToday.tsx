@@ -36,7 +36,7 @@ export default function EmailToday({ client, tasks, schedule, waiting, today, ex
   useEffect(() => {
     let alive = true;
     void (async () => {
-      // A database without migration 0067 has no paused_sends: the card is simply not drawn.
+      // A database without migration 0068 has no paused_sends: the card is simply not drawn.
       const [paused, t, e, w] = await Promise.all([
         client ? pausedSends(client).then((r) => (r.ok ? { count: Number(r.value.count) || 0, replies: Number(r.value.replies) || 0 } : null)).catch(() => null) : Promise.resolve(null),
         tasks ? tasks.listTasks().catch(() => []) : Promise.resolve([]),

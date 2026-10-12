@@ -325,3 +325,36 @@ export const PAUSED_REASON: Record<string, string> = {
   PROVIDER_AUTH: "Reconnect Gmail",
 };
 export const PAUSED_DEFAULT = "Not Sent";
+
+// The mail home (Email v1 spec 3.1 to 3.3, 11; Dave's ruling 2026-10-12).
+export const INBOX_TITLE = "Inbox";
+export const WAITING_SEGMENT_TITLE = "Waiting";
+export const ALL_ACCOUNTS_PICK = "All Accounts";
+export const ACCOUNT_PICK_TITLE = "Show Mail From";
+export const VIEW_LABEL = "Arrange Mail";
+export const VIEW_DATE = "All by Date";
+export const VIEW_GROUPED = "Grouped";
+export const SELECT = "Select";
+export const CANCEL = "Cancel";
+export const SELECT_SECTION = "Select";
+export const DESELECT_SECTION = "Deselect";
+/** Spec 3.3: the exact Message-ID is in another connected mailbox too. A label; both rows stay. */
+export const SAME_CONTENT = "Same Content";
+export const ALSO_IN = "Also In";
+export const MOVE_TO_SECTION = "Move to Section";
+export const PUT_BACK_SECTION = "Use Its Own Section";
+export const TRASH_HELPER = "Moves Selected Messages to Trash.";
+export const RETRY_FAILED = "Retry Failed";
+export const SIGN_IN_FIRST = "Signed Out of JARVIS";
+export const RECONNECT_FIRST = "Reconnect Gmail Before Acting on Its Mail";
+export const NOTHING_SELECTED = "Nothing Selected";
+
+/** "12 Selected". */
+export function selectedWord(n: number): string {
+  return `${n} Selected`;
+}
+
+/** "Select All 30 Loaded": what is on the phone, never the whole mailbox. */
+export function selectAllLoaded(n: number): string {
+  return `Select All ${n} Loaded`;
+}

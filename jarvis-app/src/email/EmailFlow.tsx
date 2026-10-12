@@ -13,7 +13,15 @@
 //     says Catching Up on Mail instead of a time, and an empty list is a
 //     loading list, never "Nothing in Your Inbox";
 //   - search that says what it searched (saved mail, then Gmail, by account);
-//   - chips that filter what is loaded, counted, with All as the whole list;
+//   - the mail home (Email v1 spec 3.1 to 3.3, Dave 2026-10-12): the loaded
+//     page in the five fixed sections (sections.ts), or All by Date, the
+//     choice kept on this device; chips (the person's own areas) filter the
+//     loaded rows in All by Date; an exact Message-ID held by two connected
+//     mailboxes labels both rows Same Content and merges nothing;
+//   - select mode (spec 11): a frozen selection, a section's own Select,
+//     Select All Loaded, the tray's Read, Unread, Archive and Delete (Gmail's
+//     Trash) in batches of 100 with an outcome per message, retry of only the
+//     proven failures, and Undo of only what this action changed;
 //   - the message, sanitised; read on open through a provider command the
 //     person caused; archive and trash explicit, receipted, undoable;
 //   - offline: the last page and the opened messages, readable, nothing
@@ -36,7 +44,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import SkeletonRows from "../shared/SkeletonRows";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
-import { PenLine, RotateCcw, Search } from "../shared/icons";
+import { ChevronRight, PenLine, RotateCcw, Search } from "../shared/icons";
 import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { supabase } from "../auth/supabaseClient";
@@ -56,6 +64,8 @@ import {
   TRASHED, UNDO, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
   REVIEW_OPEN, reviewItemsLine, WAITING_TITLE,
+  ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
+  SIGN_IN_FIRST, VIEW_DATE, VIEW_GROUPED, VIEW_LABEL, WAITING_SEGMENT_TITLE, selectAllLoaded, selectedWord,
 } from "./copy";
 import {
   answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
@@ -63,7 +73,11 @@ import {
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
-import { accountLabels, dayGroups, freshnessFacts, isCatchingUp, senderOf } from "./format";
+import { accountLabels, dayGroups, homeFreshness, isCatchingUp, senderOf } from "./format";
+import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, loadOverrides, loadView, loadedWord, moveToSection, saveView, sameContent as sameContentOf, sectionOf, type HomeView, type Overrides } from "./sections";
+import { OP_OF, REVERSE, attentionLine, doneLine, pickOf, reasonsOf, runBatch, tally, type BatchOutcome, type Picked, type TrayVerb } from "./bulk";
+import MailSelectTray from "./MailSelectTray";
+import type { BatchOp } from "./emailClient";
 import EmailFacts from "./EmailFacts";
 import { usePull } from "./usePull";
 import InboxList from "./InboxList";
@@ -214,6 +228,18 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [offline, setOffline] = useState(typeof navigator !== "undefined" && navigator.onLine === false);
   const [segment, setSegment] = useState<Segment>("inbox");
   const [chip, setChip] = useState<string | null>(null);
+  // The mail home (spec 3.1): grouped or by date, kept per device; Move to Section, kept per device; one account or all.
+  const [view, setView] = useState<HomeView>(() => loadView(userId));
+  const [overrides, setOverrides] = useState<Overrides>(() => loadOverrides(userId));
+  const [accountFilter, setAccountFilter] = useState<string | null>(null);
+  const [pickingAccount, setPickingAccount] = useState(false);
+  const [movingRow, setMovingRow] = useState<InboxRow | null>(null);
+  // Select mode (spec 11): the selection is frozen at each tap, as exact messages, never "whatever is loaded later".
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Picked[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkNote, setBulkNote] = useState<{ op: BatchOp; done: number; attention: BatchOutcome[]; retry: Picked[] } | null>(null);
+  const [bulkBlocked, setBulkBlocked] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>(initialScreen ? { kind: initialScreen } : { kind: "root" });
   const [search, setSearch] = useState<SearchState>(EMPTY_SEARCH_STATE);
   const [searchChip, setSearchChip] = useState<string | null>(null);
@@ -649,10 +675,19 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const { armed, handlers } = usePull(() => void load("refresh"), !!client && !offline && !refreshing && screen.kind === "root");
 
   const catOf = useCallback((r: InboxRow) => categoryOf(r, tags, rules), [tags, rules]);
-  const counts = useMemo(() => countsByCategory(rows, tags, rules), [rows, tags, rules]);
+  // One account or all of them (spec 3.1: the account filter is explicit, visible and clearable).
+  const accountRows = useMemo(() => (accountFilter ? rows.filter((r) => r.account === accountFilter) : rows), [rows, accountFilter]);
+  const counts = useMemo(() => countsByCategory(accountRows, tags, rules), [accountRows, tags, rules]);
   const chips = useMemo(() => categories.filter((c) => (counts[c.id] ?? 0) > 0), [categories, counts]);
-  const visible = useMemo(() => (chip ? rows.filter((r) => catOf(r) === chip) : rows), [rows, chip, catOf]);
-  const groups = useMemo(() => dayGroups(visible, now), [visible, now]);
+  // The person's areas filter All by Date; the five sections are the grouped view's organisation and no chip narrows them.
+  const chipOn = view === "date" ? chip : null;
+  const visible = useMemo(() => (chipOn ? accountRows.filter((r) => catOf(r) === chipOn) : accountRows), [accountRows, chipOn, catOf]);
+  const groups = useMemo(() => (view === "grouped"
+    ? groupSections(visible, overrides).map((g) => ({ label: SECTION_NAME[g.key], rows: g.rows, count: loadedWord(g.rows.length), slot: SECTION_SLOT[g.key] }))
+    : dayGroups(visible, now)), [view, visible, overrides, now]);
+  // Spec 3.3: an exact Message-ID in two connected mailboxes is a label on both rows. Nothing merges and nothing hides.
+  const same = useMemo(() => sameContentOf(rows), [rows]);
+  const chooseView = (v: HomeView) => { setView(v); saveView(userId, v); };
   const live = accounts.filter((a) => a.state !== "disconnected");
   // A mailbox still listing its window (spec 8.1, AC39): the header says Catching Up on Mail and an empty list is still loading.
   const catchingUp = live.some(isCatchingUp);
@@ -678,6 +713,87 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     ? conn.worst.view.headline + (conn.worst.view.detail ? " · " + conn.worst.view.detail : "")
     : null;
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
+
+  // ---- select mode (spec 11) --------------------------------------------------
+  const pickedIds = useMemo(() => new Set(picked.map((p) => p.rowId)), [picked]);
+  const isPicked = useCallback((id: string) => pickedIds.has(id), [pickedIds]);
+  // Stable handlers, so a memoised row redraws only when its own circle changed.
+  const onPick = useCallback((row: InboxRow) => setPicked((prev) => (prev.some((p) => p.rowId === row.id) ? prev.filter((p) => p.rowId !== row.id) : [...prev, pickOf(row)])), []);
+  const onPickGroup = useCallback((list: InboxRow[], pick: boolean) => setPicked((prev) => (pick
+    ? [...prev, ...list.filter((r) => !prev.some((p) => p.rowId === r.id)).map(pickOf)]
+    : prev.filter((p) => !list.some((r) => r.id === p.rowId)))), []);
+  const startSelect = () => { setSelecting(true); setPicked([]); setBulkNote(null); setBulkBlocked(null); };
+  const endSelect = () => { setSelecting(false); setPicked([]); setBulkNote(null); setBulkBlocked(null); };
+
+  /** What Gmail confirmed, on the screen: rows that left the inbox go, rows put back return, read flags follow. */
+  const applyOutcomes = useCallback((op: BatchOp, outcomes: readonly BatchOutcome[], snapshot: ReadonlyMap<string, InboxRow>) => {
+    const ok = outcomes.filter((o) => o.result.status === "accepted" || o.result.status === "conflict");
+    if (ok.length === 0) return;
+    const byRow = new Map(ok.map((o) => [o.picked.rowId, o.result]));
+    setRows((prev) => {
+      let next: InboxRow[];
+      if (op === "unarchive" || op === "untrash") {
+        const back = [...byRow.entries()].filter(([, r]) => r.in_inbox).map(([id, r]) => snapshot.get(id) && { ...snapshot.get(id)!, read: r.read ?? snapshot.get(id)!.read, provider_labels: r.labels ?? snapshot.get(id)!.provider_labels }).filter((x): x is InboxRow => !!x);
+        next = mergeRows(prev, back);
+      } else {
+        next = prev.flatMap((r) => {
+          const res = byRow.get(r.id);
+          if (!res) return [r];
+          if (res.in_inbox === false) return [];
+          return [{ ...r, read: res.read ?? r.read, provider_labels: res.labels ?? r.provider_labels }];
+        });
+      }
+      persist(accounts, next);
+      return next;
+    });
+    const left = ok.filter((o) => o.result.in_inbox === false && snapshot.has(o.picked.rowId)).length;
+    const came = op === "unarchive" || op === "untrash" ? ok.filter((o) => o.result.in_inbox && snapshot.has(o.picked.rowId)).length : 0;
+    if (left || came) setCachedTotal((n) => Math.max(0, n - (op === "unarchive" || op === "untrash" ? 0 : left) + came));
+    if (op === "archive" || op === "trash") for (const o of ok) if (o.result.in_inbox === false) forgetMessage(userId, o.picked.rowId);
+  }, [accounts, persist, userId]);
+
+  /** The session is alive and no selected mailbox needs reconnecting, or the line that says which. */
+  const bulkBlock = (list: readonly Picked[]): string | null => {
+    if (!token) return SIGN_IN_FIRST;
+    const stuck = list.some((p) => {
+      const v = conn.views.get(p.email.toLowerCase());
+      return v ? v.offerReconnect : accounts.find((a) => a.address === p.email)?.state === "reauth";
+    });
+    return stuck ? RECONNECT_FIRST : null;
+  };
+
+  const undoBulk = async (op: BatchOp, done: readonly BatchOutcome[], snapshot: ReadonlyMap<string, InboxRow>) => {
+    const back = REVERSE[op];
+    const list = done.map((o) => o.picked);
+    const block = bulkBlock(list);
+    if (block) { showToast({ message: block }); return; }
+    const outcomes = await runBatch(token, back, list);
+    applyOutcomes(back, outcomes, snapshot);
+    const t = tally(outcomes);
+    showToast({ message: t.attention.length ? `${doneLine(back, t.done.length)}, ${attentionLine(t.attention.length)}` : doneLine(back, t.done.length) });
+  };
+
+  const runBulk = async (op: BatchOp, list: readonly Picked[]) => {
+    if (bulkBusy) return;
+    if (list.length === 0) { setBulkBlocked(NOTHING_SELECTED); return; }
+    const block = bulkBlock(list);
+    if (block) { setBulkBlocked(block); return; }
+    setBulkBlocked(null);
+    setBulkBusy(true);
+    const snapshot = new Map(rows.map((r) => [r.id, r]));
+    const outcomes = await runBatch(token, op, list);
+    setBulkBusy(false);
+    applyOutcomes(op, outcomes, snapshot);
+    const t = tally(outcomes);
+    // Undo reverses only what this action changed, and only when Gmail confirmed it (spec 11).
+    if (t.done.length) showToast({ message: doneLine(op, t.done.length), actionLabel: UNDO, onAction: () => void undoBulk(op, t.done, snapshot) });
+    if (t.attention.length) {
+      // Partial: the ones that need attention stay selected, with their reasons; only proven failures are offered again.
+      setBulkNote({ op, done: t.done.length, attention: t.attention, retry: t.retryable });
+      setPicked(t.attention.map((o) => o.picked));
+    } else endSelect();
+  };
+  const onVerb = (v: TrayVerb) => void runBulk(OP_OF[v], picked);
 
   // ---- waiting (slice 08) ---------------------------------------------------
   const loadWaiting = useCallback(async () => {
@@ -744,7 +860,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       });
       return;
     }
-    // A database without migration 0067: the loaded pages are what can be shown, and only what is shown is claimed.
+    // A database without migration 0068: the loaded pages are what can be shown, and only what is shown is claimed.
     setReviewRows(rows.filter((x) => (cards[x.id] ?? []).some(isToReview)));
   }
   function openPaused() {
@@ -897,7 +1013,17 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     { label: FIND_DETAILS, onPick: () => void (async () => { const n = await readBody(messageCurrent, bodyText.current[messageCurrent.id] ?? messageCurrent.snippet, true); showToast({ message: foundLine(n) }); })(), disabled: offline },
     { label: CAPTURE_TITLE, onPick: () => setCapturing({ row: messageCurrent, text: bodyText.current[messageCurrent.id] }), disabled: offline },
     { label: showDismissed ? HIDE_DISMISSED : SHOW_DISMISSED, onPick: () => setShowDismissed((v) => !v) },
+    // Spec 3.2 rule 1: the person's own section for this message, on this device. It moves nothing in Gmail.
+    { label: MOVE_TO_SECTION, onPick: () => setMovingRow(messageCurrent) },
   ] : [];
+  const moveSheet = movingRow ? (
+    <RowActionSheet title={MOVE_TO_SECTION}
+      actions={[
+        ...SECTION_KEYS.filter((k) => k !== sectionOf(movingRow, overrides)).map((k) => ({ label: SECTION_NAME[k], onPick: () => { setOverrides(moveToSection(userId, movingRow.id, k)); setMovingRow(null); } })),
+        ...(overrides[movingRow.id] ? [{ label: PUT_BACK_SECTION, onPick: () => { setOverrides(moveToSection(userId, movingRow.id, null)); setMovingRow(null); } }] : []),
+      ]}
+      onCancel={() => setMovingRow(null)} />
+  ) : null;
   const messageOverlay = messageScreen && messageCurrent && client ? (
     <>
       <MessageScreen client={client} token={token} userId={userId} row={messageCurrent} account={accountOf(messageScreen.row)} offline={offline}
@@ -909,8 +1035,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         finish={cardsFor(messageCurrent, "finish")} cards={cardsFor(messageCurrent, "rest")} moreActions={messageMore} onBodyText={(text) => void readBody(messageCurrent, text)}
         onCalendarFile={(text) => void readCalendarFile(messageCurrent, text)}
         onReply={(m, all) => startReply(m, all, messageScreen)}
-        onCapture={(kind) => void startCapture(messageCurrent, kind, bodyText.current[messageCurrent.id])} />
-      {sheetEl}{captureEl}
+        onCapture={(kind) => void startCapture(messageCurrent, kind, bodyText.current[messageCurrent.id])}
+        alsoIn={same[messageCurrent.id] ?? []} />
+      {sheetEl}{captureEl}{moveSheet}
     </>
   ) : null;
   if ((screen.kind === "search" || (messageScreen?.from === "search")) && client) {
@@ -1014,30 +1141,68 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     </div>;
   }
 
-  const fresh = freshnessFacts(accounts, now);
+  const fresh = homeFreshness(accounts, now);
+  const dateWord = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", timeZone: zone });
+  const homeTitle = segment === "waiting" ? WAITING_SEGMENT_TITLE : INBOX_TITLE;
+  const inbox = client && segment === "inbox";
   return (
     <div className={"screen ruled " + pushCls} {...handlers} data-extractor={EXTRACTOR_VERSION}>
-      <PageHeader title={EMAIL_TITLE} actions={<>
-        {canCompose && client && <BarAction label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></BarAction>}
-        {/* Search and Refresh need a mailbox to ask: with no client (the not-set-up
-            state) both did nothing when tapped, the tap sweep's finding
-            (2026-10-04, Dave: no dead buttons), so they are not offered. */}
-        {client && <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>}
-        {client && <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>}
-      </>}>
-        {/* 2026-10-05: the freshness line is facts (Checked Today, the time in small caps, the count in white), not one string joined by middle dots.
-            2026-10-10 (spec 8.1, AC39): while a mailbox is catching up it is Catching Up on Mail and the count, never a time. One line. */}
-        {fresh.length > 0 && <button className="email-fresh" onClick={() => setScreen({ kind: "accounts" })}>{refreshing ? <EmailFacts facts={[{ text: REFRESHING }]} /> : <EmailFacts facts={fresh} />}</button>}
+      <PageHeader title={homeTitle}
+        hero={<div className="email-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">{homeTitle}</div></div>}
+        actions={<>
+          {/* Compose and Search live on the page beside the list (spec 3.1, the approved visual); Waiting keeps Compose in the bar. */}
+          {segment === "waiting" && canCompose && client && <BarAction label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></BarAction>}
+          {/* Refresh needs a mailbox to ask: with no client (the not-set-up state) it did nothing when tapped, the tap sweep's
+              finding (2026-10-04, Dave: no dead buttons), so it is not offered. */}
+          {client && <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>}
+        </>}>
+        {/* Spec 3.1: the account picker (explicit, visible, clearable) and the one status, "Checked 9:12 AM", tappable to Accounts. */}
+        {(live.length > 0 || fresh.length > 0) && (
+          <div className="email-acct-line">
+            {live.length > 0 && (
+              <button className="email-acct" onClick={() => setPickingAccount(true)} aria-label={`${ACCOUNT_PICK_TITLE} ${accountFilter ?? ALL_ACCOUNTS_PICK}`}>
+                <span className="email-acct-word">{accountFilter ?? (live.length > 1 ? ALL_ACCOUNTS_PICK : live[0]!.address)}</span>
+                <ChevronRight className="email-caret" aria-hidden="true" />
+              </button>
+            )}
+            {fresh.length > 0 && <button className="email-fresh" onClick={() => setScreen({ kind: "accounts" })}>{refreshing ? <EmailFacts facts={[{ text: REFRESHING }]} /> : <EmailFacts facts={fresh} />}</button>}
+          </div>
+        )}
         <div className="pad-x">
           <div className="segmented" role="tablist" aria-label={EMAIL_TITLE}>
-            {SEGMENTS.map((s) => (
-              <button key={s.key} role="tab" aria-selected={segment === s.key} className={"seg" + (segment === s.key ? " active" : "")} onClick={() => setSegment(s.key)}>{s.label}</button>
+            {SEGMENTS.map((sg) => (
+              <button key={sg.key} role="tab" aria-selected={segment === sg.key} className={"seg" + (segment === sg.key ? " active" : "")} onClick={() => { setSegment(sg.key); if (sg.key !== "inbox") endSelect(); }}>{sg.label}</button>
             ))}
           </div>
         </div>
-        {segment === "inbox" && chips.length > 0 && (
+        {inbox && (
+          <div className="pad-x">
+            <button className="email-search" aria-label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}>
+              <Search className="ic" aria-hidden="true" /><span>{SEARCH_PLACEHOLDER}</span>
+            </button>
+          </div>
+        )}
+        {inbox && !selecting && (
+          <div className="email-controls">
+            <div className="segmented email-view" role="tablist" aria-label={VIEW_LABEL}>
+              {([["date", VIEW_DATE], ["grouped", VIEW_GROUPED]] as const).map(([k, label]) => (
+                <button key={k} role="tab" aria-selected={view === k} className={"seg" + (view === k ? " active" : "")} onClick={() => chooseView(k)}>{label}</button>
+              ))}
+            </div>
+            {visible.length > 0 && <button className="btn btn-secondary email-select" onClick={startSelect}>{SELECT}</button>}
+            {canCompose && <button className="btn-primary email-compose" aria-label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></button>}
+          </div>
+        )}
+        {inbox && selecting && (
+          <div className="email-controls email-selhead">
+            <button className="quiet-action email-cancel" onClick={endSelect}>{CANCEL}</button>
+            <span className="email-selcount">{selectedWord(picked.length)}</span>
+            <button className="quiet-action email-selall" onClick={() => setPicked(visible.map(pickOf))}>{selectAllLoaded(visible.length)}</button>
+          </div>
+        )}
+        {inbox && view === "date" && !selecting && chips.length > 0 && (
           <div className="chip-row" role="group" aria-label={AREAS_LABEL}>
-            <button className={"chip" + (chip === null ? " active" : "")} onClick={() => setChip(null)}>{ALL_CHIP} <span className="email-chip-n">{rows.length}</span></button>
+            <button className={"chip" + (chip === null ? " active" : "")} onClick={() => setChip(null)}>{ALL_CHIP} <span className="email-chip-n">{accountRows.length}</span></button>
             {chips.map((c) => (
               <button key={c.id} className={"chip" + (chip === c.id ? " active" : "")} onClick={() => setChip(c.id)}>{c.data.name} <span className="email-chip-n">{counts[c.id]}</span></button>
             ))}
@@ -1082,11 +1247,22 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       {client && segment === "inbox" && !pending && !error && accounts.length > 0 && rows.length === 0 && !catchingUp && (
         <EmptyState copy={EMPTY_INBOX} onAction={() => void load("refresh")} />
       )}
-      {client && segment === "inbox" && rows.length > 0 && chip && visible.length === 0 && (
+      {client && segment === "inbox" && rows.length > 0 && chipOn && visible.length === 0 && (
         <EmptyState copy={EMPTY_FILTER} onAction={() => setChip(null)} />
+      )}
+      {inbox && bulkBlocked && <div className="email-note"><span>{bulkBlocked}</span></div>}
+      {inbox && bulkNote && (
+        <div className="email-note email-bulk-note">
+          <div className="email-bulk-lines">
+            <EmailFacts facts={[...(bulkNote.done ? [{ text: doneLine(bulkNote.op, bulkNote.done), tone: "good" as const }] : []), { text: attentionLine(bulkNote.attention.length), tone: "warn" as const }]} />
+            {reasonsOf(bulkNote.attention).map(([why, n]) => <EmailFacts key={why} facts={[{ text: String(n), strong: true }, { text: why }]} />)}
+          </div>
+          {bulkNote.retry.length > 0 && <button className="quiet-action" disabled={bulkBusy} onClick={() => void runBulk(bulkNote.op, bulkNote.retry)}>{RETRY_FAILED}</button>}
+        </div>
       )}
       {client && segment === "inbox" && visible.length > 0 && (
         <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
+          selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same}
           onOpen={openInboxRow}
           // The open message owns its own cards inside the sheet; the dimmed
           // row behind it does not draw them a second time.
@@ -1098,6 +1274,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         <RowActionSheet title={`${SUGGEST_TITLE} · ${categories.find((c) => c.id === question.rule.category_id)?.data.name ?? ""} · ${question.rule.sender_exact}`}
           actions={[{ label: REMEMBER, onPick: () => void answer(question, true) }, { label: NOT_NOW, onPick: () => void answer(question, false) }]}
           onCancel={() => void answer(question, false)} />
+      )}
+      {inbox && selecting && <MailSelectTray count={picked.length} busy={bulkBusy} onVerb={onVerb} />}
+      {pickingAccount && (
+        <RowActionSheet title={ACCOUNT_PICK_TITLE}
+          actions={[{ label: ALL_ACCOUNTS_PICK, onPick: () => { setAccountFilter(null); setPickingAccount(false); } },
+            ...live.map((a) => ({ label: a.address, onPick: () => { setAccountFilter(a.address); setPickingAccount(false); } }))]}
+          onCancel={() => setPickingAccount(false)} />
       )}
       {!messageScreen && sheetEl}{!messageScreen && captureEl}
       {messageOverlay}

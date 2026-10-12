@@ -1,8 +1,8 @@
 // EVERY CARD TO REVIEW, IN EMAIL (Dave 2026-10-12; spec section 7: the generic review count leaves Today and stays on
 // the Email surface). The inbox's own review focus showed only the cards on the pages this phone had loaded and said
 // "N More in Older Mail" for the rest; this list asks the server for every message the count counts
-// (candidates_to_review, migration 0067), newest first, and draws each with its cards under it, exactly as the inbox
-// does. On a database without 0067 it falls back to the loaded pages and says nothing it cannot prove. A row opens the
+// (candidates_to_review, migration 0068), newest first, and draws each with its cards under it, exactly as the inbox
+// does. On a database without 0068 it falls back to the loaded pages and says nothing it cannot prove. A row opens the
 // message sheet; a card saves, dismisses or opens its details from here. Nothing is approved by reading.
 import type { ReactNode } from "react";
 import PageHeader from "../shared/PageHeader";

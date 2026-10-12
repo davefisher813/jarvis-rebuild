@@ -139,13 +139,10 @@ describe("the scroll box takes no clearance for a floating pill, because the pil
   });
 });
 
-describe("the Today hero wash has no seam under the bar", () => {
-  it("a page-colour ramp sits behind the words and over the glow, at the hero's top edge", () => {
-    const b = joined(".today-hero::before");
-    expect(b).toMatch(/top:\s*0/);
-    expect(b).toMatch(/linear-gradient\(180deg, var\(--bg\), transparent\)/);
-    expect(b).toMatch(/z-index:\s*-1/);
-    expect(joined(".today-hero")).toMatch(/isolation:\s*isolate/);
+describe("the Today hero is the page, with no seam under the bar", () => {
+  it("no wash and no ramp: nothing draws a band behind the date and greeting (Dave 2026-10-11)", () => {
+    expect(joined(".today-hero::before")).toBe("");
+    expect(ALL).not.toMatch(/\.today-hero\.hero-(morning|evening) \{\s*background: linear-gradient/);
   });
 });
 

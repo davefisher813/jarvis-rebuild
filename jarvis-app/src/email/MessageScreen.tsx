@@ -40,6 +40,7 @@ import {
   EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
   IMAGES_OFF, PUT_BACK, READ_CONFLICT, READ_FAILED, RESTORED, RETRY, SHOW_HEADERS, SHOW_IMAGES, SOURCE_GONE, TRASH, UNREAD_FAILED, UNSUPPORTED_ACTION,
   FORWARD_IN_GMAIL, FORWARD_WHY, REPLY, REPLY_ALL,
+  ALSO_IN,
 } from "./copy";
 import { attachmentBlob, attachmentText, downloadAttachment, gmailLink, isCalendarFile, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
 import { loadMessage, saveMessage } from "./deviceCache";
@@ -69,7 +70,7 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture, alsoIn = [] }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
@@ -92,6 +93,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
   finish?: ReactNode;
   /** A calendar file attached to the message, read as text once per message version, for the rules to read its event. */
   onCalendarFile?: (text: string) => void;
+  /** Spec 3.3: the other connected mailboxes holding this exact Message-ID. Named here; each copy stays its own row. */
+  alsoIn?: string[];
   /** Extra rows for the More menu (Find Useful Details, Capture, dismissed suggestions). */
   moreActions?: RowAction[];
   /** The body as text, once it is known, for the rules to read. */
@@ -290,6 +293,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
   const toFacts: EmailFact[] = recipients.length > 0 || !mailboxShown ? [
     ...(recipients.length ? [{ text: recipients.join(", "), strong: true }] : []),
     ...(!mailboxShown ? [{ text: row.account, tone: "date" as const }] : []),
+    // Spec 3.3: the same Message-ID in another connected mailbox; named here, each copy stays its own row.
+    ...(alsoIn.length ? [{ text: `${ALSO_IN} ${alsoIn.join(", ")}`, tone: "date" as const }] : []),
     ...(area ? [{ text: area.name, cat: area.color }] : []),
   ] : [];
 
