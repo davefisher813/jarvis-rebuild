@@ -166,3 +166,55 @@
 [data-theme="light"] .email-today-ic.cat-fg-sky { color: var(--cat-ic-sky); }
 [data-theme="light"] .email-today-ic.cat-fg-purple { color: var(--cat-ic-purple); }
 .email-waiting { padding-bottom: var(--s-7); }
+
+/* ---- The mail home (Email v1 spec 3.1, 11; the approved inbox visual 2026-10-08) ----
+   The date over the title, on the title's own left edge (the Reminders hero's shape). */
+.email-hero { display: flex; flex-direction: column; gap: var(--s-0h); }
+.email-hero > .eyebrow { padding: 0 var(--s-4); }
+/* The account picker on the left, the one status on the right; they wrap rather than squeeze at 320. */
+.email-acct-line { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0 var(--s-3); padding: 0 var(--s-4) var(--s-2); }
+.email-acct-line .email-fresh { width: auto; padding: 0; flex: 0 1 auto; min-width: 0; }
+.email-acct { position: relative; display: inline-flex; align-items: center; gap: var(--s-1); min-height: var(--tap-min); padding: 0; background: none; border: 0;
+  font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-sub); color: var(--tx-1); min-width: 0; }
+.email-acct-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The chevron turned down: a picker, not a door. */
+.email-caret { width: 18px; height: 18px; flex: 0 0 auto; color: var(--tx-1); transform: rotate(90deg); }
+.email-acct:focus-visible, .email-search:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; border-radius: var(--r-xs); }
+/* Search is a field to look at and a door to tap: it opens the search screen with the keyboard up. */
+.email-search { display: flex; align-items: center; gap: var(--s-2h); width: 100%; min-height: 48px; margin-top: var(--s-3); padding: 0 var(--s-4);
+  border-radius: var(--r-lg); border: 0.5px solid var(--card-bd); background: var(--press-1); font-family: var(--f); font-size: var(--t-h3);
+  font-weight: var(--w-sub); color: var(--tx-3); text-align: left; }
+.email-search .ic { width: 20px; height: 20px; flex: 0 0 auto; color: var(--tx-2); }
+/* Grouped or by date, Select, Compose: one row, every control 44 tall. */
+.email-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); padding: var(--s-3) var(--s-4) 0; }
+/* The arrangement never shrinks under its words: at 320 it takes its own line and Select and Compose wrap beneath it. */
+.email-view { flex: 1 0 auto; }
+.email-view .seg { min-height: var(--tap-min); white-space: nowrap; padding: 0 var(--s-2); }
+.email-select { flex: 0 0 auto; min-height: var(--tap-min); height: var(--tap-min); padding: 0 var(--s-4); font-size: var(--t-body); }
+/* Compose: the page's one filled red (its fill and ink are .btn-primary's), a round button that paints 48 and taps 48. */
+.email-compose { flex: 0 0 auto; width: 48px; height: 48px; border-radius: var(--r-circle); border: 0; display: inline-flex; align-items: center; justify-content: center; }
+.email-compose .ic { width: 22px; height: 22px; }
+/* Select mode's head: Cancel, the count after a dot the stylesheet draws, and Select All Loaded at the right. */
+.email-selhead { justify-content: flex-start; flex-wrap: wrap; row-gap: var(--s-1); min-height: 48px; }
+.email-cancel, .email-selall { flex: 0 0 auto; min-height: var(--tap-min); }
+.email-selall { margin-left: auto; }
+.email-selcount { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); white-space: nowrap; }
+.email-selcount::before { content: "\00B7"; margin-right: var(--s-2); color: var(--tx-3); }
+/* A section's name in its own colour (the .cat-fg-* slot on the span); the heading's caps and size are .sh2's. */
+.email-sec-name { color: inherit; }
+/* A heading's own Select: bare words after the count, so the heading keeps its height; the hit box reaches 44. */
+.sh2 .email-sec-pick { order: 3; flex: 0 0 auto; position: relative; background: none; border: 0; padding: 0; font-family: var(--f);
+  font-size: var(--t-sub); font-weight: var(--w-semi); color: var(--tx-1); }
+.sh2 .email-sec-pick::after { content: ""; position: absolute; inset: -15px -10px; }
+/* The rows of one heading, in one card. */
+.email-list { overflow: hidden; }
+/* A bulk result: what was done, what needs attention, and why, one line of facts each; Retry Failed beside them. */
+.email-bulk-note { align-items: flex-start; }
+.email-bulk-lines { display: flex; flex-direction: column; gap: var(--s-0h); min-width: 0; flex: 1 1 auto; }
+.email-bulk-lines .facts { margin-top: 0; }
+/* The tray: four verbs over the one helper line. Delete is the one red (spec 2.8). */
+/* Above the shell's ground and grain (glass-dark.css .app-shell::before, ::after), which paint over an unpositioned child. */
+.email-tray { position: relative; z-index: 2; flex-direction: column; align-items: stretch; gap: var(--s-1h); }
+.email-tray-acts { display: flex; gap: var(--s-2); }
+.email-tray-btn { flex: 1 1 0; min-width: 0; min-height: var(--tap-min); height: var(--tap-min); padding: 0 var(--s-1); white-space: nowrap; }
+.email-tray-help { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); text-align: center; }

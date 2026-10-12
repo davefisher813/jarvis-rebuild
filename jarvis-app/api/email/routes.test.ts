@@ -311,6 +311,97 @@ describe("POST /api/email/message", () => {
   });
 });
 
+describe("POST /api/email/message, in bulk (spec 11, V04)", () => {
+  const cached = {
+    m1: { id: "11111111-1111-1111-1111-111111111111", subject: "One", provider_labels: ["INBOX", "UNREAD"] },
+    m2: { id: "22222222-2222-2222-2222-222222222222", subject: "Two", provider_labels: ["INBOX"] },
+    w1: { id: "33333333-3333-3333-3333-333333333333", subject: "Work", provider_labels: ["INBOX"] },
+  };
+  /** A Gmail whose batchModify applies the delta to its own labels, and whose minimal read answers them. */
+  const labelGmail = (start: Record<string, string[]>, o: { refuse?: boolean; lose?: string[]; drift?: Record<string, string[]> } = {}) => {
+    const held = Object.fromEntries(Object.entries(start).map(([k, v]) => [k, [...v]]));
+    return (m: string, path: string, body: Record<string, unknown> | null): Response | undefined => {
+      if (m === "POST" && path === "/messages/batchModify") {
+        if (o.refuse) return res({ error: { code: 500 } }, 500);
+        for (const id of body!.ids as string[]) {
+          const add = body!.addLabelIds as string[]; const remove = body!.removeLabelIds as string[];
+          held[id] = [...new Set([...(held[id] ?? []).filter((l) => !remove.includes(l)), ...add])];
+        }
+        return res(null, 204);
+      }
+      const read = /^\/messages\/([\w-]+)\?format=minimal$/.exec(path);
+      if (m === "GET" && read) {
+        if (o.lose?.includes(read[1]!)) return res({ error: { code: 503 } }, 503);
+        return res({ id: read[1], labelIds: o.drift?.[read[1]!] ?? held[read[1]!] });
+      }
+      return undefined;
+    };
+  };
+
+  it("archives many ids with one batchModify per account, reads each back, and answers per item with a receipt each", async () => {
+    await stubWorld({ cached, gmail: labelGmail({ m1: ["INBOX", "UNREAD"], m2: ["INBOX"], w1: ["INBOX"] }) });
+    const r = await answer(await messageHandler(post("/api/email/message", { op: "archive", items: [{ email: DAVE, id: "m1" }, { email: DAVE, id: "m2" }, { email: WORK, id: "w1" }] })));
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ ok: true, op: "archive", accepted: 3, failed: 0, unknown: 0, conflict: 0 });
+    const mods = calls.filter((c) => c.url.endsWith("/messages/batchModify"));
+    expect(mods.map((c) => c.body)).toEqual([
+      { ids: ["m1", "m2"], addLabelIds: [], removeLabelIds: ["INBOX"] },
+      { ids: ["w1"], addLabelIds: [], removeLabelIds: ["INBOX"] },
+    ]);
+    expect((r.json.results as Array<Record<string, unknown>>).map((x) => [x.email, x.id, x.status, x.in_inbox, x.receipt])).toEqual([
+      [DAVE, "m1", "accepted", false, "act-1"], [DAVE, "m2", "accepted", false, "act-1"], [WORK, "w1", "accepted", false, "act-1"],
+    ]);
+    // The cache follows Gmail's read back, and each archive is its own receipt kind.
+    expect(rpc("email_labels_set").map((x) => x.p_labels)).toEqual([["UNREAD"], [], []]);
+    expect(rpc("email_action_record").map((x) => x.p_kind)).toEqual(["archive_mail", "archive_mail", "archive_mail"]);
+  });
+
+  it("Delete is Gmail's Trash: the TRASH label added and INBOX removed, never a permanent delete; untrash is the move back", async () => {
+    await stubWorld({ cached, gmail: labelGmail({ m1: ["INBOX"], m2: ["INBOX"] }) });
+    const t = await answer(await messageHandler(post("/api/email/message", { op: "trash", items: [{ email: DAVE, id: "m1" }, { email: DAVE, id: "m2" }] })));
+    expect(t.json).toMatchObject({ accepted: 2 });
+    expect(calls.find((c) => c.url.endsWith("/batchModify"))!.body).toEqual({ ids: ["m1", "m2"], addLabelIds: ["TRASH"], removeLabelIds: ["INBOX"] });
+    calls = [];
+    const u = await answer(await messageHandler(post("/api/email/message", { op: "untrash", items: [{ email: DAVE, id: "m1" }] })));
+    expect(u.json).toMatchObject({ accepted: 1 });
+    expect(calls.find((c) => c.url.endsWith("/batchModify"))!.body).toEqual({ ids: ["m1"], addLabelIds: ["INBOX"], removeLabelIds: ["TRASH"] });
+    expect(gmailCalls().some((c) => /batchDelete|DELETE/.test(c))).toBe(false);
+  });
+
+  it("each item answers for itself: not cached is failed, a lost read back is unknown, a different state is a conflict", async () => {
+    await stubWorld({ cached, gmail: labelGmail({ m1: ["INBOX", "UNREAD"], m2: ["INBOX", "UNREAD"] }, { lose: ["m2"], drift: { m1: ["INBOX", "UNREAD"] } }) });
+    const r = await answer(await messageHandler(post("/api/email/message", { op: "read", items: [{ email: DAVE, id: "m1" }, { email: DAVE, id: "m2" }, { email: DAVE, id: "stranger" }] })));
+    const by = Object.fromEntries((r.json.results as Array<{ id: string; status: string; code?: string }>).map((x) => [x.id, x]));
+    expect(by.stranger).toMatchObject({ status: "failed", code: "NOT_FOUND" });
+    expect(by.m2).toMatchObject({ status: "unknown" });
+    expect(by.m1).toMatchObject({ status: "conflict" });
+    expect(r.json).toMatchObject({ accepted: 0, conflict: 1, unknown: 1, failed: 1 });
+    // The stranger was never named to Gmail.
+    expect((calls.find((c) => c.url.endsWith("/batchModify"))!.body!.ids as string[])).toEqual(["m1", "m2"]);
+    // Read and unread mirror a state: no receipts.
+    expect(rpc("email_action_record")).toEqual([]);
+  });
+
+  it("a Gmail refusal fails that account's items with its code and touches no cache row", async () => {
+    await stubWorld({ cached, gmail: labelGmail({}, { refuse: true }) });
+    const r = await answer(await messageHandler(post("/api/email/message", { op: "archive", items: [{ email: DAVE, id: "m1" }] })));
+    expect((r.json.results as unknown[])[0]).toMatchObject({ status: "failed", code: "UNAVAILABLE", retryable: true });
+    expect(rpc("email_labels_set")).toEqual([]);
+  });
+
+  it("refuses more than 100 ids, an empty list, a bad item, and an op that is not a label move", async () => {
+    await stubWorld({ cached });
+    const many = Array.from({ length: 101 }, (_, i) => ({ email: DAVE, id: `m${i}` }));
+    expect((await messageHandler(post("/api/email/message", { op: "read", items: many }))).status).toBe(422);
+    expect((await messageHandler(post("/api/email/message", { op: "read", items: [] }))).status).toBe(422);
+    expect((await messageHandler(post("/api/email/message", { op: "read", items: [{ email: "nope", id: "m1" }] }))).status).toBe(422);
+    expect((await messageHandler(post("/api/email/message", { op: "open", items: [{ email: DAVE, id: "m1" }] }))).status).toBe(422);
+    expect((await messageHandler(post("/api/email/message", { op: "delete", items: [{ email: DAVE, id: "m1" }] }))).status).toBe(422);
+    expect((await messageHandler(post("/api/email/message", { op: "read", items: [{ email: DAVE, id: "m1" }] }, null))).status).toBe(401);
+    expect(gmailCalls()).toEqual([]);
+  });
+});
+
 describe("POST /api/email/search", () => {
   it("quotes the person's words as one literal phrase and drops the quote character itself", () => {
     expect(literalQuery('  con  "edison" bill ')).toBe('"con edison bill"');

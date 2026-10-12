@@ -298,6 +298,12 @@ export interface CachedRow {
   labels: string[];
   attachments: AttachmentMeta[];
   history_id?: string;
+  /** The mail home's facts (migration 0067; Email v1 spec 3.2, 3.3). Absent headers are null; before 0067 the cache ignores them. */
+  rfc_message_id: string | null;
+  list_id: string | null;
+  list_unsubscribe: string | null;
+  mime_type: string | null;
+  content_class: string | null;
 }
 
 export function toCachedRow(meta: GmailMeta & { historyId?: string; threadId?: string }): CachedRow {
@@ -317,6 +323,11 @@ export function toCachedRow(meta: GmailMeta & { historyId?: string; threadId?: s
     labels: meta.labelIds ?? [],
     attachments: attachmentsOf(meta.payload as GmailPart | undefined),
     ...(meta.historyId ? { history_id: meta.historyId } : {}),
+    rfc_message_id: headerOf(hs, "Message-ID").trim() || null,
+    list_id: headerOf(hs, "List-Id").trim() || null,
+    list_unsubscribe: headerOf(hs, "List-Unsubscribe").trim() || null,
+    mime_type: ((meta.payload as { mimeType?: string } | undefined)?.mimeType ?? "").trim().toLowerCase() || null,
+    content_class: headerOf(hs, "Content-Class").trim().toLowerCase() || null,
   };
 }
 
@@ -330,7 +341,10 @@ export function decodeEntities(s: string): string {
   });
 }
 
-export const META_FIELDS = "format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date";
+// Message-ID, List-Id, List-Unsubscribe and Content-Class are the mail home's facts (Email v1 spec 3.2, 3.3; migration 0067):
+// the section resolver reads them and the Same Content label matches on the exact Message-ID. Headers only, never a body.
+export const META_FIELDS = "format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date"
+  + "&metadataHeaders=Message-ID&metadataHeaders=List-Id&metadataHeaders=List-Unsubscribe&metadataHeaders=Content-Class";
 
 /** Metadata for many ids, a few at a time; a 404 is a message that left. */
 export async function fetchMetas(auth: string | MailboxAuth, ids: readonly string[], concurrency = 6): Promise<{ rows: CachedRow[]; gone: string[]; failed: Fail | null }> {

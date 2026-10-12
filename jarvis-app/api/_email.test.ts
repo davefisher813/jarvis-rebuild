@@ -59,6 +59,18 @@ describe("a cached row", () => {
     expect(row).toMatchObject({ provider_id: "m1", thread_id: "t1", history_id: "h9", internal_date: new Date(1790000000000).toISOString(), from_address: "billing@conedison.test", from_name: "Con Edison", subject: "Your bill", snippet: "Amount & due", labels: ["INBOX", "UNREAD"], attachments: [] });
     expect(row.to_addresses).toEqual([{ name: "", address: "dave@example.test" }]);
   });
+  it("keeps the mail home's facts as sent (migration 0067): Message-ID, List-Id, List-Unsubscribe, the MIME type, Content-Class", () => {
+    const row = toCachedRow({
+      id: "m3", threadId: "t3", internalDate: "1790000000000",
+      payload: { mimeType: "Text/Calendar", headers: [
+        { name: "From", value: "list@news.test" }, { name: "Message-Id", value: " <abc@mail.test> " }, { name: "List-ID", value: "<news.list.test>" },
+        { name: "List-Unsubscribe", value: "<mailto:off@news.test>" }, { name: "Content-Class", value: "urn:content-classes:CalendarMessage" },
+      ] },
+    } as Parameters<typeof toCachedRow>[0]);
+    expect(row).toMatchObject({ rfc_message_id: "<abc@mail.test>", list_id: "<news.list.test>", list_unsubscribe: "<mailto:off@news.test>", mime_type: "text/calendar", content_class: "urn:content-classes:calendarmessage" });
+    // Absent headers are null, never an empty string the resolver could mistake for a fact.
+    expect(toCachedRow({ id: "m4" })).toMatchObject({ rfc_message_id: null, list_id: null, list_unsubscribe: null, mime_type: null, content_class: null });
+  });
   it("falls back to the message id for the thread and to now for a missing time", () => {
     const before = Date.now();
     const row = toCachedRow({ id: "m2" });

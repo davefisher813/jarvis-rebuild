@@ -64,6 +64,17 @@ export interface InboxRow {
   provider_labels: string[];
   source_hash: string;
   read: boolean;
+  /**
+   * The mail home's facts (migration 0067; Email v1 spec 3.2, 3.3). Absent or null on a row cached before 0067 or read
+   * before it is applied: the section resolver then has nothing to go on and the row is Other.
+   */
+  rfc_message_id?: string | null;
+  list_id?: string | null;
+  list_unsubscribe?: string | null;
+  mime_type?: string | null;
+  content_class?: string | null;
+  /** This account's cached thread holds a SENT message from one of the owner's own addresses (Conversations). */
+  own_reply?: boolean | null;
 }
 
 export interface MessageDetail {
@@ -179,6 +190,18 @@ export const openMessage = (token: string | null | undefined, email: string, id:
 
 export const labelMessage = (token: string | null | undefined, email: string, id: string, op: Exclude<MessageOp, "open">, doFetch?: Fetch) =>
   apiPost<LabelResult>("/api/email/message", { email, id, op }, token, doFetch);
+
+/** The bulk op's per-item answer (api/email/message.ts, a body with `items`). */
+export type BatchOp = "read" | "unread" | "archive" | "unarchive" | "trash" | "untrash";
+export type ItemStatus = "accepted" | "conflict" | "unknown" | "failed";
+export interface BatchItem { email: string; id: string }
+export interface ItemResult { email: string; id: string; status: ItemStatus; message_id?: string; labels?: string[]; read?: boolean; in_inbox?: boolean; receipt?: string | null; code?: string; retryable?: boolean }
+export interface BatchResult { op: BatchOp; results: ItemResult[] }
+/** One request names at most this many ids (spec 11). */
+export const BATCH_MAX = 100;
+
+export const batchMessages = (token: string | null | undefined, op: BatchOp, items: BatchItem[], doFetch?: Fetch) =>
+  apiPost<BatchResult>("/api/email/message", { op, items }, token, doFetch);
 
 export const searchGmail = (token: string | null | undefined, q: string, email: string | null, page: { email: string; page: string } | null = null, doFetch?: Fetch) =>
   apiPost<ProviderSearch>("/api/email/search", { q, ...(page ? { email: page.email, page: page.page } : email ? { email } : {}) }, token, doFetch);

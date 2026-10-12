@@ -20,6 +20,7 @@ import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailCl
 import { newestFirst } from "./emailClient";
 import { saveSnapshot } from "./deviceCache";
 import { remember } from "./categories";
+import { saveView } from "./sections";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 import type { Category } from "../categories/types";
 import { deriveStatus } from "../connections/connectionStatus";
@@ -105,6 +106,8 @@ let toasts: ToastState[] = [];
 let unsub = () => {};
 beforeEach(() => {
   localStorage.clear();
+  // These cases hold the chronological list (All by Date, spec 3.1). The grouped home has its own cases in EmailFlow.home.test.tsx.
+  saveView(USER, "date");
   resetToasts();
   toasts = [];
   unsub = subscribeToast((t) => { if (t) toasts.push(t); });
@@ -124,12 +127,12 @@ describe("M1: the inbox", () => {
     expect(r.posts.filter((p) => p.path.endsWith("/api/email/sync")).map((p) => p.body.email).sort()).toEqual([DAVE, WORK]);
     expect(r.calls.filter((c) => c.fn === "email_inbox").length).toBe(1);
     expect(screen.getByText("That's everything.")).toBeInTheDocument();
-    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked Today.*2 Accounts$/);
-    // 2026-10-05: three facts and no middle dot in a string: the day is the line's one grey, the clock is small caps, the count a white number.
+    // Spec 3.1, "Checked 9:12 AM": two facts and no middle dot in a string; the word is the line's one grey, the clock small caps.
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Checked Today", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "2 Accounts"]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
     expect(fresh[1]).toHaveClass("date");
-    expect(fresh[2]!.querySelector("b")).toHaveTextContent("2 Accounts");
+    // The account picker beside it names the mailboxes it shows.
+    expect(document.querySelector(".email-acct")).toHaveTextContent("All Accounts");
     expect(document.querySelector(".email-fresh")!.textContent).not.toMatch(/\u00B7/);
   });
 
@@ -426,7 +429,7 @@ describe("E21, E22, E28: accounts and states", () => {
     const r = rig({ accounts: [accounts[0]!, account({ id: "acct-work", address: WORK, state: "disconnected", cached: 1 })] });
     mount(r);
     await waitFor(() => expect(subjects()).toEqual(["m3", "m1", "m0"]));
-    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked Today.*1 Account$/);
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked\s?\d{1,2}:\d{2} (AM|PM)$/);
     fireEvent.click(document.querySelector(".email-fresh") as HTMLElement);
     await waitFor(() => expect(screen.getAllByText("Accounts").length).toBeGreaterThan(0));
     expect(screen.getByText(STATE_WORD.disconnected)).toBeInTheDocument();
@@ -507,10 +510,10 @@ describe("the coverage crawl, as the inbox shows it", () => {
     const r = crawling(99, { synced: 0 });
     slowFetch(5);
     mount(r);
-    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Catching Up on Mail.*1 Account$/));
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Catching Up on Mail$/));
     await waitFor(() => expect(r.calls.some((c) => c.fn === "email_inbox")).toBe(true));
     const facts = [...document.querySelectorAll(".email-fresh .facts > .fact")].map((f) => f.textContent);
-    expect(facts).toEqual(["Catching Up on Mail", "1 Account"]);
+    expect(facts).toEqual(["Catching Up on Mail"]);
     expect(document.querySelectorAll(".email-fresh .facts").length).toBe(1);
     expect(document.querySelector(".email-fresh")!.textContent).not.toMatch(/\d:\d{2}|Checked|Not Synced|\u00B7/);
     // Nothing cached yet is still loading, not "Nothing in Your Inbox".
@@ -531,9 +534,9 @@ describe("the coverage crawl, as the inbox shows it", () => {
   it("keeps the crawl moving while open, then says Checked and the time once the mailbox is current, and stops calling", async () => {
     const r = crawling(3, { rows });
     mount(r);
-    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked Today.*1 Account$/));
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Checked\s?\d{1,2}:\d{2} (AM|PM)$/));
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Checked Today", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "1 Account"]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
     expect(fresh[1]).toHaveClass("date");
     // The open's sync, then two more, one after the other; each crawl call reads the cache's first page again.
     expect(syncs(r)).toBe(3);

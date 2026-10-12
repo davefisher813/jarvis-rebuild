@@ -84,3 +84,40 @@
    on -- when it opens again, or when it closes -- in place of the row-act
    that used to sit above the whole page. The full control lives in Tools. */
 .mwin { font-size: var(--t-sub); color: var(--tx-3); padding: 0 var(--s-4) var(--s-2); }
+
+/* ==========================================================================
+   THE MAIL HOME'S ROW (Email v1 spec 15 V01; the approved inbox visual
+   2026-10-08; Dave 2026-10-12). The Email tab's row only (.erow); the older
+   messages/ rows keep the anatomy above. A contact badge, then three lines:
+   the sender (the name treatment) with the time, the subject in the page's
+   ink, and the first words in the row's one grey. A chevron says it opens.
+   ========================================================================== */
+.ruled .row.mrow.erow { align-items: center; gap: var(--s-3); padding-top: var(--s-3); padding-bottom: var(--s-3); }
+.card .row.erow + .row.erow::before { left: calc(var(--s-4) + 40px + var(--s-3)); }
+/* THE CONTACT BADGE (spec 4, Dave 2026-10-12: a coloured initials avatar per sender). The hue is the sender's stable
+   slot (rowAnatomy.ts faceSlot: never red, red is a verb), carried as a .cat-fg-* ink, which is readable in both themes
+   by the colour laws; the disc is that same ink at a low wash, so light and dark differ in colour only. */
+.mav { position: relative; flex: 0 0 40px; width: 40px; height: 40px; border-radius: var(--r-circle); align-self: flex-start;
+  display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: var(--t-sub); font-weight: var(--w-bold); letter-spacing: 0.02em; }
+/* Unread is the primary ink, a dot at the badge's shoulder: a fact about the inbox, never a red (the unread law). */
+.munread { position: absolute; top: 0; right: -2px; width: 10px; height: 10px; border-radius: var(--r-circle); background: var(--tx-1); }
+.erow .mline1 { align-items: baseline; }
+.erow .mfrom { font-size: var(--t-name); font-weight: var(--w-semi); }
+.erow .mfrom.strong { font-weight: var(--w-bold); }
+.erow .macct { flex: 0 0 auto; }
+/* The last line: the first words, then the account and Same Content as small caps, which keep their room. */
+.mline3 { display: flex; align-items: baseline; gap: var(--s-1h); min-width: 0; margin-top: var(--s-0h); }
+.mline3 .macct { margin-left: 0; flex: 0 0 auto; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Same Content is the label a reader acts on (spec 3.3): never cut. */
+.mline3 .macct.msame { max-width: none; }
+/* The subject: the page's ink, the name's size, the line weight; one line, the snippet below carries the rest. */
+.msubj { font-size: var(--t-name); font-weight: var(--w-sub); color: var(--tx-1); margin-top: var(--s-0h);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The first words: the row's one grey. */
+.msnip { flex: 1 1 auto; min-width: 0; font-size: var(--t-name); font-weight: var(--w-sub); color: var(--tx-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mchev { width: 18px; height: 18px; flex: 0 0 auto; color: var(--tx-3); }
+/* Select mode: the circle leads; a picked row wears the press fill, not a colour. */
+.erow > .sel-box { align-self: center; }
+.row.erow.picked { background: var(--press-3); }
