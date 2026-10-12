@@ -352,6 +352,38 @@ export const META_FIELDS = "format=metadata&metadataHeaders=From&metadataHeaders
   // An automatic reply says so in these two (migration 0071; Email v1 spec 5.3): it is never New Reply evidence on Waiting.
   + "&metadataHeaders=Auto-Submitted&metadataHeaders=Precedence";
 
+// THE CALENDAR PROBE (Email v1 spec 3.2 rule 3: Schedule rests on calendar MIME structure, never subject words).
+// format=metadata returns no parts, and a Google Calendar invite's top level is multipart/mixed with the text/calendar
+// part nested, so on metadata alone an invite only reached Schedule once it was opened. Google Calendar marks its own
+// mail with a Message-ID of the form <calendar-UUID@google.com> (already cached for Same Content). For exactly those
+// messages, and no other mail, sync makes one more read that asks Gmail for the part tree's types, names, attachment
+// ids and sizes only (a partial response: no body data is requested or returned), and, when a calendar part is there, keeps the
+// attachment metadata opening the message would have stored. The Message-ID only decides whether to look; Schedule is
+// decided by the text/calendar or .ics part found. A forged Message-ID costs one read and proves nothing.
+const GOOGLE_CALENDAR_MESSAGE_ID = /^<?calendar-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@google\.com>?$/i;
+
+export function isGoogleCalendarMessageId(id: string | null | undefined): boolean {
+  return GOOGLE_CALENDAR_MESSAGE_ID.test((id ?? "").trim());
+}
+
+const PART_FIELDS = "mimeType,filename,body(attachmentId,size)";
+/** Four levels of the part tree (mixed > alternative > calendar, with room for one more wrapper), and nothing else. */
+export const PARTS_FIELDS = "format=full&fields=" + encodeURIComponent(
+  `payload(${PART_FIELDS},parts(${PART_FIELDS},parts(${PART_FIELDS},parts(${PART_FIELDS},parts(${PART_FIELDS})))))`,
+);
+
+const CALENDAR_PART = new Set(["text/calendar", "application/ics"]);
+
+/**
+ * What the probe keeps: when the part tree holds a calendar part (text/calendar, application/ics, or an .ics name), the
+ * tree's attachment metadata, exactly the list opening the message stores, so a later open or probe never narrows it;
+ * otherwise nothing, and the cached row is left as it was.
+ */
+export function calendarProbeAttachments(part: GmailPart | undefined): AttachmentMeta[] {
+  const all = attachmentsOf(part);
+  return all.some((a) => CALENDAR_PART.has(a.mime.split(";")[0]!.trim().toLowerCase()) || /\.ics$/i.test(a.filename)) ? all : [];
+}
+
 /** Metadata for many ids, a few at a time; a 404 is a message that left. */
 export async function fetchMetas(auth: string | MailboxAuth, ids: readonly string[], concurrency = 6): Promise<{ rows: CachedRow[]; gone: string[]; failed: Fail | null }> {
   const rows: CachedRow[] = [];
@@ -362,7 +394,15 @@ export async function fetchMetas(auth: string | MailboxAuth, ids: readonly strin
     while (i < ids.length && !failed) {
       const id = ids[i++]!;
       const a = await gmail(auth, `/messages/${encodeURIComponent(id)}?${META_FIELDS}`, { safeRead: true });
-      if (a.ok) rows.push(toCachedRow(a.body as GmailMeta));
+      if (a.ok) {
+        const row = toCachedRow(a.body as GmailMeta);
+        if (isGoogleCalendarMessageId(row.rfc_message_id) && row.attachments.length === 0) {
+          // The calendar probe: one parts-only read, for Google Calendar's own mail and nothing else.
+          const p = await gmail(auth, `/messages/${encodeURIComponent(id)}?${PARTS_FIELDS}`, { safeRead: true });
+          if (p.ok) row.attachments = calendarProbeAttachments((p.body as { payload?: GmailPart } | null)?.payload);
+        }
+        rows.push(row);
+      }
       else if (a.status === 404) gone.push(id);
       else failed = gmailFail(a);
     }
