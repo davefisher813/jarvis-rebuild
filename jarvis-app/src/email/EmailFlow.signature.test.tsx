@@ -10,7 +10,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EmailFlow from "./EmailFlow";
-import { COMPOSE_LABEL, FROM_LABEL, SIGNATURE_OFFER_NOTE, USE_SAVED_SIGNATURE } from "./copy";
+import { ADD_SIGNATURE, COMPOSE_LABEL, FROM_LABEL, NO_SIGNATURE_NOTE, SIGNATURE_LABEL, SIGNATURE_OFFER_NOTE, USE_SAVED_SIGNATURE } from "./copy";
+import { announceSignature } from "./signatureBus";
 import type { EmailAccount, InboxRow, RpcClient } from "./emailClient";
 import type { DraftFields, DraftRow } from "./drafts";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
@@ -45,6 +46,7 @@ function rig(o: { accounts?: EmailAccount[] } = {}): Rig {
     email_inbox: () => ({ rows, cached_total: 0, page: 30 }),
     substrate_readiness: () => ({ registered: ["money_bill", "money_receipt", "task", "event", "waiting"] }),
     candidates_for: () => [],
+    email_signature_set: (a) => ({ account_id: a.p_account, signature_text: a.p_text, signature_revision: ((a.p_expected_revision as number | null) ?? 1) + 1 }),
     draft_save: (a) => {
       const f = a.p_fields as DraftFields;
       const id = (a.p_draft as string | null) ?? `d-${++seq}`;
@@ -137,5 +139,34 @@ describe("AC19: switching the From account decides the signature", () => {
     await waitFor(() => expect(screen.getByLabelText("Subject")).toBeInTheDocument());
     expect(screen.queryByText(SIGNATURE_OFFER_NOTE)).toBeNull();
     expect(messageValue()).toBe("Thanks!");
+  });
+});
+
+describe("Fix order item 2: a missing signature is visible, and one saved anywhere shows up", () => {
+  it("an account with no signature says so in the composer; Add Signature saves it and puts it in this draft once", async () => {
+    const r = rig({ accounts: [account({ signature_text: "" })] });
+    await openCompose(r);
+    expect(screen.getByText(NO_SIGNATURE_NOTE)).toBeInTheDocument();
+    fireEvent.click(byRole(ADD_SIGNATURE));
+    fireEvent.change(screen.getByLabelText(SIGNATURE_LABEL), { target: { value: "Dave Fisher\nBFFSA" } });
+    fireEvent.click(byRole("Save"));
+    await waitFor(() => expect(messageValue()).toBe("\n\n-- \nDave Fisher\nBFFSA"));
+    expect(screen.queryByText(NO_SIGNATURE_NOTE)).toBeNull();
+  });
+
+  it("a signature saved in Settings is the one the next compose inserts, without a reload", async () => {
+    const saved = [account({ signature_text: "" })];
+    const r = rig({ accounts: saved });
+    mount(r);
+    await waitFor(() => expect(byRole(COMPOSE_LABEL)).toBeInTheDocument());
+    // Let the accounts load first: the announcement patches the list the tab holds.
+    await new Promise((res) => setTimeout(res, 50));
+    // Settings saved it on the server (a later reload reads it) and announced it (the tab already open uses it now).
+    saved[0] = { ...saved[0]!, signature_text: "From Settings", signature_revision: 2 };
+    announceSignature({ accountId: "acct-dave", text: "From Settings", revision: 2 });
+    fireEvent.click(byRole(COMPOSE_LABEL));
+    await waitFor(() => expect(screen.getByLabelText("Message")).toBeInTheDocument());
+    expect(messageValue()).toBe("\n\n-- \nFrom Settings");
+    expect(screen.queryByText(NO_SIGNATURE_NOTE)).toBeNull();
   });
 });

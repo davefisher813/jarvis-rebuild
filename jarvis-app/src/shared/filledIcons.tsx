@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, PlugsConnected, Lightbulb,
-  CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench } from "@phosphor-icons/react";
+  CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench, Signature } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
 
@@ -64,6 +64,8 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   training: <Barbell {...P} />,
   // Email Sections (2026-09-29): the person's own filters over the Email tab.
   emailsections: <Funnel {...P} />,
+  // Email Signatures (2026-10-12): one saved signature per mailbox.
+  emailsignatures: <Signature {...P} />,
   // Brain Manual v1: the Settings → Brain row wears the Brain tab glyph.
   brainsettings: <Brain {...P} />,
 };

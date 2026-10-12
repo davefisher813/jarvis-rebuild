@@ -18,7 +18,7 @@ export const FLAGS = [
   "substrate_v1",
   "email_intake_v1",
   "verified_agent_adapters",
-  "email_hold_v1",
+  "email_hold_v1", // retired 2026-10-12: every send is held, no flag reads this
   "memory_v1",
   "trust_v1",
   "vyzn_sync_v1",

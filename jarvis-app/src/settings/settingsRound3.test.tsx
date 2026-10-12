@@ -138,7 +138,7 @@ describe("The Settings hub: every row is one glyph on the same tile", () => {
   it("each row's glyph sits on .lib-ico-tile, drawn once in the stylesheet at one size", () => {
     const { container } = render(<NotesProvider userId="u-r3-hub"><SettingsPage onNavigate={() => {}} onBack={() => {}} /></NotesProvider>);
     const icons = [...container.querySelectorAll(".lib-row .lib-ico")];
-    expect(icons.length).toBe(16);
+    expect(icons.length).toBe(17);
     for (const i of icons) expect(i, norm(i.parentElement!.querySelector(".lib-name"))).toHaveClass("lib-ico-tile");
     const tile = rule("components.css", ".lib-row .lib-ico.lib-ico-tile");
     expect(tile).toMatch(/height:\s*30px/);

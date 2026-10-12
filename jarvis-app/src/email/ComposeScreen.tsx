@@ -20,13 +20,15 @@ import type { FileStore } from "../files/FileStore";
 import {
   ATTACH, ATTACH_FAILED, ATTACH_NEEDS_APP, ATTACH_TOO_MUCH, ATTACHMENTS_LABEL, ATTACHMENTS_WAIT, BAD_ADDRESS, BCC_LABEL, BODY_LABEL, CC_BCC, CC_LABEL, CLOSE_DRAFT, COMPOSE_TITLE,
   CONFLICT_TITLE, DISCARD_DRAFT, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
-  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE,
+  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, ADD_SIGNATURE, NO_SIGNATURE_NOTE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE,
 } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
+import SignatureSheet from "./SignatureSheet";
+import { announceSignature } from "./signatureBus";
 import {
-  attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, replaceSignature, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, signatureUntouched, sha256Hex, splitAddresses,
+  withSignature, attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, replaceSignature, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, signatureUntouched, sha256Hex, splitAddresses,
   type AttachmentRef, type DraftFields, type DraftRow, type LocalDraft, type Review,
 } from "./drafts";
 
@@ -151,6 +153,13 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
     setFields((f) => ({ ...f, body_text: replaceSignature(f.body_text, sigOffer.oldText, sigOffer.newText), signature_revision: newAcct?.signature_text ? newAcct.signature_revision : null }));
     setSigOffer(null);
   };
+
+  // Fix order item 2 (2026-10-11): an account with no saved signature says so in the composer, with Add Signature.
+  // Saving it here saves it for the account (the same RPC as Settings) and adds it to this draft once, at the end.
+  const [addingSig, setAddingSig] = useState(false);
+  const [sigAdded, setSigAdded] = useState<string | null>(null);
+  const currentAcct = accounts.find((a) => a.id === accountId) ?? null;
+  const noSignature = !!currentAcct && !currentAcct.signature_text && sigAdded === null;
 
   // The account is part of the draft too; a switch also decides the signature.
   useEffect(() => {
@@ -321,6 +330,15 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
 
       {/* AC19: an edited or absent managed block is never silently rewritten; this is the explicit Replace choice
           (Dave's locked row-actions rule: a quiet text action in the key colour, never a capsule). */}
+      {noSignature && !sigOffer && <div className="email-note quiet"><span>{NO_SIGNATURE_NOTE}</span><button className="quiet-action" onClick={() => setAddingSig(true)}>{ADD_SIGNATURE}</button></div>}
+      {addingSig && currentAcct && (
+        <SignatureSheet client={client} userId={userId} account={currentAcct} onClose={() => setAddingSig(false)}
+          onSaved={(id, text, revision) => {
+            announceSignature({ accountId: id, text, revision });
+            setSigAdded(text);
+            if (text) setFields((f) => ({ ...f, body_text: withSignature(f.body_text, text), signature_revision: revision }));
+          }} />
+      )}
       {sigOffer && <div className="email-note quiet"><span>{SIGNATURE_OFFER_NOTE}</span><button className="quiet-action" onClick={applySignature}>{USE_SAVED_SIGNATURE}</button></div>}
 
       <div className="pad-x"><div className="card list-card-ruled">
