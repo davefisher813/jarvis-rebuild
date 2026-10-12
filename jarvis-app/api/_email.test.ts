@@ -3,8 +3,9 @@
 // (13: neutralise bidi spoofing in address display), snippets with Gmail's
 // entities decoded, attachment metadata and never bytes, Gmail's refusals
 // as the vocabulary's codes, and the one order every list keeps.
-import { describe, it, expect } from "vitest";
-import { addressList, attachmentsOf, decodeEntities, fail, firstAddress, gmailFail, headerOf, newestFirst, toCachedRow } from "./_email";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { addressList, attachmentsOf, calendarProbeAttachments, decodeEntities, fail, fetchMetas, firstAddress, gmailFail, headerOf, isGoogleCalendarMessageId, newestFirst, PARTS_FIELDS, toCachedRow } from "./_email";
+import { isCalendar } from "../src/email/sections";
 
 describe("addresses", () => {
   it("splits a header into parts, lowercases the address and keeps the name", () => {
@@ -107,5 +108,78 @@ describe("the one order", () => {
       { internal_date: "2026-10-03T11:00:00.000Z", provider_id: "b" },
     ];
     expect([...rows].sort(newestFirst).map((r) => r.provider_id)).toEqual(["b", "c", "a"]);
+  });
+});
+
+describe("the calendar probe (spec 3.2 rule 3: a Google invite is Schedule on arrival, by its parts)", () => {
+  const INVITE_ID = "<calendar-0a1b2c3d-1111-4222-8333-444455556666@google.com>";
+  const meta = (id: string, messageId: string) => ({ id, threadId: "t-" + id, internalDate: "1790000000000", payload: { mimeType: "multipart/mixed", headers: [{ name: "From", value: "Pat Example <pat@example.test>" }, { name: "Subject", value: "Invitation: Team sync" }, { name: "Message-ID", value: messageId }] } });
+  const inviteParts = { payload: { mimeType: "multipart/mixed", filename: "", body: { size: 0 }, parts: [
+    { mimeType: "multipart/alternative", filename: "", body: { size: 0 }, parts: [
+      { mimeType: "text/plain", filename: "", body: { size: 120 } },
+      { mimeType: "text/html", filename: "", body: { size: 900 } },
+      { mimeType: "text/calendar; method=REQUEST", filename: "invite.ics", body: { attachmentId: "cal-1", size: 1500 } },
+    ] },
+    { mimeType: "application/ics", filename: "invite.ics", body: { attachmentId: "ics-1", size: 1500 } },
+  ] } };
+
+  function stub(answers: Record<string, unknown>) {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      calls.push(url);
+      const key = Object.keys(answers).find((k) => url.includes(k));
+      const body = key ? answers[key] : null;
+      return new Response(JSON.stringify(body), { status: body ? 200 : 404, headers: { "content-type": "application/json" } });
+    }));
+    return calls;
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("recognises only Google Calendar's own Message-ID shape", () => {
+    expect(isGoogleCalendarMessageId(INVITE_ID)).toBe(true);
+    expect(isGoogleCalendarMessageId("calendar-0a1b2c3d-1111-4222-8333-444455556666@google.com")).toBe(true);
+    expect(isGoogleCalendarMessageId("<calendar-0a1b2c3d-1111-4222-8333-444455556666@google.com.example.test>")).toBe(false);
+    expect(isGoogleCalendarMessageId("<CAH+abc@mail.gmail.com>")).toBe(false);
+    expect(isGoogleCalendarMessageId("<calendar-notes@example.test>")).toBe(false);
+    expect(isGoogleCalendarMessageId(null)).toBe(false);
+  });
+
+  it("asks Gmail for the part tree's types, names, ids and sizes only, never body data", () => {
+    const f = decodeURIComponent(PARTS_FIELDS);
+    expect(f).toMatch(/^format=full&fields=payload\(/);
+    expect(f).not.toMatch(/\bdata\b/);
+    expect(f).not.toMatch(/headers|snippet|raw/);
+  });
+
+  it("an invite: one extra parts-only read, and its calendar parts land in the cached row, so the resolver says Schedule", async () => {
+    const calls = stub({ "/messages/inv1?format=metadata": meta("inv1", INVITE_ID), "/messages/inv1?format=full": inviteParts });
+    const { rows } = await fetchMetas("tok", ["inv1"]);
+    expect(calls.length).toBe(2);
+    expect(rows[0]!.attachments.map((a) => a.mime)).toEqual(["text/calendar; method=REQUEST", "application/ics"]);
+    expect(isCalendar({ attachment_metadata: rows[0]!.attachments, mime_type: rows[0]!.mime_type, content_class: null, list_id: null, list_unsubscribe: null, own_reply: null })).toBe(true);
+  });
+
+  it("normal mail costs no extra read, and a subject saying Invitation proves nothing", async () => {
+    const calls = stub({ "/messages/m1?format=metadata": meta("m1", "<CAH+abc@mail.gmail.com>") });
+    const { rows } = await fetchMetas("tok", ["m1"]);
+    expect(calls.length).toBe(1);
+    expect(rows[0]!.attachments).toEqual([]);
+  });
+
+  it("a Google Message-ID without a calendar part (or a failed probe) leaves the row as metadata gave it", async () => {
+    const calls = stub({ "/messages/x1?format=metadata": meta("x1", INVITE_ID), "/messages/x1?format=full": { payload: { mimeType: "multipart/alternative", parts: [{ mimeType: "text/plain", filename: "", body: { size: 3 } }, { mimeType: "application/pdf", filename: "notes.pdf", body: { attachmentId: "p", size: 9 } }] } } });
+    const { rows } = await fetchMetas("tok", ["x1"]);
+    expect(calls.length).toBe(2);
+    expect(rows[0]!.attachments).toEqual([]);
+    stub({ "/messages/x2?format=metadata": meta("x2", INVITE_ID) });
+    const second = await fetchMetas("tok", ["x2"]);
+    expect(second.rows[0]!.attachments).toEqual([]);
+    expect(second.failed).toBeNull();
+  });
+
+  it("keeps the whole attachment list when a calendar part is there, the same list opening stores", () => {
+    const tree = { mimeType: "multipart/mixed", parts: [{ mimeType: "application/pdf", filename: "agenda.pdf", body: { attachmentId: "p", size: 9 } }, { mimeType: "application/octet-stream", filename: "invite.ics", body: { attachmentId: "i", size: 9 } }] };
+    expect(calendarProbeAttachments(tree as never).map((a) => a.filename)).toEqual(["agenda.pdf", "invite.ics"]);
+    expect(calendarProbeAttachments({ mimeType: "multipart/mixed", parts: [{ mimeType: "application/pdf", filename: "a.pdf", body: { attachmentId: "p", size: 9 } }] } as never)).toEqual([]);
   });
 });

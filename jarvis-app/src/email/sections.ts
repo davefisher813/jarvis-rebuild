@@ -10,12 +10,14 @@
 //      a contact match alone never qualifies;
 //   3. Schedule: calendar MIME structure: the message is text/calendar, its
 //      Content-Class is a calendar message, or it carries a text/calendar or
-//      .ics part (known once the message has been opened). Never a subject
+//      .ics part (known once opened, or on arrival for Google Calendar mail
+//      by the sync's parts-only probe, api/_email.ts). Never a subject
 //      word like "meeting";
 //   4. Money: an exact registered sender, account and format template with
-//      invoice or receipt semantics. No such registry exists yet, so nothing
-//      resolves here and the message falls to the next rule (Dave: do not
-//      guess from subject words);
+//      invoice, receipt or statement semantics (moneyRegistry.ts, list-time
+//      from address and subject only, so it holds before the message is
+//      opened). An unregistered sender, a currency sign, a filename, or two
+//      templates at once (ambiguous) never resolves here;
 //   5. Mailing Lists: a List-Unsubscribe or List-ID header;
 //   6. Other: everything else, including a row cached before the facts were
 //      kept (it has nothing to go on).
@@ -24,6 +26,7 @@
 // one section, and All by Date shows the same rows without the grouping.
 
 import type { InboxRow } from "./emailClient";
+import { matchMoney } from "./moneyRegistry";
 
 export const SECTION_KEYS = ["conversations", "schedule", "money", "lists", "other"] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -49,7 +52,7 @@ export const SECTION_SLOT: Record<SectionKey, string | null> = {
   other: null,
 };
 
-type Facts = Pick<InboxRow, "attachment_metadata" | "mime_type" | "content_class" | "list_id" | "list_unsubscribe" | "own_reply">;
+type Facts = Pick<InboxRow, "attachment_metadata" | "mime_type" | "content_class" | "list_id" | "list_unsubscribe" | "own_reply"> & Partial<Pick<InboxRow, "from_address" | "subject">>;
 
 const CALENDAR_MIME = new Set(["text/calendar", "application/ics"]);
 
@@ -66,12 +69,11 @@ export function isMailingList(r: Facts): boolean {
 }
 
 /**
- * Money's rule needs the registered sender/account/format templates (spec 3.2 rule 4). None is registered in v1, so this
- * answers false for every message rather than read a currency sign or a filename, which the spec calls insufficient.
+ * Money: exactly one registered sender template matches this message's from address and subject (spec 3.2 rule 4,
+ * 5.2). A currency sign or a filename, which the spec calls insufficient, is never read.
  */
 export function isRegisteredMoney(r: Facts): boolean {
-  void r;
-  return false;
+  return matchMoney(r).kind === "match";
 }
 
 export type Overrides = Record<string, SectionKey>;
