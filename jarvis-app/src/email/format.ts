@@ -5,7 +5,7 @@
 
 import { dayLabel, timeOf } from "../hub/format";
 import { shortDate } from "../shared/dateFormat";
-import { accountsWord, CATCHING_UP, CHECKED, NOT_SYNCED } from "./copy";
+import { CATCHING_UP, CHECKED, NOT_SYNCED } from "./copy";
 import type { EmailAccount, InboxRow } from "./emailClient";
 
 /** The sender as the row says it: the name when there is one, else the address. */
@@ -78,21 +78,18 @@ export function isCatchingUp(a: Pick<EmailAccount, "state" | "sync_state">): boo
 }
 
 /**
- * Honest freshness (E21; Email v1 spec 8.1, AC39). One status line: Catching
- * Up on Mail while any live mailbox is still listing or reconciling its
- * window (never a time, which would claim it); otherwise the oldest verified
- * check among the live mailboxes, because the inbox is only as fresh as its
- * stalest one: Checked Today, 9:12 AM, 2 Accounts as three facts. Not Synced
- * Yet before the first good sync. Empty with no live account.
+ * The mail home's one status beside the account picker (spec 3.1: "Checked 9:12 AM"): the stalest verified check among
+ * the live mailboxes, the time alone when it was today. Catching Up on Mail while any is still listing its window.
  */
-export function freshnessFacts(accounts: readonly EmailAccount[], now: Date = new Date()): EmailFact[] {
+export function homeFreshness(accounts: readonly EmailAccount[], now: Date = new Date()): EmailFact[] {
   const live = accounts.filter((a) => a.state !== "disconnected");
   if (live.length === 0) return [];
-  const n: EmailFact = { text: accountsWord(live.length), strong: true };
-  if (live.some(isCatchingUp)) return [{ text: CATCHING_UP }, n];
+  if (live.some(isCatchingUp)) return [{ text: CATCHING_UP }];
   const synced = live.map((a) => a.verified_through_at ?? a.last_sync_at).filter((x): x is string => !!x).sort();
-  if (synced.length === 0) return [{ text: NOT_SYNCED }, n];
-  return [...checkedFacts(synced[0]!, now), n];
+  if (synced.length === 0) return [{ text: NOT_SYNCED }];
+  const at = synced[0]!;
+  if (dayLabel(at, now) === "Today") return [{ text: CHECKED }, { text: timeOf(at), tone: "date" }];
+  return checkedFacts(at, now);
 }
 
 /** A copy line written as fragments joined by a middle dot, drawn as facts instead: the first wears `tone`, the rest are the one grey. For the few copy constants that render inside a facts line. */
