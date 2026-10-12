@@ -196,13 +196,10 @@ describe("the stylesheet holds the review's visual fixes", () => {
     expect(c).toMatch(/\.conn-meta:not\(\.facts\) > \.fact:not\(:last-child\)::after \{ content: none; \}/);
   });
 
-  it("the Today hero's wash fades into the page instead of ending in a seam, in both themes", () => {
-    for (const theme of ["dark", "light"]) {
-      for (const part of ["morning", "evening"]) {
-        const m = c.match(new RegExp(`\\[data-theme="${theme}"\\] \\.today-hero\\.hero-${part} \\{\\s*background: linear-gradient\\(180deg, transparent 30%, var\\(--bg\\) 100%\\)`));
-        expect(m, `${theme} ${part}`).not.toBeNull();
-      }
-    }
+  it("the Today header is the page: no wash, no ramp, no fill, in either theme (Dave 2026-10-11: \"It shouldn't look like a card\")", () => {
+    expect(c).toMatch(/\.today-hero, \.today-hero\.hero-morning, \.today-hero\.hero-evening \{ background: none; \}/);
+    expect(c).not.toMatch(/\.today-hero\.hero-(morning|evening) \{\s*background: linear-gradient/);
+    expect(c).not.toMatch(/\.today-hero::before/);
     expect(c).toMatch(/\.today-hero \{ padding: var\(--s-3\) var\(--s-4\) var\(--s-3\); \}/);
   });
 
