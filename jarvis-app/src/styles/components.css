@@ -61,19 +61,29 @@
 /* App shell layout (real-app scaffolding; the locked system defined screens and
    the tab bar, not the host shell). Full-height column: scrollable content with
    the tab bar pinned at the bottom, like the device frame in the previews.
-   THE SHELL IS NAILED TO THE VIEWPORT'S EDGES (Dave 2026-10-13, tab bar round 4,
-   his words: "Take an extreme measure. I never want to see this again"). Rounds
-   1 to 3 all adjusted the tab bar's own foot while the bar sat at the bottom of a
-   shell whose height was a MEASUREMENT (100dvh). On Dave's phone that measurement
-   comes up short (his 2026-10-13 screenshot: the labels end 82pt above the
-   screen's foot while the bar's own foot is a fixed 16pt), so the whole column,
-   bar included, floated above the edge on a floor of body background, and every
-   in-bar fix measured perfect in a harness whose frame the shell always filled.
-   A fixed shell with inset 0 does not ask how tall the viewport claims to be:
-   its edges ARE the viewport's edges. shared/viewport.ts (fitShellToScreen)
-   covers the remaining case, a standalone window whose layout viewport itself
-   stops short of the physical screen. */
-.app-shell { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
+   THE TAB BAR SITS ON THE SCREEN'S FOOT (Dave 2026-10-13, after round 4: nuke
+   and rebuild). Every round measured the wrong box. iOS 26 home-screen apps with
+   viewport-fit=cover and the black-translucent status bar report 100%, 100svh,
+   100dvh and the layout viewport short by the top safe-area inset (about 59pt)
+   and paint fixed content only inside that short box: the bar sat 82pt high
+   (59pt of short box plus its 16pt foot), and round 4's JavaScript stretch
+   pushed it past the painted edge, clipping the icons to slivers over an empty
+   band. The large viewport (100lvh) is reported right, so in a home-screen
+   launch the document and the shell take --app-h, the large viewport capped at
+   the short one plus the top inset (a release without the bug, or one that
+   starts the page under an opaque status bar, can never run past the foot).
+   Everywhere else --app-h is 100dvh, exactly what a browser tab always had. The
+   shell is top-anchored with an explicit height, because a bottom: 0 edge is
+   the short edge. src/laws/shellFit.test.ts holds all of this. */
+:root { --app-h: 100dvh; }
+html.ios-standalone { --app-h: min(100lvh, calc(100dvh + env(safe-area-inset-top, 0px))); }
+@media (display-mode: standalone) { @supports (-webkit-touch-callout: none) {
+  :root { --app-h: min(100lvh, calc(100dvh + env(safe-area-inset-top, 0px))); }
+} }
+html.ios-standalone, html.ios-standalone body { min-height: var(--app-h); }
+.app-shell { position: fixed; top: 0; left: 0; right: 0; height: var(--app-h); display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
+/* The bar is never squeezed by the column: its height is its own content, always whole. */
+.app-shell > .tab-bar { flex-shrink: 0; }
 .app-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .app-shell .screen { min-height: 100%; }
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { trackVisualViewport, fitShellToScreen, shellShortfallPx } from "./viewport";
+import { trackVisualViewport, isIosStandalone, markStandalone } from "./viewport";
 
 // The keyboard, as iOS reports it: the visual viewport shrinks and slides down
 // the page, and nothing about window.innerHeight or the layout changes.
@@ -195,75 +195,24 @@ describe("a band cannot outlive the keyboard that made it", () => {
   });
 });
 
-// THE SHELL REACHES THE SCREEN'S FOOT (tab bar round 4, 2026-10-13). The shell
-// is stretched only in a standalone window, only in portrait, and only by a
-// shortfall that is real but plausible. Everywhere else it is a no-op: a
-// browser tab is SUPPOSED to be shorter than the screen.
-describe("fitShellToScreen", () => {
-  const realScreen = window.screen;
-  const setScreen = (height: number, width: number) =>
-    Object.defineProperty(window, "screen", { configurable: true, value: { height, width } });
-  const setStandalone = (on: boolean) =>
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: (q: string) => ({ matches: on && q.includes("standalone"), media: q, addEventListener() {}, removeEventListener() {} }),
-    });
-  const addShell = () => {
-    const el = document.createElement("div");
-    el.className = "app-shell";
-    document.body.appendChild(el);
-    return el;
-  };
+// THE HOME-SCREEN MARK (tab bar rebuild, 2026-10-13). Only a home-screen
+// launch is marked; a browser tab, on any device, never is.
+describe("markStandalone", () => {
+  const nav = navigator as Navigator & { standalone?: boolean };
   afterEach(() => {
-    Object.defineProperty(window, "screen", { configurable: true, value: realScreen });
-    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+    delete nav.standalone;
+    document.documentElement.classList.remove("ios-standalone");
   });
-
-  it("counts only a real, plausible shortfall", () => {
-    expect(shellShortfallPx(932, 932)).toBe(0);
-    expect(shellShortfallPx(930, 932)).toBe(0);
-    expect(shellShortfallPx(870, 932)).toBe(62);
-    expect(shellShortfallPx(400, 932)).toBe(0);
-    expect(shellShortfallPx(1000, 932)).toBe(0);
+  it("marks a home-screen launch on iOS", () => {
+    Object.defineProperty(nav, "standalone", { configurable: true, value: true });
+    expect(isIosStandalone()).toBe(true);
+    markStandalone();
+    expect(document.documentElement).toHaveProperty("className", expect.stringContaining("ios-standalone"));
   });
-
-  it("stretches the shell to the physical screen in a standalone window", () => {
-    setStandalone(true);
-    setScreen(932, 430);
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 870 });
-    const shell = addShell();
-    const stop = fitShellToScreen();
-    expect(shell.style.height).toBe("932px");
-    stop();
-  });
-
-  it("does nothing in an ordinary browser tab, however short the window", () => {
-    setStandalone(false);
-    setScreen(932, 430);
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 500 });
-    const shell = addShell();
-    const stop = fitShellToScreen();
-    expect(shell.style.height).toBe("");
-    stop();
-  });
-
-  it("does nothing when the viewport already reaches the screen", () => {
-    setStandalone(true);
-    setScreen(932, 430);
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 932 });
-    const shell = addShell();
-    const stop = fitShellToScreen();
-    expect(shell.style.height).toBe("");
-    stop();
-  });
-
-  it("does nothing in landscape", () => {
-    setStandalone(true);
-    setScreen(430, 932);
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 368 });
-    const shell = addShell();
-    const stop = fitShellToScreen();
-    expect(shell.style.height).toBe("");
-    stop();
+  it("leaves a browser tab alone, and clears a stale mark", () => {
+    document.documentElement.classList.add("ios-standalone");
+    expect(isIosStandalone()).toBe(false);
+    markStandalone();
+    expect(document.documentElement.classList.contains("ios-standalone")).toBe(false);
   });
 });

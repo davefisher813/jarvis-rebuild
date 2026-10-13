@@ -18,6 +18,19 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="JARVIS" />
+    <!-- THE BOTTOM IS RIGHT AT FIRST PAINT (Dave 2026-10-13: "I want it to render clean immediately"). A home-screen launch
+         on iOS is marked here, synchronously, before anything paints, so the --app-h rule in components.css sizes the shell to
+         the real screen from the first frame. Nothing measures or moves the bottom after load. Mirrors isIosStandalone in
+         src/shared/viewport.ts, which re-applies the same mark at boot. -->
+    <script>
+      (function () {
+        try {
+          var n = navigator, ios = /iP(hone|ad|od)/.test(n.userAgent) || (n.platform === "MacIntel" && n.maxTouchPoints > 1);
+          var on = n.standalone === true || typeof window.Capacitor !== "undefined" || (ios && window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+          if (on) document.documentElement.classList.add("ios-standalone");
+        } catch (e) { /* an old webview: the media query in components.css still covers it */ }
+      })();
+    </script>
   </head>
   <body>
     <!-- Boot splash: pure inline HTML/CSS so the first paint is instant, long
