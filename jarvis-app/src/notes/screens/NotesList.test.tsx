@@ -197,6 +197,9 @@ describe("NotesList", () => {
     expect(container.querySelectorAll(".note-row .task-check-tap .sel-box")).toHaveLength(4);
     fireEvent.click(screen.getByLabelText("Select Training Plan"));
     fireEvent.click(document.querySelector(".select-del")!);
+    // Notes confirm before any delete (issue 105): the bar opens the sheet first.
+    expect(onDeleteMany).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Delete Note"));
     expect(onDeleteMany).toHaveBeenCalledWith(["y"]);
   });
 

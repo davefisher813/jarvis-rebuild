@@ -45,7 +45,12 @@ describe("NotesList: clean rows", () => {
     expect(buttons[0]!.className).toContain("task-verb");
     fireEvent.click(buttons[0]!);
     expect(onArchive).toHaveBeenCalledWith("n1", true);
+    // Delete asks first (issue 105): the tray tap opens the sheet and writes nothing.
     fireEvent.click(buttons[1]!);
+    expect(onDelete).not.toHaveBeenCalled();
+    const sheet = document.querySelector(".sheet-scrim .action-sheet") as HTMLElement;
+    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    fireEvent.click(within(sheet).getByText("Delete Note"));
     expect(onDelete).toHaveBeenCalledWith("n1");
   });
 
@@ -68,6 +73,11 @@ describe("NotesList: clean rows", () => {
     expect([...sheet.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Add a Line", "File Under an Area", "Archive", "Delete"]);
     fireEvent.click(within(sheet as HTMLElement).getByText("File Under an Area"));
     expect(onFile).toHaveBeenCalledWith("n1");
+    // Delete from the menu is not immediate either: it opens the confirm.
+    fireEvent.contextMenu(screen.getByText("Coach Onboarding Plan"));
+    fireEvent.click(within(document.querySelector(".action-sheet") as HTMLElement).getByText("Delete"));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete This Note, Restore It Within 30 Days");
   });
 
   it("a deleted note has no Restore capsule: its tap is its menu, and its swipe is Restore then Delete Forever", () => {
@@ -84,6 +94,13 @@ describe("NotesList: clean rows", () => {
     expect([...sheet.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Restore", "Delete Forever"]);
     fireEvent.click(within(sheet as HTMLElement).getByText("Restore"));
     expect(onRestore).toHaveBeenCalledWith("d1");
+    // Delete Forever (menu or swipe) opens the permanent confirm; nothing is
+    // deleted until Delete Note Forever is tapped.
+    fireEvent.click(screen.getByLabelText("Delete forever: Gone Draft"));
+    expect(onDeleteForever).not.toHaveBeenCalled();
+    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete This Note for Good, No Undo");
+    fireEvent.click(screen.getByText("Delete Note Forever"));
+    expect(onDeleteForever).toHaveBeenCalledWith("d1");
   });
 
   it("every title it draws is Title Case", () => {
