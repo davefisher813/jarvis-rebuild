@@ -98,7 +98,7 @@ describe("the grouped home (spec 3.1, 3.2)", () => {
     expect(document.querySelector(".email-hero .pagehead-title")).toHaveTextContent("Inbox");
     expect(screen.getByRole("tab", { name: "Grouped" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
-    expect(document.querySelector(".email-compose")).toHaveAttribute("aria-label", "Compose");
+    expect(document.querySelector(".email-fab")).toHaveAttribute("aria-label", "Compose");
   });
 
   it("All by Date shows the same rows under days, and the choice is remembered on this device", async () => {

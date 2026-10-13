@@ -1263,7 +1263,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
               ))}
             </div>
             {visible.length > 0 && <button className="btn btn-secondary email-select" onClick={startSelect}>{SELECT}</button>}
-            {canCompose && <button className="btn-primary email-compose" aria-label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></button>}
+            {canCompose && <button className="btn-primary email-fab" aria-label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></button>}
           </div>
         )}
         {inbox && selecting && (

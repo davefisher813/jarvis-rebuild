@@ -222,9 +222,11 @@
 .email-view { flex: 1 0 auto; }
 .email-view .seg { min-height: var(--tap-min); white-space: nowrap; padding: 0 var(--s-2); }
 .email-select { flex: 0 0 auto; min-height: var(--tap-min); height: var(--tap-min); padding: 0 var(--s-4); font-size: var(--t-body); }
-/* Compose: the page's one filled red (its fill and ink are .btn-primary's), a round button that paints 48 and taps 48. */
-.email-compose { flex: 0 0 auto; width: 48px; height: 48px; border-radius: var(--r-circle); border: 0; display: inline-flex; align-items: center; justify-content: center; }
-.email-compose .ic { width: 22px; height: 22px; }
+/* Compose: the page's one filled red (its fill and ink are .btn-primary's), a round button that paints 48 and taps 48. It is NOT
+   .email-compose: that is the Compose screen's own class (its fields and rows are scoped by it), and this rule, written for the
+   button, sized the whole screen to 48 by 48 and made it a circle (found rendering the real Email tab, 2026-10-13). */
+.email-fab { flex: 0 0 auto; width: 48px; height: 48px; border-radius: var(--r-circle); border: 0; display: inline-flex; align-items: center; justify-content: center; }
+.email-fab .ic { width: 22px; height: 22px; }
 /* Select mode's head: Cancel, the count after a dot the stylesheet draws, and Select All Loaded at the right. */
 .email-selhead { justify-content: flex-start; flex-wrap: wrap; row-gap: var(--s-1); min-height: 48px; }
 .email-cancel, .email-selall { flex: 0 0 auto; min-height: var(--tap-min); }
