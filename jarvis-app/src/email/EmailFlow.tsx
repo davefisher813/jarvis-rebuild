@@ -63,7 +63,7 @@ import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
-  COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
+  COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, DRAFT_SAVED, DRAFT_SAVED_HERE, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
   REVIEW_OPEN, reviewItemsLine, WAITING_TITLE, waitingDeleted,
   ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
   SIGN_IN_FIRST, VIEW_DATE, VIEW_GROUPED, VIEW_LABEL, WAITING_SEGMENT_TITLE, selectAllLoaded, selectedWord,
@@ -75,7 +75,7 @@ import {
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
 import { accountLabels, dayGroups, homeFreshness, isCatchingUp, senderOf } from "./format";
-import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, loadOverrides, loadView, loadedWord, recordMove, saveView, sameContent as sameContentOf, sectionOf, type HomeView, type Overrides } from "./sections";
+import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, loadOverrides, loadView, loadedWord, recordMove, saveView, sameContent as sameContentOf, sectionOf, threadCounts, type HomeView, type Overrides } from "./sections";
 import { OP_OF, REVERSE, attentionLine, doneLine, pickOf, reasonsOf, runBatch, tally, type BatchOutcome, type Picked, type TrayVerb } from "./bulk";
 import MailSelectTray from "./MailSelectTray";
 import type { BatchOp } from "./emailClient";
@@ -691,6 +691,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const groups = useMemo(() => (view === "grouped"
     ? groupSections(visible, overrides).map((g) => ({ label: SECTION_NAME[g.key], rows: g.rows, count: loadedWord(g.rows.length), slot: SECTION_SLOT[g.key] }))
     : dayGroups(visible, now)), [view, visible, overrides, now]);
+  // The Grouped view says when a message belongs to a thread of two or more loaded messages; All by Date stays plain.
+  const threads = useMemo(() => (view === "grouped" ? threadCounts(visible) : undefined), [view, visible]);
   // Spec 3.3: an exact Message-ID in two connected mailboxes is a label on both rows. Nothing merges and nothing hides.
   const same = useMemo(() => sameContentOf(rows), [rows]);
   const chooseView = (v: HomeView) => { setView(v); saveView(userId, v); };
@@ -978,7 +980,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   };
   const openLocal = (l: LocalDraft) => {
     setSendFailure(null);
-    setScreen({ kind: "compose", start: { localKey: l.key, draftId: l.draft_id, accountId: l.account_id || defaultAccountId(), fields: l.fields, revision: l.revision }, from: { kind: "drafts" } });
+    // A copy listed under On This Device is one the server may not hold (never sent there, or edited here since): unsynced, so the composer
+    // pushes its words at the revision this phone last saw instead of taking them for the server's (issue 103).
+    setScreen({ kind: "compose", start: { localKey: l.key, draftId: l.draft_id, accountId: l.account_id || defaultAccountId(), fields: l.fields, revision: l.revision, unsynced: true }, from: { kind: "drafts" } });
   };
   // A follow-up: the composer, to a real address from the thread, under the thread's newest message.
   const startFollowUp = (it: WaitingItem, start: FollowUpStart) => {
@@ -1154,8 +1158,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     const start = screen.start;
     return <div className={pushCls}>
       <ComposeScreen client={client} userId={userId} accounts={accounts} offline={offline} fileStore={fileStore} start={start} now={nowFn} briefAI={briefAI}
-        onBack={() => { setDraftsReload((n) => n + 1); setScreen(from.kind === "review" || from.kind === "compose" ? { kind: "root" } : from); }}
-        onReview={(draftId, revision, fields, review) => setScreen({ kind: "review", draftId, revision, fields, review, requestId: newRequestId(), start: { ...start, localKey: draftId, draftId, fields, revision }, from })}
+        onBack={(saved) => {
+          setDraftsReload((n) => n + 1);
+          setScreen(from.kind === "review" || from.kind === "compose" ? { kind: "root" } : from);
+          // Close on a composer with words in it is never silent (issue 103): Draft Saved only after the server answered.
+          if (saved) showToast({ message: saved === "server" ? DRAFT_SAVED : DRAFT_SAVED_HERE });
+        }}
+        onReview={(draftId, revision, fields, review) => setScreen({ kind: "review", draftId, revision, fields, review, requestId: newRequestId(), start: { ...start, localKey: draftId, draftId, fields, revision, unsynced: false }, from })}
         onDiscarded={(copy) => discarded(copy, from)} />
     </div>;
   }
@@ -1333,7 +1342,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       )}
       {client && segment === "inbox" && visible.length > 0 && (
         <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
-          selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same}
+          selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
           onOpen={openInboxRow}
           // The open message owns its own cards inside the sheet; the dimmed
           // row behind it does not draw them a second time.

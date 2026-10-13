@@ -13,17 +13,19 @@
 // a reload keeps the latest words; two devices get a choice, never a silent
 // loss; Reply carries the message's own headers; Discard has an Undo.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { StrictMode } from "react";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EmailFlow from "./EmailFlow";
+import ComposeScreen from "./ComposeScreen";
 import {
-  APPROVAL_SCOPE, BAD_ADDRESS, CHECK_AGAIN, DISCARD_DRAFT, DRAFT_DISCARDED, EMPTY_SUBJECT_WARN, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, NOT_SENT_TITLE, OFFLINE_SEND, RESEND_SHUT, REVIEW_AGAIN,
+  APPROVAL_SCOPE, BAD_ADDRESS, CHECK_AGAIN, DISCARD_ASK, DISCARD_DRAFT, DISCARD_OFFLINE, DRAFT_DISCARDED, DRAFT_SAVED, DRAFT_SAVED_HERE, EMPTY_SUBJECT_WARN, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, NOT_SENT_TITLE, OFFLINE_SEND, RESEND_SHUT, REVIEW_AGAIN,
   REVIEW_EXPIRED, REVIEW_SEND, REVIEW_TITLE, SAVED_HERE, SAVED_LINE, SEND_THIS, SENT_LINE, SENT_TITLE, STILL_UNKNOWN, UNDO, UNKNOWN_TITLE, UNKNOWN_WHY, USE_NEWER_DRAFT, DRAFTS_AND_SENT, THIS_DEVICE,
 } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
-import { saveLocalDraft, type DraftFields, type DraftRow } from "./drafts";
+import { emptyFields, loadLocalDrafts, saveLocalDraft, type DraftFields, type DraftRow } from "./drafts";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
-import { HELD_TITLE, HOLD_FIRST_USE, HOLD_WINDOW, UNDO_SEND, UNDONE_LINE } from "./copy";
+import { DRAFT_ONLY, HELD_TITLE, HOLD_FIRST_USE, HOLD_WINDOW, UNDO_SEND, UNDONE_LINE } from "./copy";
 
 const NOW = new Date("2026-10-03T15:00:00Z");
 const USER = "user-1";
@@ -190,11 +192,542 @@ describe("E16: the draft is saved here, then on the server by revision", () => {
     type("Subject", "Keep me");
     await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(1), { timeout: 3000 });
     fireEvent.click(byRole(DISCARD_DRAFT));
+    // Issue 103: never an instant delete. The one confirm comes first and the draft is still there behind it.
+    expect(screen.getByText(DISCARD_ASK)).toBeInTheDocument();
+    expect(Object.keys(r.world.drafts).length).toBe(1);
+    confirmDiscard();
     await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(0));
     const t = toasts.find((x) => x.message === DRAFT_DISCARDED)!;
     expect(t.actionLabel).toBe(UNDO);
     t.onAction!();
     await waitFor(() => expect(Object.values(r.world.drafts).map((d) => d.subject)).toEqual(["Keep me"]));
+  });
+});
+
+// ISSUE 103 (D5 part 1, 2026-10-13): Close never loses or silently drops words, and Discard Draft always asks once.
+const sheetButton = () => document.querySelector<HTMLButtonElement>(".sheet-scrim .action-sheet button.destructive");
+const confirmDiscard = () => { const b = sheetButton(); if (!b) throw new Error("no confirm sheet"); fireEvent.click(b); };
+const composerGone = () => waitFor(() => expect(screen.queryByLabelText("Message")).toBeNull());
+const saves = (r: Rig) => r.calls.filter((c) => c.fn === "draft_save");
+const goOffline = () => { Object.defineProperty(navigator, "onLine", { value: false, configurable: true }); window.dispatchEvent(new Event("offline")); };
+// Every draft_save is recorded at once but takes `ms` to answer, so an autosave can be in flight when a tap lands.
+const slowSaves = (r: Rig, ms: number) => { const orig = r.client.rpc.bind(r.client); r.client.rpc = (async (fn: string, args?: Record<string, unknown>) => { const answer = orig(fn, args); if (fn === "draft_save") await new Promise((res) => setTimeout(res, ms)); return answer; }) as RpcClient["rpc"]; };
+
+describe("D5 (issue 103): Close keeps the words and says so", () => {
+  it("Close on a composer with words saves the draft from what is on screen and says Draft Saved", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Subject", "Quarterly note");
+    type("Message", "Words I do not want to lose.");
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    const drafts = Object.values(r.world.drafts);
+    expect(drafts.length).toBe(1);
+    expect(drafts[0]).toMatchObject({ subject: "Quarterly note", body_text: "Words I do not want to lose." });
+    expect(Object.values(loadLocalDrafts(USER)).map((d) => d.fields.body_text)).toEqual(["Words I do not want to lose."]);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED)).toBe(true);
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(false);
+  });
+
+  it("the header back is Close: same save, same word", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "Back is Close too.");
+    fireEvent.click(screen.getByRole("button", { name: "Email" }));
+    await composerGone();
+    expect(Object.values(r.world.drafts).map((d) => d.body_text)).toEqual(["Back is Close too."]);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED)).toBe(true);
+  });
+
+  it("an address typed in To and never blurred is saved by Close (it was read from a stale closure before)", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("To", "coach@example.test");
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    expect(saves(r).length).toBe(1);
+    expect((saves(r)[0]!.args.p_fields as DraftFields).to_addresses).toEqual(["coach@example.test"]);
+    expect(Object.values(loadLocalDrafts(USER))[0]!.fields.to_addresses).toEqual(["coach@example.test"]);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED)).toBe(true);
+  });
+
+  it("Close while an autosave is in flight waits for it and updates the same draft, never a second one", async () => {
+    const r = rig();
+    slowSaves(r, 400);
+    await openCompose(r);
+    type("Message", "first");
+    await new Promise((res) => setTimeout(res, 1150));
+    expect(saves(r).length).toBe(1);
+    type("Message", "first and more");
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    expect(Object.values(r.world.drafts).map((d) => d.body_text)).toEqual(["first and more"]);
+    expect(saves(r).map((c) => c.args.p_draft)).toEqual([null, "d-1"]);
+  });
+
+  it("Close offline keeps the words on this device and says exactly that; nothing is sent to the server", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "Written in the air");
+    goOffline();
+    await waitFor(() => expect(byRole(REVIEW_SEND)).toBeDisabled());
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    expect(saves(r).length).toBe(0);
+    expect(Object.values(loadLocalDrafts(USER)).map((d) => d.fields.body_text)).toEqual(["Written in the air"]);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED_HERE)).toBe(true);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED)).toBe(false);
+  });
+
+  it("an empty composer just closes: no draft, no device copy, no toast", async () => {
+    const r = rig();
+    await openCompose(r);
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    expect(saves(r).length).toBe(0);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual([]);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED || t.message === DRAFT_SAVED_HERE)).toBe(false);
+  });
+});
+
+describe("D5 (issue 103): Discard Draft always asks, once, before anything is deleted", () => {
+  it("the button opens the confirm and deletes nothing; Cancel keeps the composer and the draft", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Subject", "Keep me");
+    await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(1), { timeout: 3000 });
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    expect(screen.getByText(DISCARD_ASK)).toBeInTheDocument();
+    expect(sheetButton()).toHaveTextContent(DISCARD_DRAFT);
+    expect(r.calls.some((c) => c.fn === "draft_discard")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText(DISCARD_ASK)).toBeNull();
+    expect(screen.getByLabelText("Message")).toBeInTheDocument();
+    expect(Object.keys(r.world.drafts).length).toBe(1);
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(false);
+  });
+
+  it("an empty composer asks too", async () => {
+    const r = rig();
+    await openCompose(r);
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    expect(screen.getByText(DISCARD_ASK)).toBeInTheDocument();
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(false);
+  });
+
+  it("a confirm while the first autosave is still in flight leaves no draft behind", async () => {
+    const r = rig();
+    slowSaves(r, 400);
+    await openCompose(r);
+    type("Message", "Gone for good");
+    await new Promise((res) => setTimeout(res, 1150));
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    confirmDiscard();
+    await composerGone();
+    expect(Object.keys(r.world.drafts).length).toBe(0);
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(true);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual([]);
+  });
+
+  it("a server refusal keeps the composer open with the reason and does not say Discarded", async () => {
+    const r = rig({ rpc: { draft_discard: () => ({ error: "DRAFT_SENT", send_state: "sent" }) } });
+    await openCompose(r);
+    type("Message", "Already in the send's hands");
+    await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(1), { timeout: 3000 });
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    confirmDiscard();
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "draft_discard")).toBe(true));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByLabelText("Message")).toBeInTheDocument();
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(false);
+    expect(Object.keys(loadLocalDrafts(USER)).length).toBe(1);
+  });
+
+  it("offline with a draft already on the server says it cannot discard yet, and removes nothing", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "On the server already");
+    await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(1), { timeout: 3000 });
+    goOffline();
+    await waitFor(() => expect(byRole(REVIEW_SEND)).toBeDisabled());
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    confirmDiscard();
+    expect(await screen.findByText(DISCARD_OFFLINE)).toBeInTheDocument();
+    expect(Object.keys(r.world.drafts).length).toBe(1);
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(false);
+  });
+});
+
+// ISSUE 103 (D5 part 2, 2026-10-13): one save at a time, and nothing typed is lost on the way out. The fake server does its work
+// when it is ASKED (the world changes at request time) but a test can hold the ANSWER, so it can say exactly what is out when the
+// next tap or timer lands. That is the whole difference between "two saves" and "one draft saved twice".
+const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+const holdSaves = (r: Rig) => {
+  const orig = r.client.rpc.bind(r.client);
+  const out: Array<() => void> = [];
+  r.client.rpc = (async (fn: string, args?: Record<string, unknown>) => {
+    const answer = orig(fn, args);
+    if (fn === "draft_save") await new Promise<void>((res) => out.push(res));
+    return answer;
+  }) as RpcClient["rpc"];
+  return { releaseAll: () => { while (out.length) out.shift()!(); } };
+};
+const bodies = (r: Rig) => Object.values(r.world.drafts).map((d) => d.body_text);
+const localBodies = () => Object.values(loadLocalDrafts(USER)).map((d) => d.fields.body_text);
+
+describe("D5 part 2 (issue 103): the composer saves one thing at a time", { timeout: 15000 }, () => {
+  it("an autosave that comes due while the first is still out waits for it and updates the same draft: two rapid saves keep the last", async () => {
+    const r = rig();
+    const h = holdSaves(r);
+    await openCompose(r);
+    type("Message", "first");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    type("Message", "first and last");
+    await sleep(1250);
+    // Its turn has come, and the first answer is still out: it must not go out beside it (it would make a second draft).
+    expect(saves(r).length).toBe(1);
+    await waitFor(() => { h.releaseAll(); expect(saves(r).length).toBe(2); }, { timeout: 3000 });
+    await waitFor(() => { h.releaseAll(); expect(bodies(r)).toEqual(["first and last"]); });
+    expect(saves(r).map((c) => c.args.p_draft)).toEqual([null, "d-1"]);
+    expect(saves(r).map((c) => (c.args.p_fields as DraftFields).body_text)).toEqual(["first", "first and last"]);
+  });
+
+  it("Close with two saves outstanding waits behind both: one draft with the last words, said once", async () => {
+    const r = rig();
+    const h = holdSaves(r);
+    await openCompose(r);
+    type("Message", "one");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    type("Message", "one two");
+    await sleep(1250);
+    type("Message", "one two three");
+    fireEvent.click(byRole("Close"));
+    await waitFor(() => { h.releaseAll(); expect(screen.queryByLabelText("Message")).toBeNull(); }, { timeout: 4000 });
+    expect(bodies(r)).toEqual(["one two three"]);
+    expect(saves(r).filter((c) => c.args.p_draft === null).length).toBe(1);
+    expect(saves(r).at(-1)!.args.p_draft).toBe("d-1");
+    expect(toasts.filter((t) => t.message === DRAFT_SAVED).length).toBe(1);
+    expect(localBodies()).toEqual(["one two three"]);
+  });
+
+  it("Review Send with autosaves outstanding waits for them, saves the words on screen to the one draft, and reviews that revision", async () => {
+    const r = rig();
+    const h = holdSaves(r);
+    await openCompose(r);
+    type("To", "coach@example.test");
+    type("Message", "Words, first");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    type("Message", "Words, final");
+    await sleep(1250);
+    fireEvent.click(byRole(REVIEW_SEND));
+    await waitFor(() => { h.releaseAll(); expect(screen.getAllByText(REVIEW_TITLE).length).toBeGreaterThan(0); }, { timeout: 5000 });
+    expect(Object.keys(r.world.drafts)).toEqual(["d-1"]);
+    const d = r.world.drafts["d-1"]!;
+    expect(d.body_text).toBe("Words, final");
+    const reviews = r.calls.filter((c) => c.fn === "send_review");
+    expect(reviews.length).toBe(1);
+    expect(reviews[0]!.args).toEqual({ p_draft: "d-1", p_expected_revision: d.revision });
+  });
+
+  it("a Discard confirmed with saves outstanding leaves no draft behind, and leaving afterwards saves nothing back", async () => {
+    const r = rig();
+    const h = holdSaves(r);
+    await openCompose(r);
+    type("To", "coach@example.test");
+    type("Message", "Never to be seen again");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    type("Message", "Never to be seen again, nor this");
+    await sleep(1250);
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    confirmDiscard();
+    await waitFor(() => { h.releaseAll(); expect(screen.queryByLabelText("Message")).toBeNull(); }, { timeout: 4000 });
+    cleanup();
+    await sleep(1300);
+    h.releaseAll();
+    expect(Object.keys(r.world.drafts)).toEqual([]);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual([]);
+    expect(saves(r).length).toBe(1);
+    expect(toasts.some((t) => t.message === DRAFT_DISCARDED)).toBe(true);
+  });
+
+  it("Close right after typing saves the latest text exactly once, and nothing saves it again afterwards", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "Tapped Close the instant I stopped");
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    await sleep(1400);
+    expect(saves(r).length).toBe(1);
+    expect((saves(r)[0]!.args.p_fields as DraftFields).body_text).toBe("Tapped Close the instant I stopped");
+    expect(bodies(r)).toEqual(["Tapped Close the instant I stopped"]);
+    expect(localBodies()).toEqual(["Tapped Close the instant I stopped"]);
+  });
+
+  it("Close when the server cannot be reached keeps the words here, says so, and does not try to make the draft after leaving", async () => {
+    const r = rig({ rpc: { draft_save: () => ({ error: "UNAVAILABLE" }) } });
+    await openCompose(r);
+    type("Message", "Words the server never got");
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    await sleep(300);
+    expect(saves(r).length).toBe(1);
+    expect(localBodies()).toEqual(["Words the server never got"]);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED_HERE)).toBe(true);
+    expect(toasts.some((t) => t.message === DRAFT_SAVED)).toBe(false);
+    expect(Object.keys(r.world.drafts)).toEqual([]);
+  });
+
+  it("Review Send when the save is refused says why on the composer and gives the button back; nothing is reviewed", async () => {
+    const r = rig({ rpc: { draft_save: () => ({ error: "PROVIDER_AUTH" }) } });
+    await openCompose(r);
+    type("To", "coach@example.test");
+    type("Message", "Cannot go yet");
+    fireEvent.click(byRole(REVIEW_SEND));
+    expect(await screen.findByText("Reconnect Gmail to Continue")).toBeInTheDocument();
+    expect(screen.getByLabelText("Message")).toBeInTheDocument();
+    await waitFor(() => expect(byRole(REVIEW_SEND)).toBeEnabled());
+    expect(r.calls.filter((c) => c.fn === "send_review")).toEqual([]);
+  });
+
+  it("Review Send into a revision that moved on shows both copies and reviews nothing", async () => {
+    const r = rig({ conflictOnce: true });
+    await openCompose(r);
+    type("To", "coach@example.test");
+    type("Message", "First");
+    await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(1), { timeout: 3000 });
+    type("Message", "First, edited here");
+    fireEvent.click(byRole(REVIEW_SEND));
+    expect(await screen.findByText(USE_NEWER_DRAFT)).toBeInTheDocument();
+    expect(r.calls.filter((c) => c.fn === "send_review")).toEqual([]);
+    expect(byRole(REVIEW_SEND)).toBeDisabled();
+  });
+
+  it("a refused Discard puts the composer back as it was: the next change still saves", async () => {
+    const r = rig({ rpc: { draft_discard: () => ({ error: "DRAFT_SENT", send_state: "sent" }) } });
+    await openCompose(r);
+    type("Message", "Kept after a refusal");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    fireEvent.click(byRole(DISCARD_DRAFT));
+    confirmDiscard();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    type("Message", "Kept after a refusal, and more");
+    await waitFor(() => expect(bodies(r)).toEqual(["Kept after a refusal, and more"]), { timeout: 3000 });
+  });
+});
+
+describe("D5 part 2 (issue 103): leaving without Close loses nothing, and never makes a draft the server does not have", { timeout: 15000 }, () => {
+  it("leaving a breath after the last keystroke keeps the words on this device at once", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Subject", "Quick note");
+    type("Message", "Typed and gone");
+    cleanup();
+    expect(localBodies()).toEqual(["Typed and gone"]);
+    expect(Object.values(loadLocalDrafts(USER))[0]!.fields.subject).toBe("Quick note");
+  });
+
+  it("a draft that is not on the server yet is not made there on the way out: a screen that has gone never creates one", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "Typed and gone");
+    cleanup();
+    await sleep(1400);
+    expect(saves(r).length).toBe(0);
+    expect(Object.keys(r.world.drafts)).toEqual([]);
+    expect(localBodies()).toEqual(["Typed and gone"]);
+  });
+
+  it("a draft already on the server is brought up to date on the way out, once, as an update, and the device copy matches", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "v1");
+    await waitFor(() => expect(bodies(r)).toEqual(["v1"]), { timeout: 3000 });
+    type("Message", "v1 and a bit");
+    cleanup();
+    await waitFor(() => expect(bodies(r)).toEqual(["v1 and a bit"]), { timeout: 3000 });
+    expect(saves(r).map((c) => c.args.p_draft)).toEqual([null, "d-1"]);
+    await sleep(100);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual(["d-1"]);
+    expect(localBodies()).toEqual(["v1 and a bit"]);
+  });
+
+  it("a first save that lands after the screen has gone is adopted here: one device copy under the server's id, with the newest words", async () => {
+    const r = rig();
+    const h = holdSaves(r);
+    await openCompose(r);
+    type("Message", "first");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    type("Message", "first, then more");
+    cleanup();
+    await waitFor(() => { h.releaseAll(); expect(bodies(r)).toEqual(["first, then more"]); }, { timeout: 4000 });
+    await sleep(100);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual(["d-1"]);
+    expect(localBodies()).toEqual(["first, then more"]);
+    expect(saves(r).map((c) => c.args.p_draft)).toEqual([null, "d-1"]);
+  });
+
+  it("leaving offline keeps the words on this device and sends nothing", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "In the tunnel");
+    goOffline();
+    await waitFor(() => expect(byRole(REVIEW_SEND)).toBeDisabled());
+    cleanup();
+    await sleep(1300);
+    expect(saves(r).length).toBe(0);
+    expect(localBodies()).toEqual(["In the tunnel"]);
+  });
+
+  it("a conflict on screen is never settled on the way out: this device's words stay here, the server's stay there", async () => {
+    const r = rig({ conflictOnce: true });
+    await openCompose(r);
+    type("To", "coach@example.test");
+    type("Message", "These words");
+    await waitFor(() => expect(Object.keys(r.world.drafts).length).toBe(1), { timeout: 3000 });
+    type("Message", "These words, edited here");
+    expect(await screen.findByText(USE_NEWER_DRAFT, {}, { timeout: 3000 })).toBeInTheDocument();
+    const before = saves(r).length;
+    cleanup();
+    await sleep(1300);
+    expect(saves(r).length).toBe(before);
+    expect(bodies(r)).toEqual(["Newer words from the other phone."]);
+    expect(localBodies()).toEqual(["These words, edited here"]);
+  });
+
+  it("backgrounding the app writes the device copy at once and asks the server for nothing", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "Half a sentence");
+    window.dispatchEvent(new Event("pagehide"));
+    expect(localBodies()).toEqual(["Half a sentence"]);
+    expect(saves(r).length).toBe(0);
+    type("Message", "Half a sentence, then a whole one");
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    delete (document as unknown as Record<string, unknown>).visibilityState;
+    expect(localBodies()).toEqual(["Half a sentence, then a whole one"]);
+    expect(saves(r).length).toBe(0);
+  });
+
+  it("the review takes the draft over: nothing saves it again after the hand-off, so the approval is not voided", async () => {
+    const r = rig();
+    await openCompose(r);
+    await writeAndReview(r);
+    const d = Object.values(r.world.drafts)[0]!;
+    const before = saves(r).length;
+    cleanup();
+    await sleep(1300);
+    expect(saves(r).length).toBe(before);
+    expect(Object.values(r.world.drafts)[0]!.revision).toBe(d.revision);
+  });
+
+  it("under StrictMode (the app's own wrapper) an autosave is still adopted: saved once, and the line says Saved", async () => {
+    const r = rig();
+    render(
+      <StrictMode>
+        <ComposeScreen client={r.client} userId={USER} accounts={[account()]} offline={false} fileStore={null} now={() => NOW}
+          start={{ localKey: "local:strict", draftId: null, accountId: "acct-dave", fields: emptyFields(), revision: null }} onBack={() => {}} onReview={() => {}} onDiscarded={() => {}} />
+      </StrictMode>,
+    );
+    type("Message", "Strict words");
+    await waitFor(() => expect(screen.getByText(SAVED_LINE)).toBeInTheDocument(), { timeout: 3000 });
+    expect(bodies(r)).toEqual(["Strict words"]);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual(["d-1"]);
+  });
+});
+
+describe("D5 part 2 (issue 103): a composer nobody typed in makes no draft", { timeout: 15000 }, () => {
+  it("however long it stays open, and the line still says it is a draft only", async () => {
+    const r = rig();
+    await openCompose(r);
+    await sleep(1400);
+    expect(saves(r).length).toBe(0);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual([]);
+    expect(screen.getByText(DRAFT_ONLY)).toBeInTheDocument();
+  });
+
+  it("a reply nobody typed in makes none either, however long it stays open", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(screen.getAllByRole("button").some((b) => b.className.includes("mrow"))).toBe(true));
+    fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
+    await waitFor(() => expect(byRole("Reply")).toBeInTheDocument());
+    fireEvent.click(byRole("Reply"));
+    await waitFor(() => expect(screen.getByLabelText("To")).toHaveValue("coach@example.test"));
+    await sleep(1400);
+    expect(saves(r).length).toBe(0);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual([]);
+  });
+
+  it("typing something and taking it out again leaves no draft and no device copy", async () => {
+    const r = rig();
+    await openCompose(r);
+    type("Message", "x");
+    await waitFor(() => expect(localBodies()).toEqual(["x"]));
+    type("Message", "");
+    await sleep(1400);
+    expect(saves(r).length).toBe(0);
+    expect(Object.keys(loadLocalDrafts(USER))).toEqual([]);
+  });
+});
+
+describe("D5 part 2 (issue 103): a draft is listed once", { timeout: 15000 }, () => {
+  it("a draft saved from the composer shows once under Drafts, even when this phone's clock runs ahead of the server's", async () => {
+    const r = rig();
+    const AHEAD = new Date(NOW.getTime() + 4000);
+    render(<EmailFlow client={r.client} token="jwt" userId={USER} categories={[]} now={() => AHEAD} zone="America/New_York" onOpenConnections={() => {}} onOpenModule={() => {}} />);
+    await waitFor(() => expect(byRole("Compose")).toBeInTheDocument());
+    fireEvent.click(byRole("Compose"));
+    await waitFor(() => expect(screen.getByLabelText("To")).toBeInTheDocument());
+    type("To", "coach@example.test");
+    type("Subject", "Quarterly note");
+    type("Message", "Words");
+    await waitFor(() => expect(screen.getByText(SAVED_LINE)).toBeInTheDocument(), { timeout: 4000 });
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Last Checked/));
+    fireEvent.click(document.querySelector(".email-fresh")!);
+    fireEvent.click(await screen.findByText(DRAFTS_AND_SENT));
+    expect(await screen.findByText("Quarterly note")).toBeInTheDocument();
+    expect(screen.getAllByText("Quarterly note").length).toBe(1);
+    expect(screen.queryByText(THIS_DEVICE)).toBeNull();
+  });
+
+  it("a draft opened from the Drafts list and left alone is not saved again; the first change is an update at the revision it opened with", async () => {
+    const r = rig();
+    const v1: DraftFields = { ...emptyFields(), to_addresses: ["coach@example.test"], subject: "Plan", body_text: "v1" };
+    r.world.drafts["d-9"] = rowOf("d-9", "acct-dave", v1, 4, "2026-10-03T14:00:00Z");
+    mount(r);
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Last Checked/));
+    fireEvent.click(document.querySelector(".email-fresh")!);
+    fireEvent.click(await screen.findByText(DRAFTS_AND_SENT));
+    fireEvent.click(await screen.findByText("Plan"));
+    await waitFor(() => expect(screen.getByLabelText("Message")).toHaveValue("v1"));
+    await sleep(1400);
+    expect(saves(r).length).toBe(0);
+    type("Message", "v1 plus");
+    await waitFor(() => expect(saves(r).length).toBe(1), { timeout: 3000 });
+    expect(saves(r)[0]!.args).toMatchObject({ p_draft: "d-9", p_expected_revision: 4 });
+  });
+
+  it("a device copy with edits the server never saw is pushed when it is closed, at the revision this phone last saw, and only then is it called saved", async () => {
+    const r = rig();
+    const v1: DraftFields = { ...emptyFields(), to_addresses: ["coach@example.test"], subject: "Plan", body_text: "v1" };
+    r.world.drafts["d-9"] = rowOf("d-9", "acct-dave", v1, 1, "2026-10-03T14:00:00Z");
+    saveLocalDraft(USER, { key: "d-9", draft_id: "d-9", account_id: "acct-dave", fields: { ...v1, body_text: "v2 typed offline" }, revision: 1, saved_at: "2026-10-03T14:30:00Z", server_saved_at: null });
+    mount(r);
+    await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Last Checked/));
+    fireEvent.click(document.querySelector(".email-fresh")!);
+    fireEvent.click(await screen.findByText(DRAFTS_AND_SENT));
+    const deviceRow = (await screen.findByText(THIS_DEVICE)).closest(".row") as HTMLElement;
+    fireEvent.click(deviceRow);
+    await waitFor(() => expect(screen.getByLabelText("Message")).toHaveValue("v2 typed offline"));
+    fireEvent.click(byRole("Close"));
+    await composerGone();
+    expect(saves(r).length).toBe(1);
+    expect(saves(r)[0]!.args).toMatchObject({ p_draft: "d-9", p_expected_revision: 1 });
+    expect(r.world.drafts["d-9"]!.body_text).toBe("v2 typed offline");
+    expect(toasts.some((t) => t.message === DRAFT_SAVED)).toBe(true);
   });
 });
 

@@ -63,6 +63,7 @@ import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import FilingSheet from "../ai/FilingSheet";
 import type { TaskItem } from "../tasks/TasksService";
+import { saveTaskEdit } from "../tasks/saveTaskEdit";
 import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, carriedFields, durationOf, type Overlap } from "./dayEdit";
 import { lineCase, titleCase } from "../shared/casing";
@@ -1045,28 +1046,16 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     const t = await tasksSvc.task(id);
     if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
   };
-  const onSaveTask = async (draft: TaskDraft) => {
+  const onSaveTask = async (draft: TaskDraft): Promise<boolean> => {
     if (taskSheet) {
-      const id = taskSheet.id;
-      const rec = (draft.repeat || "") as "" | Recurrence;
-      await attemptWrite(async () => {
-        await tasksSvc.editText(id, draft.text);
-        await tasksSvc.setCategories(id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
-        await tasksSvc.setDue(id, draft.due || null);
-        await tasksSvc.setProject(id, draft.projectId ?? null);
-        await tasksSvc.setGoal(id, draft.goalId ?? null);
-        await tasksSvc.setEvent(id, draft.eventId ?? null);
-        await tasksSvc.setRecurrence(id, rec || null);
-        await tasksSvc.setPlan(id, draft.plan ?? null);
-        await tasksSvc.setSteps(id, draft.steps ?? []);
-        await tasksSvc.setNotes(id, draft.notes ?? null);
-        await tasksSvc.setEstimate(id, draft.estimateMin ?? null);
-        await tasksSvc.setPerson(id, draft.personId ?? null);
-        if (draft.closeNow) await tasksSvc.toggleDone(id);
-      });
+      // The one shared chain (saveTaskEdit.ts): a write that did not land keeps
+      // the sheet open and answers false; Mark Done sets, never flips (issue 102).
+      const saved = await saveTaskEdit(tasksSvc, taskSheet.id, draft, { closeNow: draft.closeNow, reload: reloadTasks });
+      if (!saved) return false;
     }
     setTaskSheet(null);
     await reloadTasks();
+    return true;
   };
   // From the task's sheet (its own id) or from a swipe on an Anytime row (the id it was swiped on).
   const onDeleteTask = async (rowId?: string) => {
@@ -1738,6 +1727,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           initial={taskSheet.initial}
           selfId={taskSheet.id}
           categories={categories}
+          completed={taskItems.find((x) => x.id === taskSheet.id)?.data.done === true}
           onSave={onSaveTask}
           onDelete={() => void onDeleteTask()}
           onSchedule={() => { const id = taskSheet.id; setTaskSheet(null); void onScheduleTask(id); }}

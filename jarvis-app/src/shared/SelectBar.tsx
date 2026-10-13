@@ -19,10 +19,12 @@ import HeadMenu from "./HeadMenu";
 // number in their head. "Delete 3" is a sentence; a trash can beside a "3"
 // somewhere else is a puzzle.
 //
-// There is no confirm step. Dave chose Undo over a confirm sheet, and the
-// app already works that way everywhere else: a confirm dialog on every
-// delete is a tax on the common case, paid to protect against the rare one,
-// which is exactly what Undo protects against for free.
+// The bar itself has no confirm step. Dave chose Undo over a confirm sheet, and
+// the app works that way for Tasks, Mail and the rest: a confirm dialog on
+// every delete is a tax on the common case, paid to protect against the rare
+// one, which is exactly what Undo protects against for free. Notes is the one
+// exception (issue 105, Alfred's report): its page puts a confirm sheet in
+// front of this bar's Delete (NotesList.tsx), so nothing here changes.
 export default function SelectBar({
   sel,
   onDelete,

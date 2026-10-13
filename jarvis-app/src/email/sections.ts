@@ -91,16 +91,62 @@ export function sectionOf(r: Facts & Pick<InboxRow, "id">, overrides: Overrides 
 
 export interface Section { key: SectionKey; rows: InboxRow[] }
 
-/** The loaded rows grouped in the fixed order, each keeping the given order (newest first). Empty sections are omitted. */
+/**
+ * One row per message. A message is its row id; the same account's provider id is the same message under a stale id (a
+ * snapshot an older build wrote), so that is a second key. The first copy wins, which keeps the given order. Two
+ * CONNECTED mailboxes holding the same Message-ID are different messages (different account_id) and both stay (3.3).
+ */
+export function dedupeRows<T extends Pick<InboxRow, "id" | "account_id" | "provider_id">>(rows: readonly T[]): T[] {
+  const ids = new Set<string>();
+  const providers = new Set<string>();
+  const out: T[] = [];
+  for (const r of rows) {
+    const p = r.account_id && r.provider_id ? `${r.account_id}\u0000${r.provider_id}` : null;
+    if (ids.has(r.id) || (p && providers.has(p))) continue;
+    ids.add(r.id);
+    if (p) providers.add(p);
+    out.push(r);
+  }
+  return out;
+}
+
+/** The loaded rows grouped in the fixed order, each keeping the given order (newest first). Empty sections are omitted. One row per message. */
 export function groupSections(rows: readonly InboxRow[], overrides: Overrides = {}): Section[] {
   const by = new Map<SectionKey, InboxRow[]>();
-  for (const r of rows) {
+  for (const r of dedupeRows(rows)) {
     const k = sectionOf(r, overrides);
     const list = by.get(k) ?? [];
     list.push(r);
     by.set(k, list);
   }
   return SECTION_KEYS.filter((k) => by.has(k)).map((k) => ({ key: k, rows: by.get(k)! }));
+}
+
+/**
+ * For each loaded message whose thread (this account's Gmail thread) has two or more loaded messages, how many. A fact
+ * about the row, nothing more: every message keeps its own row and its own actions, so a move or a bulk action still
+ * lands on exactly the message it was made on. What is loaded, never a claim about the whole thread.
+ */
+export function threadCounts(rows: readonly Pick<InboxRow, "id" | "account_id" | "provider_id" | "thread_id">[]): Record<string, number> {
+  const list = dedupeRows(rows);
+  const size = new Map<string, number>();
+  const keyOf = (r: Pick<InboxRow, "account_id" | "thread_id">) => (r.thread_id ? `${r.account_id}\u0000${r.thread_id}` : null);
+  for (const r of list) {
+    const k = keyOf(r);
+    if (k) size.set(k, (size.get(k) ?? 0) + 1);
+  }
+  const out: Record<string, number> = {};
+  for (const r of list) {
+    const k = keyOf(r);
+    const n = k ? size.get(k) ?? 0 : 0;
+    if (n >= 2) out[r.id] = n;
+  }
+  return out;
+}
+
+/** "3 Messages": the thread count on a row (a number, then its capitalized word). */
+export function threadWord(n: number): string {
+  return `${n} Messages`;
 }
 
 /** "12 Loaded": what is on the phone, never a claim about the whole mailbox (3.1). */

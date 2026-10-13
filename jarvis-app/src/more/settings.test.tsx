@@ -69,7 +69,8 @@ describe("Settings", () => {
     fireEvent.click(screen.getAllByText("Settings")[0]!);
     await waitFor(() => expect(screen.getByText("About")).toBeInTheDocument());
     fireEvent.click(screen.getByText("About"));
-    const line = await screen.findByRole("button", { name: /^Build / });
+    // The build line is plain text (issue 106 V5, 2026-10-13), so it is found by its words and not by a button role.
+    const line = await screen.findByText(/^Build /);
     for (let i = 0; i < 5; i++) fireEvent.click(line);
     // The panel is lazy; the title is what both of its branches render.
     await waitFor(() => expect(screen.getByText("Admin")).toBeInTheDocument());

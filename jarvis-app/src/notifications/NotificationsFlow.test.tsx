@@ -258,3 +258,101 @@ describe("NotificationsFlow: back to More", () => {
     expect(document.querySelector(".nav-back")).toBeNull();
   });
 });
+
+// CLEAR ALL (issue 106, Dave): one section-level action in the first band's head, never inside a card. This is a derived
+// status screen, so clearing is dismissing every nudge shown until tomorrow, with an Undo toast.
+describe("NotificationsFlow: Clear All", () => {
+  function Seeded({ withEvent }: { withEvent?: boolean }) {
+    const tasks = useTasks();
+    const sched = useSchedule();
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      void (async () => {
+        await tasks.createTask("Call the plumber", { due: "2020-01-01" });
+        if (withEvent) await sched.createEvent("Late Show", { date: todayISO(), start: "23:00", end: "23:59" });
+        setReady(true);
+      })();
+    }, [tasks, sched, withEvent]);
+    return ready ? <NotificationsFlow /> : null;
+  }
+  const key = "jarvis.notifications.dismissed.v1";
+  const clearBtn = () => screen.queryByRole("button", { name: "Clear All Notifications" });
+  beforeEach(() => { localStorage.clear(); resetToasts(); });
+  afterEach(() => vi.useRealTimers());
+
+  it("sits in the section head as the head capsule, never inside a card or a row", async () => {
+    render(<NotesProvider userId="u-notif-clear-place"><Seeded /></NotesProvider>);
+    await screen.findAllByText("Call the Plumber");
+    const btn = clearBtn()!;
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveTextContent("Clear All");
+    expect(btn.closest(".card")).toBeNull();
+    expect(btn.closest(".task-row")).toBeNull();
+    expect(btn.closest(".sh2")).not.toBeNull();
+    expect(btn).toHaveClass("see-all", "pill-action");
+  });
+
+  it("clears every row, shows the caught-up state, and stores every id it showed", async () => {
+    render(<NotesProvider userId="u-notif-clear-all"><Seeded /></NotesProvider>);
+    const rows = await screen.findAllByText("Call the Plumber");
+    expect(rows.length).toBe(2); // sliding + overdue
+    fireEvent.click(clearBtn()!);
+    expect(await screen.findByText("You're All Caught Up")).toBeInTheDocument();
+    expect(clearBtn()).toBeNull();
+    const stored = JSON.parse(localStorage.getItem(key)!) as { day: string; ids: string[] };
+    expect(stored.day).toBe(todayISO());
+    expect(stored.ids.length).toBe(2);
+    expect(stored.ids.some((i) => i.startsWith("sl-"))).toBe(true);
+    expect(stored.ids.some((i) => i.startsWith("ov-"))).toBe(true);
+  });
+
+  it("toasts the count in Title Case with an Undo, and Undo brings the rows back and un-dismisses them", async () => {
+    let toast: ToastState | null = null;
+    const unsub = subscribeToast((t) => { toast = t; });
+    try {
+      render(<NotesProvider userId="u-notif-clear-undo"><Seeded /></NotesProvider>);
+      await screen.findAllByText("Call the Plumber");
+      fireEvent.click(clearBtn()!);
+      await screen.findByText("You're All Caught Up");
+      const t = toast as ToastState | null;
+      expect(t?.message).toBe("2 Notifications Cleared");
+      expect(t?.actionLabel).toBe("Undo");
+      act(() => { t?.onAction?.(); });
+      expect((await screen.findAllByText("Call the Plumber")).length).toBe(2);
+      expect(clearBtn()).toBeInTheDocument();
+      expect((JSON.parse(localStorage.getItem(key)!) as { ids: string[] }).ids).toEqual([]);
+    } finally {
+      unsub();
+    }
+  });
+
+  it("has no button when there is nothing to clear", async () => {
+    render(<NotesProvider userId="u-notif-clear-empty"><NotificationsFlow /></NotesProvider>);
+    await screen.findByText("You're All Caught Up");
+    expect(clearBtn()).toBeNull();
+    expect(screen.queryByText("Clear All")).toBeNull();
+  });
+
+  it("with both bands showing there is exactly one Clear All, and it clears both", async () => {
+    const d = new Date(); d.setHours(8, 0, 0, 0);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(d);
+    render(<NotesProvider userId="u-notif-clear-both"><Seeded withEvent /></NotesProvider>);
+    await screen.findByText("Late Show");
+    expect(screen.getByText("Needs You")).toBeInTheDocument();
+    expect(screen.getByText("Coming Up")).toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: "Clear All Notifications" }).length).toBe(1);
+    // It rides the first band's head.
+    expect(clearBtn()!.closest(".sh2")!.querySelector(".t")!.textContent).toBe("Needs You");
+    fireEvent.click(clearBtn()!);
+    expect(await screen.findByText("You're All Caught Up")).toBeInTheDocument();
+    expect(screen.queryByText("Late Show")).toBeNull();
+    expect((JSON.parse(localStorage.getItem(key)!) as { ids: string[] }).ids.some((i) => i.startsWith("ev-"))).toBe(true);
+  });
+
+  it("draws no capsule on any row (the head holds the one action)", async () => {
+    render(<NotesProvider userId="u-notif-clear-rows"><Seeded /></NotesProvider>);
+    await screen.findAllByText("Call the Plumber");
+    expect(document.querySelectorAll(".task-row .pill-action, .task-row .pill-act, .task-row .row-act").length).toBe(0);
+  });
+});

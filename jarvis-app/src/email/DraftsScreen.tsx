@@ -16,7 +16,7 @@ import { ACCOUNTS_TITLE, DRAFTS_TITLE, EMPTY_DRAFTS, FAILED_BADGE, NO_SUBJECT, R
 import EmailFacts from "./EmailFacts";
 import { whenFacts, type EmailFact } from "./format";
 import EmptyState from "./EmptyState";
-import { listDrafts, outcomeOf, unsavedLocal, type DraftRow, type LocalDraft } from "./drafts";
+import { deviceOnly, listDrafts, outcomeOf, unsavedLocal, type DraftRow, type LocalDraft } from "./drafts";
 
 export default function DraftsScreen({ client, userId, offline, onBack, onCompose, onOpenDraft, onOpenLocal, onOpenSent, reloadKey = 0 }: {
   client: RpcClient;
@@ -37,7 +37,8 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
     const r = await listDrafts(client);
     if (!r.ok) { setError(r); return; }
     setLists(r.value);
-    setLocal(unsavedLocal(userId).filter((l) => !r.value.drafts.some((d) => d.id === l.draft_id && d.saved_at >= l.saved_at)));
+    // A copy of a draft the server lists (here or already sent) with the same words is that draft, listed once (issue 103).
+    setLocal(deviceOnly(unsavedLocal(userId), [...r.value.drafts, ...(r.value.sent ?? [])]));
   };
   useEffect(() => { void load();
   }, [client, reloadKey]);

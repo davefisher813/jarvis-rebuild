@@ -302,7 +302,17 @@ export default function NotesList({
     : VIEWS.find((v) => v.key === filter.kind)?.label ?? "All";
   // Recently Deleted's bulk Delete is the one that cannot be undone (below).
   const inDeleted = filter.kind === "deleted";
-  const [confirmForever, setConfirmForever] = useState<string[] | null>(null);
+  // ONE confirm in front of EVERY user-initiated delete (issue 105): the swipe
+  // tray, the long-press menu, Select mode, and Recently Deleted's Forever
+  // paths all open the same sheet, and nothing is written until its
+  // destructive button is tapped. Before this only Select inside Recently
+  // Deleted asked, so the same Delete sometimes confirmed and sometimes did
+  // not. A soft delete is still restorable (the Undo toast stays), so its
+  // sheet says so; only the permanent one says "No Undo".
+  const [ask, setAsk] = useState<{ ids: string[]; forever: boolean; fromSelect: boolean } | null>(null);
+  const askDelete = (ids: string[], forever: boolean, fromSelect = false) => {
+    if (ids.length) setAsk({ ids, forever, fromSelect });
+  };
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
@@ -432,12 +442,12 @@ export default function NotesList({
     if (n.deleted) {
       const menu: RowAction[] = [
         ...(onRestore ? [{ label: "Restore", onPick: () => onRestore(n.id) }] : []),
-        ...(onDeleteForever ? [{ label: "Delete Forever", destructive: true, onPick: () => onDeleteForever(n.id) }] : []),
+        ...(onDeleteForever ? [{ label: "Delete Forever", destructive: true, onPick: () => askDelete([n.id], true) }] : []),
       ];
       return menu.length ? (
         <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title}
           verb={onRestore ? { label: "Restore", icon: <RotateCcw className="ic" />, run: () => onRestore(n.id) } : undefined}
-          onDelete={onDeleteForever ? () => onDeleteForever(n.id) : undefined} forever holdActions={menu}>
+          onDelete={onDeleteForever ? () => askDelete([n.id], true) : undefined} forever holdActions={menu}>
           {body}
         </NoteSwipeRow>
       ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
@@ -448,12 +458,12 @@ export default function NotesList({
       ...(onAppend ? [{ label: "Add a Line", onPick: () => onAppend(n.id) }] : []),
       ...(onFile ? [{ label: "File Under an Area", onPick: () => onFile(n.id) }] : []),
       ...(onArchive ? [{ label: unarchive ? "Unarchive" : "Archive", onPick: () => onArchive(n.id, !unarchive) }] : []),
-      ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => onDelete(n.id) }] : []),
+      ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => askDelete([n.id], false) }] : []),
     ];
     return menu.length ? (
       <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title}
         verb={onArchive ? { label: unarchive ? "Unarchive" : "Archive", icon: <Archive className="ic" />, run: () => onArchive(n.id, !unarchive) } : undefined}
-        onDelete={onDelete ? () => onDelete(n.id) : undefined} holdActions={menu}>
+        onDelete={onDelete ? () => askDelete([n.id], false) : undefined} holdActions={menu}>
         {body}
       </NoteSwipeRow>
     ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
@@ -593,29 +603,45 @@ export default function NotesList({
       )}
       {onDeleteMany && (
         <SelectBar sel={sel} noun="Note" forever={inDeleted && !!onDeleteManyForever}
-          onDelete={() => {
-            // These notes are already in the trash, so Delete here is the
-            // permanent one: it says Forever on the bar and asks first,
-            // because Undo cannot bring them back.
-            if (inDeleted && onDeleteManyForever) { setConfirmForever(sel.selected); return; }
-            onDeleteMany(sel.selected); sel.exit();
-          }} />
+          // Notes confirm in this page, in front of the bar's Delete (the bar
+          // itself stays Undo-only for Tasks and Mail). Recently Deleted's
+          // Delete is the permanent one and says so; a live note's is not.
+          onDelete={() => askDelete(sel.selected, inDeleted && !!onDeleteManyForever, true)} />
       )}
-      {confirmForever && onDeleteManyForever && (
-        <RowActionSheet
-          // A sheet's title is an 11px caps label, never a sentence (the
-          // 2026-09-26 caps ruling): it was two sentences, "Delete this note
-          // for good? It cannot be brought back." Title Case, one short line,
-          // and "No Undo" is the catalog's own word for it, joined with a comma so the label is one phrase (2026-10-05).
-          title={confirmForever.length === 1 ? "Delete This Note for Good, No Undo" : `Delete ${confirmForever.length} Notes for Good, No Undo`}
-          actions={[{
-            label: confirmForever.length === 1 ? "Delete Note Forever" : `Delete ${confirmForever.length} Notes Forever`,
-            destructive: true,
-            onPick: () => { onDeleteManyForever(confirmForever); sel.exit(); },
-          }]}
-          onCancel={() => setConfirmForever(null)}
-        />
-      )}
+      {ask && (() => {
+        const n = ask.ids.length;
+        const one = n === 1;
+        // RowActionSheet closes itself (onCancel) BEFORE it calls onPick, so
+        // `ask` is already null by then; run closes over this render's copy.
+        const run = () => {
+          if (ask.forever) {
+            if (one && !ask.fromSelect && onDeleteForever) onDeleteForever(ask.ids[0]!);
+            else onDeleteManyForever?.(ask.ids);
+          } else if (one && !ask.fromSelect && onDelete) onDelete(ask.ids[0]!);
+          else onDeleteMany?.(ask.ids);
+          if (ask.fromSelect) sel.exit();
+        };
+        return (
+          <RowActionSheet
+            // A sheet's title is an 11px caps label, never a sentence (the
+            // 2026-09-26 caps ruling). Title Case, one short line, and "No
+            // Undo" is the catalog's own word for the permanent one, joined
+            // with a comma so the label is one phrase (2026-10-05). The
+            // restorable one must not claim it cannot be undone.
+            title={ask.forever
+              ? (one ? "Delete This Note for Good, No Undo" : `Delete ${n} Notes for Good, No Undo`)
+              : (one ? "Delete This Note, Restore It Within 30 Days" : `Delete ${n} Notes, Restore Within 30 Days`)}
+            actions={[{
+              label: ask.forever
+                ? (one ? "Delete Note Forever" : `Delete ${n} Notes Forever`)
+                : (one ? "Delete Note" : `Delete ${n} Notes`),
+              destructive: true,
+              onPick: run,
+            }]}
+            onCancel={() => setAsk(null)}
+          />
+        );
+      })()}
       <div className="screen-foot" />
     </div>
   );

@@ -22,10 +22,16 @@ const TEMPLATES_LIST: {
 export default function Templates({
   onSelect,
   onBack,
+  pending = null,
 }: {
   onSelect?: (key: TemplateKey) => void;
   onBack?: () => void;
+  // The template whose note is being made and opened (issue 106, V3). While
+  // one is, its row is the pressed one and carries the ring in place of the
+  // chevron, and every row stands down: a second tap would make a second note.
+  pending?: TemplateKey | null;
 }) {
+  const locked = pending != null;
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -38,18 +44,27 @@ export default function Templates({
       {/* V4: templates are a content list, the Library form. Bare colored
           glyphs, flat rows, one mini-caps label. */}
       <div className="sh2 sh2-quiet"><span className="t">Templates</span></div>
-      {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => (
-        <div className="lib-row" key={key} {...pressable(() => onSelect?.(key))}>
-          <div className={"lib-ico cat-fg-" + cat}>
-            <Icon className="ic" />
+      {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => {
+        const busy = pending === key;
+        return (
+          // Busy and unavailable are said in ARIA and drawn from it (components.css,
+          // .lib-row[aria-busy]), so the look cannot drift from what a screen reader hears.
+          // The back link above stays live: a person who changed their mind is never trapped.
+          <div className="lib-row" key={key}
+            aria-busy={busy || undefined}
+            aria-disabled={locked && !busy ? true : undefined}
+            {...pressable(() => onSelect?.(key), { disabled: locked })}>
+            <div className={"lib-ico cat-fg-" + cat}>
+              <Icon className="ic" />
+            </div>
+            <div className="lib-stack">
+              <div className="lib-name">{name}</div>
+              <div className="lib-sub">{desc}</div>
+            </div>
+            {busy ? <span className="spinner" role="status" aria-label="Opening" /> : <div className="chev"></div>}
           </div>
-          <div className="lib-stack">
-            <div className="lib-name">{name}</div>
-            <div className="lib-sub">{desc}</div>
-          </div>
-          <div className="chev"></div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

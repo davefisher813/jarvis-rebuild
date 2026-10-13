@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { sourceOpener } from "../shared/openSource";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_NOTE } from "./types";
@@ -536,7 +536,15 @@ export default function NotesFlow({
      
   }, [openId, openNonce]);
 
-  const pickTemplate = async (key: TemplateKey) => {
+  // WHICH TEMPLATE IS BEING MADE (issue 106 V3; pickTemplate, below, is the one door).
+  const [creating, setCreating] = useState<TemplateKey | null>(null);
+  const creatingRef = useRef(false);
+  // The screen as an await will find it. A closure over `screen` is the render the tap
+  // happened in, the one render that cannot know whether he has since gone Back.
+  const screenRef = useRef<Screen>(screen);
+  useLayoutEffect(() => { screenRef.current = screen; }, [screen]);
+
+  const makeNoteFromTemplate = async (key: TemplateKey) => {
     let id: string | null = null;
     await attemptWrite(async () => {
       // NO SILENT FILING (Dave 2026-08-29). This passed defaultCatId --
@@ -551,9 +559,37 @@ export default function NotesFlow({
       if (id && key !== "blank") await svc.applyTemplate(id, key);
     });
     if (!id) return;
+    // He may have walked away while the write was out (Back, or a link into another
+    // note). The note exists, so the list is refreshed to say so, but nobody is pulled
+    // into an editor they left, and the note they are reading is not replaced by this one.
+    if (!aliveRef.current) return;
+    if (screenRef.current !== "templates") { await loadList(); return; }
     openCurrentId(id);
     await loadCurrent(id);
+    // Opening reads the note back, which takes its own beats, and Back is live in them too.
+    if (!aliveRef.current) return;
+    if (screenRef.current !== "templates") { await loadList(); return; }
     setScreen("editor");
+  };
+
+  // TEMPLATE TAPS ANSWER AT ONCE (Dave 2026-10-13, issue 106 V3: "pressed state plus a
+  // spinner the moment a template is tapped, while the editor loads"). Making the note is
+  // two store round trips and opening it is several more, and the picker showed nothing in
+  // that time, so a second tap (on the same row, or a nervous one on its neighbour) made a
+  // second note. The REF is the guard: state is read a render later, and two taps in one
+  // tick both see the old render. The state only paints the pressed row and its ring.
+  // Always released in finally, so a failed write leaves the picker usable and the next tap
+  // is a fresh try (attemptWrite has already said Couldn't Save).
+  const pickTemplate = async (key: TemplateKey) => {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setCreating(key);
+    try {
+      await makeNoteFromTemplate(key);
+    } finally {
+      creatingRef.current = false;
+      setCreating(null);
+    }
   };
 
   // A PHOTO OR FILE WITH REAL BYTES (Dave 2026-09-02: "fully wired"). The
@@ -950,7 +986,7 @@ export default function NotesFlow({
     );
   }
   if (screen === "templates") {
-    return <div className={pushCls} key="templates"><Templates onSelect={pickTemplate} onBack={() => setScreen("list")} /></div>;
+    return <div className={pushCls} key="templates"><Templates onSelect={pickTemplate} pending={creating} onBack={() => setScreen("list")} /></div>;
   }
   if (screen === "connections") {
     const cat = current?.category ?? defaultCatId;

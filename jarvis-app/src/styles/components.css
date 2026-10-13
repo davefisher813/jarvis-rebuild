@@ -3039,6 +3039,18 @@ button {
 .lib-row + .lib-row { position: relative; }
 .lib-row + .lib-row::before { content: ""; position: absolute; top: 0; height: 0.5px; background: var(--divider);
   left: calc(var(--s-4) + 30px + var(--s-3h)); right: 0; }
+/* A TEMPLATE TAP ANSWERS AT ONCE (Dave 2026-10-13, issue 106 V3: "pressed state plus a spinner the moment a template is tapped, while the
+   editor loads"). The New Note picker sat dead for seconds while the note was made and opened, and every extra tap made another note. The
+   tapped row now holds the press tint (--press-3, the one a finger leaves a frame later) and swaps its chevron for the ring; the other five
+   stand down the way every unavailable row does (.set-row[aria-disabled] in ruled.css, 0.5). The state is said in ARIA and drawn from it, so
+   the look cannot drift from what a screen reader is told. [role="button"] on the busy rule is not decoration: without it the rule ties with
+   the light theme's white row fill ([data-theme="light"] .lib-row, further down this file), the later one wins, and the pressed row shows in
+   dark and stays white in light. With it the busy fill outweighs that one. Press tokens and the spinner that already ships: no new colour. The ring
+   takes the chevron's footprint (7px of width, the rest paid back in negative margin), so a long description does not re-wrap when the tap
+   lands, and wears neutral ink on the track, because brand red is for what can be tapped. */
+.lib-row[role="button"][aria-busy="true"] { background-color: var(--press-3); }
+.lib-row[role="button"][aria-disabled="true"] { opacity: 0.5; }
+.lib-row .spinner { width: 16px; height: 16px; border-width: 2px; margin: 0 -4.5px; flex-shrink: 0; border-top-color: var(--tx-2); }
 
 /* 4b · tip banner (dismissible offer: glyph, Title Case, gray sub, X) */
 .tip-banner { display: flex; align-items: flex-start; gap: var(--s-3); margin-bottom: var(--s-3);

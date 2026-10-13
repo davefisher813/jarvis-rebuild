@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { pressable } from "../shared/pressable";
 import { Head, Card, Row } from "./kit";
 
 export default function AboutPage({ onBack, onTerms, onPrivacy, onSupport, onSecret }: { onBack: () => void; onTerms?: () => void; onPrivacy?: () => void; onSupport?: () => void; onSecret?: () => void }) {
@@ -21,9 +20,16 @@ export default function AboutPage({ onBack, onTerms, onPrivacy, onSupport, onSec
         {/* Slice 09 QA (2026-10-04): fifteen taps on an iPhone opened nothing. The cause was
             MoreFlow, not this line: the door was wired only once the admin probe had already
             answered yes, so taps before that answer, or in a session where it failed, went
-            nowhere. The line is also a full control now (role, tab stop, Enter and Space) with
-            a 44px-class tap area, which is what pressable() is for. */}
-        <div className="account-sub about-build" {...pressable(bump)}>
+            nowhere. The line was also made a full control then (role, tab stop, Enter and
+            Space, a pointer cursor).
+            Issue 106 V5 (Dave, 2026-10-13): a plain build stamp must not look like a button, and
+            the accessibility tree and the cursor both called it one. It is text again. The
+            hidden door is a click handler and nothing else: no role, no tab stop, no key
+            handler, no pointer cursor, so a click is all that reaches it. The cost, accepted:
+            the Admin door can no longer be opened from a keyboard or a switch control through
+            this line. The words stay exactly "Build <sha> <date>", which QA reads live, and the
+            stylesheet leaves the line selectable so a long press copies the stamp natively. */}
+        <div className="account-sub about-build" onClick={bump}>
           {typeof __BUILD_ID__ === "string" ? <><span className="fact">{`Build ${__BUILD_ID__}`}</span>{" "}<span className="fact date">{__BUILD_DATE__}</span></> : "Build dev"}
         </div>
       </div></div>

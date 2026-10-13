@@ -141,7 +141,8 @@ import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { stripPick, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
-import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
+import { saveTaskEdit } from "../tasks/saveTaskEdit";
+import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, liveFailed, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
 import { liveCard, type LiveCard } from "../gym/liveCard";
@@ -1461,27 +1462,18 @@ export default function TodayFlow({
     });
   };
 
-  const onSaveTask = async (draft: TaskDraft) => {
+  const onSaveTask = async (draft: TaskDraft): Promise<boolean> => {
     if (sheet?.mode === "edit") {
-      const rec = (draft.repeat || "") as "" | Recurrence;
-      await attemptWrite(async () => {
-        await tasks.editText(sheet.id, draft.text);
-        await tasks.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
-        await tasks.setDue(sheet.id, draft.due || null);
-        await tasks.setProject(sheet.id, draft.projectId ?? null);
-        await tasks.setGoal(sheet.id, draft.goalId ?? null);
-        await tasks.setEvent(sheet.id, draft.eventId ?? null);
-        await tasks.setRecurrence(sheet.id, rec || null);
-        await tasks.setPlan(sheet.id, draft.plan ?? null);
-        await tasks.setSteps(sheet.id, draft.steps ?? []);
-        await tasks.setNotes(sheet.id, draft.notes ?? null);
-        await tasks.setEstimate(sheet.id, draft.estimateMin ?? null);
-        await tasks.setPerson(sheet.id, draft.personId ?? null);
-        if (draft.closeNow) await tasks.toggleDone(sheet.id);
-      });
+      // One chain for every screen that opens this sheet (saveTaskEdit.ts). A
+      // write that did not land keeps the sheet open with its draft and
+      // answers false, so Save comes back (issue 102); Mark Done (closeNow)
+      // sets the task done, never flips it, and says what it did.
+      const saved = await saveTaskEdit(tasks, sheet.id, draft, { closeNow: draft.closeNow, reload });
+      if (!saved) return false;
     }
     setSheet(null);
     await reload();
+    return true;
   };
 
   const onDeleteTask = async () => {
@@ -2048,6 +2040,24 @@ export default function TodayFlow({
   // deleted, or has moved on. See autoSweep.ts for the full reasoning.
   void sweepDismissTick; // re-derive after a sweep-card dismissal
   const movedNow = liveMoved(sweepReceipt, taskItems, today);
+  // The failure notice proves itself the same way (issue 102): a persisted
+  // failed receipt names tasks that did not move, and it shows only while one
+  // of them is still there, undone and overdue. null = the whole sweep could
+  // not run, so there is nothing to check and the notice stands for a retry.
+  const failedNow = liveFailed(sweepReceipt, taskItems, today);
+  const sweepFailedShown = !!sweepReceipt?.failed && (failedNow === null || failedNow.length > 0);
+  // Retry resumes only the tasks that did not move and merges into the
+  // earlier receipt. If the retry itself cannot run, the notice stays and says so.
+  const retrySweepNow = (): void => {
+    void (async () => {
+      try {
+        setSweepReceipt(await retrySweep(tasks, today));
+        await reload();
+      } catch {
+        showToast({ message: "Still Couldn't Move Them" });
+      }
+    })();
+  };
   // NOT THE EMAILS (Dave 2026-09-17: "they have their own section on the
   // home page; there is no need to have repetitiveness"). A task that was
   // born from a thread is the email band's to surface, with its verb; the
@@ -3213,23 +3223,29 @@ export default function TodayFlow({
         )}
       />
     ) : null,
-    sweepReceipt && sweepReceipt.failed ? (
+    sweepFailedShown ? (
       <NoticeCard
         key="sweepfail"
         offer
         weight={FAILING}
         icon={SWEEP_ICO}
-        tone="cat-fg-red"
+        // AMBER, not red (Dave 2026-10-12/13): a move that did not happen can
+        // be retried, so it is a recoverable problem; red is for what cannot
+        // be recovered.
+        tone="cat-fg-orange"
         title="Couldn't Move Yesterday's Tasks"
         // One grey (§AK, 2026-09-26): "Try again" came off, because the
-        // Retry pill beside it says it and does it.
-        sub="Nothing Was Lost"
+        // Retry pill beside it says it and does it. The line counts only the
+        // tasks that did not move (the others did); a failure with no ids
+        // (the whole sweep could not run) has no count to give, and there the
+        // old line is still true: every task kept its date.
+        sub={failedNow === null ? "Nothing Was Lost" : failedNow.length === 1 ? "1 Task Did Not Move" : `${failedNow.length} Tasks Did Not Move`}
         // ROW-TAP (Dave 2026-09-15): nothing to open, so the body retries,
         // the same safe verb as the pill.
-        onOpen={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}
+        onOpen={retrySweepNow}
         action={{
           label: "Retry",
-          onClick: () => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })(),
+          onClick: retrySweepNow,
         }}
       />
     ) : null,
@@ -4628,6 +4644,7 @@ export default function TodayFlow({
         initial={sheet.initial}
         categories={categories}
         categoryMinutes={estimates}
+        completed={taskItems.find((x) => x.id === sheet.id)?.data.done === true}
         onSave={onSaveTask}
         onDelete={onDeleteTask}
         onSchedule={onScheduleFromToday}

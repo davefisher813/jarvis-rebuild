@@ -7,11 +7,11 @@
 // the third move offers Set Aside exactly once, failure is loud.
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { Store, InMemoryAdapter } from "@core";
+import { Store, InMemoryAdapter, type ItemData, type ServerTime } from "@core";
 import { TasksService } from "./TasksService";
 import { recordSpot, touchActivity, restorableSpot, SESSION_GAP_MS, EXPIRY_MS } from "../restore/whereYouWere";
 import { nextBest, chainQuietToday, dismissChain, chainReason } from "./momentum";
-import { runAutoSweep, undoSweep, sweepable, setAsideCandidate, markOffered, readReceipt, retrySweep, liveMoved, dismissSweepCard, sweepCardDismissed } from "./autoSweep";
+import { runAutoSweep, undoSweep, sweepable, setAsideCandidate, markOffered, readReceipt, retrySweep, liveMoved, liveFailed, dismissSweepCard, sweepCardDismissed } from "./autoSweep";
 import type { BillInfo, Recurrence } from "../notes/types";
 // A bill task from before the Money ledger. createTask refuses bills now (a
 // bill lives in Money, hard rule 1), but the bills already stored still have
@@ -250,5 +250,132 @@ describe("Auto-Sweep", () => {
     const a = (await tasks.createTask("Now overdue", { due: "2026-08-13" }))!;
     const receipt = await retrySweep(tasks, TODAY);
     expect(receipt!.moved.map((m) => m.id)).toEqual([a]);
+  });
+});
+
+// Issue 102, "moving yesterday's tasks fails daily". One task the sweep could
+// not move used to fail the WHOLE sweep, and Retry (which re-ran everything and
+// overwrote the receipt) could never clear it. Failure is now per task, and a
+// task that is simply gone is not a failure at all.
+describe("Auto-Sweep failure is per task (issue 102)", () => {
+  // A stand-in for the two ways a listed task can be unmovable: the row reads
+  // as missing (the list came from the persisted cache, the read from the
+  // network), or the write is refused.
+  class Flaky extends InMemoryAdapter {
+    missing = new Set<string>();
+    throwOn = new Set<string>();
+    refuse = new Set<string>();
+    async read(ownerId: string, id: string) {
+      return this.missing.has(id) ? null : super.read(ownerId, id);
+    }
+    async apply(ownerId: string, id: string, patch: ItemData, serverTime?: ServerTime, clientAt?: number) {
+      if (this.throwOn.has(id)) throw Object.assign(new Error("denied"), { code: "42501", status: 403 });
+      if (this.refuse.has(id)) return false;
+      return super.apply(ownerId, id, patch, serverTime, clientAt);
+    }
+  }
+  async function three() {
+    const adapter = new Flaky();
+    const tasks = new TasksService(new Store(adapter), U);
+    const a = (await tasks.createTask("A", { due: "2026-08-12" }))!;
+    const b = (await tasks.createTask("B", { due: "2026-08-13" }))!;
+    const c = (await tasks.createTask("C", { due: "2026-08-14" }))!;
+    return { adapter, tasks, a, b, c };
+  }
+
+  it("a vanished task is not a sweep failure", async () => {
+    const { adapter, tasks, a, b, c } = await three();
+    adapter.missing.add(b); // listed, but its row will not read
+    const receipt = (await runAutoSweep(tasks, TODAY))!;
+    expect(receipt.moved.map((m) => m.id).sort()).toEqual([a, c].sort());
+    expect(receipt.failed).toBe(false);
+    expect(receipt.failedIds ?? []).toEqual([]);
+  });
+
+  it("a task whose write throws fails only itself", async () => {
+    const { adapter, tasks, a, b, c } = await three();
+    adapter.throwOn.add(b);
+    const receipt = (await runAutoSweep(tasks, TODAY))!;
+    expect(receipt.moved.map((m) => m.id).sort()).toEqual([a, c].sort());
+    expect(receipt.failed).toBe(true);
+    expect(receipt.failedIds).toEqual([b]);
+    expect((await tasks.task(a))!.due).toBe(TODAY);
+    expect((await tasks.task(b))!.due).toBe("2026-08-13");
+  });
+
+  it("a refused write is a failure, not a move", async () => {
+    const { adapter, tasks, a, b } = await three();
+    adapter.refuse.add(b);
+    const receipt = (await runAutoSweep(tasks, TODAY))!;
+    expect(receipt.moved.map((m) => m.id)).not.toContain(b);
+    expect(receipt.moved.map((m) => m.id)).toContain(a);
+    expect(receipt.failedIds).toEqual([b]);
+  });
+
+  it("Retry resumes only the failed ids and keeps the earlier moves", async () => {
+    const { adapter, tasks, a, b, c } = await three();
+    adapter.throwOn.add(b);
+    await runAutoSweep(tasks, TODAY);
+    adapter.throwOn.clear();
+    const receipt = (await retrySweep(tasks, TODAY))!;
+    expect(receipt.moved.map((m) => m.id).sort()).toEqual([a, b, c].sort());
+    expect(receipt.failed).toBe(false);
+    expect(receipt.failedIds).toEqual([]);
+    expect(readReceipt(TODAY)).toEqual(receipt); // persisted, not just returned
+    expect((await tasks.task(b))!.due).toBe(TODAY);
+    // Undo still has every move to put back.
+    await undoSweep(tasks, receipt);
+    expect((await tasks.task(a))!.due).toBe("2026-08-12");
+  });
+
+  it("a Retry that still fails keeps the earlier moves and the stuck id", async () => {
+    const { adapter, tasks, a, b, c } = await three();
+    adapter.throwOn.add(b);
+    await runAutoSweep(tasks, TODAY);
+    const receipt = (await retrySweep(tasks, TODAY))!;
+    expect(receipt.moved.map((m) => m.id).sort()).toEqual([a, c].sort());
+    expect(receipt.failed).toBe(true);
+    expect(receipt.failedIds).toEqual([b]);
+    expect(readReceipt(TODAY)!.moved.map((m) => m.id).sort()).toEqual([a, c].sort());
+  });
+
+  it("a failure that resolved itself leaves no failed receipt behind", async () => {
+    const { adapter, tasks, b } = await three();
+    adapter.throwOn.add(b);
+    await runAutoSweep(tasks, TODAY);
+    expect(readReceipt(TODAY)!.failed).toBe(true);
+    await tasks.deleteTask(b); // the stuck task is gone
+    const receipt = await retrySweep(tasks, TODAY);
+    expect(receipt!.failed).toBe(false);
+    expect(readReceipt(TODAY)!.failed).toBe(false);
+    // The next mount of Today reads the receipt back: it must not be failed.
+    expect((await runAutoSweep(tasks, TODAY))!.failed).toBe(false);
+  });
+
+  it("an older failed receipt with no ids still retries, and clears when nothing is left", async () => {
+    const tasks = svc();
+    localStorage.setItem("jarvis.sweep.receipt.v1", JSON.stringify({ date: TODAY, moved: [], failed: true }));
+    localStorage.setItem("jarvis.sweep.last.v1", TODAY);
+    expect(await retrySweep(tasks, TODAY)).toBeNull();
+    expect(readReceipt(TODAY)).toBeNull();
+  });
+
+  it("setDue reports a refused write and leaves the date alone", async () => {
+    const { adapter, tasks, b } = await three();
+    adapter.refuse.add(b);
+    expect(await tasks.setDue(b, TODAY)).toBe(false);
+    expect((await tasks.task(b))!.due).toBe("2026-08-13");
+  });
+
+  it("liveFailed drops a task that is done, deleted or re-dated, and keeps one still stuck", async () => {
+    const { tasks, a, b, c } = await three();
+    const receipt = { date: TODAY, moved: [], failed: true, failedIds: [a, b, c, "gone"] };
+    await tasks.toggleDone(a);
+    await tasks.setDue(b, TODAY);
+    const items = await tasks.listTasks();
+    expect(liveFailed(receipt, items, TODAY)).toEqual([c]);
+    expect(liveFailed({ ...receipt, failed: false }, items, TODAY)).toEqual([]);
+    expect(liveFailed({ date: TODAY, moved: [], failed: true }, items, TODAY)).toBeNull(); // whole sweep
+    expect(liveFailed(null, items, TODAY)).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@
 // @vitest-environment jsdom
 import "../../shared/tiptapTest";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoteEditor, { type EditorNote } from "./NoteEditor";
 import { blocksToDoc } from "../docModel";
@@ -37,6 +37,9 @@ describe("the header", () => {
     // The caret opens inside the first section, so the section actions are offered too.
     expect(items).toEqual(["Connections", "Pin Note", "Tags", "Copy As", "Find in Note", "Outline", "Move Section Up", "Move Section Down", "Copy Section", "Make Tasks from Checklist", "Archive", "Delete Note"]);
     fireEvent.click(screen.getByText("Delete Note"));
+    // The menu item asks first (issue 105); the sheet's destructive button deletes.
+    expect(onDeleteNote).not.toHaveBeenCalled();
+    fireEvent.click(within(document.querySelector(".action-sheet") as HTMLElement).getByText("Delete Note"));
     expect(onDeleteNote).toHaveBeenCalledTimes(1);
   });
 

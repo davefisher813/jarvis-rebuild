@@ -16,6 +16,8 @@ import { pressable } from "../shared/pressable";
 import { faceSlot } from "../messages/rowAnatomy";
 import { senderOf, whenShort } from "./format";
 import { SAME_CONTENT } from "./copy";
+import { threadWord } from "./sections";
+import { cleanSnippet } from "./snippet";
 import type { InboxRow } from "./emailClient";
 
 /** Two letters for the badge: the first and last word of the name, else the address's first two. */
@@ -27,7 +29,7 @@ export function initialsOf(r: Pick<InboxRow, "from_name" | "from_address">): str
   return (local.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2) || "?").toUpperCase();
 }
 
-function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false }: {
+function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0 }: {
   row: InboxRow;
   /** More than one mailbox is in the list, so each row says whose it is; empty when there is one. */
   accountLabel: string;
@@ -39,11 +41,13 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
   onPick?: (row: InboxRow) => void;
   /** Another connected mailbox holds this exact Message-ID (3.3). */
   sameContent?: boolean;
+  /** Loaded messages in this message's thread, when two or more: a fact on the row, never a pill. */
+  threadCount?: number;
 }) {
   const name = senderOf(row);
   const unread = !row.read;
   const subject = row.subject.trim() || "(No Subject)";
-  const snippet = row.snippet.trim();
+  const snippet = cleanSnippet(row.snippet);
   const tap = selecting && onPick ? () => onPick(row) : () => onOpen(row);
   const label = `${name} · ${subject}${unread ? " · Unread" : ""}${sameContent ? " · " + SAME_CONTENT : ""}`;
   return (
@@ -63,11 +67,12 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
           {subject}
           {row.attachment_metadata.length > 0 && <Paperclip className="mclip" aria-label="Has Attachments" />}
         </div>
-        {(snippet || accountLabel || sameContent) && (
+        {(snippet || accountLabel || sameContent || threadCount > 1) && (
           <div className="mline3">
             {snippet && <span className="msnip">{snippet}</span>}
             {accountLabel && <span className="macct">{accountLabel}</span>}
             {sameContent && <span className="macct msame">{SAME_CONTENT}</span>}
+            {threadCount > 1 && <span className="mthread">{threadWord(threadCount)}</span>}
           </div>
         )}
       </div>
@@ -83,5 +88,5 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
 // clock crossed a minute (the time words are minute-coarse). InboxList.test.tsx counts.
 const sameMinute = (a: Date, b: Date): boolean => Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 const MailRow = memo(MailRowBody, (a, b) => a.row === b.row && a.accountLabel === b.accountLabel && a.onOpen === b.onOpen && sameMinute(a.now, b.now)
-  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent);
+  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount);
 export default MailRow;

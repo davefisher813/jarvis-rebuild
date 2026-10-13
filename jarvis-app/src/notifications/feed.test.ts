@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFeed, dismissNudge, loadNudgeDismissed } from "./feed";
+import { buildFeed, dismissNudge, dismissNudges, restoreNudges, loadNudgeDismissed } from "./feed";
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
 import type { Goal } from "../life/types";
@@ -120,5 +120,42 @@ describe("buildFeed: the catalog", () => {
     }
     expect(feed.find((n) => n.kind === "due_today")!.sub).toBe("Due Today");
     expect(feed.find((n) => n.kind === "goal_risk")!.sub).toBe("Goal at Risk");
+  });
+});
+
+// CLEAR ALL (issue 106): the whole list is dismissed in one write, and Undo sets it back.
+describe("dismissNudges and restoreNudges", () => {
+  const fake = (seed?: string) => {
+    let v: string | null = seed ?? null;
+    return { getItem: () => v, setItem: (_k: string, x: string) => { v = x; }, get: () => v };
+  };
+
+  it("merges with what the day already holds, without duplicates", () => {
+    const st = fake();
+    dismissNudge("a", "2026-10-13", st);
+    const all = dismissNudges(["b", "a", "c"], "2026-10-13", st);
+    expect(all).toEqual(["a", "b", "c"]);
+    expect(loadNudgeDismissed("2026-10-13", st)).toEqual(["a", "b", "c"]);
+  });
+
+  it("starts a stale day over rather than carrying yesterday's ids", () => {
+    const st = fake(JSON.stringify({ day: "2026-10-12", ids: ["old"] }));
+    expect(dismissNudges(["x"], "2026-10-13", st)).toEqual(["x"]);
+  });
+
+  it("restore removes only the given ids and keeps the rest", () => {
+    const st = fake();
+    dismissNudge("keep", "2026-10-13", st);
+    dismissNudges(["a", "b"], "2026-10-13", st);
+    expect(restoreNudges(["a", "b"], "2026-10-13", st)).toEqual(["keep"]);
+    expect(loadNudgeDismissed("2026-10-13", st)).toEqual(["keep"]);
+    // A second or late tap lands on the same answer.
+    expect(restoreNudges(["a", "b"], "2026-10-13", st)).toEqual(["keep"]);
+  });
+
+  it("swallows a storage that throws on write", () => {
+    const st = { getItem: () => null, setItem: () => { throw new Error("private mode"); } };
+    expect(() => dismissNudges(["a"], "2026-10-13", st)).not.toThrow();
+    expect(() => restoreNudges(["a"], "2026-10-13", st)).not.toThrow();
   });
 });

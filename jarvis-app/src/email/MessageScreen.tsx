@@ -46,6 +46,7 @@ import { attachmentBlob, attachmentText, downloadAttachment, gmailLink, isCalend
 import { loadMessage, saveMessage } from "./deviceCache";
 import { hasRemoteImages, sizeLine, whenFacts, type EmailFact } from "./format";
 import EmailFacts from "./EmailFacts";
+import { cleanSnippet } from "./snippet";
 import { leadFor } from "../messages/rowAnatomy";
 import "../styles/mail-rows.css";
 import { KIND_WORD, PRIMARY, textOf } from "./candidates";
@@ -280,6 +281,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
     ...(moreActions ?? []),
   ];
 
+  // The first words of the message with the sender's padding and plumbing taken off (issue 103); "" draws nothing.
+  const preview = m ? cleanSnippet(m.snippet) : "";
   const attachments = m?.attachments?.length ? m.attachments : row.attachment_metadata;
   const area = categoryId ? categories.find((c) => c.id === categoryId)?.data : undefined;
   // V02 (the approved detail visual, 2026-10-12): the sender's circle, the name in white, the address as the head's
@@ -369,8 +372,9 @@ export default function MessageScreen({ client, token, userId, row, account, off
             )
               : m.text ? <div className="email-body">{m.text}</div>
                 : fetchingBody ? <div className="email-note quiet"><span>{BODY_PENDING}</span></div>
-                  : !m.has_body ? <div className="email-note quiet"><span>{offline || !token ? NO_BODY_OFFLINE : m.snippet}</span></div>
-                    : <div className="email-body">{m.snippet}</div>
+                  : !m.has_body ? (offline || !token ? <div className="email-note quiet"><span>{NO_BODY_OFFLINE}</span></div>
+                    : preview ? <div className="email-note quiet"><span>{preview}</span></div> : null)
+                    : preview ? <div className="email-body">{preview}</div> : null
           )}
 
           {attachments.length > 0 && (
