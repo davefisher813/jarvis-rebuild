@@ -117,6 +117,25 @@ describe("email.css: a tap target is 44", () => {
   });
 });
 
+describe("email.css: a screen's root class is scope, never geometry", () => {
+  // Found 2026-10-13 rendering the real Email tab: the Compose button was given the class .email-compose, and the Compose SCREEN's
+  // root already wore it (its fields and rows are scoped by it). The button's rule (width 48, height 48, a circle) sized the whole
+  // screen to a 48 pixel circle, and every field on it stacked one letter to a line. A class that roots a screen is a selector for
+  // what is inside it; a bare rule that gives it a box of its own is that bug coming back.
+  const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    return statSync(p).isDirectory() ? (n === "bench" ? [] : walk(p)) : /\.tsx$/.test(n) && !/\.test\.tsx$/.test(n) ? [p] : [];
+  });
+  const roots = [...new Set(walk(join(SRC, "email")).flatMap((f) => [...readFileSync(f, "utf8").matchAll(/className="screen\b([^"]*)"/g)].flatMap((m) => m[1]!.split(/\s+/).filter((c) => c.startsWith("email-")))))];
+  it("finds the screens' own classes (the check below is not looking at nothing)", () => {
+    expect(roots).toContain("email-compose");
+  });
+  it("no bare rule on one of them sets its width, height, radius or display", () => {
+    const bad = roots.flatMap((c) => RULES.filter((r) => r.sel === `.${c}` && /(^|;)\s*(width|height|border-radius|display|flex)\s*:/.test(r.body)).map((r) => `${r.sel} { ${r.body.trim()} }`));
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("email.css: every class in it is rendered somewhere (no subtext class without a call site)", () => {
   const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
     const p = join(dir, n);
