@@ -749,3 +749,94 @@ describe("The Use Grouped Mail explainer: one grey fact span, Title Case, no dot
     expect(copy.GROUPED_INTRO_TITLE.length).toBeLessThanOrEqual(32);
   });
 });
+
+// ---------------------------------------------------------------------------
+// THE CONTACT SHEET (issue 112, item 14): the sheet on the sender's circle follows the catalog like every other sheet of the tab
+// ---------------------------------------------------------------------------
+import ContactSheet from "./ContactSheet";
+import type { Resolved } from "./contactResolve";
+import type { Person } from "../people/types";
+
+describe("The contact sheet: one grey a row, facts as spans, Title Case, 12-hour time, no pill in a row, its one action in the sheet's own action line", () => {
+  const MAYA: Person = { id: "p-maya", data: { name: "Maya Chen", group: "contacts", email: "coach@example.test", categoryIds: ["c1"] } };
+  const TWIN: Person = { id: "p-twin", data: { name: "Maya Chen-Ortiz", group: "contacts", email: "coach@example.test" } };
+  const AREAS: Category[] = [AREA, { id: "c2", data: { name: "Bridge", color: "sky", order: 1 } } as Category];
+  const MAYA2: Person = { ...MAYA, data: { ...MAYA.data, categoryIds: ["c1", "c2"] } };
+  const recent: InboxRow[] = [
+    { ...ROW_, id: "r1", provider_id: "r1", subject: "Transcript" },
+    { ...ROW_, id: "r2", provider_id: "r2", thread_id: "t2", subject: "", internal_date: "2026-10-04T21:05:00" },
+  ];
+  const draw = (resolved: Resolved, o: Partial<Parameters<typeof ContactSheet>[0]> = {}) =>
+    render(<ContactSheet target={{ address: "coach@example.test", name: "Coach Miller" }} resolved={resolved} categories={AREAS} recent={recent} labels={{ "dave@example.test": "work" }} now={NOW}
+      onOpenMessage={noop} onOpenContact={noop} onClose={noop} {...o} />);
+  const STATES: Array<[string, Resolved]> = [
+    ["a saved contact with two groups", { kind: "one", person: MAYA2 }],
+    ["a saved contact with one group", { kind: "one", person: MAYA }],
+    ["an address that is not saved", { kind: "none" }],
+    ["two contacts on one address", { kind: "many", people: [MAYA2, TWIN] }],
+    ["the person's own mailbox", { kind: "own" }],
+    ["a People store that could not be read", { kind: "unknown" }],
+  ];
+
+  for (const [name, resolved] of STATES) {
+    it(`${name}: passes the same check every Email screen passes`, () => {
+      draw(resolved);
+      expect(catalogViolations(document.body)).toEqual([]);
+      expect(numberCaseViolations(document.body)).toEqual([]);
+      expect(capsulesInRows(document.body)).toEqual([]);
+      expect(loneActionBoxes(document.body)).toEqual([]);
+      // Every fact is a span, and a row is a plain row: nothing in it to press but the row itself.
+      for (const f of document.body.querySelectorAll(".fact")) expect(f.tagName).toBe("SPAN");
+      for (const r of document.body.querySelectorAll(".row")) expect(r.querySelector("button, .pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+      expect(document.body.querySelector(".facts:empty, .conn-meta:empty")).toBeNull();
+    });
+  }
+
+  it("the head has one grey, the raw address; the status is a mark or white, never a second grey; the group dots are the Areas' own", () => {
+    draw({ kind: "one", person: MAYA2 });
+    const head = document.body.querySelector(".email-head")!;
+    expect(texts(head, ".fact")).toEqual(["coach@example.test", "Money", "Bridge"]);
+    expect([...head.querySelectorAll(".fact")].filter(isGrey).map((f) => f.textContent)).toEqual(["coach@example.test"]);
+    expect([...head.querySelectorAll(".fact.cat .cd")].map((d) => d.className)).toEqual(["cd cat-bg-green", "cd cat-bg-sky"]);
+    cleanup();
+    draw({ kind: "none" });
+    const bare = document.body.querySelector(".email-head")!;
+    expect(texts(bare, ".fact")).toEqual(["coach@example.test", "Not in Contacts"]);
+    expect([...bare.querySelectorAll(".fact")].filter(isGrey).map((f) => f.textContent)).toEqual(["coach@example.test"]);
+    expect(bare.querySelector(".fact b")).toHaveTextContent("Not in Contacts");
+  });
+
+  it("a Recent Mail row is a subject and its day, time and mailbox as small-caps facts: no grey of its own, no count, no pill", () => {
+    draw({ kind: "none" });
+    const rows = [...document.body.querySelectorAll(".sh2 + .list-card-ruled .row")];
+    expect(rows.map((r) => r.querySelector(".conn-name")!.textContent)).toEqual(["Transcript", "(No Subject)"]);
+    expect(rows.map((r) => texts(r, ".fact").map((t) => (t ?? "").replace(/\s/g, " ")))).toEqual([["Today", "9:12 AM", "Work"], ["Yesterday", "9:05 PM", "Work"]]);
+    for (const r of rows) {
+      expect([...r.querySelectorAll(".fact")].filter(isGrey)).toEqual([]);
+      expect(r.querySelector(".chev")).not.toBeNull();
+    }
+  });
+
+  it("Open Contact is the sheet's own action, beneath the identity and the mail, never a button alone in a box and never in a row", () => {
+    draw({ kind: "one", person: MAYA });
+    const open = within(document.body).getByRole("button", { name: "Open Contact" });
+    expect(open.closest(".action-sheet")).not.toBeNull();
+    expect(open.closest(".row, .list-card-ruled")).toBeNull();
+    // Its card holds the identity and the mail beside it: it is not a box with only an action in it.
+    const card = open.closest(".card")!;
+    expect(card.querySelector(".email-head")).not.toBeNull();
+    expect(card.querySelector(".list-card-ruled")).not.toBeNull();
+    // The Done card is the sheet's second card, like every sheet's Cancel or Done.
+    expect([...document.body.querySelectorAll(".sheet-scrim > .card")].map((c) => [...c.querySelectorAll("button")].map((b) => b.textContent))).toEqual([["Open Contact"], ["Done"]]);
+  });
+
+  it("the strings it writes are Title Case with no dot, dash or sentence in them, and the spec's own words stand", () => {
+    expect(copy.NOT_IN_CONTACTS).toBe("Not in Contacts");
+    expect(copy.CHOOSE_CONTACT).toBe("Choose Contact");
+    for (const s of [copy.CONTACT_LABEL, copy.NOT_IN_CONTACTS, copy.CHOOSE_CONTACT, copy.RECENT_MAIL, copy.OPEN_CONTACT, copy.YOUR_MAILBOX, copy.contactDoorLabel("Maya Chen")]) {
+      expect(isTitleCase(s), s).toBe(true);
+      for (const code of [0x00b7, 0x2022, 0x2013, 0x2014]) expect(s.includes(String.fromCharCode(code)), s).toBe(false);
+      expect(s, s).not.toMatch(/\. [A-Z]| - /);
+    }
+  });
+});

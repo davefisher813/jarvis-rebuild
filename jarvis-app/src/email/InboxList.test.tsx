@@ -54,6 +54,22 @@ describe("InboxList with 500 cached rows", () => {
     expect(calls()).toBe(1001);
   });
 
+  // The sender's circle is a button on every row (issue 112, item 14), and its handler rides in the row's memo comparison, so a handler that
+  // is stable (EmailFlow's useCallback) keeps the long list still, and a new closure each render is the redraw the line above counts.
+  it("a stable contact handler redraws nothing; a new one on every render redraws every row", () => {
+    const rows = Array.from({ length: 100 }, (_, i) => row(i));
+    const groups = dayGroups(rows, NOW);
+    const onOpen = vi.fn();
+    const onContact = vi.fn();
+    const r = render(<InboxList groups={groups} labels={{}} now={NOW} onOpen={onOpen} onContact={onContact} atEnd />);
+    expect(r.container.querySelectorAll(".mrow button.mav").length).toBe(100);
+    expect(calls()).toBe(100);
+    r.rerender(<InboxList groups={dayGroups(rows, NOW)} labels={{}} now={new Date(NOW.getTime() + 10_000)} onOpen={onOpen} onContact={onContact} atEnd />);
+    expect(calls()).toBe(100);
+    r.rerender(<InboxList groups={groups} labels={{}} now={NOW} onOpen={onOpen} onContact={() => {}} atEnd />);
+    expect(calls()).toBe(200);
+  });
+
   it("a new handler closure on every render would redraw every row, which is why EmailFlow keeps one", () => {
     const rows = Array.from({ length: 50 }, (_, i) => row(i));
     const groups = dayGroups(rows, NOW);

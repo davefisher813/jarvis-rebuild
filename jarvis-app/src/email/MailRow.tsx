@@ -7,15 +7,20 @@
 // as small caps when more than one mailbox is in the list, and "Same Content"
 // beside it when another connected mailbox holds the exact same Message-ID
 // (3.3): a label, never a merge. The whole row is the door; in select mode the
-// whole row is the selection circle's door instead (spec 11).
+// whole row is the selection circle's door instead (spec 11). The sender's circle
+// is the one control inside the row: a real button (40px of paint, a 44px reach)
+// that opens the contact sheet (issue 112, item 14; spec 2.3: one tap target for
+// detail plus an avatar target for contact). A tap on it is its own and never
+// opens the row; in select mode, or where the screen offers no contact sheet, it
+// stays the plain mark.
 
 import { memo } from "react";
 import { Check, ChevronRight, Paperclip } from "../shared/icons";
 import "../styles/mail-rows.css";
-import { pressable } from "../shared/pressable";
+import { own, rowDoor } from "../shared/rowDoor";
 import { faceSlot } from "../messages/rowAnatomy";
 import { senderOf, whenShort } from "./format";
-import { SAME_CONTENT } from "./copy";
+import { SAME_CONTENT, contactDoorLabel } from "./copy";
 import { threadWord } from "./sections";
 import { cleanSnippet } from "./snippet";
 import type { InboxRow } from "./emailClient";
@@ -29,7 +34,7 @@ export function initialsOf(r: Pick<InboxRow, "from_name" | "from_address">): str
   return (local.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2) || "?").toUpperCase();
 }
 
-function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0 }: {
+function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0, onContact }: {
   row: InboxRow;
   /** More than one mailbox is in the list, so each row says whose it is; empty when there is one. */
   accountLabel: string;
@@ -43,6 +48,8 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
   sameContent?: boolean;
   /** Loaded messages in this message's thread, when two or more: a fact on the row, never a pill. */
   threadCount?: number;
+  /** The sender's circle opens the contact sheet (issue 112, item 14). Absent: the circle is the plain mark it was. Keep it stable (useCallback), or every row redraws. */
+  onContact?: (row: InboxRow) => void;
 }) {
   const name = senderOf(row);
   const unread = !row.read;
@@ -50,14 +57,25 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
   const snippet = cleanSnippet(row.snippet);
   const tap = selecting && onPick ? () => onPick(row) : () => onOpen(row);
   const label = `${name} · ${subject}${unread ? " · Unread" : ""}${sameContent ? " · " + SAME_CONTENT : ""}`;
+  const hue = faceSlot(row.from_address || name);
+  const initials = initialsOf(row);
   return (
-    <div className={"row mrow erow" + (picked ? " picked" : "")} {...pressable(tap)} aria-label={label}
+    <div className={"row mrow erow" + (picked ? " picked" : "")} {...rowDoor(tap)} aria-label={label}
       {...(selecting ? { "aria-pressed": picked } : {})}>
       {selecting && <span className={"sel-box" + (picked ? " on" : "")} aria-hidden="true">{picked && <Check className="ic" />}</span>}
-      <span className={"mav cat-fg-" + faceSlot(row.from_address || name)} aria-hidden="true">
-        {initialsOf(row)}
-        {unread && <span className="munread" />}
-      </span>
+      {onContact && !selecting && row.from_address.trim() ? (
+        // The circle is the row's only control. Its tap is its own (own() stops it, and rowDoor ignores a click that landed on an
+        // inner control), and so are its keys. The 44px reach is mail-rows.css's, drawn outside the 40px circle: nothing moves.
+        <button type="button" className={"mav cat-fg-" + hue} aria-label={contactDoorLabel(name)} onClick={own(() => onContact(row))} onKeyDown={(e) => e.stopPropagation()}>
+          {initials}
+          {unread && <span className="munread" />}
+        </button>
+      ) : (
+        <span className={"mav cat-fg-" + hue} aria-hidden="true">
+          {initials}
+          {unread && <span className="munread" />}
+        </span>
+      )}
       <div className="ms">
         <div className="mline1">
           <span className={"mfrom" + (unread ? " strong" : "")}>{name}</span>
@@ -88,5 +106,5 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
 // clock crossed a minute (the time words are minute-coarse). InboxList.test.tsx counts.
 const sameMinute = (a: Date, b: Date): boolean => Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 const MailRow = memo(MailRowBody, (a, b) => a.row === b.row && a.accountLabel === b.accountLabel && a.onOpen === b.onOpen && sameMinute(a.now, b.now)
-  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount);
+  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount && a.onContact === b.onContact);
 export default MailRow;

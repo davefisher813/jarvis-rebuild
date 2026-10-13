@@ -105,8 +105,9 @@ DB2=email_coverage_prod_shape
 psql -qAt -d postgres -c "drop database if exists $DB2" -c "create database $DB2 encoding 'UTF8' lc_collate 'C' lc_ctype 'C' template template0" >/dev/null
 q2() { PGOPTIONS="-c client_min_messages=warning" psql -qAt -v ON_ERROR_STOP=1 -d "$DB2" "$@"; }
 q2 -f "$here/stub_supabase.sql" >/dev/null
-# 0072 redefines email_accounts() with 0065's sync keys, so it is a dependent of 0065 and waits for it too.
-for f in $(ls "$here"/../migrations/*.sql | sort | grep -v -e 0065_ -e 0072_); do q2 -f "$f" >/dev/null; done
+# 0072_email_signature_builder redefines email_accounts() with 0065's sync keys, so it is a dependent of 0065 and waits
+# for it too. (Two migrations carry the number 0072; only this one waits.)
+for f in $(ls "$here"/../migrations/*.sql | sort | grep -v -e 0065_ -e 0072_email_signature); do q2 -f "$f" >/dev/null; done
 q2 -c "alter table email_account add column sync_state text default 'catching_up' check (sync_state in ('not_started','syncing','current','catching_up','stale','failed','paused')), add column coverage_start timestamptz, add column verified_through_at timestamptz, add column auth_state text, add column paused_at timestamptz" >/dev/null
 q2 -f "$here/fixtures/substrate_fixtures.sql" >/dev/null
 q2 -f "$here/../migrations/0065_email_sync_coverage.sql" >/dev/null

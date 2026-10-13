@@ -435,6 +435,18 @@ export const RETRY_FAILED = "Retry Failed";
 export const SIGN_IN_FIRST = "Signed Out of JARVIS";
 export const RECONNECT_FIRST = "Reconnect Gmail Before Acting on Its Mail";
 export const NOTHING_SELECTED = "Nothing Selected";
+// The contact sheet on the sender's circle (issue 112, item 14; Email v1 spec 4: "Unknown address: Not in contacts."). Every
+// line is Title Case with no dot and no dash. A sender the People store cannot place says Not in Contacts; two contacts that
+// carry one address say Choose Contact; nothing here claims a count, a date or a history the data does not hold.
+export const CONTACT_LABEL = "Contact";
+export const NOT_IN_CONTACTS = "Not in Contacts";
+export const CHOOSE_CONTACT = "Choose Contact";
+export const RECENT_MAIL = "Recent Mail";
+export const OPEN_CONTACT = "Open Contact";
+/** The sender is one of the person's own connected mailboxes: not a contact, and not a stranger either. */
+export const YOUR_MAILBOX = "Your Mailbox";
+/** The name a screen reader gives the sender's circle, which is a button: what it opens, and for whom. */
+export const contactDoorLabel = (name: string): string => `Contact Details for ${name}`;
 
 /** "12 Selected". */
 export function selectedWord(n: number): string {
