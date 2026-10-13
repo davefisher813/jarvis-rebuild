@@ -7,7 +7,8 @@ import InlineEdit from "../../shared/InlineEdit";
 import { titleCase } from "../../shared/casing";
 import DocEditor, { type DocEditorHandle } from "../../shared/DocEditor";
 import type { Doc } from "../docModel";
-import { docWordCount } from "../docModel";
+import { docWordCount, firstLineOf } from "../docModel";
+import { deleteAskTitle } from "../deleteAsk";
 import { docToMarkdown, docToPlainText } from "../markdown";
 import type { ExportImage } from "../exportDoc";
 import ExportSheet from "./ExportSheet";
@@ -652,7 +653,8 @@ export default function NoteEditor({
       )}
       {confirmDelete && onDeleteNote && (
         <RowActionSheet
-          title="Delete This Note, Restore It Within 30 Days"
+          title={deleteAskTitle(title || firstLineOf(liveDoc()))}
+          cancelFirst
           actions={[{ label: "Delete Note", destructive: true, onPick: () => onDeleteNote() }]}
           onCancel={() => setConfirmDelete(false)}
         />
