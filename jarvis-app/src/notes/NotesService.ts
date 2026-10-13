@@ -15,6 +15,7 @@ import {
   type FoundCandidate,
   type NoteVersion,
 } from "./types";
+import { duplicatePage, type PageData } from "./pages/pageModel";
 import { docToBlocks, setTaskDone, linkedTasksIn, displayTitle, applyChecklistLinks, type Doc } from "./docModel";
 
 const VERSION_CAP = 20;
@@ -94,6 +95,36 @@ export class NotesService {
     const id = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: id });
     return id;
+  }
+
+  // TEMPLATE PAGES (issue #115). A page is a note: the same item, list,
+  // search, pin, area and trash. Its structure rides in `page`, written whole
+  // in one update so a reader never sees half an edit.
+  async createPage(title: string, page: PageData, category = ""): Promise<string | null> {
+    const data: NoteData = { title: title.trim(), category, blocks: [], connections: [], page };
+    const id = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: id });
+    return id;
+  }
+
+  async setPage(id: string, page: PageData): Promise<boolean> {
+    const note = await this.getNote(id);
+    if (!note) return false;
+    await this.store.update(this.ownerId, id, { page } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return true;
+  }
+
+  /** Duplicate Page: a new note with the same structure and a fresh set of record ids; the area and tags come along,
+   *  pins, originals and snapshots do not. */
+  async duplicatePage(id: string): Promise<string | null> {
+    const note = await this.getNote(id);
+    if (!note?.page) return null;
+    const title = (note.title.trim() || "Page") + " Copy";
+    const data: NoteData = { title, category: note.category, blocks: [], connections: [], page: duplicatePage(note.page), ...(note.tags?.length ? { tags: note.tags } : {}) };
+    const newId = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: newId });
+    return newId;
   }
 
   async editTitle(id: string, title: string): Promise<void> {

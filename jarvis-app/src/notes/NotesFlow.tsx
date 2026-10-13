@@ -22,10 +22,10 @@ import { showToast } from "../shared/toast";
 import { lineCase } from "../shared/casing";
 import { fileMemory, showFilingConfirm } from "../ai/filingIntake";
 import type { BrainMemoryCategory } from "../ai/brainMemory";
-import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
+import { usePickFile, PICK_ANY, PICK_IMAGE, PICK_TABLE } from "../shared/usePickFile";
 import { backendConfigured } from "../data/store";
 import { fileStem, sizeLabel } from "../files/types";
-import { FormSheet, Group, Row, FieldRow, Strip } from "../shared/FormSheet";
+import { FormSheet, Group, Row, FieldRow, Strip, TextRow, Note } from "../shared/FormSheet";
 import { Check } from "../shared/icons";
 
 import { attemptWrite } from "../shared/guard";
@@ -34,8 +34,13 @@ import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
 import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/QuickCreateSheet";
 import { todayISO, addDays } from "../schedule/calendar";
+import PageScreen, { type PendingImport } from "./pages/PageScreen";
+import { type PageKind, type PageData, KIND_NAME, newTeamPage, newOutreachPage, newScorecardPage, pageSummary, takeSnapshot, markBase } from "./pages/pageModel";
+import { StartRoundSheet, PageShareSheet } from "./pages/PageSheets";
+import { keepOriginal, readSource, type TableSource } from "./pages/pageImport";
+import RowActionSheet from "../shared/RowActionSheet";
 
-type Screen = "list" | "editor" | "templates" | "connections" | "createTasks" | "linkPicker";
+type Screen = "list" | "editor" | "templates" | "connections" | "createTasks" | "linkPicker" | "page";
 
 const TEMPLATE_TITLE: Record<TemplateKey, string> = {
   // A blank note has no title until one is typed; its first line names it
@@ -299,7 +304,9 @@ export default function NotesFlow({
           // event note's " · Sep 17" is dropped (§AK; the meta line has it).
           id: it.id, title: listTitle(d), edited, category: d.category || "", first: d.title.trim() ? firstLine(d) : "", body: noteBlockText(d),
           // The row's second line reads these (NotesList rowLine). An untitled note's first line is its title, so it is not said twice.
-          lines: contentLines(d.doc ?? blocksToDoc(d.blocks), 5).slice(d.title.trim() ? 0 : 1),
+          // A template page's second line says what it holds ("12 Players"); it has no document to quote.
+          lines: d.page ? [pageSummary(d.page)] : contentLines(d.doc ?? blocksToDoc(d.blocks), 5).slice(d.title.trim() ? 0 : 1),
+          ...(d.page ? { page: d.page.kind } : {}),
           // C-18 / C-20
           ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}), ...(d.deletedAt ? { deleted: true } : {}),
           ...((d.found ?? []).some((c) => !c.added) ? { found: (d.found ?? []).filter((c) => !c.added).length } : {}),
@@ -482,8 +489,16 @@ export default function NotesFlow({
     // open from a dangling chip leaves the current note open, and resetting
     // passLenRef there made its next save skip the PASS_DELTA check and fire
     // an unneeded JARVIS Find call.
-    if (!(await svc.note(id))) { showToast({ message: "Couldn't Open That Note" }); return false; }
+    const found = await svc.note(id);
+    if (!found) { showToast({ message: "Couldn't Open That Note" }); return false; }
     await flushDoc();
+    // A TEMPLATE PAGE (issue #115) opens on its own screen: it has records, not a document.
+    if (found.page) {
+      setSaveState("idle");
+      openCurrentId(id);
+      setScreen("page");
+      return true;
+    }
     setSaveState("idle");
     passLenRef.current = -1;
     // A draft left on device (the app was killed mid-sentence) is newer than
@@ -536,7 +551,15 @@ export default function NotesFlow({
      
   }, [openId, openNonce]);
 
+  // #106 V3: one note per tap. The picker already ignores a second tap while the first is in flight; this refuses a
+  // second create from any other door too, so a slow store can never turn two taps into two notes.
+  const creating = useRef(false);
   const pickTemplate = async (key: TemplateKey) => {
+    if (creating.current) return;
+    creating.current = true;
+    try { await makeFromTemplate(key); } finally { creating.current = false; }
+  };
+  const makeFromTemplate = async (key: TemplateKey) => {
     let id: string | null = null;
     await attemptWrite(async () => {
       // NO SILENT FILING (Dave 2026-08-29). This passed defaultCatId --
@@ -554,6 +577,81 @@ export default function NotesFlow({
     openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
+  };
+
+  // TEMPLATE PAGES (issue #115). Each opens ready to use: a round goes straight to its players, a Team Sheet and an
+  // Outreach Tracker open empty with their Add in the head, a lineup is picked from a Team Sheet.
+  const [startRound, setStartRound] = useState(false);
+  const [chooseTeam, setChooseTeam] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [pageBack, setPageBack] = useState<"list" | "templates">("list");
+  const [pageStart, setPageStart] = useState<"lineup" | null>(null);
+  const openPage = (id: string, from: "list" | "templates" = "list", start: "lineup" | null = null) => {
+    openCurrentId(id);
+    setPageBack(from);
+    setPageStart(start);
+    setScreen("page");
+    void loadList();
+  };
+  const createPage = async (title: string, page: PageData): Promise<string | null> => {
+    if (creating.current) return null;
+    creating.current = true;
+    try {
+      let id: string | null = null;
+      const ok = await attemptWrite(async () => { id = await svc.createPage(title, page); });
+      return ok ? id : null;
+    } finally { creating.current = false; }
+  };
+  const pickPage = async (kind: PageKind) => {
+    if (kind === "scorecard") { setStartRound(true); return; }
+    if (kind === "lineup") { setChooseTeam(true); return; }
+    const id = await createPage(KIND_NAME[kind], kind === "team" ? newTeamPage() : newOutreachPage());
+    if (id) openPage(id);
+  };
+  const teamSheets = list.filter((n) => n.page === "team" && !n.deleted && !n.archived);
+
+  // IMPORT, STORED FIRST (issue #115's pipeline). The roster becomes a Team Sheet named after the file the moment it is
+  // picked, with the file kept on it as the original, before a single row is read; the confirm step comes after. If he
+  // backs out of it, the page and its original are still there.
+  const importTable = async (src: TableSource) => {
+    const title = "file" in src ? fileStem(src.name) || "Roster" : "Pasted Roster";
+    const id = await createPage(title, newTeamPage());
+    if (!id) return;
+    const base = (await svc.note(id))?.page ?? newTeamPage();
+    let kept: Awaited<ReturnType<typeof keepOriginal>> | null = null;
+    try { kept = await keepOriginal(fileStore, id, base, src, Date.now()); }
+    catch (e) { showToast({ message: lineCase(e instanceof Error ? e.message : "Couldn't Read That File") }); }
+    if (kept) {
+      const k = kept;
+      await attemptWrite(() => svc.setPage(id, k.page));
+      if (!k.stored && !k.original.text) showToast({ message: "Couldn't Keep the Original File" });
+      try {
+        const t = await readSource(src);
+        if (t.rows.length >= 2) setPendingImport({ originalAt: k.original.at, rows: t.rows, notes: t.notes, name: k.original.name, mode: "import" });
+        else showToast({ message: "No Rows in That File" });
+      } catch (e) {
+        showToast({ message: lineCase(e instanceof Error ? e.message : "Couldn't Read That File") });
+      }
+    }
+    if (!aliveRef.current) return;
+    openPage(id);
+  };
+  const tablePicker = usePickFile((f) => void importTable({ file: f, name: f.name }));
+  const [pasting, setPasting] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+
+  // EXPORT OR SHARE FROM THE LIST (H): the same sheet the page's bar opens, for a page row's menu.
+  const [sharing, setSharing] = useState<{ id: string; title: string; page: PageData } | null>(null);
+  const shareFromList = async (id: string) => {
+    const d = await svc.note(id);
+    if (d?.page) setSharing({ id, title: d.title.trim() ? d.title : KIND_NAME[d.page.kind], page: d.page });
+  };
+  const duplicateFromList = async (id: string) => {
+    let made: string | null = null;
+    const ok = await attemptWrite(async () => { made = await svc.duplicatePage(id); });
+    if (!ok || !made) return;
+    await loadList();
+    showToast({ message: "Copy Made", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => svc.trashNote(made!)); await loadList(); })() });
   };
 
   // A PHOTO OR FILE WITH REAL BYTES (Dave 2026-09-02: "fully wired"). The
@@ -840,7 +938,7 @@ export default function NotesFlow({
 
   // Stack depth per screen: list is root, editor and templates sit above it,
   // connections above the editor, its two pickers above that.
-  const NOTE_DEPTH: Record<Screen, number> = { list: 0, editor: 1, templates: 1, connections: 2, linkPicker: 3, createTasks: 3 };
+  const NOTE_DEPTH: Record<Screen, number> = { list: 0, editor: 1, templates: 1, connections: 2, linkPicker: 3, createTasks: 3, page: 1 };
   const pushCls = usePushDepth(NOTE_DEPTH[screen]);
 
   // DELETE (Dave 2026-08-24; wave 3b). A deleted note goes to Recently
@@ -914,6 +1012,11 @@ export default function NotesFlow({
         notes={list}
         onOpen={openNote}
         onNewNote={() => setScreen("templates")}
+        onBlankNote={() => void pickTemplate("blank")}
+        onImportTable={() => tablePicker.open(PICK_TABLE)}
+        onPasteRows={() => { setPasteText(""); setPasting(true); }}
+        onShare={(id) => void shareFromList(id)}
+        onDuplicate={(id) => void duplicateFromList(id)}
         onAddFile={fileStore ? () => pickInto(null, "file") : undefined}
         uploading={uploading}
         onDeleteMany={onDeleteManyNotes}
@@ -929,6 +1032,24 @@ export default function NotesFlow({
         <QuickAppendSheet title={list.find((n) => n.id === appending)?.title ?? "Note"} onDone={(nodes) => void runAppend(appending, nodes)} onCancel={() => setAppending(null)} />
       )}
       {picker.input}
+      {tablePicker.input}
+      {pasting && (
+        <FormSheet title="Paste Rows" saveLabel="Next" saveDisabled={!pasteText.trim()} onCancel={() => setPasting(false)}
+          onSave={() => { setPasting(false); void importTable({ text: pasteText, name: "Pasted Rows" }); }}>
+          <Group label="Rows">
+            <TextRow ariaLabel="Pasted rows" placeholder="Name, Number, Position" value={pasteText} onChange={setPasteText} rows={8} />
+          </Group>
+          <Note>Copy Rows from Sheets or Excel, Header First; You Confirm Every Column Next</Note>
+        </FormSheet>
+      )}
+      {sharing && (
+        <PageShareSheet title={sharing.title} page={sharing.page} onClose={() => setSharing(null)}
+          onExported={(format) => {
+            const s = sharing;
+            const snap = takeSnapshot(s.page, "export", Date.now());
+            void attemptWrite(() => svc.setPage(s.id, format === "pdf" ? snap : markBase(snap))).then(() => loadList());
+          }} />
+      )}
       {/* FILE UNDER (the swipe's File, 2026-09-02): the areas as rows with
           their dots, Not Filed to clear. One tap files and closes. */}
       {filing && (
@@ -950,7 +1071,51 @@ export default function NotesFlow({
     );
   }
   if (screen === "templates") {
-    return <div className={pushCls} key="templates"><Templates onSelect={pickTemplate} onBack={() => setScreen("list")} /></div>;
+    return (
+      <div className={pushCls} key="templates">
+        <Templates onSelect={pickTemplate} onPage={pickPage} onBack={() => setScreen("list")} />
+        {startRound && (
+          <StartRoundSheet onCancel={() => setStartRound(false)} onStart={(o) => void (async () => {
+            setStartRound(false);
+            const id = await createPage(o.course.trim() || "Golf Round", newScorecardPage({ ...o, date: todayISO() }));
+            if (id) openPage(id, "templates");
+          })()} />
+        )}
+        {chooseTeam && (
+          <RowActionSheet title="Lineup from Which Team Sheet" onCancel={() => setChooseTeam(false)}
+            actions={[
+              ...teamSheets.map((t) => ({ label: t.title || "Team Sheet", onPick: () => openPage(t.id, "templates", "lineup") })),
+              { label: "New Team Sheet", onPick: () => void (async () => { const id = await createPage("Team Sheet", newTeamPage()); if (id) openPage(id, "templates"); })() },
+            ]} />
+        )}
+      </div>
+    );
+  }
+  if (screen === "page" && currentId) {
+    return (
+      <div className={pushCls} key={"page-" + currentId}>
+        <PageScreen noteId={currentId} backLabel={backToOrigin ? nav.origin!.label : pageBack === "templates" ? "New Note" : "Notes"}
+          onBack={() => {
+            const back = pageBack;
+            openCurrentId(null);
+            setPageBack("list");
+            void loadList();
+            setScreen(back);
+            if (backToOrigin) nav.back();
+          }}
+          onOpenNote={(id) => void openNote(id)}
+          onChanged={() => void loadList()}
+          onTrashed={(id, title) => {
+            openCurrentId(null);
+            void loadList();
+            setScreen("list");
+            showToast({ message: lineCase(title + " deleted"), actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.untrashNote(id)); await loadList(); } });
+          }}
+          pendingImport={pendingImport}
+          onPendingConsumed={() => setPendingImport(null)}
+          startWith={pageStart} />
+      </div>
+    );
   }
   if (screen === "connections") {
     const cat = current?.category ?? defaultCatId;

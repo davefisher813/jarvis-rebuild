@@ -15,7 +15,7 @@ export interface StoredFile { path: string; name: string; mime: string; bytes: n
 
 export interface FileStore {
   /** Uploads under {uid}/{entityId}/{uniq}-{filename}; throws a user-facing message. */
-  upload(entityId: string, file: File): Promise<StoredFile>;
+  upload(entityId: string, file: File, opts?: { table?: boolean }): Promise<StoredFile>;
   /** A URL the page can show or open, or null when the file cannot be read. */
   url(path: string): Promise<string | null>;
   /** Best effort; a missing file is not an error. */
@@ -28,8 +28,8 @@ export class SupabaseFileStore implements FileStore {
   private urls = new Map<string, { url: string; until: number }>();
   constructor(private client: SupabaseClient, private uid: string) {}
 
-  async upload(entityId: string, file: File): Promise<StoredFile> {
-    const prepared = await prepareUpload(file);
+  async upload(entityId: string, file: File, opts: { table?: boolean } = {}): Promise<StoredFile> {
+    const prepared = await prepareUpload(file, opts);
     const path = buildStoragePath(this.uid, entityId, prepared.filename, uploadUniquifier());
     const { error } = await this.client.storage.from(BUCKET).upload(path, prepared.bytes, {
       contentType: prepared.mimeType, upsert: true,
@@ -71,8 +71,8 @@ export class MemoryFileStore implements FileStore {
   private shelf = new Map<string, string>();
   constructor(private uid: string) {}
 
-  async upload(entityId: string, file: File): Promise<StoredFile> {
-    const prepared = await prepareUpload(file);
+  async upload(entityId: string, file: File, opts: { table?: boolean } = {}): Promise<StoredFile> {
+    const prepared = await prepareUpload(file, opts);
     const path = buildStoragePath(this.uid, entityId, prepared.filename, uploadUniquifier());
     const old = this.shelf.get(path);
     if (old) URL.revokeObjectURL(old);

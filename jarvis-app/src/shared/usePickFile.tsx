@@ -7,6 +7,8 @@ import { useRef, type ReactNode } from "react";
 // picked twice in a row.
 export const PICK_ANY = "image/*,application/pdf";
 export const PICK_IMAGE = "image/*";
+// A table to bring into a template page (issue #115): a CSV or TSV from Sheets, an Excel workbook.
+export const PICK_TABLE = ".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 export function usePickFile(onFile: (f: File) => void): { input: ReactNode; open: (accept?: string) => void } {
   const ref = useRef<HTMLInputElement>(null);

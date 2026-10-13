@@ -110,6 +110,10 @@ export interface NoteData {
   // he has already added or linked. Candidates only; nothing here is a
   // record until the tap that makes it one.
   found?: FoundCandidate[];
+  // TEMPLATE PAGES (issue #115): a note with structure. Records with stable
+  // ids, typed fields with labels he names, the originals it came from and
+  // dated snapshots, all on this one item. A note without it is a document.
+  page?: import("./pages/pageModel").PageData;
 }
 
 export interface NoteVersion { at: number; doc: import("@tiptap/core").JSONContent }
