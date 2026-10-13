@@ -78,7 +78,7 @@ import {
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
 import { accountLabels, dayGroups, homeFreshness, isCatchingUp, senderOf } from "./format";
-import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, listMoves, loadGroupedIntroDone, loadOverrides, loadView, loadedWord, recordMove, saveGroupedIntroDone, saveView, sameContent as sameContentOf, sectionOf, threadCounts, type HomeView, type Overrides, type SectionKey } from "./sections";
+import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, listMoves, loadGroupedIntroDone, loadOverrides, loadView, loadedWord, recordMove, saveGroupedIntroDone, saveView, sameContent as sameContentOf, sectionOf, sectionSummary, threadCounts, type HomeView, type Overrides, type SectionKey } from "./sections";
 import { OP_OF, REVERSE, attentionLine, doneLine, pickOf, reasonsOf, runBatch, tally, type BatchOutcome, type Picked, type TrayVerb } from "./bulk";
 import MailSelectTray from "./MailSelectTray";
 import type { BatchOp } from "./emailClient";
@@ -118,6 +118,7 @@ import EmptyState from "./EmptyState";
 import CandidateCards from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
 import WhySectionSheet from "./WhySectionSheet";
+import SectionWhySheet from "./SectionWhySheet";
 import ContactSheet from "./ContactSheet";
 import { recentFrom, resolveSender } from "./contactResolve";
 import {
@@ -253,6 +254,11 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // Why This Section? (issue 112, item 15): the message whose reason is on screen, by id, so the sheet always reads the freshest
   // row. Read-only; opening it writes nothing.
   const [whyId, setWhyId] = useState<string | null>(null);
+  /** The section heading whose Why This Section? is open (issue 112 remainder): its key and the rows loaded under it. */
+  const [sectionWhy, setSectionWhy] = useState<{ key: SectionKey; rows: InboxRow[] } | null>(null);
+  const openSectionWhy = useCallback((g: { key?: string; rows: InboxRow[] }) => {
+    if (g.key && (SECTION_KEYS as readonly string[]).includes(g.key)) setSectionWhy({ key: g.key as SectionKey, rows: g.rows });
+  }, []);
   // The contact sheet on a sender's circle (issue 112, item 14): who was tapped, the saved contacts read when it opened, and
   // the cached mail found from that address. All three are gone the moment the sheet closes; nothing is kept or written.
   const [contact, setContact] = useState<{ address: string; name: string } | null>(null);
@@ -741,7 +747,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const chipOn = view === "date" ? chip : null;
   const visible = useMemo(() => (chipOn ? accountRows.filter((r) => catOf(r) === chipOn) : accountRows), [accountRows, chipOn, catOf]);
   const groups = useMemo(() => (view === "grouped"
-    ? groupSections(visible, overrides).map((g) => ({ label: SECTION_NAME[g.key], rows: g.rows, count: loadedWord(g.rows.length), slot: SECTION_SLOT[g.key] }))
+    ? groupSections(visible, overrides).map((g) => ({ label: SECTION_NAME[g.key], rows: g.rows, count: loadedWord(g.rows.length), slot: SECTION_SLOT[g.key], key: g.key }))
     : dayGroups(visible, now)), [view, visible, overrides, now]);
   // The Grouped view says when a message belongs to a thread of two or more loaded messages; All by Date stays plain.
   const threads = useMemo(() => (view === "grouped" ? threadCounts(visible) : undefined), [view, visible]);
@@ -1472,10 +1478,11 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
           )}
           <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
             selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
-            onOpen={openInboxRow} onContact={openContactRow}
+            onOpen={openInboxRow} onContact={openContactRow} onWhy={openSectionWhy}
             // The open message owns its own cards inside the sheet; the dimmed
             // row behind it does not draw them a second time.
             renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
+          {sectionWhy && <SectionWhySheet summary={sectionSummary(sectionWhy.key, sectionWhy.rows, overrides)} onClose={() => setSectionWhy(null)} />}
         </>
       )}
       <div className="screen-foot" />

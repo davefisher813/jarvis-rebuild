@@ -242,6 +242,12 @@
 .sh2 .email-sec-pick { order: 3; flex: 0 0 auto; position: relative; background: none; border: 0; padding: 0; font-family: var(--f);
   font-size: var(--t-sub); font-weight: var(--w-semi); color: var(--tx-1); }
 .sh2 .email-sec-pick::after { content: ""; position: absolute; inset: -15px -10px; }
+/* A section heading's Why This Section? (issue 112 remainder): the info glyph after the count, in the heading's own ink, its
+   hit box reaching 44 the way the heading's Select does. No colour of its own and no box. */
+.sh2 .email-sec-why { order: 3; flex: 0 0 auto; position: relative; display: inline-flex; align-items: center; background: none; border: 0;
+  padding: 0; margin-left: var(--s-2); color: var(--tx-3); }
+.sh2 .email-sec-why .ic { width: 18px; height: 18px; }
+.sh2 .email-sec-why::after { content: ""; position: absolute; inset: -13px; }
 /* The rows of one heading, in one card. */
 .email-list { overflow: hidden; }
 /* THE USE GROUPED MAIL EXPLAINER (issue 112, item 17) is the shared notice card and draws nothing of its own (components.css

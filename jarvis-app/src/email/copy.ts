@@ -430,6 +430,25 @@ export const WHY_LIST = { both: "List-ID and List-Unsubscribe Headers", id: "Lis
 export const WHY_NO_FACTS = "Facts Not Kept for This Message";
 /** Two or more Money templates fit the same message: the spec leaves that to Other rather than guess between them. */
 export const WHY_MONEY_AMBIGUOUS = "More Than One Money Template Fit";
+// The section heading's Why This Section? (issue 112 remainder, 2026-10-13). What each section is for, in one line, then
+// how many loaded messages each rule placed. Fragments, Title Case, no dot, no dash.
+export const SECTION_PURPOSE: Record<"conversations" | "schedule" | "money" | "lists" | "other", string> = {
+  conversations: "Threads Where You Sent a Message",
+  schedule: "Mail with Calendar Structure",
+  money: "Bills, Receipts and Statements from Registered Senders",
+  lists: "Mail Sent to a Mailing List",
+  other: "Mail No Section Rule Matched",
+};
+export const WHY_ROW_FOR = "For";
+export const WHY_ROW_HERE = "Here Because";
+export const WHY_ROW_FROM = "Senders";
+export const WHY_ROW_MAILBOXES = "Mailboxes";
+export const WHY_ROW_CAVEAT = "Read From";
+/** "12 Messages": a count with its noun, Title Case with the number first. */
+export const messagesCount = (n: number): string => `${n} ${n === 1 ? "Message" : "Messages"}`;
+/** The plain answer when a section's loaded mail carries no specific reason (no facts kept): said, never filled in. */
+export const WHY_SECTION_NONE = "No Specific Reason Kept for These Messages";
+export const WHY_FACTS_NOT_KEPT = "Facts Not Kept";
 export const TRASH_HELPER = "Moves Selected Messages to Trash.";
 export const RETRY_FAILED = "Retry Failed";
 export const SIGN_IN_FIRST = "Signed Out of JARVIS";

@@ -12,7 +12,8 @@
 import { Fragment, type ReactNode } from "react";
 import ListFloor from "../shared/ListFloor";
 import MailRow from "./MailRow";
-import { DESELECT_SECTION, LOADED_SO_FAR, LOAD_MORE, LOADING_MORE, SELECT_SECTION } from "./copy";
+import { DESELECT_SECTION, LOADED_SO_FAR, LOAD_MORE, LOADING_MORE, SELECT_SECTION, WHY_SECTION } from "./copy";
+import { Info } from "../shared/icons";
 import type { InboxRow } from "./emailClient";
 
 export interface ListGroup {
@@ -22,9 +23,11 @@ export interface ListGroup {
   count?: string;
   /** A category slot that colours the heading's name (a section); none keeps the heading grey (a day). */
   slot?: string | null;
+  /** The section this heading is (Grouped only): its Why This Section? opens for it. A day heading has none. */
+  key?: string;
 }
 
-export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads, onContact }: {
+export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads, onContact, onWhy }: {
   groups: ListGroup[];
   /** The label each mailbox wears on its rows; empty labels when there is one mailbox. */
   labels: Record<string, string>;
@@ -50,6 +53,8 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
   threads?: Record<string, number>;
   /** A sender's circle was tapped: the contact sheet (issue 112, item 14). Keep it stable, or every row redraws. */
   onContact?: (row: InboxRow) => void;
+  /** A section heading's Why This Section? (issue 112 remainder): the flow opens the sheet for that section. */
+  onWhy?: (group: ListGroup) => void;
 }) {
   return (
     <div className="pad-x">
@@ -60,6 +65,9 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
             <div className="sh2 sh2-quiet">
               <span className="t">{g.slot ? <span className={"email-sec-name cat-fg-" + g.slot}>{g.label}</span> : g.label}</span>
               <span className="n">{g.count ?? g.rows.length}</span>
+              {!selecting && onWhy && g.key && (
+                <button className="email-sec-why" aria-label={WHY_SECTION} title={WHY_SECTION} onClick={() => onWhy(g)}><Info className="ic" /></button>
+              )}
               {selecting && onPickGroup && (
                 <button className="email-sec-pick" onClick={() => onPickGroup(g.rows, !all)}>{all ? DESELECT_SECTION : SELECT_SECTION}</button>
               )}

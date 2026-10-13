@@ -345,3 +345,48 @@ export function listMoves(userId: string, known: readonly Pick<InboxRow, "id" | 
 export function putBack(userId: string, id: string, storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): Overrides {
   return recordMove(userId, { id, subject: "", from_name: "", from_address: "" }, null, new Date(), storage);
 }
+
+// ---- WHY A WHOLE SECTION (issue 112 remainder, 2026-10-13: "Why This Section?" on each section header) ----
+//
+// The heading's answer is the same resolver read over the section's loaded rows: what the section is for, then how
+// many of its messages each rule put there, with the facts those rules read (the registered senders, the list
+// headers, the calendar structure, the mailbox). Nothing is inferred beyond what whySection already says per row.
+
+export interface SectionSummary {
+  key: SectionKey;
+  /** How many loaded rows each rule put here. Only rules that placed at least one row. */
+  byVia: Partial<Record<WhyVia, number>>;
+  /** Money: the registry's issuers that matched, most first. */
+  issuers: string[];
+  /** Conversations: the mailboxes whose threads hold a sent message. */
+  accounts: string[];
+  /** Mailing Lists: how many rows carried each header. */
+  lists: { id: number; unsubscribe: number };
+  /** Schedule: how many rows each calendar fact placed. */
+  calendar: Partial<Record<CalendarHit, number>>;
+  /** Other: rows with no facts kept, and rows two Money templates fit. */
+  noFacts: number;
+  moneyAmbiguous: number;
+  total: number;
+}
+
+export function sectionSummary(key: SectionKey, rows: readonly (Facts & Pick<InboxRow, "id"> & Partial<Pick<InboxRow, "account">>)[], overrides: Overrides = {}): SectionSummary {
+  const s: SectionSummary = { key, byVia: {}, issuers: [], accounts: [], lists: { id: 0, unsubscribe: 0 }, calendar: {}, noFacts: 0, moneyAmbiguous: 0, total: 0 };
+  const issuerCount = new Map<string, number>();
+  const accounts = new Set<string>();
+  for (const r of rows) {
+    const why = whySection(r, overrides);
+    if (why.key !== key) continue;
+    s.total++;
+    const e = why.evidence;
+    s.byVia[e.kind] = (s.byVia[e.kind] ?? 0) + 1;
+    if (e.kind === "money") issuerCount.set(e.issuer, (issuerCount.get(e.issuer) ?? 0) + 1);
+    if (e.kind === "conversation" && r.account) accounts.add(r.account);
+    if (e.kind === "list") { if (e.listId) s.lists.id++; if (e.unsubscribe) s.lists.unsubscribe++; }
+    if (e.kind === "calendar") s.calendar[e.hit] = (s.calendar[e.hit] ?? 0) + 1;
+    if (e.kind === "other") { if (!e.factsKept) s.noFacts++; if (e.moneyAmbiguous) s.moneyAmbiguous++; }
+  }
+  s.issuers = [...issuerCount.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([i]) => i);
+  s.accounts = [...accounts].sort();
+  return s;
+}
