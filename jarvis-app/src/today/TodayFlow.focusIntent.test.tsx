@@ -16,14 +16,29 @@ import TodayFlow from "./TodayFlow";
 
 vi.mock("../shared/toast", () => ({ showToast: () => {}, hideToast: () => {} }));
 vi.mock("../ai/useAI", () => ({ useAI: () => ({ available: false }) }));
-// The panel itself is not under test: only whether Today opens it.
+// The panel itself is not under test: only whether Today opens it, and what Today does when the panel answers. It hands back
+// the doors Today gave it (15 Min, Start Now) and shows the live block Today passes it.
 vi.mock("../upnext/UpNextFlow", () => ({
-  default: ({ onClose }: { onClose: () => void }) => <div>FOCUS PANEL<button onClick={onClose}>Close Focus</button></div>,
+  default: ({ onClose, onFifteen, onStartNow, fifteen }: {
+    onClose: () => void;
+    onFifteen?: (t: unknown) => unknown;
+    onStartNow?: (id: string) => void;
+    fifteen?: { clock: string; line: string } | null;
+  }) => (
+    <div>
+      FOCUS PANEL
+      <button onClick={onClose}>Close Focus</button>
+      <button onClick={() => void onFifteen?.({ id: "t-fifteen", data: { text: "Call the bank", category: "", done: false, due: null } })}>Fifteen</button>
+      <button onClick={() => onStartNow?.("t-start")}>Start It</button>
+      {fifteen && <span>RUNNING {fifteen.clock} / {fifteen.line}</span>}
+    </div>
+  ),
 }));
 
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
 
 // AppShell in miniature: Today is mounted per visit, focusIntent is the shell's.
+const startNow = vi.fn();
 function Shell() {
   const focus = useOneShot<boolean>();
   const [tab, setTab] = useState<"today" | "other">("today");
@@ -33,7 +48,7 @@ function Shell() {
       <button onClick={() => setTab("other")}>go other</button>
       <button onClick={() => setTab("today")}>go today</button>
       {tab === "today"
-        ? <TodayFlow focusOpen={focus.value === true} focusNonce={focus.nonce} onFocusOpened={focus.clear} onGoSchedule={() => {}} onGoTasks={() => {}} />
+        ? <TodayFlow focusOpen={focus.value === true} focusNonce={focus.nonce} onFocusOpened={focus.clear} onStartNow={startNow} onGoSchedule={() => {}} onGoTasks={() => {}} />
         : <div>the other tab</div>}
     </>
   );
@@ -63,5 +78,49 @@ describe("Today: the Focus panel", () => {
     // And it still opens when asked again.
     fireEvent.click(screen.getByText("bolt"));
     expect(await screen.findByText("FOCUS PANEL")).toBeInTheDocument();
+  });
+});
+
+// 15 MIN KEEPS FOCUS OPEN (issue 108, Dave 2026-10-13: Focus is the whole screen and the countdown runs there). It used to close
+// Focus at once and land him on Today's headliner. The block still begins (Today owns it), the screen stays, and the live block
+// reaches the panel so the number can tick; Close and Start Now still leave. TO GO BACK TO CLOSING: TodayFlow's onFifteen for
+// UpNextFlow becomes `(t) => { setUpNextOpen(false); void startFifteen(t); }`, and the first assertion below is the one to flip.
+describe("Today: 15 Min from the Focus panel (issue 108)", () => {
+  const mountShell = () => render(
+    <NotesProvider userId={"u-focus-fifteen-" + Math.random().toString(36).slice(2)}>
+      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+        <Shell />
+      </GoogleSessionProvider>
+    </NotesProvider>,
+  );
+
+  it("starts the block and leaves the panel open, showing the live clock Today passes it", async () => {
+    localStorage.removeItem("jarvis.today.fifteen.v1");
+    mountShell();
+    fireEvent.click(screen.getByText("bolt"));
+    expect(await screen.findByText("FOCUS PANEL")).toBeInTheDocument();
+    expect(screen.queryByText(/RUNNING/)).toBeNull();
+    fireEvent.click(screen.getByText("Fifteen"));
+    // the block begins: Today wrote it, and passed the panel the number and the line
+    expect(await screen.findByText(/RUNNING \d+:\d\d \/ \d+:\d\d Left/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("jarvis.today.fifteen.v1") ?? "{}").taskId).toBe("t-fifteen");
+    // ...and the panel is still there: 15 Min no longer closes it
+    expect(screen.getByText("FOCUS PANEL")).toBeInTheDocument();
+    // Close is still the way out, and the block keeps running on Today
+    fireEvent.click(screen.getByText("Close Focus"));
+    await waitFor(() => expect(screen.queryByText("FOCUS PANEL")).toBeNull());
+    expect(localStorage.getItem("jarvis.today.fifteen.v1")).not.toBeNull();
+    localStorage.removeItem("jarvis.today.fifteen.v1");
+  });
+
+  it("Start Now still closes the panel and hands the task to the Start screen", async () => {
+    localStorage.removeItem("jarvis.today.fifteen.v1");
+    startNow.mockClear();
+    mountShell();
+    fireEvent.click(screen.getByText("bolt"));
+    expect(await screen.findByText("FOCUS PANEL")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Start It"));
+    expect(startNow).toHaveBeenCalledWith("t-start");
+    await waitFor(() => expect(screen.queryByText("FOCUS PANEL")).toBeNull());
   });
 });

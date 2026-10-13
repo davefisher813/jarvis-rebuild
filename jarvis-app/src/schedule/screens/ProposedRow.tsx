@@ -39,6 +39,7 @@ export const blockMinutes = (b: PlanBlock): number => minutesBetween(b.start, b.
 
 export default function ProposedRow({
   block,
+  nested,
   open,
   onToggle,
   onDuration,
@@ -48,6 +49,13 @@ export default function ProposedRow({
   onOpen,
 }: {
   block: PlanBlock;
+  /** A TASK UNDER ITS BLOCK (issue #106 V6, Dave 2026-10-13: "Proposed tasks get their own rows, indented under the block they
+   *  belong to, instead of tappable rows nested inside the event button"). The Schedule tab passes this for a pick that lies
+   *  wholly inside a holding block. It is the same row in every respect (the check, the time column, the title with PROPOSED and
+   *  its length under it, the swipe, the menu, the tap); it only wears .sched-nested, which is where one CSS knob
+   *  (--sched-nest-indent, ruled.css) sets how far it sits in from the block's edge. Optional: Today passes nothing and draws
+   *  what it drew. */
+  nested?: boolean;
   open: boolean;
   onToggle: () => void;
   onDuration: (minutes: number) => void;
@@ -107,7 +115,7 @@ export default function ProposedRow({
   const { dx, open: swipeOpen, dragging, closeThen } = swipe;
   const { handlers: rowHandlers, sheet } = rowMenu.bind(swipe);
   return (
-    <div className="sched-swipe-wrap">
+    <div className={"sched-swipe-wrap" + (nested ? " sched-nested" : "")}>
       <div className="sched-strip">
         {onComplete && (
           <div className="task-done-rail" aria-hidden="true">

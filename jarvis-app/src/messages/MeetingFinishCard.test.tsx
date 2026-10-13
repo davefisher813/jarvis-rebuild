@@ -338,7 +338,8 @@ describe("MeetingFinishCard: the facts line follows the catalog (2026-10-05)", (
     const { svc } = setup();
     const { container } = renderCard(svc, [cand("m1", "See you Tuesday at 3 PM")]);
     expect(container.querySelector(".fact.date")?.textContent).toBe("Tomorrow");
-    expect(Array.from(container.querySelectorAll(".fact.date")).map((f) => f.textContent)).toContain("3:00 PM");
+    // Facts binds a clock to its AM or PM with a no-break space (issue 106 V1), so a wrapping line never splits it.
+    expect(Array.from(container.querySelectorAll(".fact.date")).map((f) => f.textContent)).toContain("3:00\u00a0PM");
     const length = Array.from(container.querySelectorAll(".fact")).find((f) => f.textContent === "About 1h")!;
     expect(length.querySelector("b")).not.toBeNull();
     expect(Array.from(container.querySelectorAll(".fact")).find((f) => /EDT/.test(f.textContent ?? ""))!.textContent).toBe("EDT Your Time");
@@ -348,14 +349,14 @@ describe("MeetingFinishCard: the facts line follows the catalog (2026-10-05)", (
     const { svc } = setup();
     const { container } = renderCard(svc, [cand("m1", "See you Tuesday at 10 PM PT")]);
     const facts = Array.from(container.querySelectorAll(".fact")).map((f) => f.textContent);
-    expect(facts).toContain("1:00 AM Your Time");
+    expect(facts).toContain("1:00\u00a0AM Your Time"); // bound by Facts (issue 106 V1)
     expect(facts).toContain("Wednesday");
   });
 
   it("a missing hour asks as one question, and a day part is a date fact beside a Time? ask", () => {
     const { svc } = setup();
     const a = renderCard(svc, [cand("m1", "Tuesday at 3")]);
-    expect(a.container.querySelector(".fact.warn")?.textContent).toBe("3 AM or PM?");
+    expect(a.container.querySelector(".fact.warn")?.textContent).toBe("3\u00a0AM or PM?"); // the pair is bound by Facts (issue 106 V1)
     a.unmount();
     const b = renderCard(svc, [cand("m1", "Thursday morning works")]);
     expect(Array.from(b.container.querySelectorAll(".fact.date")).map((f) => f.textContent)).toContain("Morning");

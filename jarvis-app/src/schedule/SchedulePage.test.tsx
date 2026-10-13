@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent } from "@testing-library/react";
+import { render, fireEvent, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SchedulePage from "./screens/SchedulePage";
 import { numberCaseViolations } from "../laws/catalogCheck";
@@ -264,7 +264,8 @@ describe("SchedulePage: the week, the repeats and a nested pick follow the catal
     ];
     const proposed = { blocks, openId: null, onToggle: () => {}, onDuration: () => {}, onDrop: () => {} };
     const { container } = render(<SchedulePage {...base} mode="day" locked={[holder] as never} proposed={proposed as never} />);
-    const lengths = Array.from(container.querySelectorAll(".block-held-facts .fact > b")).map((b) => b.textContent);
+    // V6 (issue #106): a pick under a block is a row of its own, so its length is the ordinary proposed row's "Proposed · 45 Min".
+    const lengths = Array.from(container.querySelectorAll(".sched-list .sched-proposed .sched-cat .fact > b")).map((b) => b.textContent);
     expect(lengths).toEqual(["45 Min", "1h 30m"]);
     expect(numberCaseViolations(container)).toEqual([]);
   });
@@ -322,5 +323,91 @@ describe("SchedulePage: the day view still scrolls the way it did", () => {
     }
     const { container } = render(<SchedulePage {...day} />);
     expect(container.querySelector(".screen")!.getAttribute("style")).toBeNull();
+  });
+});
+
+// V6 (issue #106, Dave 2026-10-13): "Proposed tasks get their own rows, indented under the block they belong to, instead of tappable
+// rows nested inside the event button." A pick that lands wholly inside a holding block used to be drawn INSIDE the block's own row:
+// a button in a button, whose swipe, long press and tap each had to be stopped from reaching the block's own, with its time as a
+// fact in the details line instead of the time column. It is the ordinary proposed row now (the check, the time column, the title
+// with PROPOSED and its length under it), in time order after its block and marked nested, so one knob in ruled.css sets its indent.
+// Today's day card is the frozen TV guide and still nests (HeldProposalRow); this is the Schedule tab only.
+describe("V6: a proposed task is a row of its own, not a button inside its block's button", () => {
+  const holder = { s: 15 * 60, e: 19 * 60, label: "Deep Work", id: "dw", kind: "focus", mode: "holds", soft: true };
+  const inside = { taskId: "n1", text: "Write Report", category: "orgB", start: "15:30", end: "16:15" };
+  const atStart = { taskId: "n0", text: "Plan the Week", category: "orgB", start: "15:00", end: "15:30" };
+  const outside = { taskId: "s1", text: "Call Insurance", category: "orgB", start: "11:00", end: "11:30" };
+  const wire = () => ({ onToggle: vi.fn(), onDuration: vi.fn(), onDrop: vi.fn(), onAccept: vi.fn(), onOpen: vi.fn(), onComplete: vi.fn() });
+  const draw = (blocks: Array<typeof inside> = [outside, inside], p = wire()) => {
+    const r = render(
+      <SchedulePage {...base} mode="day" locked={[holder] as never} proposed={{ blocks, openId: null, ...p } as never}
+        onFillBlock={() => {}} onRetimeBlock={() => {}} onResizeBlock={() => {}} onOpenBlock={() => {}} />,
+    );
+    return { ...r, p, list: r.container.querySelector(".sched-list")! };
+  };
+  const compact = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").replace(/\s*·\s*/g, " · ").trim();
+
+  it("the block's own row holds no other button, and none of the old held-task markup", () => {
+    const { container } = draw();
+    expect(container.querySelectorAll('.sched-locked [role="button"]').length).toBe(0);
+    expect(container.querySelector(".sched-locked .block-held")).toBeNull();
+    expect(container.querySelector(".block-nest")).toBeNull();
+  });
+
+  it("is a row of the day list, in time order after its block, with its time in the left time column", () => {
+    const { container, list } = draw([atStart, inside]);
+    const rows = [...list.children];
+    const blockAt = rows.findIndex((r) => r.querySelector(".sched-locked"));
+    const nestedAt = rows.map((r, i) => (r.classList.contains("sched-nested") ? i : -1)).filter((i) => i >= 0);
+    expect(blockAt, "the block is a row of the list").toBeGreaterThanOrEqual(0);
+    expect(nestedAt.length, "both picks are rows of the list itself").toBe(2);
+    // A pick that starts on the block's own minute still comes after it.
+    for (const i of nestedAt) expect(i).toBeGreaterThan(blockAt);
+    const first = rows[nestedAt[0]!]!;
+    expect(first.matches(".sched-swipe-wrap")).toBe(true);
+    expect(first.querySelector(".sched-row.sched-proposed")).not.toBeNull();
+    expect(first.querySelector(".sched-time")!.textContent!.replace(/\s+/g, "")).toBe("3:00PM");
+    expect(rows[nestedAt[1]!]!.querySelector(".sched-time")!.textContent!.replace(/\s+/g, "")).toBe("3:30PM");
+    expect(container.querySelector(".sched-nested .sched-cat .fact.date"), "the time is in the column, never a fact under the title").toBeNull();
+    expect(numberCaseViolations(container)).toEqual([]);
+  });
+
+  it("nothing in the day list is a button inside a button, apart from the controls that were always separate", () => {
+    const { container } = draw();
+    expect(container.querySelectorAll('[role="button"] [role="button"]').length).toBe(0);
+    const allowed = ".sched-time-btn, .sched-until-btn, .block-add, .sched-badge-btn, .sched-notes";
+    const stray = [...container.querySelectorAll('[role="button"] button')].filter((b) => !b.matches(allowed));
+    expect(stray.map((b) => b.className)).toEqual([]);
+  });
+
+  it("answers the way a standalone proposed row does: the tap opens the task, the ring ticks it off, a long press is the menu", () => {
+    const { container, p } = draw();
+    const row = container.querySelector(".sched-nested .sched-row")!;
+    fireEvent.click(row);
+    expect(p.onOpen).toHaveBeenCalledTimes(1);
+    expect(p.onOpen).toHaveBeenCalledWith("n1");
+    fireEvent.click(container.querySelector(".sched-nested .sched-check")!);
+    expect(p.onComplete).toHaveBeenCalledWith("n1");
+    expect(p.onOpen, "the ring is not the row").toHaveBeenCalledTimes(1);
+    fireEvent.contextMenu(row);
+    const labels = Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent);
+    expect(labels).toEqual(["Book It", "Done", "Edit Task", "Change Length", "Move to Anytime", "Cancel"]);
+    fireEvent.click(screen.getByRole("button", { name: "Book It" }));
+    expect(p.onAccept).toHaveBeenCalledWith("n1");
+  });
+
+  it("only a pick wholly inside a holding block is nested: a standalone pick and one that overruns are plain rows", () => {
+    const overrun = { taskId: "o1", text: "Runs Long", category: "orgB", start: "18:30", end: "19:30" };
+    const { container } = draw([outside, inside, overrun]);
+    const plain = [...container.querySelectorAll(".sched-swipe-wrap")].filter((w) => w.querySelector(".sched-proposed") && !w.classList.contains("sched-nested"));
+    expect(plain.map((w) => w.querySelector(".sched-t")!.textContent)).toEqual(["Call Insurance", "Runs Long"]);
+    expect(container.querySelectorAll(".sched-nested").length).toBe(1);
+  });
+
+  it("its details line is under its title in the same body, so the two share one left edge however the title wraps", () => {
+    const { container } = draw();
+    const body = container.querySelector(".sched-nested .sched-body")!;
+    expect(body.querySelector(":scope > .sched-title > .sched-t")!.textContent).toBe("Write Report");
+    expect(compact(body.querySelector(":scope > .sched-cat")!.textContent)).toBe("Proposed · 45 Min");
   });
 });

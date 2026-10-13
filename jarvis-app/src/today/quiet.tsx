@@ -1,4 +1,6 @@
 
+import { bindMeridiem } from "../shared/casing";
+
 // THE QUIET LINE (approved 2026-08-22): words whisper, data pops.
 //
 // Words in a sub stay small and dim. Every piece of DATA -- counts, ages,
@@ -44,6 +46,14 @@
 //
 // Deliberately no lookbehind: Safari only gained it in 16.4 and this ships to
 // phones. The preceding character is checked in code instead.
+//
+// A TIME IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-13, issue 106 V1:
+// "8:15 AM must hold one line"). This line splits "2:00 PM" into a bright
+// "2:00" and a plain " PM", two spans with a plain space between them, which
+// is a place for a wrapping sub to break the clock in half. The space is bound
+// first (bindMeridiem), and the walk below reads the bound text: a no-break
+// space is not a letter, so "2:00" is still a datum, and the day-count test's
+// \s* still matches it.
 const DATA = /(\d+\/\d+|\d+:\d+|\d+(?:\.\d+)?(?:[dhm]|min|%)?)/g;
 const WORDY = /[A-Za-z0-9#]/;
 
@@ -63,7 +73,8 @@ function dayCountRunsForward(before: string, after: string): boolean {
   return /^\s*(?:days?\s+)?(?:left|to go|remaining)\b/i.test(after);
 }
 
-export function Quiet({ s }: { s: string }) {
+export function Quiet({ s: raw }: { s: string }) {
+  const s = bindMeridiem(raw);
   // Walked rather than split, so each candidate can be judged against the
   // characters around it. Every character of `s` is emitted exactly once.
   const out: { text: string; data: boolean; tone?: "hot" | "soon" }[] = [];

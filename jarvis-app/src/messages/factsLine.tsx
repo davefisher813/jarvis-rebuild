@@ -14,6 +14,7 @@
 import type { ReactNode } from "react";
 import type { Evidence } from "./evidence";
 import { daysBetween } from "../upnext/upnext";
+import { bindMeridiem } from "../shared/casing";
 
 // The Colour Key's own variants (§AM): due, done, late, an estimate the app
 // worked out (.fact.est, sky), and a neutral date (.fact.date, small caps).
@@ -27,7 +28,13 @@ export type FactTone = "warn" | "good" | "red" | "est" | "date";
 export interface Fact { text: string; tone?: FactTone; strong?: boolean }
 
 /** One .facts line. Nullish or false entries are skipped so a caller can
- *  write `[a, cond && b]` without a filter of its own. */
+ *  write `[a, cond && b]` without a filter of its own.
+ *
+ *  A TIME IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-13, issue 106 V1:
+ *  "8:15 AM must hold one line"). A fact wraps in a sheet, in the wrapping
+ *  mail line and at a large text size, and a plain space inside "Today 2:00 PM"
+ *  is a place for it to break the clock in half. bindMeridiem binds the pair
+ *  here, where the text is drawn, so no producer has to remember. */
 export function Facts({ facts, className = "" }: { facts: (Fact | null | undefined | false)[]; className?: string }): ReactNode {
   const list = facts.filter((f): f is Fact => !!f && f.text.trim().length > 0);
   if (list.length === 0) return null;
@@ -35,13 +42,14 @@ export function Facts({ facts, className = "" }: { facts: (Fact | null | undefin
   return (
     <div className={"facts" + (className ? " " + className : "")}>
       {list.map((f, i) => {
+        const text = bindMeridiem(f.text);
         // A neutral date is caps, not a colour: it rides past the counter.
-        if (f.tone === "date") return <span key={i} className="fact date">{f.text}</span>;
-        if (f.strong) return <span key={i} className="fact"><b>{f.text}</b></span>;
+        if (f.tone === "date") return <span key={i} className="fact date">{text}</span>;
+        if (f.strong) return <span key={i} className="fact"><b>{text}</b></span>;
         // K.3: one coloured fact per line. The first keeps its colour.
         const tone = f.tone && !toned ? f.tone : undefined;
         if (tone) toned = true;
-        return <span key={i} className={"fact" + (tone ? " " + tone : "")}>{f.text}</span>;
+        return <span key={i} className={"fact" + (tone ? " " + tone : "")}>{text}</span>;
       })}
     </div>
   );

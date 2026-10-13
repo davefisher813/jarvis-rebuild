@@ -31,6 +31,7 @@ import { ENTITY_MONEY_BILL, type Bill } from "../money/ledger/types";
 import { useMarkBillPaid } from "../money/useMarkBillPaid";
 import { fileEmailBill, type FiledBill } from "../money/ledger/emailBill";
 import NoticeCard from "./NoticeCard";
+import ProblemRow, { type Problem } from "./ProblemRow";
 import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
 import { useOptionalSession } from "../auth/AuthProvider";
@@ -196,7 +197,7 @@ import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent, commitRetime, undoRetime } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
-import { Clock, CircleSlash, ShieldAlert } from "../shared/icons";
+import { Clock, CircleSlash } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
 import { minutesLabel, spanLabel } from "../shared/duration";
 
@@ -2071,16 +2072,16 @@ export default function TodayFlow({
   const failedNow = liveFailed(sweepReceipt, taskItems, today);
   const sweepFailedShown = !!sweepReceipt?.failed && (failedNow === null || failedNow.length > 0);
   // Retry resumes only the tasks that did not move and merges into the
-  // earlier receipt. If the retry itself cannot run, the notice stays and says so.
-  const retrySweepNow = (): void => {
-    void (async () => {
-      try {
-        setSweepReceipt(await retrySweep(tasks, today));
-        await reload();
-      } catch {
-        showToast({ message: "Still Couldn't Move Them" });
-      }
-    })();
+  // earlier receipt. If the retry itself cannot run, the problem row stays and
+  // says so. It hands back its own promise (it never rejects: the catch is the
+  // report) so the problem row can hold its button still while it works.
+  const retrySweepNow = async (): Promise<void> => {
+    try {
+      setSweepReceipt(await retrySweep(tasks, today));
+      await reload();
+    } catch {
+      showToast({ message: "Still Couldn't Move Them" });
+    }
   };
   // NOT THE EMAILS (Dave 2026-09-17: "they have their own section on the
   // home page; there is no need to have repetitiveness"). A task that was
@@ -2783,9 +2784,12 @@ export default function TodayFlow({
                     The pair is the row's point, so it is the wrapping,
                     unclamped meta line (2026-09-26): on one line at type
                     scale 1.4 the title was left its dot and an ellipsis,
-                    and the row no longer said what ends the window. */}
+                    and the row no longer said what ends the window.
+                    THE CLOCK IS ONE WORD (issue 106 V1, Dave 2026-10-13: "8:15 AM
+                    must hold one line"): a no-break space joins it to its AM or
+                    PM, so a wrapping line moves the pair whole or not at all. */}
                 <div className="conn-meta">
-                  <span className="fact date">Until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
+                  <span className="fact date">Until {fmtTime(nowCtx.nextStart).time}{"\u00a0"}{fmtTime(nowCtx.nextStart).ap}</span>
                   <span className="fact">{nowCtx.nextTitle ?? "Your Next Event"}</span>
                 </div>
                 {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
@@ -3249,32 +3253,8 @@ export default function TodayFlow({
         )}
       />
     ) : null,
-    sweepFailedShown ? (
-      <NoticeCard
-        key="sweepfail"
-        offer
-        weight={FAILING}
-        icon={SWEEP_ICO}
-        // AMBER, not red (Dave 2026-10-12/13): a move that did not happen can
-        // be retried, so it is a recoverable problem; red is for what cannot
-        // be recovered.
-        tone="cat-fg-orange"
-        title="Couldn't Move Yesterday's Tasks"
-        // One grey (§AK, 2026-09-26): "Try again" came off, because the
-        // Retry pill beside it says it and does it. The line counts only the
-        // tasks that did not move (the others did); a failure with no ids
-        // (the whole sweep could not run) has no count to give, and there the
-        // old line is still true: every task kept its date.
-        sub={failedNow === null ? "Nothing Was Lost" : failedNow.length === 1 ? "1 Task Did Not Move" : `${failedNow.length} Tasks Did Not Move`}
-        // ROW-TAP (Dave 2026-09-15): nothing to open, so the body retries,
-        // the same safe verb as the pill.
-        onOpen={retrySweepNow}
-        action={{
-          label: "Retry",
-          onClick: retrySweepNow,
-        }}
-      />
-    ) : null,
+    // THE FAILED SWEEP IS NOT A CARD HERE ANY MORE (issue 106 V2). It was a ranked notice at the top of this stream; it is the
+    // problem row under the greeting now (`problems`, below), with the same gating, count and Retry.
     sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 && !sweepCardDismissed(today) && tuned("sweep-receipt") ? (
       <NoticeCard
         key="sweep"
@@ -4123,6 +4103,11 @@ export default function TodayFlow({
     const f = fifteen;
     if (!f) return;
     endFifteen();
+    // DONE IS NOT A FLIP. Focus now stays open behind a running block (issue 108), so the same task can be finished from
+    // its face card while this block is still live; a toggle here would then REOPEN the task he just finished. A task that
+    // is already done only has the block ended.
+    const now = await tasks.task(f.taskId);
+    if (now?.done) { await reload(); return; }
     await onToggleTask(f.taskId);
   };
 
@@ -4267,43 +4252,51 @@ export default function TodayFlow({
       onDismiss={() => { markReportSeen(reportMonth); setReportMonth(null); }}
     />
   ) : null;
-  // ONE CONNECTION NOTICE (Foundation Fix Spec 1). It reads the proven status, never a stored token, and joins the stream
-  // like every other notice. Reconnect is offered ONLY for a confirmed auth loss; an outage, a throttle or a stale answer
-  // says what it is and offers no reconnect (the loud treatment and its escalation are Spec 3's).
-  // THE LOUD ALERT (Foundation Fix Spec 3): while an incident is open this is its matching alert, with the same words as the
-  // Email banner, at failing weight. Its tone is the key's amber, not a third red notice producer (laws: red is rationed). It names the first account and says how many more. Tapping goes to Connections.
+  // ONE PROBLEM ROW, NOT TWO RANKED NOTICES (issue 106 V2, approved by Dave 2026-10-13: "ONE slim amber row below the greeting,
+  // actionable ... Not a large red card at the top"). The heaviest rows this stream ever had were a connection that is not plainly
+  // fine and a morning sweep that did not move yesterday's tasks. Both can be mended, so both are amber (Dave 2026-10-12/13: a
+  // recoverable problem is amber, red is for what cannot be recovered), and both are one row under the greeting now: ProblemRow,
+  // the Email strip's own amber. The first problem is drawn and the rest are counted ("1 More"); neither can be swiped away.
+  // THE CONNECTION reads the proven status, never a stored token (Foundation Fix Spec 1). While an incident is open the row has
+  // the Email banner's own words, a title and the address, one problem per open incident (Spec 3; Dave 2026-10-12, issue 107 X2:
+  // an incident is amber whatever its kind). With no incident yet, a proven problem says what the status says. Reconnect is
+  // offered ONLY for a confirmed auth loss; an outage, a throttle or a stale answer says what it is and offers no reconnect, and
+  // a tap on the words goes to Connections. The phone being offline and the last answer being too old to trust were the two
+  // states drawn in a neutral slate, "nothing is proven wrong". A strip has one colour, the key's amber, and the Email tab
+  // already draws both of them as amber facts (AccountStatusSheet), so they are this row too: "Offline" is the one word, as it
+  // is there, because the date line above already says so and a second line under it only repeated it.
   const incidentModels = conn.answer ? bannerModels(conn.answer.accounts, incidentsOnToday.ledger) : [];
-  const leadIncident = incidentModels[0];
-  const connectionNotice = leadIncident ? (
-    <NoticeCard
-      key="connection"
-      weight={FAILING}
-      icon={<ShieldAlert className="ic" />}
-      // AMBER FOR EVERY OPEN INCIDENT (Dave 2026-10-12, issue 107 X2): an incident is a recoverable problem whether it is a lost grant
-      // (auth, Reconnect) or an outage that has lasted (degraded, no Reconnect), and the Email banner for the same incident is amber for
-      // both. It was slate for a degraded one, so Today and Email disagreed about one problem.
-      tone="cat-fg-orange"
-      title={leadIncident.title}
-      sub={incidentModels.length > 1 ? `${leadIncident.address} · ${incidentModels.length - 1} More` : leadIncident.address}
-      {...(leadIncident.reconnect && onGoConnections ? { action: { label: "Reconnect", onClick: onGoConnections } } : {})}
-      {...(onGoConnections ? { onOpen: onGoConnections } : {})}
-    />
-  ) : conn.worst ? (
-    <NoticeCard
-      key="connection"
-      weight={FAILING}
-      icon={<ShieldAlert className="ic" />}
-      // A PROVEN PROBLEM IS AMBER (Dave 2026-10-12, issue 107 X2): needs reconnecting, Gmail refused the read, the service is limited or
-      // down, or mail has stopped updating are all recoverable, and the Email tab draws each of them amber. Only the two states where
-      // nothing is proven wrong stay the neutral slate: the phone has no connection, or the last answer is too old to trust.
-      tone={conn.worst.view.state === "offline" || conn.worst.view.state === "stale" ? "cat-fg-slate" : "cat-fg-orange"}
-      title={conn.worst.view.offerReconnect ? "Gmail Needs Reconnecting" : conn.worst.view.headline}
-      sub={conn.worst.view.state === "offline" ? conn.worst.view.detail : conn.worst.account.email}
-      {...(conn.worst.view.offerReconnect && onGoConnections ? { action: { label: "Reconnect", onClick: onGoConnections } } : {})}
-      {...(onGoConnections ? { onOpen: onGoConnections } : {})}
-    />
-  ) : null;
-  const notices = [connectionNotice, reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
+  const toConnections = onGoConnections ? { onOpen: onGoConnections } : {};
+  const connectionProblems: Problem[] = incidentModels.length > 0
+    ? incidentModels.map((m) => ({
+        key: "connection",
+        parts: [m.title, m.address],
+        ...toConnections,
+        ...(m.reconnect && onGoConnections ? { action: { label: "Reconnect", run: onGoConnections } } : {}),
+      }))
+    : conn.worst
+      ? [{
+          key: "connection",
+          parts: conn.worst.view.state === "offline"
+            ? [conn.worst.view.headline]
+            : [conn.worst.view.offerReconnect ? "Gmail Needs Reconnecting" : conn.worst.view.headline, conn.worst.account.email],
+          ...toConnections,
+          ...(conn.worst.view.offerReconnect && onGoConnections ? { action: { label: "Reconnect", run: onGoConnections } } : {}),
+        }]
+      : [];
+  // THE SWEEP is gated exactly as the card was (issue 102, D2): sweepFailedShown, so a persisted failed receipt whose tasks have
+  // since been handled never brings it back. The line counts only the tasks that did not move (the others did); a failure with no
+  // ids (the whole sweep could not run) has no count to give, and there the old line is still true: every task kept its date.
+  const sweepProblem: Problem[] = sweepFailedShown ? [{
+    key: "sweepfail",
+    parts: [
+      "Couldn't Move Yesterday's Tasks",
+      failedNow === null ? "Nothing Was Lost" : failedNow.length === 1 ? "1 Task Did Not Move" : `${failedNow.length} Tasks Did Not Move`,
+    ],
+    action: { label: "Retry", run: retrySweepNow },
+  }] : [];
+  const problems: Problem[] = [...connectionProblems, ...sweepProblem];
+  const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   // No name, no initials (2026-10-05): this fell back to "JV", letters nobody chose, while Account says "Add Your Name". ""
@@ -4544,7 +4537,10 @@ export default function TodayFlow({
         />
       </>}
       notices={notices}
-      offersQuiet={notices.length >= 2}
+      {...(problems.length > 0 ? { problem: <ProblemRow problems={problems} /> } : {})}
+      // The weather offer waits while two alerts are up (V4). The connection (one alert however many accounts are open) and the
+      // failed sweep were notices that counted toward it, so they still count, though they are one row now.
+      offersQuiet={notices.length + Math.min(connectionProblems.length, 1) + sweepProblem.length >= 2}
       // TWO notices, not one glued pair. Bundling them into a single slot
       // put an AI suggestion immediately under the check-in's mood chips with
       // nothing between them, so the suggestion read as part of the question.
@@ -4743,7 +4739,10 @@ export default function TodayFlow({
         <UpNextFlow
           onClose={() => { setUpNextOpen(false); void reload(); }}
           onStartNow={onStartNow ? (id) => { setUpNextOpen(false); onStartNow(id); } : undefined}
-          onFifteen={(t) => { setUpNextOpen(false); void startFifteen(t); }}
+          // FOCUS STAYS OPEN AFTER 15 MIN (issue 108, Dave 2026-10-13: Focus is the whole screen, and its countdown runs
+          // there). It used to close here and land him on Today's headliner. To go back to that, make this
+          // `{ setUpNextOpen(false); void startFifteen(t); }`. The promise returned here is what holds the capsule still.
+          onFifteen={(t) => startFifteen(t)}
           fifteen={liveFifteenFace}
           onFifteenDone={() => void fifteenDone()}
           onFifteenAgain={() => void fifteenAgain()}

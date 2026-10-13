@@ -275,6 +275,7 @@ export default function TodayPage({
   nowCard,
   liveGym,
   notices = [],
+  problem,
   reminders,
   offersQuiet,
   onSearch,
@@ -458,6 +459,9 @@ export default function TodayPage({
   // Every notice JARVIS has for him, in priority order, rendered under the
   // one Heads Up head instead of floating loose down the page.
   notices?: ReactNode[];
+  // The one problem row (issue 106 V2): what is wrong and can be mended, as a single slim amber row directly under the
+  // greeting, never a card in the stream. The flow hands it over already built (ProblemRow); absent when nothing is wrong.
+  problem?: ReactNode;
   // The reminders strip. Its own band under Heads Up: reminders are neither
   // notices (they are not news) nor tasks (they are not work).
   reminders?: ReactNode;
@@ -904,6 +908,10 @@ export default function TodayPage({
         </div>
       </div>
       <div ref={condProbe} />
+
+      {/* WHAT IS WRONG, IN ONE ROW (issue 106 V2). Under the greeting and above everything the day holds; it is not a member of
+          the stream below, so it neither ranks nor folds, and it is gone the moment the problem is. */}
+      {problem}
 
       {/* TEACHING THE SWIPE (Dave 2026-10-05, locked). One line at the top of the list on first run; gone for good after
           the first swipe or the first dismiss. It shows only when there is a row to swipe. Nothing permanent anywhere. */}

@@ -6,6 +6,7 @@ import RowCtxAction from "../shared/RowCtxAction";
 import { Quiet } from "./quiet";
 import { usePeekOnce } from "./usePeekOnce";
 import { X } from "../shared/icons";
+import { bindMeridiem } from "../shared/casing";
 
 // THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
 // (Law 3E, approved 2026-08-22).
@@ -69,7 +70,7 @@ export interface NoticeAction {
 export default function NoticeCard({
   icon,
   tone,
-  title,
+  title: titleProp,
   sub,
   action,
   alt,
@@ -200,6 +201,11 @@ export default function NoticeCard({
   anchor?: boolean;
 }) {
   void weight; void receipt; void anchor;
+  // A TIME IN A TITLE IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-13, issue 106 V1). A string title wraps to two lines
+  // when the card is not uniform, and a plain space inside "Booked 8:15 AM" is where it would break the clock. Bound once,
+  // here, so the row, the card and the menu that names it all read the same title; the sub gets the same from Quiet, and a
+  // title that is a node draws its own times.
+  const title = typeof titleProp === "string" ? bindMeridiem(titleProp) : titleProp;
   const [expanded, setExpanded] = useState(false);
   const effForm = form === "row" && expanded ? "card" : form;
 

@@ -47,6 +47,15 @@ const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 const WALLET = <WalletGlyph />;
 const REPEAT = <RepeatGlyph />;
+// HOW MANY FIGURES THE TOTAL BALANCE CAN HAVE AT EACH SIZE (ruled.css, "THE TOTAL IS THE HEADLINE OF ITS OWN CARD"). A figure is the
+// dollar sign, a minus or a digit; the commas and the point are narrow and not counted. Measured in a browser at 390 and 360 wide,
+// in the widest fallback face the audit renders in (DejaVu Sans Bold): eight figures fit the card's column at the full headline
+// size (12vw), and a ninth does not (forced to it, "-$12,345.67" wraps its minus onto a line of its own and "$123,456.78" runs
+// 10px out of the column at 390 and 16px at 360). So nine take a smaller step (10.5vw) and ten or more keep the figure's old size,
+// which is all a seven-figure total leaves room for. SF is narrower than that face, but its margin on a phone could not be
+// measured here, and a clipped balance costs more than a smaller one: raise these only after measuring the real face on a phone.
+const HEADLINE_TOTAL_FIGURES = 8;
+const MID_TOTAL_FIGURES = 9;
 
 // THE BILL'S CHIP (ruled 2026-09-01, "Bill rows: amount right, urgency
 // chip"; built 2026-09-02 with the Notes and Money port). The same distance
@@ -848,6 +857,15 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
     </div>
   );
 
+  // THE TOTAL'S SIZE (issue #108 S2, Dave 2026-10-13: "raise the Total Balance figure to headline size inside the same card").
+  // ruled.css draws it at 12vw, which keeps a total of up to eight figures inside the card's column. A longer one would run out of
+  // the card at that size, so it is tagged: nine figures ("$123,456.78", "-$12,345.67") take the mid step, ten or more
+  // ("$1,234,567.89") keep the figure's old size. The headline size never runs a total out of the card.
+  const totalText = formatMoney(totalBalance(accounts), { cents: acctCents });
+  const totalFigures = totalText.replace(/[.,]/g, "").length;
+  const totalSize = totalFigures > MID_TOTAL_FIGURES ? " money-hero-total-long"
+    : totalFigures > HEADLINE_TOTAL_FIGURES ? " money-hero-total-mid" : "";
+
   const receiptsSection = <ReceiptsSection />;
 
   // Back from the tracker re-reads: the row under it says this month's net
@@ -979,7 +997,7 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
             <div className="pad-x"><div className="card list-card-ruled money-hero-card">
               <div className="money-hero">
                 <div className="money-hero-label">Total Balance</div>
-                <div className="money-hero-total">{formatMoney(totalBalance(accounts), { cents: acctCents })}</div>
+                <div className={"money-hero-total" + totalSize}>{totalText}</div>
                 {/* Self-reported and it says so: the app has no live feed.
                     The accounts are the rows right under it, so it does not
                     count them as well. */}

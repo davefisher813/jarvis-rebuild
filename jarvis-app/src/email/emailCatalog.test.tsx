@@ -122,7 +122,9 @@ function cards(candidates: Candidate[], extra: Partial<Parameters<typeof Candida
       ready={() => true} readyLine={() => ""} offline={false} showDismissed={false} now={() => NOW} onChanged={noop} onDetails={noop} onReview={noop} onReceipt={noop} {...extra} />,
   );
 }
-const texts = (root: ParentNode, sel: string) => [...root.querySelectorAll(sel)].map((f) => f.textContent);
+// Facts binds a clock to its AM or PM with a no-break space (issue 106 V1), and a phone's ICU writes a narrow one: these read the
+// words, so both are read as the plain space they look like. The glue itself is held in today/clockGlue.test.tsx.
+const texts = (root: ParentNode, sel: string) => [...root.querySelectorAll(sel)].map((f) => (f.textContent ?? "").replace(/[\u00a0\u202f]/g, " "));
 
 describe("the cards: the facts are separate spans, the colour is the key, the line is drawn only when it has something to say", () => {
   it("a bill: the due date is a neutral small-caps fact when it is later, the issuer is the one grey, and there is no second thin line", () => {

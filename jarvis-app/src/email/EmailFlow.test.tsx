@@ -132,7 +132,7 @@ describe("M1: the inbox", () => {
     expect(screen.getByText("That's everything.")).toBeInTheDocument();
     // Spec 3.1, "Last Checked 9:12 AM": two facts and no middle dot in a string; the word is the line's one grey, the clock small caps.
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Last Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Last Checked", expect.stringMatching(/^\d{1,2}:\d{2}\s(AM|PM)$/)]); // \s: the clock is bound to its AM or PM (issue 106 V1)
     expect(fresh[1]).toHaveClass("date");
     // The account picker beside it names the mailboxes it shows.
     expect(document.querySelector(".email-acct")).toHaveTextContent("All Accounts");
@@ -579,7 +579,7 @@ describe("the coverage crawl, as the inbox shows it", () => {
     mount(r);
     await waitFor(() => expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Last Checked\s?\d{1,2}:\d{2} (AM|PM)$/));
     const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
-    expect(fresh.map((f) => f.textContent)).toEqual(["Last Checked", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/)]);
+    expect(fresh.map((f) => f.textContent)).toEqual(["Last Checked", expect.stringMatching(/^\d{1,2}:\d{2}\s(AM|PM)$/)]); // \s: the clock is bound to its AM or PM (issue 106 V1)
     expect(fresh[1]).toHaveClass("date");
     // The open's sync, then two more, one after the other; each crawl call reads the cache's first page again.
     expect(syncs(r)).toBe(3);
