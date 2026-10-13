@@ -11,7 +11,7 @@ import ErrorBoundary from "./monitoring/ErrorBoundary";
 import { initMonitoring } from "./monitoring/monitor";
 import { startAppUrlListener } from "./native/appUrl";
 import { hideKeyboardAccessoryBar } from "./native/keyboard";
-import { trackVisualViewport } from "./shared/viewport";
+import { trackVisualViewport, fitShellToScreen } from "./shared/viewport";
 import { checkBuild } from "./shared/buildCheck";
 import { reloadOnWorkerUpdate } from "./shared/serviceWorkerReload";
 
@@ -30,6 +30,11 @@ initMonitoring();
 // the keyboard comes up. This states where the visible one is, so the sheet can
 // sit in it and its Cancel and Save stay reachable (see shared/viewport.ts).
 trackVisualViewport();
+// THE SHELL REACHES THE SCREEN'S FOOT (tab bar round 4, 2026-10-13): if this
+// standalone window's layout viewport stops short of the physical screen, the
+// shell is stretched the difference so the tab bar lands on the real edge.
+// See shared/viewport.ts (fitShellToScreen) and the shell rule in components.css.
+fitShellToScreen();
 // UP-LAUNCH-12 (2026-09-05): URLs that arrive from outside, on the phone.
 // The Google sign-in sheet's callback comes back this way, and so will the
 // magic link and the widget deep links. A no-op on the web and on a native

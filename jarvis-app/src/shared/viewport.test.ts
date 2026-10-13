@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { trackVisualViewport } from "./viewport";
+import { trackVisualViewport, fitShellToScreen, shellShortfallPx } from "./viewport";
 
 // The keyboard, as iOS reports it: the visual viewport shrinks and slides down
 // the page, and nothing about window.innerHeight or the layout changes.
@@ -191,6 +191,79 @@ describe("a band cannot outlive the keyboard that made it", () => {
     expect(seen).toContain("doc:focusout");
     expect(seen).toContain("doc:visibilitychange");
     expect(seen).toContain("win:pageshow");
+    stop();
+  });
+});
+
+// THE SHELL REACHES THE SCREEN'S FOOT (tab bar round 4, 2026-10-13). The shell
+// is stretched only in a standalone window, only in portrait, and only by a
+// shortfall that is real but plausible. Everywhere else it is a no-op: a
+// browser tab is SUPPOSED to be shorter than the screen.
+describe("fitShellToScreen", () => {
+  const realScreen = window.screen;
+  const setScreen = (height: number, width: number) =>
+    Object.defineProperty(window, "screen", { configurable: true, value: { height, width } });
+  const setStandalone = (on: boolean) =>
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (q: string) => ({ matches: on && q.includes("standalone"), media: q, addEventListener() {}, removeEventListener() {} }),
+    });
+  const addShell = () => {
+    const el = document.createElement("div");
+    el.className = "app-shell";
+    document.body.appendChild(el);
+    return el;
+  };
+  afterEach(() => {
+    Object.defineProperty(window, "screen", { configurable: true, value: realScreen });
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+
+  it("counts only a real, plausible shortfall", () => {
+    expect(shellShortfallPx(932, 932)).toBe(0);
+    expect(shellShortfallPx(930, 932)).toBe(0);
+    expect(shellShortfallPx(870, 932)).toBe(62);
+    expect(shellShortfallPx(400, 932)).toBe(0);
+    expect(shellShortfallPx(1000, 932)).toBe(0);
+  });
+
+  it("stretches the shell to the physical screen in a standalone window", () => {
+    setStandalone(true);
+    setScreen(932, 430);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 870 });
+    const shell = addShell();
+    const stop = fitShellToScreen();
+    expect(shell.style.height).toBe("932px");
+    stop();
+  });
+
+  it("does nothing in an ordinary browser tab, however short the window", () => {
+    setStandalone(false);
+    setScreen(932, 430);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 500 });
+    const shell = addShell();
+    const stop = fitShellToScreen();
+    expect(shell.style.height).toBe("");
+    stop();
+  });
+
+  it("does nothing when the viewport already reaches the screen", () => {
+    setStandalone(true);
+    setScreen(932, 430);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 932 });
+    const shell = addShell();
+    const stop = fitShellToScreen();
+    expect(shell.style.height).toBe("");
+    stop();
+  });
+
+  it("does nothing in landscape", () => {
+    setStandalone(true);
+    setScreen(430, 932);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 368 });
+    const shell = addShell();
+    const stop = fitShellToScreen();
+    expect(shell.style.height).toBe("");
     stop();
   });
 });

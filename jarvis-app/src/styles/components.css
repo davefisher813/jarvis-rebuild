@@ -60,8 +60,20 @@
 
 /* App shell layout (real-app scaffolding; the locked system defined screens and
    the tab bar, not the host shell). Full-height column: scrollable content with
-   the tab bar pinned at the bottom, like the device frame in the previews. */
-.app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
+   the tab bar pinned at the bottom, like the device frame in the previews.
+   THE SHELL IS NAILED TO THE VIEWPORT'S EDGES (Dave 2026-10-13, tab bar round 4,
+   his words: "Take an extreme measure. I never want to see this again"). Rounds
+   1 to 3 all adjusted the tab bar's own foot while the bar sat at the bottom of a
+   shell whose height was a MEASUREMENT (100dvh). On Dave's phone that measurement
+   comes up short (his 2026-10-13 screenshot: the labels end 82pt above the
+   screen's foot while the bar's own foot is a fixed 16pt), so the whole column,
+   bar included, floated above the edge on a floor of body background, and every
+   in-bar fix measured perfect in a harness whose frame the shell always filled.
+   A fixed shell with inset 0 does not ask how tall the viewport claims to be:
+   its edges ARE the viewport's edges. shared/viewport.ts (fitShellToScreen)
+   covers the remaining case, a standalone window whose layout viewport itself
+   stops short of the physical screen. */
+.app-shell { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
 .app-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .app-shell .screen { min-height: 100%; }
 
@@ -796,7 +808,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .input-doc { height: auto; min-height: 240px; padding-top: var(--s-3); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 .nav-title .cat-dot { display: inline-block; vertical-align: middle; margin-right: var(--s-2); }
 .cat-time { width: 56px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.app-shell { position: relative; }
+/* The shell's positioning (fixed, inset 0) lives in the shell rule at the top of
+   this file (round 4, 2026-10-13); it used to be restated here as relative,
+   which silently outranked any fix made up there. Nothing may re-declare it. */
 .capture-preview { padding: var(--s-3) 0 var(--s-2); }
 .capture-kind { display: inline-block; font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tint); }
 .capture-title { font-size: var(--t-h3); font-weight: var(--w-semi); margin-top: var(--s-1h); }
