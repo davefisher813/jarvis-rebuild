@@ -2,7 +2,7 @@
 // rule on its own, the order between them, the fall to Other when a fact is
 // missing, and the exact-Message-ID label that never merges.
 import { describe, it, expect } from "vitest";
-import { groupSections, isCalendar, isMailingList, loadOverrides, loadView, loadedWord, moveToSection, sameContent, saveView, sectionOf } from "./sections";
+import { dedupeRows, groupSections, isCalendar, isMailingList, loadOverrides, loadView, loadedWord, moveToSection, sameContent, saveView, sectionOf, threadCounts, threadWord } from "./sections";
 import type { InboxRow } from "./emailClient";
 
 const row = (id: string, o: Partial<InboxRow> = {}): InboxRow => ({
@@ -126,5 +126,35 @@ describe("what the device remembers", () => {
     expect(moveToSection("u1", "m1", null, s)).toEqual({});
     s.setItem("jarvis.email.sectionOverride.v1:u1", JSON.stringify({ m2: "nowhere", m3: "lists" }));
     expect(loadOverrides("u1", s)).toEqual({ m3: "lists" });
+  });
+});
+
+describe("one row per message in Grouped, and the thread count (Dave via Alfred, issue 103)", () => {
+  it("the same message under two row ids (a stale snapshot) is one row, keyed on the id and on account plus provider id", () => {
+    const rows = [row("1"), row("1"), row("9", { account_id: "a1", provider_id: "p1" }), row("2")];
+    expect(dedupeRows(rows).map((r) => r.id)).toEqual(["1", "2"]);
+    const sections = groupSections(rows);
+    expect(sections.flatMap((s) => s.rows.map((r) => r.id))).toEqual(["1", "2"]);
+  });
+  it("two connected mailboxes holding the same provider id are two messages, never collapsed", () => {
+    const rows = [row("1", { account_id: "a1", provider_id: "same" }), row("2", { account_id: "a2", provider_id: "same" })];
+    expect(dedupeRows(rows)).toHaveLength(2);
+  });
+  it("a thread of two or more loaded messages counts on each of its rows; a lone message and another account's thread do not", () => {
+    const rows = [
+      row("1", { thread_id: "T" }), row("2", { thread_id: "T" }), row("3", { thread_id: "T" }),
+      row("4", { thread_id: "U" }),
+      row("5", { account_id: "a2", thread_id: "T" }),
+      row("6", { thread_id: "" }), row("7", { thread_id: "" }),
+    ];
+    expect(threadCounts(rows)).toEqual({ "1": 3, "2": 3, "3": 3 });
+  });
+  it("the count reads as a number, then a capitalized word", () => {
+    expect(threadWord(3)).toBe("3 Messages");
+  });
+  it("a thread split by sections keeps one row per message, each in exactly one section", () => {
+    const rows = [row("1", { thread_id: "T", own_reply: true }), row("2", { thread_id: "T", list_unsubscribe: "<u>" }), row("3", { thread_id: "T", mime_type: "text/calendar" })];
+    const ids = groupSections(rows).flatMap((s) => s.rows.map((r) => r.id)).sort();
+    expect(ids).toEqual(["1", "2", "3"]);
   });
 });

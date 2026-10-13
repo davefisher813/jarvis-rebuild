@@ -3131,7 +3131,6 @@ describe("LAW 4: red is rationed, and nothing is red by default", () => {
   // Each entry is a render site allowed to be red, and why. The reason has
   // to be checkable by reading the file.
   const ALLOWED: Record<string, string> = {
-    "today/TodayFlow.tsx": "the failed-sweep card: an error, with Retry, that is red saying TAP ME (weight FAILING)",
     "messages/home.ts": "deadlineNotice, gated on byRank(t.by, now) <= 1, so the deadline is TODAY and nothing else reaches it",
   };
 
@@ -3161,15 +3160,23 @@ describe("LAW 4: red is rationed, and nothing is red by default", () => {
     expect(n, "if a third red is worth having, one of the two is not").toBeLessThanOrEqual(2);
   });
 
-  // Red claims urgency, so a red notice may not also be the calm one. The
-  // failed sweep declares FAILING; anything red that declares a weight must
-  // declare that band.
-  it("a red notice that names a weight names the top band", () => {
+  // Red claims urgency, so a red notice may not also be the calm one: any
+  // red notice that declares a weight must declare the top band.
+  //
+  // AMENDED ONCE, 2026-10-13 (issue 102), on Dave's ruling of 2026-10-12/13:
+  // "recoverable problem banners are AMBER, red only for unrecoverable." The
+  // failed-sweep card used to be the one red notice in TodayFlow and this law
+  // pinned it red. A failed move is retryable, so it is recoverable: the card
+  // is now amber (cat-fg-orange), still FAILING (the top band: it is still the
+  // loudest thing in the stream), and still not dismissable. The law keeps its
+  // teeth: it now fails if that card goes back to red.
+  it("the failed-sweep card is amber and names the top band", () => {
     const flow = read(join(SRC, "today/TodayFlow.tsx"));
     const card = flow.slice(flow.indexOf('key="sweepfail"'));
     const end = card.search(/\n\s*\/>/);
     const props = card.slice(0, end);
-    expect(props, "the one red card in TodayFlow is the failure").toMatch(/tone="cat-fg-red"/);
+    expect(props, "a move that can be retried is recoverable: amber, not red").toMatch(/tone="cat-fg-orange"/);
+    expect(props, "and it is not red").not.toMatch(/tone="cat-fg-red"/);
     expect(props, "and it carries FAILING").toMatch(/weight=\{FAILING\}/);
   });
 });

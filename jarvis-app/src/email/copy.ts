@@ -206,6 +206,13 @@ export const CLOSE_DRAFT = "Close";
 export const DISCARD_DRAFT = "Discard Draft";
 export const DRAFT_DISCARDED = "Draft Discarded";
 export const DRAFT_KEPT = "Draft Kept";
+// Close on a composer with words in it (issue 103, 2026-10-13): never silent. The first is said only after the server
+// answered; the second when the words are on this phone only (offline, a conflict, a refusal).
+export const DRAFT_SAVED = "Draft Saved";
+export const DRAFT_SAVED_HERE = "Draft Saved on This Device";
+// The one confirm before a draft is deleted (the issue quotes the live wording "Delete this draft?"); its action is Discard Draft.
+export const DISCARD_ASK = "Delete This Draft?";
+export const DISCARD_OFFLINE = "Connect to Discard · The Draft Is Saved on JARVIS";
 export const DRAFT_ONLY = "Draft Only · Nothing Is Sent";
 export const SAVED_HERE = "Saved on This Device";
 export const SAVED_LINE = "Saved";

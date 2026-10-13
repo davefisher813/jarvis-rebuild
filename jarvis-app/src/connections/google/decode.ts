@@ -130,7 +130,18 @@ const NAMED: Record<string, string> = {
   copy: "\u00A9", reg: "\u00AE", deg: "\u00B0", eacute: "\u00E9",
   middot: "\u00B7", bull: "\u2022", euro: "\u20AC", pound: "\u00A3",
   yen: "\u00A5", cent: "\u00A2", times: "\u00D7", frac12: "\u00BD",
+  // The invisible and typographic ones marketing mail pads a preview with
+  // (Dave 2026-10-13, the GEICO inbox line). They decode to what the sender
+  // wrote; src/email/snippet.ts then removes the invisible ones for display.
+  zwnj: "\u200C", zwj: "\u200D", shy: "\u00AD", ensp: "\u2002",
+  emsp: "\u2003", thinsp: "\u2009", hairsp: "\u200A", lrm: "\u200E",
+  rlm: "\u200F", laquo: "\u00AB", raquo: "\u00BB", sbquo: "\u201A",
+  bdquo: "\u201E", prime: "\u2032", minus: "\u2212", rarr: "\u2192",
+  larr: "\u2190", hearts: "\u2665",
 };
+
+/** Every named entity this decoder knows (lowercase), for callers that must tell a cut-off "&rsq" from "AT&T". */
+export const ENTITY_NAMES: readonly string[] = Object.keys(NAMED);
 
 /**
  * Decode HTML entities in text that has already had its tags stripped.

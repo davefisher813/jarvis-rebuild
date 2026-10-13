@@ -33,7 +33,7 @@ function walk(dir: string): string[] {
   return out;
 }
 
-const MUT = /\b(\w+)\.(createTask|createEvent|createReminder|createNote|create|update\w*|deleteTask|deleteEvent|deleteNote|delete\w*|remove\w*|save\w*|patch|toggleDone|toggle\w*|addExdate|removeExdate|setAside|setCategories|setDue|move\w*|clearAll|purge\w*|trash\w*|untrash\w*|restore\w*|recreateFrom|editCategory|seedDefaults|add)\(/g;
+const MUT = /\b(\w+)\.(createTask|createEvent|createReminder|createNote|create|update\w*|deleteTask|deleteEvent|deleteNote|delete\w*|remove\w*|save\w*|patch|toggleDone|toggle\w*|addExdate|removeExdate|setAside|setCategories|setDue|move\w*|clearAll|purge\w*|trash\w*|untrash\w*|restore\w*|complete\w*|recreateFrom|editCategory|seedDefaults|add)\(/g;
 const SVC = /^(svc|service|tasks|tasksSvc|schedule|scheduleSvc|sched|notes|notesSvc|money|moneySvc|goals|goalsSvc|routine|routineSvc|profile|profileSvc|categories|catsSvc|chat|chatSvc|people|peopleSvc|metricsSvc|decisionsSvc|gym|gymSvc|store|files|fileStore|strands|health|healthSvc|insights|google|g)$/;
 
 /** Character spans covered by a guard call or a try block. */

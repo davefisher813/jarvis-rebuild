@@ -114,3 +114,20 @@ describe("a header can carry entities too", () => {
     expect(decodeEntities("R&D budget")).toBe("R&D budget");
   });
 });
+
+describe("the invisible and typographic named entities (GEICO inbox line, 2026-10-13)", () => {
+  it("decodes the padding entities to the characters they name", () => {
+    expect(decodeEntities("a&zwnj;b&zwj;c&shy;d&lrm;e&rlm;f")).toBe("a\u200Cb\u200Dc\u00ADd\u200Ee\u200Ff");
+    expect(decodeEntities("&ensp;&emsp;&thinsp;&hairsp;")).toBe("\u2002\u2003\u2009\u200A");
+  });
+
+  it("decodes the quotation and arrow entities", () => {
+    expect(decodeEntities("&laquo;x&raquo; &sbquo;y&bdquo; 5&prime; &minus;3 &rarr;&larr;&hearts;"))
+      .toBe("\u00ABx\u00BB \u201Ay\u201E 5\u2032 \u22123 \u2192\u2190\u2665");
+  });
+
+  it("still decodes once only", () => {
+    expect(decodeEntities("&amp;zwnj;")).toBe("&zwnj;");
+  });
+});
+

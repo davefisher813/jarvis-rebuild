@@ -31,6 +31,7 @@ import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
 import type { TaskItem, StepWrite } from "./TasksService";
+import { saveTaskEdit } from "./saveTaskEdit";
 import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
@@ -566,29 +567,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
      
   }, [openFilter, filterNonce]);
 
-  const onSave = async (draft: TaskDraft) => {
+  const onSave = async (draft: TaskDraft): Promise<boolean> => {
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
       saved = await attemptWrite(() => svc.createTask(titleCase(draft.text), { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
-      saved = await attemptWrite(async () => {
-        await svc.editText(sheet.id, titleCase(draft.text));
-        await svc.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
-        await svc.setDue(sheet.id, draft.due || null);
-        await svc.setProject(sheet.id, draft.projectId ?? null);
-        await svc.setGoal(sheet.id, draft.goalId ?? null);
-        await svc.setEvent(sheet.id, draft.eventId ?? null);
-        await svc.setRecurrence(sheet.id, rec || null);
-        await svc.setPlan(sheet.id, draft.plan ?? null);
-        await svc.setSteps(sheet.id, draft.steps ?? []);
-        await svc.setNotes(sheet.id, draft.notes ?? null);
-        await svc.setEstimate(sheet.id, draft.estimateMin ?? null);
-        await svc.setPerson(sheet.id, draft.personId ?? null);
-        // Close Task: one tap on the sheet's own offer both saves and marks
-        // the task done, once every step is checked.
-        if (draft.closeNow) await svc.toggleDone(sheet.id);
-      });
+      // One chain for every screen that opens this sheet (saveTaskEdit.ts).
+      // Close Task / Mark Done (closeNow) sets the task done and says what it
+      // did; a write that did not land keeps the sheet open (issue 102).
+      saved = await saveTaskEdit(svc, sheet.id, { ...draft, text: titleCase(draft.text) }, { closeNow: draft.closeNow, reload });
+      if (!saved) return false;
     }
     if (saved && sheet && !draft.closeNow) haptics.confirm();
     const wasNew = sheet?.mode === "new" && saved;
@@ -609,6 +598,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         showToast({ message: heldText() });
       }
     }
+    return true;
   };
 
   const onDelete = async () => {
@@ -1336,6 +1326,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           categories={categories}
           categoryMinutes={categoryMinutes}
           people={sheetPeople(people)}
+          // A finished task offers no Quick Actions (issue 102): every verb in
+          // that group is meaningless on it, and Mark Done used to reopen it.
+          completed={sheet.mode === "edit" && allItems.find((x) => x.id === sheet.id)?.data.done === true}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           selfId={sheet.mode === "edit" ? sheet.id : undefined}

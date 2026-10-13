@@ -148,10 +148,59 @@ export class TasksService {
     return newId;
   }
 
+  // The flip: a ring tap. Open becomes finished (or rolls, if it repeats);
+  // finished becomes open. This is the right verb for a ring, whose whole
+  // meaning is "the other state". It is the WRONG verb for anything that means
+  // "make this finished" (the sheet's Mark Done, issue 102): that is
+  // completeTask below, which cannot reopen what is already finished.
   async toggleDone(id: string): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;
-    if (!t.done && t.recurrence) {
+    if (!t.done) return (await this.finish(id, t)).ok;
+    // Reopen. A write the store refused (false: the row went missing or the
+    // write lost) is not a reopen; "queued" and true both mean it is written
+    // or will be on reconnect.
+    const written = await this.store.update(this.ownerId, id, { done: false });
+    if (written === false) return false;
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // MARK DONE IS A SET, NOT A FLIP (issue 102). The sheet used to call
+  // toggleDone, so a task finished behind the sheet's back (another surface,
+  // another device, a swipe) was REOPENED by the tap, and the Done filter's
+  // own sheet reopened what it listed. This makes the task finished and is a
+  // no-op on one that already is, so tapping it twice, or late, or retrying
+  // after a partial failure, lands on the same answer.
+  //
+  // A repeating task still ROLLS to its next occurrence rather than finishing
+  // (LIFE-F-03, by design: it pauses, never dies). `rolled` and `nextDue` say
+  // so, so the caller can tell him; before, the sheet closed in silence and the
+  // task simply vanished from Today. Once it has rolled for today, a second call
+  // does not roll it again and skip an occurrence (the once-a-day rule
+  // countEnactment already keeps for the count).
+  //
+  // ok is false only when nothing was written: the task is gone, or the store
+  // refused the write. `changed` is false when there was nothing to do.
+  async completeTask(id: string): Promise<{ ok: boolean; rolled: boolean; changed: boolean; nextDue?: string }> {
+    const t = await this.getTask(id);
+    if (!t) return { ok: false, rolled: false, changed: false };
+    if (t.done) return { ok: true, rolled: false, changed: false };
+    const today = todayISO();
+    if (t.recurrence && t.lastDone === today && !!t.due && t.due > today) {
+      return { ok: true, rolled: true, changed: false, nextDue: t.due };
+    }
+    return this.finish(id, t);
+  }
+
+  // The completion itself, shared by the flip and the set so the two cannot
+  // drift: a repeating task rolls, anything else is marked done (a bill stamps
+  // lastDone), then the time-sense sample and the semantic events. Nothing is
+  // recorded when the write is refused.
+  private async finish(id: string, t: TaskData): Promise<{ ok: boolean; rolled: boolean; changed: boolean; nextDue?: string }> {
+    let rolled = false;
+    let rolledTo: string | undefined;
+    if (t.recurrence) {
       // completing a recurring task rolls it to the next occurrence instead of
       // finishing it, and advances the streak (pauses, never dies: lifecycle.ts)
       const today = todayISO();
@@ -170,7 +219,7 @@ export class TasksService {
       // per day). It rides alongside the run rather than replacing it: the
       // comeback line still needs runLen, nothing shows it any more.
       const counted = countEnactment(t.doneCount, t.lastCounted, today);
-      await this.store.update(this.ownerId, id, {
+      const written = await this.store.update(this.ownerId, id, {
         due,
         lastDone: streak.lastDone,
         runLen: streak.runLen,
@@ -178,35 +227,37 @@ export class TasksService {
         doneCount: counted.doneCount,
         lastCounted: counted.lastCounted,
       });
+      if (written === false) return { ok: false, rolled: false, changed: false };
+      rolled = true;
+      rolledTo = due;
     } else {
       // One-time bills stamp lastDone on completion: it is the "Paid Jul 28"
       // receipt that kills the did-I-already-pay loop (Money v1).
-      const patch: ItemData = { done: !t.done };
-      if (t.bill && !t.done) patch.lastDone = todayISO();
-      await this.store.update(this.ownerId, id, patch);
+      const patch: ItemData = { done: true };
+      if (t.bill) patch.lastDone = todayISO();
+      const written = await this.store.update(this.ownerId, id, patch);
+      if (written === false) return { ok: false, rolled: false, changed: false };
     }
     // Time Sense (silent, Phase 1): every completion logs an hour-of-day sample
     // so Phase 2 launches with a real energy curve instead of self-report.
-    if (!t.done) {
-      recordCompletion(t.category ?? "", new Date(), id);
-      // Semantic event for the durable log: completions are what the Brain's
-      // completion-window and plan-vs-done derivations read.
-      //
-      // Section 5 (Astra, 2026-09-12; C-45): scheduled against actual. n is
-      // the signed minutes from the block JARVIS planned this task into today
-      // to the minute it was ticked, present only when such a block exists;
-      // kind says how often the task had been pushed before it got done,
-      // moved0 through moved3plus, read off the local log. Both are numbers
-      // about the task's path, never words about the task.
-      const planned = await this.plannedStartToday(id);
-      const now = new Date();
-      const n = planned === null ? undefined : now.getHours() * 60 + now.getMinutes() - planned;
-      const moved = await this.timesPushed(id);
-      const kind = moved >= 3 ? "moved3plus" : `moved${moved}`;
-      this.onEvent({ type: "task.completed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "", kind, ...(n === undefined ? {} : { n }) } });
-    }
+    recordCompletion(t.category ?? "", new Date(), id);
+    // Semantic event for the durable log: completions are what the Brain's
+    // completion-window and plan-vs-done derivations read.
+    //
+    // Section 5 (Astra, 2026-09-12; C-45): scheduled against actual. n is
+    // the signed minutes from the block JARVIS planned this task into today
+    // to the minute it was ticked, present only when such a block exists;
+    // kind says how often the task had been pushed before it got done,
+    // moved0 through moved3plus, read off the local log. Both are numbers
+    // about the task's path, never words about the task.
+    const planned = await this.plannedStartToday(id);
+    const now = new Date();
+    const n = planned === null ? undefined : now.getHours() * 60 + now.getMinutes() - planned;
+    const moved = await this.timesPushed(id);
+    const kind = moved >= 3 ? "moved3plus" : `moved${moved}`;
+    this.onEvent({ type: "task.completed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "", kind, ...(n === undefined ? {} : { n }) } });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
-    return true;
+    return { ok: true, rolled, changed: true, ...(rolledTo ? { nextDue: rolledTo } : {}) };
   }
 
   // The start, in minutes from midnight, of the block this task was planned
@@ -491,7 +542,12 @@ export class TasksService {
     // Pushing a due date later counts as a slip (First Step watches for 3).
     const slipped = !!t.due && !!due && due > t.due;
     const moved = movedBy ? madeBy(movedBy) : null;
-    await this.store.update(this.ownerId, id, (slipped ? { due, slips: (t.slips ?? 0) + 1, moved } : { due, moved }) as unknown as ItemData);
+    // A refused write (false: the row went missing or a newer write beat this
+    // one) is not a move. "queued" and true both mean the date is written, or
+    // will be on reconnect. Ignoring this made the sweep count a task as moved
+    // that kept its old date (issue 102).
+    const written = await this.store.update(this.ownerId, id, (slipped ? { due, slips: (t.slips ?? 0) + 1, moved } : { due, moved }) as unknown as ItemData);
+    if (written === false) return false;
     // Semantic event: slips-by-category is a Brain launch derivation.
     if (slipped) this.onEvent({ type: "task.pushed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "" } });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });

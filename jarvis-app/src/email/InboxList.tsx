@@ -24,7 +24,7 @@ export interface ListGroup {
   slot?: string | null;
 }
 
-export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent }: {
+export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads }: {
   groups: ListGroup[];
   /** The label each mailbox wears on its rows; empty labels when there is one mailbox. */
   labels: Record<string, string>;
@@ -46,6 +46,8 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
   onPickGroup?: (rows: InboxRow[], pick: boolean) => void;
   /** Rows whose exact Message-ID another connected mailbox also holds (3.3). */
   sameContent?: Record<string, string[]>;
+  /** Rows whose thread has two or more loaded messages, with the count (the Grouped view). */
+  threads?: Record<string, number>;
 }) {
   return (
     <div className="pad-x">
@@ -65,7 +67,7 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
                 // A fragment, not a wrapper: the card's hairline is drawn between two adjacent rows.
                 <Fragment key={r.id}>
                   <MailRow row={r} accountLabel={labels[r.account] ?? ""} now={now} onOpen={onOpen}
-                    selecting={selecting} picked={selecting && !!isPicked?.(r.id)} onPick={onPick} sameContent={!!sameContent?.[r.id]} />
+                    selecting={selecting} picked={selecting && !!isPicked?.(r.id)} onPick={onPick} sameContent={!!sameContent?.[r.id]} threadCount={threads?.[r.id]} />
                   {!selecting && renderBelow?.(r)}
                 </Fragment>
               ))}

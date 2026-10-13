@@ -13,6 +13,7 @@ import type { Goal, GoalData } from "../life/types";
 import { goalEvidenceDays, comebackLine, heavyWord } from "../review/life";
 import type { Category } from "../categories/types";
 import type { TaskItem } from "../tasks/TasksService";
+import { saveTaskEdit } from "../tasks/saveTaskEdit";
 import BiggerPicturePage from "./BiggerPicturePage";
 import Payoff, { payoffLine } from "../shared/Payoff";
 import ProjectSheet from "../projects/ProjectSheet";
@@ -853,26 +854,16 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 // of a step opened from its project. Silent, and no undo.
                 notes: t.data.notes,
               }}
+              completed={t.data.done === true}
               onSave={async (d: TaskDraft) => {
-                const id = sheet.id;
-                const rec = (d.repeat || "") as "" | Recurrence;
-                await attemptWrite(async () => {
-                  await tasksSvc.editText(id, d.text);
-                  await tasksSvc.setCategories(id, [d.category, ...(d.extraCategories ?? [])].filter(Boolean));
-                  await tasksSvc.setDue(id, d.due || null);
-                  await tasksSvc.setProject(id, d.projectId ?? null);
-                  await tasksSvc.setGoal(id, d.goalId ?? null);
-                  await tasksSvc.setPerson(id, d.personId ?? null);
-                  await tasksSvc.setEvent(id, d.eventId ?? null);
-                  await tasksSvc.setRecurrence(id, rec || null);
-                  await tasksSvc.setPlan(id, d.plan ?? null);
-                  await tasksSvc.setSteps(id, d.steps ?? []);
-                  await tasksSvc.setNotes(id, d.notes ?? null);
-                  await tasksSvc.setEstimate(id, d.estimateMin ?? null);
-                  if (d.closeNow) await tasksSvc.toggleDone(id);
-                });
+                // The one shared chain (saveTaskEdit.ts): a write that did not
+                // land keeps the sheet open and answers false; Mark Done sets,
+                // never flips (issue 102).
+                const saved = await saveTaskEdit(tasksSvc, sheet.id, d, { closeNow: d.closeNow, reload });
+                if (!saved) return false;
                 setSheet({ kind: "closed" });
                 await reload();
+                return true;
               }}
               onDelete={async () => {
                 const id = sheet.id;

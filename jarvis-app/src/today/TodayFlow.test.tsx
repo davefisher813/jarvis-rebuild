@@ -17,6 +17,8 @@ import { titleCase } from "../shared/casing";
 import { heldBy } from "../brain/hardLines";
 import { todayISO } from "../schedule/calendar";
 import type { AIService } from "../ai/AIService";
+import { Store, InMemoryAdapter } from "@core";
+import { TasksService } from "../tasks/TasksService";
 import TodayFlow from "./TodayFlow";
 
 const showToast = vi.fn();
@@ -619,5 +621,51 @@ describe("TodayFlow: a task's notes survive being edited from home", () => {
       expect(back?.notes).toContain("Thursday");
     });
     vi.useRealTimers();
+  });
+});
+
+// Issue 102: "Retry dismisses it temporarily, the failure remains". A persisted
+// failed-sweep receipt is history, not status (autoSweep.ts, LAW 1): the notice
+// shows only while a task it names is still there, undone and overdue.
+describe("TodayFlow: the failed-sweep notice proves itself (issue 102)", () => {
+  const RECEIPT_KEY = "jarvis.sweep.receipt.v1";
+  const FAILED_TITLE = "Couldn't Move Yesterday's Tasks";
+
+  async function mountWithReceipt(failedIds: (stuck: string) => string[]) {
+    const { addDays } = await import("../schedule/calendar");
+    const today = todayISO();
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "sweep-fail-user");
+    const stuck = (await svc.createTask("Call the Plumber", { due: addDays(today, -1) }))!;
+    // This morning's sweep already ran and left a failed receipt behind.
+    localStorage.setItem("jarvis.sweep.last.v1", today);
+    localStorage.setItem(RECEIPT_KEY, JSON.stringify({ date: today, moved: [], failed: true, failedIds: failedIds(stuck) }));
+    render(
+      <NotesProvider userId="sweep-fail-user" store={store}>
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    return { svc, stuck, today };
+  }
+
+  it("a failed receipt whose tasks are gone shows no notice", async () => {
+    await mountWithReceipt(() => ["a-task-that-no-longer-exists"]);
+    await waitFor(() => expect(screen.getAllByText("Call the Plumber").length).toBeGreaterThan(0));
+    expect(screen.queryByText(FAILED_TITLE)).toBeNull();
+  });
+
+  it("a task that is still stuck shows the notice, amber, and Retry moves it and clears it", async () => {
+    const { svc, stuck, today } = await mountWithReceipt((id) => [id]);
+    const title = await screen.findByText(FAILED_TITLE);
+    const card = title.closest(".notice-swipe")!;
+    expect(card.textContent).toContain("1 Task Did Not Move");
+    expect(card.innerHTML).toContain("cat-bg-orange"); // the disc wears the tone
+    expect(card.innerHTML).not.toContain("cat-bg-red");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.queryByText(FAILED_TITLE)).toBeNull());
+    expect((await svc.task(stuck))!.due).toBe(today);
+    expect(JSON.parse(localStorage.getItem(RECEIPT_KEY)!).failed).toBe(false);
   });
 });
