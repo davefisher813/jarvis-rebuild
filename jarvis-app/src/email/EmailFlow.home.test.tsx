@@ -101,6 +101,28 @@ describe("the grouped home (spec 3.1, 3.2)", () => {
     expect(document.querySelector(".email-fab")).toHaveAttribute("aria-label", "Compose");
   });
 
+  it("every section heading carries Why This Section?, which opens that section's own answer and closes on Done", async () => {
+    mount(rig());
+    await waitFor(() => expect(rowEls().length).toBe(5));
+    const purpose: Record<string, string> = { Conversations: "Threads Where You Sent a Message", Schedule: "Mail with Calendar Structure", "Mailing Lists": "Mail Sent to a Mailing List", Other: "Mail No Section Rule Matched" };
+    const hs = [...document.querySelectorAll(".sh2")] as HTMLElement[];
+    expect(hs.length).toBe(4);
+    for (const h of hs) {
+      const name = h.querySelector(".t")!.textContent!;
+      const btn = h.querySelector(".email-sec-why") as HTMLElement;
+      expect(btn, name).toHaveAttribute("aria-label", "Why This Section?");
+      fireEvent.click(btn);
+      const d = screen.getByRole("dialog", { name: "Why This Section?" });
+      expect(d).toHaveTextContent(`In ${name}`);
+      expect(d).toHaveTextContent(purpose[name]!);
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+      expect(screen.queryByRole("dialog", { name: "Why This Section?" })).toBeNull();
+    }
+    // All by Date's day headings are not sections and carry no such control.
+    fireEvent.click(screen.getByRole("tab", { name: "All by Date" }));
+    expect(document.querySelector(".email-sec-why")).toBeNull();
+  });
+
   it("All by Date shows the same rows under days, and the choice is remembered on this device", async () => {
     const r = rig();
     const ui = mount(r);
