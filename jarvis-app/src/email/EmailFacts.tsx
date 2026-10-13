@@ -8,17 +8,25 @@
 // for a line whose job is to show every fact (a message head, a search
 // coverage line): it draws the wrapping .conn-meta instead of the one-line
 // .facts, which ellipsizes its last fact.
+//
+// A TIME IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-13, issue 106 V1:
+// "8:15 AM must hold one line"). "Today 2:00 PM" on a mail row wraps in the
+// message head and at a large text size, so the pair is bound where it is drawn.
 
 import type { EmailFact } from "./format";
+import { bindMeridiem } from "../shared/casing";
 
 export default function EmailFacts({ facts, wrap = false }: { facts: readonly EmailFact[]; wrap?: boolean }) {
   const list = facts.filter((f) => f.text.trim());
   if (list.length === 0) return null;
-  const spans = list.map((f, i) => (
-    <span key={i + ":" + f.text} className={"fact" + (f.cat ? " cat" : "") + (f.tone ? " " + f.tone : "")}>
-      {f.cat && <span className={"cd cat-bg-" + f.cat} />}
-      {f.cat ? <span className="cat-t">{f.text}</span> : f.strong ? <b>{f.text}</b> : f.text}
-    </span>
-  ));
+  const spans = list.map((f, i) => {
+    const text = bindMeridiem(f.text);
+    return (
+      <span key={i + ":" + f.text} className={"fact" + (f.cat ? " cat" : "") + (f.tone ? " " + f.tone : "")}>
+        {f.cat && <span className={"cd cat-bg-" + f.cat} />}
+        {f.cat ? <span className="cat-t">{text}</span> : f.strong ? <b>{text}</b> : text}
+      </span>
+    );
+  });
   return wrap ? <div className="conn-meta">{spans}</div> : <div className="facts">{spans}</div>;
 }

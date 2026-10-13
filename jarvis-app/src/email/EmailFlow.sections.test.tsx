@@ -185,7 +185,8 @@ const cardsUnder = (el: Element): HTMLElement[] => {
   for (let n = el.nextElementSibling; n && !n.classList.contains("erow"); n = n.nextElementSibling) if (n.matches(".email-card, .email-receipt-line")) out.push(n as HTMLElement);
   return out;
 };
-const texts = (root: ParentNode, sel: string): string[] => [...root.querySelectorAll(sel)].map((f) => (f.textContent ?? "").replace(/\u202f/g, " "));
+// A clock is bound to its AM or PM with a no-break space (issue 106 V1) and a phone's ICU writes a narrow one: read both as the plain space.
+const texts = (root: ParentNode, sel: string): string[] => [...root.querySelectorAll(sel)].map((f) => (f.textContent ?? "").replace(/[\u00a0\u202f]/g, " "));
 const proposals = (r: Rig) => r.calls.filter((c) => c.fn === "candidate_propose");
 
 // ---- the catalog's DOM check for a facts line, as emailCatalog.test.tsx runs it (a test file cannot be imported without

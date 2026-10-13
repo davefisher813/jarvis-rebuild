@@ -122,6 +122,12 @@ export interface FifteenFace {
    * wearing a fact's clothes.
    */
   line: string;
+  /**
+   * The number alone, for a screen that gives the clock a face of its own
+   * (Focus, issue 108): "14:32", and "0:00" once the block is up. `line` is
+   * the same fact as a phrase; both come from the one `countdown`.
+   */
+  clock: string;
 }
 
 export function fifteenFace(s: LiveFifteen, now: number = Date.now()): FifteenFace {
@@ -131,6 +137,7 @@ export function fifteenFace(s: LiveFifteen, now: number = Date.now()): FifteenFa
     text: s.text,
     over: left === 0,
     line: left === 0 ? `${minutesLabel(s.minutes)} Up` : `${countdown(left)} Left`,
+    clock: countdown(left),
   };
 }
 

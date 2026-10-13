@@ -162,6 +162,52 @@ describe("the grid and the key, read off the stylesheet", () => {
     expect(rule(".block-held-col .block-held-facts")).toMatch(/grid-column:\s*1 \/ -1/);
   });
 
+  // V6 (issue #106, Dave 2026-10-13): on the Schedule tab a task under a block is a row of its own, marked .sched-nested. How far it
+  // is indented under the block is ONE knob, --sched-nest-indent, and it is zero until the approved catalog picture says otherwise:
+  // the check already stands where the block's time does, so the row sits under its block with no extra step. The row, its rail and
+  // its divider all read the knob, so they cannot drift apart when it is turned. (Today's day card is the frozen TV guide and still
+  // draws the nested .block-held rows above; those rules stay.)
+  it("a nested proposed row's padding, rail and divider all follow one indent knob, which is zero", () => {
+    expect(body(".ruled .sched-nested .sched-row")).toMatch(/padding-left:\s*calc\(var\(--s-4\) \+ var\(--s-3\) \+ var\(--sched-nest-indent, 0px\)\)/);
+    expect(body(".ruled .sched-nested .sched-bar")).toMatch(/left:\s*calc\(var\(--s-4\) \+ var\(--sched-nest-indent, 0px\)\)/);
+    expect(body(".ruled .sched-swipe-wrap.sched-nested .sched-row::before")).toMatch(/left:\s*calc\(var\(--s-4\) \+ var\(--s-3\) \+ var\(--sched-nest-indent, 0px\)\)/);
+    // Nobody turns the knob without a ruling: it is declared nowhere, so the fallback (0px) is what draws.
+    expect(bare).not.toMatch(/--sched-nest-indent\s*:/);
+    // It moves nothing else: the row's colour and surface are not this rule's business.
+    for (const sel of [".ruled .sched-nested .sched-row", ".ruled .sched-nested .sched-bar", ".ruled .sched-swipe-wrap.sched-nested .sched-row::before"]) {
+      expect(body(sel), sel + " sets geometry only").not.toMatch(/color|background|font|opacity|border/);
+    }
+  });
+
+  // ISSUE #109, DEFECT 2 (Dave 2026-10-13, on his phone): a focus block's meta line read "FLEXIBLE ......... · UNTIL 7:00 PM", the word at
+  // the left and the time pinned to the far right with its dot left floating between them. components.css pins it on purpose
+  // (.sched-holds .sched-cat .sched-fact { margin-left: auto }, 2026-09-22), and that pin is part of Today's frozen TV guide, so it
+  // stays. The Schedule tab releases it under .sched-card, with a rule that outranks the pin, and reads "FLEXIBLE · UNTIL 7:00 PM"
+  // as one left-aligned group, the same line a protected block already drew.
+  it("the Schedule tab's focus block keeps its state word and its Until together; the pin stays for Today's guide", () => {
+    const sel = ".ruled .sched-card .sched-holds .sched-body > .sched-cat > .sched-fact";
+    expect(body(sel)).toMatch(/margin-left:\s*0\b/);
+    expect(body(sel)).toMatch(/padding-left:\s*0\b/);
+    expect(body(sel), "geometry only: no colour, no font").not.toMatch(/color|font|background|opacity/);
+    // It has to win the cascade against the pin it releases: more class tokens, so higher specificity, whatever the file order.
+    const comp = readFileSync(join(__dirname, "../../styles/components.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const pin = [...comp.matchAll(/([^{}]+)\{([^}]*)\}/g)].find((x) => x[1]!.trim() === ".sched-holds .sched-cat .sched-fact");
+    expect(pin![2], "Today's right pin is still there").toMatch(/margin-left:\s*auto/);
+    const classes = (s: string) => (s.match(/\.[A-Za-z_][\w-]*/g) ?? []).length;
+    expect(classes(sel)).toBeGreaterThan(classes(pin![1]!.trim()));
+  });
+
+  it("a flexible focus block's meta line is the state word then one Until unit, its separator inside the unit", () => {
+    const holder = { s: 15 * 60, e: 19 * 60, label: "Deep Work", id: "dw", kind: "focus", mode: "holds", soft: true };
+    const { container } = render(<SchedulePage {...day} dayEvents={[ev("a", "10:00", "11:00")]} locked={[holder] as never} />);
+    const cat = container.querySelector(".sched-holds .sched-body > .sched-cat")!;
+    const kids = Array.from(cat.children);
+    expect(kids.map((k) => k.className.split(" ")[0])).toEqual(["fact", "sched-fact"]);
+    expect(kids[0]!.textContent).toBe("FLEXIBLE");
+    expect(kids[1]!.querySelector(":scope > .sched-sep"), "the dot travels with Until, so it can never float apart from it").not.toBeNull();
+    expect(kids[1]!.textContent!.replace(/\s+/g, " ")).toBe("·Until 7:00 PM");
+  });
+
   it("a length is the key's sky estimate, never the brand red that means late or tap", () => {
     const len = body(".ruled .sched-until-btn");
     expect(len).toMatch(/color:\s*var\(--est-ink\)/);

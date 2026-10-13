@@ -15,7 +15,7 @@ import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
 import SkippedBlocks, { type SkippedBlock } from "./SkippedBlocks";
 import AnytimeRow from "./AnytimeRow";
-import ProposedRow, { HeldProposalRow } from "./ProposedRow";
+import ProposedRow from "./ProposedRow";
 import { stateForEvent, stateForBlock } from "../stateWord";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { ParentLine } from "../../life/parent";
@@ -313,16 +313,6 @@ export default function SchedulePage({
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", up);
   };
-  // ONE ANSWER TO "TAP A PROPOSED TASK" (schedule audit 2026-10-01, item 5).
-  // A task nested under a block opens the task editor, as it does on Today;
-  // the standalone row expands in place and carries the same door as an Edit
-  // Task button. This was the nested rows' onToggle, which sets state only
-  // ProposedRow reads, so on a nested row the tap did nothing visible. A flow
-  // with no editor wired keeps the toggle.
-  const openProposed = (taskId: string) => {
-    if (proposed?.onOpen) proposed.onOpen(taskId);
-    else proposed?.onToggle(taskId);
-  };
   const isToday = selected === todayDate && !!now;
   // S6-Q41 (2026-09-05): "weather never reaches the Schedule tab." Today
   // already shows it (YourDay.tsx); this tab never passed a date at all.
@@ -359,6 +349,14 @@ export default function SchedulePage({
   // C-32 (Astra, 2026-09-12): proposals nest by the same test. Today has done
   // this since 2026-08-24; the Schedule tab drew the same pick as an
   // unrelated row beside the block it was planned INTO.
+  // V6 (issue #106, Dave 2026-10-13): "Proposed tasks get their own rows,
+  // indented under the block they belong to, instead of tappable rows nested
+  // inside the event button." The block still knows what it holds (heldPropBy,
+  // and the count it is handed), but each held pick is drawn as a ROW OF ITS
+  // OWN, in time order after its block and marked nested (nestedProps, read by
+  // ProposedRow's `nested`), not as a button inside the block's own button.
+  // Today's day card is the frozen TV guide and keeps nesting through
+  // HeldProposalRow; that is not touched from here.
   const heldPropBy = new Map<string, import("../planDay").PlanBlock[]>();
   const nestedProps = new Set<string>();
   // COMMITTED EVENTS DO NOT NEST (NESTABLE.event, 2026-09-21). This surface
@@ -390,7 +388,11 @@ export default function SchedulePage({
     // NOT mode-gated. The day list renders under the month grid too, and
     // gating the ROWS on day-mode while the count line counted regardless
     // produced "6 Events · 5 Proposed" above a list showing none of them.
-    ...(proposed?.blocks ?? []).filter((b) => !nestedProps.has(b.taskId)).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
+    // EVERY proposal is a row (V6): one held by a block is no longer filtered
+    // out to be drawn inside it. The sort below is stable and this spread comes
+    // after the blocks, so a pick that starts on its block's own minute still
+    // follows it; a held pick never starts before its holder.
+    ...(proposed?.blocks ?? []).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
   ].sort((a, b) => a.s - b.s);
   const nowMin = now ? toMin(now) : 0;
   const nextId = isToday ? dayEvents.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id : undefined;
@@ -834,10 +836,12 @@ export default function SchedulePage({
                 </div>
               </button>
             ) : en.kind === "proposed" ? (
-              // Penciled into the day among the real rows, never below it.
+              // Penciled into the day among the real rows, never below it. A pick a holding block holds is the same row,
+              // marked nested (V6): its own check, time column, swipe, menu and tap, after the block it sits under.
               <ProposedRow
                 key={"prop-" + en.b.taskId}
                 block={en.b}
+                nested={nestedProps.has(en.b.taskId)}
                 open={proposed!.openId === en.b.taskId}
                 onToggle={() => proposed!.onToggle(en.b.taskId)}
                 onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
@@ -863,26 +867,7 @@ export default function SchedulePage({
                 onRetime={onRetimeBlock && id ? (s) => onRetimeBlock(id, s) : undefined}
                 onResize={onResizeBlock && id ? (e) => onResizeBlock(id, e) : undefined}
                 onDelete={onDeleteBlock && id ? () => onDeleteBlock(id) : undefined}
-              >
-                {/* The work this block is holding, at its own times. */}
-                {heldProps.length > 0 && (
-                  <div className="block-nest">
-                    {/* C-32 (Astra, 2026-09-12): a proposed pick that lands
-                        inside a holder nests here, the way it already does on
-                        Today, with its own Accept. The hollow dot is the
-                        "not real yet" the proposed row wears everywhere. */}
-                    {heldProps.map((b) => (
-                      <HeldProposalRow
-                        key={"p" + b.taskId}
-                        block={b}
-                        onOpen={() => openProposed(b.taskId)}
-                        {...(proposed?.onAccept ? { onAccept: () => proposed.onAccept!(b.taskId) } : {})}
-                        onDrop={() => proposed!.onDrop(b.taskId)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </LockedRow>
+              />
               );
             })() : (
               <div key={en.e.id} ref={en.e.id === nextId ? nextRef : undefined}>

@@ -6,7 +6,7 @@
 // page now renders with what it has and the toast carries the retry.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useEffect, useState } from "react";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, usePeople, useTasks } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -656,16 +656,73 @@ describe("TodayFlow: the failed-sweep notice proves itself (issue 102)", () => {
     expect(screen.queryByText(FAILED_TITLE)).toBeNull();
   });
 
-  it("a task that is still stuck shows the notice, amber, and Retry moves it and clears it", async () => {
+  // MOVED, 2026-10-13 (issue 106 V2, approved by Dave: "ONE slim amber row below the greeting, actionable, and it disappears when
+  // resolved. Not a large red card at the top"). The failure used to be a ranked amber notice (a disc, a title, a capsule) at the
+  // top of Your Move; it is the problem row now, the Email strip's own amber, directly under the greeting. The gating is issue
+  // 102's, unchanged: it shows only while a task the receipt names is still there, and Retry mends it.
+  it("a task that is still stuck shows ONE slim amber row under the greeting, and Retry moves it and clears it", async () => {
     const { svc, stuck, today } = await mountWithReceipt((id) => [id]);
     const title = await screen.findByText(FAILED_TITLE);
-    const card = title.closest(".notice-swipe")!;
-    expect(card.textContent).toContain("1 Task Did Not Move");
-    expect(card.innerHTML).toContain("cat-bg-orange"); // the disc wears the tone
-    expect(card.innerHTML).not.toContain("cat-bg-red");
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    const strip = title.closest(".conn-strip") as HTMLElement;
+    expect(strip, "the Email strip's amber, not a card").toHaveClass("conn-strip", "conn-strip-today");
+    expect(strip).toHaveAttribute("data-problem", "sweepfail");
+    expect(strip.textContent).toContain("1 Task Did Not Move");
+    // No tone of its own (the colour is the strip's token, amber in both themes), and never red.
+    expect(strip.innerHTML).not.toMatch(/cat-(bg|fg)-|--sys-red|--red/);
+    // One row, and the stream holds no card for it.
+    expect(document.querySelectorAll(".conn-strip")).toHaveLength(1);
+    expect(title.closest(".notice-swipe, .notice-card, .notice-vrow, .heads-up-stream")).toBeNull();
+    expect(document.querySelector(".heads-up-stream")?.textContent ?? "").not.toContain(FAILED_TITLE);
+    // Under the greeting, above Your Move.
+    const hero = document.querySelector(".today-hero")!;
+    const stream = document.querySelector(".heads-up-stream")!;
+    expect(hero.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(strip.compareDocumentPosition(stream) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(within(strip).getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(screen.queryByText(FAILED_TITLE)).toBeNull());
+    expect(document.querySelector(".conn-strip")).toBeNull();
     expect((await svc.task(stuck))!.due).toBe(today);
     expect(JSON.parse(localStorage.getItem(RECEIPT_KEY)!).failed).toBe(false);
+  });
+
+  it("tapping the words retries too (the words are a door), once", async () => {
+    const { svc, stuck, today } = await mountWithReceipt((id) => [id]);
+    const title = await screen.findByText(FAILED_TITLE);
+    fireEvent.click(title);
+    await waitFor(() => expect(screen.queryByText(FAILED_TITLE)).toBeNull());
+    expect((await svc.task(stuck))!.due).toBe(today);
+  });
+
+  it("a failure that names no tasks (the whole sweep could not run) still shows the row, and says nothing was lost", async () => {
+    const { addDays } = await import("../schedule/calendar");
+    const today = todayISO();
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "sweep-none-user");
+    await svc.createTask("Call the Plumber", { due: addDays(today, -1) });
+    localStorage.setItem("jarvis.sweep.last.v1", today);
+    localStorage.setItem(RECEIPT_KEY, JSON.stringify({ date: today, moved: [], failed: true }));
+    render(
+      <NotesProvider userId="sweep-none-user" store={store}>
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const strip = (await screen.findByText(FAILED_TITLE)).closest(".conn-strip") as HTMLElement;
+    expect(strip.textContent).toContain("Nothing Was Lost");
+    expect(strip.textContent).not.toContain("Did Not Move");
+  });
+
+  it("a Retry that cannot run leaves the row where it is, says so, and gives the button back", async () => {
+    const { svc } = await mountWithReceipt((id) => [id]);
+    const title = await screen.findByText(FAILED_TITLE);
+    const strip = title.closest(".conn-strip") as HTMLElement;
+    vi.spyOn(TasksService.prototype, "listTasks").mockRejectedValueOnce(new Error("no signal"));
+    fireEvent.click(within(strip).getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "Still Couldn't Move Them" }));
+    // Still there, still amber, and Retry is a button again (not stuck on "Retrying").
+    expect(screen.getByText(FAILED_TITLE).closest(".conn-strip")).toBe(strip);
+    await waitFor(() => expect(within(strip).getByRole("button", { name: "Retry" })).not.toBeDisabled());
+    void svc;
   });
 });

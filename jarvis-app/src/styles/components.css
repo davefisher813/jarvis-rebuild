@@ -241,7 +241,18 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 
 /* Today header: date kicker + Today title + avatar (realistic mockup). */
 .today-head { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-4) var(--s-2); }
-.today-title { font-size: var(--t-h1); font-weight: var(--w-semi); letter-spacing: -0.4px; }
+/* THE GREETING STEPS UP, 34 TO 38 (Dave 2026-10-13, issue 108 S1: "scale up the existing header elements in their current
+   places and colors"). A size and nothing else: the face (the display list in jarvis-design-system.css), the 700 weight,
+   the -0.03em tracking the two glass sheets set, the kerning and the Newsreader word (.greet-when, below) are untouched.
+   .today-title is drawn on Today and nowhere else, so every other screen title keeps --t-h1. At 38 the longest greeting,
+   "Good Afternoon,", still keeps its first line in the 274px column beside the ring at 390 wide, with about 10px to spare;
+   40 does not fit and takes three lines. On a narrower phone that same line breaks after "Good" (375) or runs to three
+   lines (360), and at 1.4x text it is three lines either way.
+   THE STEP FADES AS THE TEXT SCALE RISES. 24 per step plus 14 is 38 at 1.0, 42.8 at 1.2 and 47.6 at 1.4, and the floor is the
+   old 34 per step: the two meet at 1.4, the largest Larger Text, where the old size already fills the column. A flat 38 per
+   step there pushed a long first name into the ring that had cleared it before ("Alexandra" at 1.4x, 390 wide: 36px clear
+   before, 1px over after; 31px over at 360). It still grows with the text scale like every size, and is never under the old size. */
+.today-title { font-size: max(calc(34px * var(--type-scale)), calc(24px * var(--type-scale) + 14px)); font-weight: var(--w-semi); letter-spacing: -0.4px; }
 /* Section header gains a colored icon tile + left group (realistic mockup). */
 .sec-head { align-items: center; }
 .sec-head .sec-left { display: flex; align-items: center; gap: var(--s-2h); }
@@ -814,6 +825,24 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* The screen itself: the overlay's own column, so the body can start at the
    top instead of centring one card in a black page. */
 .focus-screen { display: flex; flex-direction: column; }
+/* THE WHOLE SCREEN (issue 108, Dave 2026-10-13: "the Focus card becomes the whole screen"). Focus is a .search-overlay, which is
+   absolute inside .app-scroll, so it was laid over the page's SCROLLER and not over the screen: it began at the scroller's
+   content origin (Today scrolled 600px put the card 600px above the top edge, leaving only its sticky header on screen, measured
+   in a browser), and the tab bar, the dock and the return pill, which follow the scroller in the shell, painted over its foot.
+   It is fixed to the viewport now and scrolls inside itself when the type is large (the pagebar's condensing follows that
+   scroller on its own). The page's background stays (.search-overlay's --bg) and so does the overlay's z-index of 50: it is still
+   inside .app-scroll's stacking layer (1), under the toast dock (2), which is what keeps a toast and its Undo above it. It lives
+   in what can be seen, as a sheet does (shared/viewport.ts writes --vv-top and --vv-h): with the keyboard up for the music link
+   field, Close is still in the visible band. With no keyboard the band is the whole screen, so it is top 0 and the full height. */
+.focus-screen { position: fixed; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100dvh); overflow-y: auto; overscroll-behavior: contain; }
+/* The three bars step aside the way a sheet's scrim moves them (uniformity.css, body:has(.sheet-scrim)): hidden, not removed, so
+   .app-scroll keeps its height and Today is exactly where it was when this closes. */
+body:has(.focus-screen) :is(.tab-bar, .voice-dock, .return-pill) { visibility: hidden; }
+/* A toast raised from here (Task Completed with its Undo, Fifteen Minutes on It) docks at the foot of the screen, where the bars it
+   rides above are no longer drawn: left in its usual seat it floated about 250px up, over the card. It stays in the shell's column and
+   moves last in it, so .app-scroll keeps its height, and it clears the home indicator by the safe inset. Still z-index 2: over the
+   screen, and tappable. */
+body:has(.focus-screen) .toast-dock { order: 1; transform: translateY(calc(-1 * var(--safe-bottom))); }
 .focus-controls { display: flex; align-items: stretch; gap: var(--s-2); padding-top: var(--s-1); }
 .focus-controls .segmented { flex: 1 1 auto; min-width: 0; }
 /* ONE ROW ON THE 20PX COLUMN, BOTH THEMES (2026-10-05, the review: "Quick Wins" wrapped in light, and Music hung 20px in from
@@ -843,7 +872,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    page start under their head, and a thumb finds a card that is always in the same place. What a top card needs is air
    under the controls, so the page does not feel jammed against its head: 20 of padding on top of the body's own 20 margin is
    40 (five grid steps) between the controls and the card, where the centred version had 12 and then a hole. */
-.focus-screen .focus-body { justify-content: flex-start; padding-top: var(--s-4); padding-bottom: var(--s-10); }
+.focus-screen .focus-body { justify-content: flex-start; padding-top: var(--s-4); padding-bottom: calc(var(--s-10) + var(--safe-bottom)); }
 .focus-card { padding: var(--s-4); }
 .focus-task {
   font-size: var(--t-h2); font-weight: var(--w-bold);
@@ -876,7 +905,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* What is behind this card, so one card is not the whole screen's evidence. */
 .focus-rest { padding: 0; text-align: center; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .focus-live { margin-top: var(--s-3); }
-.focus-live .conn-meta.warn { color: var(--warn); }
+/* THE COUNTDOWN (issue 108): the number in the app's hero face (.hero-num: the display size, bold, tabular, so a ticking second
+   never shifts it) with its words beside it on the baseline, in the one grey. At a large text size the words drop under the
+   number rather than squeeze it. Time's up is the amber the running card already used, on the words and never the number. */
+.focus-clock { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s-2); margin-top: var(--s-3); }
+.focus-live .conn-meta.warn, .focus-clock .conn-meta.warn { color: var(--warn); }
 .fresh-faded { color: var(--tx-3); }
 /* Quiet right-slot actions in section headers (Not Now, dismiss): same seat as
    See All, calmer color. The question line sits under the header, outside the
@@ -1261,6 +1294,18 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .card .dring > div { background: var(--surface-1); }
 .dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
 .dring span { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
+/* THE HERO'S RING STEPS UP (Dave 2026-10-13, issue 108 S1: "the day ring ... scale up ... in their current places"). 64 to 72,
+   the disc 50 to 58 (the same 7px of arc), the number 17 to 20 (--t-h3 to --t-h2); the DONE word stays the 11px caps every
+   kicker uses (F4) and nothing about the arc, the colours or the halo changes. Scoped to the Today header on purpose: the
+   evening's copy inside How Today Went and the Goals page's own ring draw this same class and keep the 64.
+   THE RING GROWS INTO THE GAP, NOT INTO THE TEXT. Its right edge is the page margin and stays put, so its extra 8px goes
+   leftward; the row's gap gives back exactly those 8 (12 to 4). The text column beside it keeps the width it had at every
+   phone width (274 at 390), so what the greeting and the chips need to stay on their lines is unchanged: widening the ring
+   at the old gap took 8px from the column and pushed the fourth chip onto a second row. */
+.today-hero .dring { width: calc(72px * var(--type-scale)); height: calc(72px * var(--type-scale)); flex-basis: calc(72px * var(--type-scale)); }
+.today-hero .dring > div { width: calc(58px * var(--type-scale)); height: calc(58px * var(--type-scale)); }
+.today-hero .dring b { font-size: var(--t-h2); }
+.today-hero .today-hero-row { gap: var(--s-1); }
 .dring[role="button"] { cursor: pointer; }
 .dring[role="button"]:active { opacity: 0.85; }
 /* THE RING MOVES WITH THE DAY (premium feel, 2026-10-10). --pct is
@@ -3498,7 +3543,10 @@ button {
 .rem-row + .rem-row { border-top: 0; position: relative; }
 .rem-row + .rem-row::before { content: ""; position: absolute;
   left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
-.rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; font-weight: var(--w-semi); flex-shrink: 0; min-width: 46px; }
+/* A CLOCK HOLDS ONE LINE (Dave 2026-10-13, issue 106 V1: "8:15 AM must hold one line"). The rule Schedule already follows
+   (.rem-time-gutter, .sched-until, "an item wraps whole or not at all") was missing from the one Today clock that did not
+   carry it. The strings that print a clock are held the same way by shared/casing.ts bindMeridiem, at the component that draws them. */
+.rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; font-weight: var(--w-semi); flex-shrink: 0; min-width: 46px; white-space: nowrap; }
 /* The task row's type here too, so the strip and the Reminders page agree. */
 /* BOLD (Dave 2026-10-05, both themes): the task row's name is --w-name, so the
    reminder's is too; the time is semibold like the Reminders page's gutter. */
@@ -7664,7 +7712,9 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
    accent opens from the middle of the card, wide and slow to fade. */
 .payoff-mark .burst { --cv-size: 56px; --cv-reach: 1.6; }
 .payoff-mark :is(.burst-ring, .burst-bloom, .burst-wash)::before { border-radius: var(--r-circle); }
-.focus-screen ~ .burst { z-index: 51; --cv-size: 160px; --cv-reach: 1.35; }
+/* Fixed with the screen it celebrates (issue 108): absolute, it would sit at the middle of .app-scroll's CONTENT, which is off screen
+   whenever Today was scrolled when Focus opened. Its 51 is over the overlay's 50, in the same layer. */
+.focus-screen ~ .burst { position: fixed; z-index: 51; --cv-size: 160px; --cv-reach: 1.35; }
 .focus-screen ~ :is(.burst-ring, .burst-bloom, .burst-wash)::before { border-radius: var(--r-circle); }
 @media (prefers-reduced-motion: no-preference) {
   html:not([data-motion="reduce"]) :is(.burst-ring, .payoff-mark .burst-wash, .focus-screen ~ .burst-wash)::before { animation: cvRing var(--dur-celebrate) var(--ease-out) forwards; }
@@ -7758,6 +7808,23 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .conn-strip-text { min-width: 0; overflow-wrap: anywhere; }
 .conn-strip-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-3); background: transparent; border: 1px solid var(--on-fill-dark); border-radius: var(--r-md);
   color: var(--on-fill-dark); font-family: var(--f); font-size: var(--t-sub); font-weight: var(--w-semi); }
+/* TODAY'S PROBLEM ROW (issue 106 V2, approved by Dave 2026-10-13: "ONE slim amber row below the greeting, actionable, and it
+   disappears when resolved. Not a large red card at the top"). It is the strip above, whole, so Today and Email say one problem
+   in one colour: the same amber fill, the same ink, the same outlined action. Nothing below sets a colour, a face, a size or a
+   weight, and nothing is scoped to a theme, so light and dark differ only in the token's value.
+   SLIM: the card, the glyph disc and the capsule are gone, and the strip's 10px of padding above and below the 44px action
+   becomes 4, which makes the row the action's height plus 8 (52px) however many lines the words take up to two. The words are
+   a door as tall as the row (stretched, and centred on the row's middle), so they are a 44px tap too.
+   THE DOT IS DRAWN, NEVER TYPED, AND NEVER STRANDED (the facts line's rule, Dave 2026-10-05, D7): each part owns a separator-wide
+   lead, pulled out of the line by an equal negative margin, and every part after the first draws its dot in that lead. The box
+   clips (overflow: hidden), so a part that opens a wrapped line has its lead, and its dot, outside the box: one dot between two
+   parts on a line, none at the start of a line, with no script and no measuring. The dot is the strip's own ink. The last part
+   keeps no right margin (nothing follows it to draw a dot in), so an address gets the whole line instead of 12px less. */
+.conn-strip.conn-strip-today { min-height: calc(var(--tap-min) + var(--s-2)); padding-block: var(--s-1); margin-bottom: var(--s-2); }
+.conn-strip-today .conn-strip-text { align-self: stretch; display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; overflow: hidden; }
+.conn-strip-today .conn-strip-part { position: relative; min-width: 0; margin: 0 var(--s-3) 0 calc(-1 * var(--s-3)); padding-left: var(--s-3); }
+.conn-strip-today .conn-strip-part:last-child { margin-right: 0; }
+.conn-strip-today .conn-strip-part + .conn-strip-part::before { content: "\00B7"; position: absolute; left: 0; top: 0; width: var(--s-3); text-align: center; }
 
 /* A reconnect that did not complete (Foundation Fix Spec 4): the words the server's checks produced, and what can be done. A quiet note, not the loud amber banner: the banner above it is still the failure; this says why the last try did not fix it. */
 .conn-outcome { flex-wrap: wrap; }

@@ -113,7 +113,14 @@ describe("what counts as data", () => {
       "Left 28m ago", "90% There", "2nd try", "until 1:00 PM",
     ]) {
       const { container } = render(<Quiet s={s} />);
-      expect(container.textContent).toBe(s);
+      // The one change is the space inside a clock, which is bound to its AM or PM with a no-break space (issue 106 V1,
+      // "8:15 AM must hold one line"), so read the text with that space turned back into a plain one.
+      expect((container.textContent ?? "").replace(/\u00a0/g, " ")).toBe(s);
     }
+  });
+
+  it("binds the space inside a clock, and only that one", () => {
+    const { container } = render(<Quiet s="until 1:00 PM" />);
+    expect(container.textContent).toBe("until 1:00\u00a0PM");
   });
 });

@@ -33,6 +33,17 @@ import PageHeader from "../shared/PageHeader";
 //     of equal width, one text button.
 //   - The screen said nothing about the deck, so it read as empty. It now
 //     says what is behind this card.
+//
+// THE WHOLE SCREEN (issue 108, Dave 2026-10-13: "the Focus card becomes the
+// whole screen: Jarvis eyebrow with Due Today, the task title, a countdown,
+// then the existing controls ... and the More Waiting count"). It was an
+// overlay laid over the page's scroller, so the tab bar, the dock and the
+// return pill stayed on top of it, and Today scrolled even a little made the
+// card sit above the top edge with only its header left on screen
+// (components.css, the Focus block, says how that is fixed). The face card
+// opens with the app's eyebrow, "Jarvis", over its facts line (which is where
+// "Due Today" already is), and the countdown sits between the title and the
+// Start Now bar. Nothing else on the card moved or changed.
 // ---------------------------------------------------------------------------
 
 /** One fact of the reason. A tone is the Colour Key's (§AM): late is red,
@@ -66,6 +77,21 @@ export interface FocusRunning {
   over: boolean;
 }
 
+/** THE COUNTDOWN between the title and the Start Now bar (issue 108). */
+export interface FocusClock {
+  /** The number, m:ss, from the app's own countdown helper. */
+  text: string;
+  /** What the number counts, in words: "Fifteen Minutes" before a block
+   *  starts, "Left" while it runs, "15 Min Up" once it is up. */
+  caption: string;
+  /** True while a real block is on the clock for THIS card: it is a timer to
+   *  a screen reader, and the running card above stops saying it a second
+   *  time. False is the window the 15 Min button will run, not a ticking one. */
+  live: boolean;
+  /** The block is up: the caption wears the amber the running card used. */
+  warn?: boolean;
+}
+
 export interface FocusScreenProps {
   mode: "next" | "wins";
   onMode: (m: "next" | "wins") => void;
@@ -77,9 +103,14 @@ export interface FocusScreenProps {
   /** Start Now leads only when there is a working surface to open. */
   onStartNow?: (() => void) | undefined;
   onFifteen?: (() => void) | undefined;
+  /** 15 Min was tapped and the block has not begun yet: the capsule holds
+   *  still, so a second tap cannot book a second block. */
+  fifteenBusy?: boolean;
   onDone: () => void;
   doneBusy?: boolean;
   onSkip: () => void;
+  /** The countdown on the face card, or null when there is nothing to count. */
+  clock?: FocusClock | null;
   /** The block on the clock right now, with its three answers. */
   running?: FocusRunning | null;
   onRunDone?: (() => void) | undefined;
@@ -97,8 +128,8 @@ export interface FocusScreenProps {
 }
 
 export default function FocusScreen({
-  mode, onMode, onClose, face, waiting, onStartNow, onFifteen, onDone, doneBusy,
-  onSkip, running, onRunDone, onRunAgain, onRunStop, wins, finale, onBackToNext,
+  mode, onMode, onClose, face, waiting, onStartNow, onFifteen, fifteenBusy, onDone, doneBusy,
+  onSkip, clock, running, onRunDone, onRunAgain, onRunStop, wins, finale, onBackToNext,
   music, guard,
 }: FocusScreenProps) {
   const leadsWithStart = mode === "next" && !!onStartNow;
@@ -128,7 +159,7 @@ export default function FocusScreen({
       {wins && (
         <div className="focus-run-line facts">
           <span className="fact"><b>{wins.done}</b> of <b>{wins.total}</b></span>
-          <span className="fact date">{wins.clock} left</span>
+          <span className="fact date">{wins.clock} Left</span>
         </div>
       )}
 
@@ -141,7 +172,9 @@ export default function FocusScreen({
               <div className="row-ico cat-bg-brand"><Timer className="ic" /></div>
               <div className="row-stack">
                 <div className="conn-name truncate">{titleCase(running.text)}</div>
-                <div className={"conn-meta" + (running.over ? " warn" : "")}>{running.line}</div>
+                {/* THE CLOCK SAYS IT ONCE. When the countdown below is this block's, it carries "Left" and "15 Min Up"
+                    in its own caption; the line stays for a block running on a card that is not on the screen. */}
+                {!clock?.live && <div className={"conn-meta" + (running.over ? " warn" : "")}>{running.line}</div>}
               </div>
             </div>
             <div className="focus-acts three">
@@ -166,6 +199,9 @@ export default function FocusScreen({
         ) : face ? (
           <>
             <div className="card pad focus-card">
+              {/* THE KICKER (issue 108): the app's own eyebrow over the facts line, which is where "Due Today" is. The
+                  card's own rule (.card.pad > .eyebrow) gives it its air; CSS makes it caps. */}
+              <div className="eyebrow">Jarvis</div>
               {(face.areaName || face.reasons.length > 0) && (
                 <div className="facts">
                   {face.areaName && <span className="fact cat"><span className={"cd cat-bg-" + face.areaSlot} />{face.areaName}</span>}
@@ -176,6 +212,14 @@ export default function FocusScreen({
               )}
               <div className="focus-task">{face.text}</div>
               {guard}
+              {/* THE COUNTDOWN (issue 108). The number in the app's hero face, its words beside it in the one grey; the
+                  separate spans keep each its own phrase, so no lowercase word ever stands behind a leading number. */}
+              {clock && (
+                <div className="focus-clock" {...(clock.live ? { role: "timer" } : {})}>
+                  <span className="hero-num">{clock.text}</span>
+                  <span className={"conn-meta" + (clock.warn ? " warn" : "")}>{clock.caption}</span>
+                </div>
+              )}
               {/* ONE FILLED ACTION. Next leads with the first step; Quick
                   Wins is a run of Done taps and leads with Done. */}
               {leadsWithStart
@@ -186,7 +230,7 @@ export default function FocusScreen({
                   {/* DONE FIRST, THE TIMER AFTER IT (2026-10-05): the answer that closes the loop leads and takes the room, the
                       15-minute timer is the icon capsule beside it, hugging its label. Not This One is the quiet line below. */}
                   {leadsWithStart && <button className="btn btn-secondary" onClick={onDone} disabled={doneBusy}>Done</button>}
-                  {onFifteen && <button className="btn btn-secondary" aria-label="Focus 15 Minutes" onClick={onFifteen}><Timer className="ic" />15 Min</button>}
+                  {onFifteen && <button className="btn btn-secondary" aria-label="Focus 15 Minutes" onClick={onFifteen} disabled={fifteenBusy}><Timer className="ic" />15 Min</button>}
                 </div>
               )}
               {mode === "next" && <button className="focus-skip" onClick={onSkip}>Not This One</button>}

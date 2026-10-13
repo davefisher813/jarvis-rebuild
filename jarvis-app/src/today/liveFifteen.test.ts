@@ -64,6 +64,19 @@ describe("the live fifteen", () => {
     expect(done.text).toBe("Call the bank");
   });
 
+  // THE NUMBER ALONE (issue 108, Focus gives the clock a face of its own). It is the same fact as the line, from the same
+  // countdown, so the two can never disagree: m:ss while it runs, 0:00 once it is up, and a sliver left never reads 0:00.
+  it("also hands the number alone, from the same countdown as the line", () => {
+    const mid = fifteenFace(live(), T0 + 32_000);
+    expect(mid.clock).toBe("14:28");
+    expect(mid.line).toBe(`${mid.clock} Left`);
+    expect(fifteenFace(live(), T0 + 15 * 60_000 - 1).clock).toBe("0:01");
+    expect(fifteenFace(live(), T0 + 15 * 60_000).clock).toBe("0:00");
+    expect(fifteenFace(live(), T0 + 99 * 60_000).clock).toBe("0:00");
+    // Another fifteen grows the block, and the number follows it.
+    expect(fifteenFace(live({ minutes: 30 }), T0).clock).toBe("30:00");
+  });
+
   // An unanswered question expires: the prompt is worth asking now, and
   // worth nothing tomorrow morning.
   it("stays live through the block and an hour after, then stops asking", () => {

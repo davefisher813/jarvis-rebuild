@@ -183,6 +183,142 @@ describe("Focus: the page's own header, one control row, a quiet count (D3, D8)"
   });
 });
 
+// FOCUS IS THE WHOLE SCREEN (issue 108, Dave 2026-10-13: "the Focus card becomes the whole screen: Jarvis eyebrow with Due
+// Today, the task title, a countdown, then the existing controls in their existing styling ... and the More Waiting count").
+// It was an overlay laid over the page's scroller: with Today scrolled it sat above the top edge (measured in a browser: the
+// overlay at y -600 with Today scrolled 600), and the tab bar, the dock and the return pill painted over its foot. Each
+// assertion below fails on the code before the change.
+describe("Focus is the whole screen: the kicker, the countdown, the bars out of the way (issue 108)", () => {
+  const face = { areaName: "Money", areaSlot: "yellow", reasons: [{ text: "Due Today", tone: "warn" as const }], text: "Create Invoice" };
+  const props = { mode: "next" as const, onMode: noop, onClose: noop, face, waiting: 13, onDone: noop, onSkip: noop, onBackToNext: noop };
+  const idle = { text: "15:00", caption: "Fifteen Minutes", live: false };
+  const live = { text: "14:32", caption: "Left", live: true };
+  const running = { text: "create invoice", line: "14:32 Left", over: false };
+  const answers = { onRunDone: noop, onRunAgain: noop, onRunStop: noop };
+
+  it("opens the face card with the Jarvis kicker over the facts line, which is where Due Today already is", () => {
+    const { container } = render(<FocusScreen {...props} />);
+    const card = container.querySelector(".focus-card")!;
+    const kicker = card.querySelector(":scope > .eyebrow");
+    expect(kicker).toHaveTextContent("Jarvis");
+    expect(card.firstElementChild, "the first thing on the card").toBe(kicker);
+    expect(kicker!.nextElementSibling, "straight over the facts line").toBe(card.querySelector(".facts"));
+    expect(card.querySelector(".facts .fact.warn")).toHaveTextContent("Due Today");
+    expect(card.querySelector(".facts .eyebrow"), "a label, never one of the facts").toBeNull();
+  });
+
+  it("puts the countdown between the title and the Start Now bar: the number in the hero face, its words in the one grey, no dot", () => {
+    const { container } = render(<FocusScreen {...props} onStartNow={noop} onFifteen={noop} clock={idle} />);
+    const card = container.querySelector(".focus-card")!;
+    const title = card.querySelector(".focus-task")!;
+    const clock = card.querySelector(".focus-clock")!;
+    const go = card.querySelector(".btn-primary")!;
+    expect(title.compareDocumentPosition(clock) & Node.DOCUMENT_POSITION_FOLLOWING, "after the title").toBeTruthy();
+    expect(clock.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING, "before Start Now").toBeTruthy();
+    expect(clock.querySelector(".hero-num")).toHaveTextContent("15:00");
+    expect(clock.querySelector(".conn-meta")).toHaveTextContent("Fifteen Minutes");
+    expect(clock.getAttribute("role"), "the window the button will run is not a clock that moves").toBeNull();
+    expect(clock.textContent).not.toMatch(/[·•]/);
+    expect(clock.querySelector(".fact, .eyebrow"), "no second kicker and no fact chip inside it").toBeNull();
+  });
+
+  it("leaves the four answers and the count exactly as they were, with the countdown on the card", () => {
+    const { container } = render(<FocusScreen {...props} onStartNow={noop} onFifteen={noop} clock={idle} />);
+    const card = container.querySelector(".focus-card")!;
+    expect(card.querySelectorAll(".btn-primary")).toHaveLength(1);
+    expect(card.querySelector(".btn-primary")).toHaveTextContent("Start Now");
+    expect([...card.querySelectorAll(".focus-acts.skew .btn")].map((b) => b.textContent)).toEqual(["Done", "15 Min"]);
+    expect(card.querySelector(".btn[aria-label='Focus 15 Minutes']")).not.toBeDisabled();
+    expect(card.querySelector(".focus-skip")).toHaveTextContent("Not This One");
+    expect(container.querySelector(".focus-rest")).toHaveTextContent("13 More Waiting");
+  });
+
+  it("draws no countdown when it is given none: a card with nothing to count says nothing", () => {
+    const { container } = render(<FocusScreen {...props} onStartNow={noop} onFifteen={noop} />);
+    expect(container.querySelector(".focus-clock")).toBeNull();
+    expect(container.querySelector("[role='timer']")).toBeNull();
+  });
+
+  it("a live countdown is a timer, and the running card stops saying the same time a second time", () => {
+    const { container, rerender } = render(<FocusScreen {...props} onStartNow={noop} clock={live} running={running} {...answers} />);
+    const t = container.querySelector("[role='timer']")!;
+    expect(t).toHaveTextContent("14:32");
+    expect(t).toHaveTextContent("Left");
+    expect(container.querySelector(".focus-live .conn-meta"), "said once, by the big clock").toBeNull();
+    expect(container.querySelector(".focus-live")).toHaveTextContent("Create Invoice");
+    expect([...container.querySelectorAll(".focus-live .btn")].map((b) => b.textContent)).toEqual(["Done", "Another 15", "Stop"]);
+    // A block running on a card that is not on the screen has no clock here, so the running card keeps its own line.
+    rerender(<FocusScreen {...props} onStartNow={noop} clock={null} running={running} {...answers} />);
+    expect(container.querySelector("[role='timer']")).toBeNull();
+    expect(container.querySelector(".focus-live .conn-meta")).toHaveTextContent("14:32 Left");
+  });
+
+  it("time's up reads 0:00 with its words in the amber the running card used, and the number stays the ink", () => {
+    const { container } = render(
+      <FocusScreen {...props} onStartNow={noop} clock={{ text: "0:00", caption: "15 Min Up", live: true, warn: true }}
+        running={{ text: "create invoice", line: "15 Min Up", over: true }} {...answers} />,
+    );
+    expect(container.querySelector(".focus-clock .hero-num")).toHaveTextContent("0:00");
+    expect(container.querySelector(".focus-clock .conn-meta")).toHaveClass("warn");
+    expect(container.querySelector(".focus-clock .hero-num")).not.toHaveClass("warn");
+    expect(container.querySelector(".focus-live .conn-meta"), "the amber is said once too").toBeNull();
+    expect(css("components.css")).toMatch(/\.focus-live \.conn-meta\.warn, \.focus-clock \.conn-meta\.warn \{ color: var\(--warn\); \}/);
+  });
+
+  it("holds the 15 Min capsule still while the block is beginning, so a second tap cannot book a second one", () => {
+    const { container, rerender } = render(<FocusScreen {...props} onStartNow={noop} onFifteen={noop} clock={idle} fifteenBusy />);
+    expect(container.querySelector(".btn[aria-label='Focus 15 Minutes']")).toBeDisabled();
+    rerender(<FocusScreen {...props} onStartNow={noop} onFifteen={noop} clock={idle} />);
+    expect(container.querySelector(".btn[aria-label='Focus 15 Minutes']")).not.toBeDisabled();
+  });
+
+  it("the Quick Wins card, the end of a deck and an empty deck draw no countdown (Quick Wins has its own 10:00 run line)", () => {
+    const wins = render(<FocusScreen {...props} mode="wins" wins={{ done: 1, total: 5, clock: "9:12" }} />);
+    expect(wins.container.querySelector(".focus-clock")).toBeNull();
+    expect(wins.container.querySelector(".focus-run-line")).toHaveTextContent("9:12 Left");
+    wins.unmount();
+    const end = render(<FocusScreen {...props} finale={{ title: "3 Down", sub: "A Clean Sweep" }} />);
+    expect(end.container.querySelector(".focus-clock, .eyebrow")).toBeNull();
+    end.unmount();
+    const none = render(<FocusScreen {...props} face={null} />);
+    expect(none.container.querySelector(".focus-clock, .eyebrow")).toBeNull();
+  });
+
+  it("the stylesheet makes it the whole screen: fixed to the viewport, scrolling inside itself, the three bars hidden and not removed", () => {
+    const c = css("components.css");
+    const fixedRule = c.match(/\n\.focus-screen \{ position: fixed;([^}]*)\}/)?.[1] ?? "";
+    expect(fixedRule, "fixed, so a scrolled Today cannot move it, and in the band that can be seen, as a sheet is (shared/viewport.ts)")
+      .toMatch(/^ top: var\(--vv-top, 0px\); bottom: auto; height: var\(--vv-h, 100dvh\); overflow-y: auto; overscroll-behavior: contain;/);
+    expect(fixedRule, "the page's own background and the overlay's own z-index stay").not.toMatch(/background|z-index/);
+    expect(c).toMatch(/\.search-overlay \{ position: absolute; inset: 0; z-index: 50; background: var\(--bg\);/);
+    // The bars step aside the way a sheet's scrim moves them: hidden, never removed, so .app-scroll keeps its height and
+    // Today is exactly where it was when Focus closes.
+    expect(c).toMatch(/body:has\(\.focus-screen\) :is\(\.tab-bar, \.voice-dock, \.return-pill\) \{ visibility: hidden; \}/);
+    expect(c).not.toMatch(/body:has\(\.focus-screen\)[^{]*\{[^}]*display:\s*none/);
+    // The bottom of the page clears the home indicator.
+    expect(c).toMatch(/\.focus-screen \.focus-body \{[^}]*padding-bottom: calc\(var\(--s-10\) \+ var\(--safe-bottom\)\);/);
+  });
+
+  it("a toast and its Undo, and the completion burst, stay above the screen", () => {
+    const c = css("components.css");
+    // The screen lives inside .app-scroll's layer (z-index 1), under the toast dock (2); the burst is fixed with the screen
+    // and one above it, in the same layer.
+    for (const f of ["glass-dark.css", "glass-light.css"]) {
+      expect(css(f), f).toMatch(/\.app-scroll \{ position: relative; z-index: 1; background: transparent; \}/);
+    }
+    expect(c).toMatch(/\.toast-dock \{ position: relative; z-index: 2;/);
+    expect(c).toMatch(/\.focus-screen ~ \.burst \{ position: fixed; z-index: 51;/);
+    // Docked at the foot of the screen while it is open, clear of the home indicator, in the shell's column (no reflow).
+    expect(c).toMatch(/body:has\(\.focus-screen\) \.toast-dock \{ order: 1; transform: translateY\(calc\(-1 \* var\(--safe-bottom\)\)\); \}/);
+  });
+
+  it("the countdown's rule moves nothing about the type: no family, weight, size, spacing or colour of its own", () => {
+    const rule = css("components.css").match(/\.focus-clock \{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toMatch(/display: flex; flex-wrap: wrap; align-items: baseline;/);
+    expect(rule).not.toMatch(/font|letter-spacing|line-height|color|background|opacity/);
+  });
+});
+
 describe("the stylesheet holds the review's visual fixes", () => {
   const c = css("components.css");
   const r = css("ruled.css");

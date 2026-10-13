@@ -184,6 +184,19 @@
 .ruled .stat-tile .st-n { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.05; }
 .ruled .stat-tile .st-w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.09em;
   text-transform: uppercase; }
+/* THE HEADER'S CHIPS STEP UP (Dave 2026-10-13, issue 108 S1: "the DUE and GOALS chips ... scale up ... in their current
+   places and colors"). The number goes one step up the ramp, 20 to 26 (--t-h2 to --t-title, the step .itile b already
+   uses for a tile's number); the word under it stays the 11px caps (§AM F4). Scoped to the Today header, so Brain's
+   receipt tiles and the area tiles keep their 20. All four chips take it (events, due, late, goals), because one row of
+   tiles with two number sizes would read as a mistake; colours, weight, tracking and the tabular figures are the base rule's.
+   THE ROOM IT NEEDS. A two-digit count is wider than its word at 26 ("13" against DUE), so that tile stops being as wide as
+   its word and grows by up to 7px; four chips had 2px to spare at 390, so that alone pushed the fourth onto a second row.
+   The tile's side padding gives back 2px a side (12 to the 10 step), 16px across four chips, so the row that fitted still
+   fits with room (about 11px to spare against the old 2). The tile is never narrower than a tap: it is as wide as its word
+   plus the padding, and min-width holds the 44 where the word is short ("5" over DUE). The 6px reach above and below is
+   untouched. */
+.ruled .today-hero .stat-tile { padding-left: var(--s-2h); padding-right: var(--s-2h); min-width: var(--tap-min); }
+.ruled .today-hero .stat-tile .st-n { font-size: var(--t-title); }
 /* 2026-10-05 (visual catalog gate): the label under a tile's number no longer
    fades itself to 72%. Text is never dimmed with opacity; at that strength
    the amber and red labels read about 3:1 on their own wash in light. The
@@ -873,6 +886,19 @@
    own inset now rather than the far side of a gutter that is gone. */
 .ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
   left: calc(var(--s-4) + var(--s-3)); }
+/* A TASK UNDER A BLOCK IS A ROW OF ITS OWN (issue #106 V6, Dave 2026-10-13: "Proposed tasks get their own rows, indented under the
+   block they belong to, instead of tappable rows nested inside the event button"). On the Schedule tab a pick that a holding block
+   holds is the ordinary proposed row (the check, the time column, the title with PROPOSED and its length under it) marked
+   .sched-nested, in time order after its block. HOW FAR IT SITS IN is one knob, --sched-nest-indent, which the row's padding and
+   its rail read, so they cannot drift apart. It is zero (the fallback; nothing declares it) until the approved catalog picture
+   gives a measurement: the check stands where the block's own time starts, so the row's time and title already sit a check and
+   a gap (28px) further in. Geometry only, so no colour, surface or type moves and light and dark are identical. The third line
+   keeps a divider on the row's own edge and is idle today: no hairline is drawn between swipe rows (their ::before has no content,
+   measured), the same reason the swipe-row half of the rule above is idle. Today's day card is the frozen TV guide and does not
+   wear any of this. */
+.ruled .sched-nested .sched-row { padding-left: calc(var(--s-4) + var(--s-3) + var(--sched-nest-indent, 0px)); }
+.ruled .sched-nested .sched-bar { left: calc(var(--s-4) + var(--sched-nest-indent, 0px)); }
+.ruled .sched-swipe-wrap.sched-nested .sched-row::before { left: calc(var(--s-4) + var(--s-3) + var(--sched-nest-indent, 0px)); }
 /* Locked (protected) rows dim as they did; the lock rides at 11px in --tx-4. */
 .ruled .sched-locked .sched-title { color: var(--tx-3); }
 /* THE ROW SPENDS NO RED (A Cleaner Top, Dave 2026-09-02). "Set Length" was
@@ -906,6 +932,14 @@
 /* inline-block, not inline: the length's ::after tap expander needs the button's own box (the 24 hit inside a row). */
 .ruled .sched-body > .sched-cat .sched-fact > .sched-until-btn { display: inline-block; }
 .ruled .sched-body > .sched-cat > .sched-fact-dist { flex: 0 0 auto; }
+/* A FOCUS BLOCK'S STATE WORD AND ITS UNTIL READ AS ONE GROUP (issue #109, Dave 2026-10-13, on his phone: "FLEXIBLE" at the left and
+   "UNTIL 7:00 PM" pushed to the far right with its separator dot floating between them). components.css pins a holding block's
+   Until to the row's right edge on purpose (.sched-holds .sched-cat .sched-fact { margin-left: auto }, 2026-09-22) and hides the
+   separator, but the rule above makes the separator inline again, so the pin splits the line and strands the dot. That pin is part
+   of Today's frozen TV guide and stays. The Schedule tab releases it here, under .sched-card (Today's day card is .sched-ticker and
+   is not under it): one left-aligned unit, "FLEXIBLE · UNTIL 7:00 PM" or "FOCUS · UNTIL 11:00 AM", the line a protected block
+   already draws. It outranks the pin by specificity (6 class tokens against 3), so it holds whatever the file order. Geometry only. */
+.ruled .sched-card .sched-holds .sched-body > .sched-cat > .sched-fact { margin-left: 0; padding-left: 0; }
 /* The attachment count and the provenance ride the end of the line (Dave 2026-09-27, no third line). */
 .ruled .sched-body > .sched-cat > .sched-fact-attach, .ruled .sched-body > .sched-cat > .sched-fact-prov { flex: 0 0 auto; }
 .ruled .sched-body > .sched-cat > .sched-fact-attach > .clip-ic { width: 12px; height: 12px; vertical-align: -1px; margin-right: var(--s-1); }
@@ -1364,6 +1398,21 @@
    "Paid Sep 1" in --tx-3: the same hex, two greys differing only by weight.
    The key gives paid green, and the amount is what was paid. */
 .ruled .task-row .money-amt.paid { color: var(--good); }
+/* THE TOTAL IS THE HEADLINE OF ITS OWN CARD (issue #108 S2, Dave 2026-10-13: "raise the Total Balance figure to headline size inside
+   the same card. Account rows stay in the same order with balances right-aligned, one step larger. Nothing else on the page
+   changes."). SCALE ONLY: the face (the design system's display list), the weight, the tracking and the tabular figures are the
+   rules above and none of them is written again here, so no letterform moves. Everything is scoped to .money-hero-card, so the
+   "Yours Until" figure (it shares .money-hero-total) keeps its 34, and bills, set-asides and Paid This Month keep their 15.
+   THE SIZE is 12vw, capped at the display token and never under the figure's old 34: 46.8 on a 390 phone, 43.2 on a 360. The page
+   gutter and the card's padding are 20 each, so 12vw is what leaves an eight-figure total room in the column. A longer total does
+   not fit at that size, and MoneyFlow tags it: nine figures take 10.5vw (.money-hero-total-mid, 40.95 on a 390 phone), ten or
+   more keep the old 34 (.money-hero-total-long). So this rule never runs a total out of the card. The account balances go
+   one step up the ramp, 15 to 17 (--t-h3); the row's own padding, gap and minimum height do not move, so the rows keep their
+   order, their rhythm and the right edge the balances already share. */
+.ruled .money-hero-card .money-hero-total { font-size: max(calc(34px * var(--type-scale)), min(var(--t-display), 12vw)); }
+.ruled .money-hero-card .money-hero-total.money-hero-total-mid { font-size: max(calc(34px * var(--type-scale)), min(var(--t-display), 10.5vw)); }
+.ruled .money-hero-card .money-hero-total.money-hero-total-long { font-size: calc(34px * var(--type-scale)); }
+.ruled .money-hero-card .task-row .money-amt { font-size: var(--t-h3); }
 /* EVEN ROWS IN A MONEY CARD (2026-10-05, round 2: "Credit Card and Savings have no type line, so their rows are shorter and the card
    rhythm is uneven"; "OCT 17" alone made Car Insurance 4px shorter than Rent). An account row with no kind to say (a kind its
    name already says is not said twice) keeps the height of the rows beside it, and a bill's facts line keeps one line of fact

@@ -3163,21 +3163,25 @@ describe("LAW 4: red is rationed, and nothing is red by default", () => {
   // Red claims urgency, so a red notice may not also be the calm one: any
   // red notice that declares a weight must declare the top band.
   //
-  // AMENDED ONCE, 2026-10-13 (issue 102), on Dave's ruling of 2026-10-12/13:
-  // "recoverable problem banners are AMBER, red only for unrecoverable." The
-  // failed-sweep card used to be the one red notice in TodayFlow and this law
-  // pinned it red. A failed move is retryable, so it is recoverable: the card
-  // is now amber (cat-fg-orange), still FAILING (the top band: it is still the
-  // loudest thing in the stream), and still not dismissable. The law keeps its
-  // teeth: it now fails if that card goes back to red.
-  it("the failed-sweep card is amber and names the top band", () => {
+  // THE ALLOWANCE FOR THE FAILED-SWEEP CARD IS REMOVED, 2026-10-13 (issue 106 V2), on Dave's ruling: "Recoverable
+  // connection/problem banners are AMBER (Dave's ruling). Red is for unrecoverable only." (issue 102's hard constraints, from
+  // "Banner color: Dave ruled AMBER", 2026-10-12). This law was the one place a recoverable problem on Today was allowed to be a
+  // loud ranked notice: it pinned the failed-sweep card as red, then (issue 102) as amber and FAILING, the heaviest row in Your
+  // Move. Issue 106 V2, approved by Dave, takes every recoverable problem out of the stream: "ONE slim amber row below the
+  // greeting, actionable, and it disappears when resolved. Not a large red card at the top." So there is no such card left to pin
+  // (its key is gone, and a slice of the file from it would be nonsense), and its allowance goes with it.
+  // What replaces it is stricter, not looser: a recoverable problem on Today is not a notice at all (no card for the sweep, none
+  // for the connection), it reaches the one problem row, and that row names no red and no tone of its own (its amber is the
+  // Email strip's token). The red-notice laws above are untouched.
+  it("a recoverable problem on Today is the one amber row, never a ranked notice and never red", () => {
     const flow = read(join(SRC, "today/TodayFlow.tsx"));
-    const card = flow.slice(flow.indexOf('key="sweepfail"'));
-    const end = card.search(/\n\s*\/>/);
-    const props = card.slice(0, end);
-    expect(props, "a move that can be retried is recoverable: amber, not red").toMatch(/tone="cat-fg-orange"/);
-    expect(props, "and it is not red").not.toMatch(/tone="cat-fg-red"/);
-    expect(props, "and it carries FAILING").toMatch(/weight=\{FAILING\}/);
+    expect(flow, "the failed sweep and the connection are not notice cards any more").not.toMatch(/key="(sweepfail|connection)"/);
+    expect(flow, "both are problems of the one row").toMatch(/key: "sweepfail"/);
+    expect(flow).toMatch(/key: "connection"/);
+    expect(flow, "and the row is drawn").toMatch(/<ProblemRow problems=\{problems\} \/>/);
+    const row = read(join(SRC, "today/ProblemRow.tsx"))
+      .replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n");
+    expect(row, "the row has no red and no tone of its own").not.toMatch(/cat-fg-|cat-bg-|--sys-red|--red\b|tone/);
   });
 });
 
