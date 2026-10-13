@@ -3,6 +3,7 @@ import type { EventItem } from "../schedule/types";
 import type { Person } from "../people/types";
 import type { Item } from "@core";
 import type { NoteData } from "../notes/types";
+import { pageText } from "../notes/pages/pageModel";
 import type { Project } from "../projects/types";
 import type { Account } from "../money/types";
 import type { Goal } from "../life/types";
@@ -71,6 +72,9 @@ export function noteBlockText(d: NoteData): string {
     for (const col of b.columns ?? []) parts.push(col);
     for (const row of b.rows ?? []) for (const cell of row) parts.push(cell);
   }
+  // A template page's records (issue #115): a player, a contact, a course is
+  // found by its own words, wherever the page is filed.
+  parts.push(...pageText(d.page));
   return parts.join(BLOCK_JOIN);
 }
 

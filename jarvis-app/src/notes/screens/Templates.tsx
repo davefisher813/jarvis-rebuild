@@ -1,5 +1,7 @@
-import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered } from "../../shared/icons";
+import { useEffect, useRef, useState } from "react";
+import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered, Target, User, Send } from "../../shared/icons";
 import type { TemplateKey } from "../types";
+import type { PageKind } from "../pages/pageModel";
 import { pressable } from "../../shared/pressable";
 
 // Matches locked frame #49 "Templates" (the New Note picker). Keys match the
@@ -19,12 +21,23 @@ const TEMPLATES_LIST: {
   { key: "journal", name: "Log / Journal", desc: "Date-Stamped Entries Over Time", cat: "teal", Icon: ListOrdered },
 ];
 
+// TEMPLATE PAGES (issue #115): a note with structure. Records with stable
+// ids, fields he can rename, export to Sheets and back.
+const PAGES_LIST: { key: PageKind; name: string; desc: string; cat: string; Icon: typeof AlignLeft }[] = [
+  { key: "scorecard", name: "Golf Scorecard", desc: "Holes, Players, Running Totals", cat: "green", Icon: Target },
+  { key: "team", name: "Team Sheet", desc: "A Roster: Name, Number, Position", cat: "blue", Icon: User },
+  { key: "lineup", name: "Lineup Card", desc: "An Order Picked from a Team Sheet", cat: "purple", Icon: ListOrdered },
+  { key: "outreach", name: "Outreach Tracker", desc: "Who, How, Status, Next Step", cat: "orange", Icon: Send },
+];
+
 export default function Templates({
   onSelect,
+  onPage,
   onBack,
   pending = null,
 }: {
-  onSelect?: (key: TemplateKey) => void;
+  onSelect?: (key: TemplateKey) => unknown;
+  onPage?: (key: PageKind) => unknown;
   onBack?: () => void;
   // The template whose note is being made and opened (issue 106, V3). While
   // one is, its row is the pressed one and carries the ring in place of the
@@ -32,6 +45,12 @@ export default function Templates({
   pending?: TemplateKey | null;
 }) {
   const locked = pending != null;
+  // Template pages (#115) answer the same way: the tapped row is pressed and ringed at once, and every row stands
+  // down until the page is made (the flow's creatingRef is the guard against a second page).
+  const [pageBusy, setPageBusy] = useState<string | null>(null);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const anyBusy = locked || pageBusy !== null;
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -52,8 +71,8 @@ export default function Templates({
           // The back link above stays live: a person who changed their mind is never trapped.
           <div className="lib-row" key={key}
             aria-busy={busy || undefined}
-            aria-disabled={locked && !busy ? true : undefined}
-            {...pressable(() => onSelect?.(key), { disabled: locked })}>
+            aria-disabled={anyBusy && !busy ? true : undefined}
+            {...pressable(() => onSelect?.(key), { disabled: anyBusy })}>
             <div className={"lib-ico cat-fg-" + cat}>
               <Icon className="ic" />
             </div>
@@ -65,6 +84,32 @@ export default function Templates({
           </div>
         );
       })}
+      {onPage && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Template Pages</span></div>
+          {PAGES_LIST.map(({ key, name, desc, cat, Icon }) => {
+            const busy = pageBusy === key;
+            return (
+              <div className="lib-row" key={"page-" + key}
+                aria-busy={busy || undefined}
+                aria-disabled={anyBusy && !busy ? true : undefined}
+                {...pressable(() => {
+                  setPageBusy(key);
+                  void Promise.resolve(onPage(key)).finally(() => { if (alive.current) setPageBusy(null); });
+                }, { disabled: anyBusy })}>
+                <div className={"lib-ico cat-fg-" + cat}>
+                  <Icon className="ic" />
+                </div>
+                <div className="lib-stack">
+                  <div className="lib-name">{name}</div>
+                  <div className="lib-sub">{desc}</div>
+                </div>
+                {busy ? <span className="spinner" role="status" aria-label="Opening" /> : <div className="chev"></div>}
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }

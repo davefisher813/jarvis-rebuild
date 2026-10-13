@@ -30,10 +30,23 @@ export const ALLOWED_UPLOAD_TYPES = [
   "application/pdf",
 ];
 
+// THE ORIGINAL OF AN IMPORTED TABLE (issue #115). A roster brought in from
+// Sheets or Excel keeps its file, as it came, beside the page it became. Only
+// the import path asks for these (prepareUpload's `table` option), so every
+// other door (a note's attachment, an email's) still takes images and PDFs
+// alone. Migration 0072 lets the bucket hold them.
+export const ALLOWED_TABLE_TYPES = [
+  "text/csv",
+  "text/tab-separated-values",
+  "text/plain",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+];
+
 // Returns an error message for the standard toast, or null when the file is
 // acceptable. Runs before any processing or network work.
-export function validateUpload(size: number, mimeType: string): string | null {
+export function validateUpload(size: number, mimeType: string, opts: { table?: boolean } = {}): string | null {
   if (size > MAX_UPLOAD_BYTES) return UPLOAD_TOO_BIG_MESSAGE;
+  if (opts.table && ALLOWED_TABLE_TYPES.includes(mimeType)) return null;
   if (!ALLOWED_UPLOAD_TYPES.includes(mimeType)) return "That file type is not supported.";
   return null;
 }
@@ -150,8 +163,8 @@ export function jpegHasGps(bytes: Uint8Array): boolean {
 // ---------------------------------------------------------------------------
 export interface PreparedUpload { bytes: Uint8Array; mimeType: string; filename: string }
 
-export async function prepareUpload(file: File): Promise<PreparedUpload> {
-  const invalid = validateUpload(file.size, file.type);
+export async function prepareUpload(file: File, opts: { table?: boolean } = {}): Promise<PreparedUpload> {
+  const invalid = validateUpload(file.size, file.type, opts);
   if (invalid) throw new Error(invalid);
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (file.type === "image/jpeg") {

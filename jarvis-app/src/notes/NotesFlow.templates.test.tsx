@@ -125,7 +125,8 @@ describe("NotesFlow: the tapped row answers in the same turn as the tap", () => 
     expect(within(row).getByRole("status", { name: "Opening" })).toHaveClass("spinner");
     expect(row.querySelector(".chev")).toBeNull();
     const others = allRows().filter((r) => r !== row);
-    expect(others).toHaveLength(5);
+    // The six templates plus the template pages (#115): every other row stands down.
+    expect(others).toHaveLength(allRows().length - 1);
     for (const o of others) {
       expect(o).toHaveAttribute("aria-disabled", "true");
       expect(o).not.toHaveAttribute("aria-busy");
@@ -151,7 +152,7 @@ describe("NotesFlow: the tapped row answers in the same turn as the tap", () => 
     fireEvent.click(await screen.findByLabelText("New Note", {}, { timeout: 4000 }));
     await screen.findByText("Project Brief");
     expect(document.querySelector(".lib-row[aria-busy], .lib-row[aria-disabled]")).toBeNull();
-    expect(document.querySelectorAll(".lib-row .chev")).toHaveLength(6);
+    expect(document.querySelectorAll(".lib-row .chev")).toHaveLength(document.querySelectorAll(".lib-row").length);
     fireEvent.click(rowOf("Project Brief"));
     expect(await screen.findByLabelText("Note", {}, { timeout: 4000 })).toBeInTheDocument();
     expect(await notesIn(svc)).toHaveLength(2);
@@ -170,7 +171,7 @@ describe("NotesFlow: a create that fails gives the picker back", () => {
     await waitFor(() => expect(said).toContain(WRITE_FAILED_MESSAGE));
     await waitFor(() => expect(row).not.toHaveAttribute("aria-busy"));
     expect(document.querySelector(".lib-row[aria-disabled]"), "no row is left unavailable").toBeNull();
-    expect(document.querySelectorAll(".lib-row .chev")).toHaveLength(6);
+    expect(document.querySelectorAll(".lib-row .chev")).toHaveLength(document.querySelectorAll(".lib-row").length);
     expect(row.querySelector(".spinner")).toBeNull();
     // Still the picker, still no note.
     expect(screen.queryByLabelText("Note")).toBeNull();

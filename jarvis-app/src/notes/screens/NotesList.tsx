@@ -5,7 +5,7 @@ import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
 import { useRowMenu } from "../../shared/useRowMenu";
-import { Archive, Check, FileText, RotateCcw, Trash2 } from "../../shared/icons";
+import { Archive, Check, FileText, RotateCcw, Trash2, PenLine, Table, ListOrdered } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -48,6 +48,8 @@ export interface NoteListItem {
   lines?: string[];
   // Wave 3b: in Recently Deleted.
   deleted?: boolean;
+  // Issue #115: a template page, and which kind. Its row is the same row; its menu adds Export or Share and Duplicate.
+  page?: import("../pages/pageModel").PageKind;
 }
 
 // C-18: the filter chips. Choosers, so filled chips.
@@ -224,6 +226,11 @@ export default function NotesList({
   onRestore,
   onDeleteForever,
   onDelete,
+  onBlankNote,
+  onImportTable,
+  onPasteRows,
+  onShare,
+  onDuplicate,
 }: {
   notes: NoteListItem[];
   onOpen?: (id: string) => void;
@@ -244,6 +251,13 @@ export default function NotesList({
   onRestore?: (id: string) => void;
   onDeleteForever?: (id: string) => void;
   onDelete?: (id: string) => void;
+  // NOTES HOME, EXISTING MATERIAL FIRST (issue #115): search, pinned and recent lead; starting something new follows them.
+  onBlankNote?: () => void;
+  onImportTable?: () => void;
+  onPasteRows?: () => void;
+  // A template page's row menu: export or share it, or make a copy.
+  onShare?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
@@ -337,6 +351,10 @@ export default function NotesList({
       else if (d === 1) put("yesterday", "Yesterday", null, n);
       else put("earlier", "Earlier", null, n);
     }
+    // Pinned leads the page whatever its notes' dates (issue #115: Search, Pinned, Recent). Groups are made in the
+    // order their first note appears, newest first, so an old pinned note used to put its head under Today's.
+    const pin = groups.findIndex((g) => g.key === "pinned");
+    if (pin > 0) groups.unshift(groups.splice(pin, 1)[0]!);
   } else if (NOTES_GROUP === "area") {
     for (const n of shown) {
       const name = n.category ? catName(n.category) : "";
@@ -455,8 +473,10 @@ export default function NotesList({
     const unarchive = !!n.archived;
     const menu: RowAction[] = [
       ...(remember && !sel.active ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
-      ...(onAppend ? [{ label: "Add a Line", onPick: () => onAppend(n.id) }] : []),
+      ...(onAppend && !n.page ? [{ label: "Add a Line", onPick: () => onAppend(n.id) }] : []),
       ...(onFile ? [{ label: "File Under an Area", onPick: () => onFile(n.id) }] : []),
+      ...(n.page && onShare ? [{ label: "Export or Share", onPick: () => onShare(n.id) }] : []),
+      ...(n.page && onDuplicate ? [{ label: "Duplicate Page", onPick: () => onDuplicate(n.id) }] : []),
       ...(onArchive ? [{ label: unarchive ? "Unarchive" : "Archive", onPick: () => onArchive(n.id, !unarchive) }] : []),
       ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => askDelete([n.id], false) }] : []),
     ];
@@ -575,6 +595,28 @@ export default function NotesList({
           <div className="task-row p2"><div className="task-title"><span className="task-name">No notes match &ldquo;{q.trim()}&rdquo;</span></div></div>
         </div></div>
       )}
+      {/* THEN SOMETHING NEW (issue #115, Notes home order: Search, Pinned, Recent, the area filter, then New Note, Use a
+          Template, Import). What he already has leads the page; the three ways to start sit under it, in the ordinary
+          views, out of the way of a search, a selection and the archive. */}
+      {!query && !sel.active && (filter.kind === "all" || filter.kind === "pinned" || filter.kind === "unfiled") && (onBlankNote || onNewNote) && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Start Something</span></div>
+          {/* Doors to three screens, in the grouped card the Connections screen's Actions card already wears. */}
+          <div className="pad-x"><div className="card list-card-ruled set-card">
+            {([
+              onBlankNote ? { key: "new", name: "New Note", cat: "yellow", Icon: PenLine, run: onBlankNote } : null,
+              onNewNote ? { key: "template", name: "Use a Template", cat: "blue", Icon: ListOrdered, run: onNewNote } : null,
+              onImportTable || onAddFile ? { key: "import", name: "Import", cat: "green", Icon: Table, run: () => setImportOpen(true) } : null,
+            ].filter(Boolean) as { key: string; name: string; cat: string; Icon: typeof PenLine; run: () => void }[]).map(({ key, name, cat, Icon, run }) => (
+              <div className="row set-row" key={key} {...pressable(run)}>
+                <div className={"proj-icon cat-bg-" + cat}><Icon className="ic" /></div>
+                <div className="conn-name">{name}</div>
+                <div className="chev"></div>
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
       {/* EVERYTHING THAT IS NOT A WORKFLOW STATE (handoff rule 7: "Notes-
           specific tools, including import and Recently Deleted, remain
           available"). Area and Tag each open their own list of answers in
@@ -588,16 +630,20 @@ export default function NotesList({
             key: "select", label: "Select Notes",
             onClick: () => { setOptsOpen(false); sel.enter(); },
           }] : []),
-          ...(onAddFile ? [{
+          ...(onAddFile || onImportTable ? [{
             key: "file", label: uploading ? "Uploading" : "Import or Attach",
             onClick: () => { setOptsOpen(false); if (!uploading) setImportOpen(true); },
           }] : []),
         ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
       )}
-      {importOpen && onAddFile && (
+      {importOpen && (onAddFile || onImportTable) && (
         <RowActionSheet
           title="Import or Attach"
-          actions={[{ label: "Choose a File", onPick: onAddFile }]}
+          actions={[
+            ...(onImportTable ? [{ label: "A Roster from Sheets or Excel", onPick: onImportTable }] : []),
+            ...(onPasteRows ? [{ label: "Paste Rows", onPick: onPasteRows }] : []),
+            ...(onAddFile ? [{ label: onImportTable ? "Attach a Photo or PDF" : "Choose a File", onPick: onAddFile }] : []),
+          ]}
           onCancel={() => setImportOpen(false)}
         />
       )}

@@ -667,7 +667,7 @@ describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-
     fireEvent.click(await screen.findByLabelText("Notes Options", {}, { timeout: 4000 }));
     fireEvent.click(screen.getByText("Import or Attach"));
     fireEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByText("Choose a File")).toBeNull();
+    expect(screen.queryByText("Attach a Photo or PDF")).toBeNull();
     expect(clicks).toHaveLength(0);
   });
 
@@ -685,9 +685,9 @@ describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-
     expect(screen.getByText("Import or Attach", { selector: ".eyebrow" })).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
     expect(clicks).toHaveLength(0);
-    fireEvent.click(screen.getByText("Choose a File"));
+    fireEvent.click(screen.getByText("Attach a Photo or PDF"));
     // Synchronous with the row's tap, and that sheet is gone too.
-    expect(screen.queryByText("Choose a File")).toBeNull();
+    expect(screen.queryByText("Attach a Photo or PDF")).toBeNull();
     expect(clicks).toHaveLength(1);
     expect(clicks[0]!.type).toBe("file");
     expect(clicks[0]!.isConnected, "the picker input outlives the menu that opened it").toBe(true);

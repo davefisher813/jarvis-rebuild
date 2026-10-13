@@ -3036,6 +3036,12 @@ button {
 .lib-disc { width: 30px; height: 30px; border-radius: var(--r-circle); display: flex;
   align-items: center; justify-content: center; color: #fff; }
 .lib-row .lib-disc .ic { width: 17px; height: 17px; }
+/* #106 V3 (with #115): a template row answers its tap at once. It holds the pressed fill while the note is made and
+   the editor loads, the chevron gives way to the app's one spinner, and the other rows wait. The spinner stills under
+   Reduced Motion with every other animation (the reduce rule in the design system), and stays a ring that says busy. */
+.lib-row[aria-busy="true"] { background: var(--press-3); }
+.lib-row[aria-disabled="true"] { cursor: default; }
+.lib-row > .spinner { width: 20px; height: 20px; flex-shrink: 0; }
 .lib-row + .lib-row { position: relative; }
 .lib-row + .lib-row::before { content: ""; position: absolute; top: 0; height: 0.5px; background: var(--divider);
   left: calc(var(--s-4) + 30px + var(--s-3h)); right: 0; }
