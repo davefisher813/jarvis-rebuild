@@ -354,7 +354,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    Now rule, and the two must change together, not one at a time. */
 .now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent-chrome); flex-shrink: 0; }
 .now-line .now-rule { height: 2px; background: var(--accent); flex: 1; border-radius: 1px; opacity: 0.5; }
-.sched-row.past { opacity: 0.45; }
+/* A PAST ROW IS DIMMED, NOT WASHED OUT (Alfred's live audit 2026-10-13, Home's whole-day card, light and dark: the 10:00 AM and 12:00 PM
+   rows were unreadable beside the live ones). At 0.45 the time, title and facts fell to roughly a third of their contrast. 0.72 still
+   reads as done at a glance and keeps every word clearly legible. Opacity only: no colour, size or weight moves. */
+.sched-row.past { opacity: 0.72; }
 .screen-foot { height: var(--s-8); }
 
 /* Brain hub rows: neutral icon tile, growing name, trailing status (catalog 23). */
@@ -6992,6 +6995,10 @@ span.row-star { cursor: default; }
 .sched-row .sched-check { flex: 0 0 16px; width: 16px; height: 16px; margin: 0; padding: 0; position: relative;
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .sched-row .sched-check::after { content: ""; position: absolute; inset: -14px; }
+/* ONE LEFT EDGE FOR ALL TIMES (Alfred's live audit 2026-10-13, Home's day card and the Schedule day view: a row with a check began its time
+   a check and a gap (28px) to the right of every row without one, and its title column moved with it). The check keeps its 16px box and its
+   44px hit but rides the row's end, so the time, the rail and the event column sit where every other row's do. Geometry only. */
+.sched-row .sched-check { order: 3; margin-left: var(--s-2); align-self: center; }
 .sched-row .sched-check .task-check { width: 16px; height: 16px; border-radius: var(--r-xs); }
 .block-held .bh-check { flex-shrink: 0; margin: 0; }
 /* The nested row's title stops being a plain span the moment it is a door,
