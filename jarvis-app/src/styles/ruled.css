@@ -940,6 +940,10 @@
    is not under it): one left-aligned unit, "FLEXIBLE · UNTIL 7:00 PM" or "FOCUS · UNTIL 11:00 AM", the line a protected block
    already draws. It outranks the pin by specificity (6 class tokens against 3), so it holds whatever the file order. Geometry only. */
 .ruled .sched-card .sched-holds .sched-body > .sched-cat > .sched-fact { margin-left: 0; padding-left: 0; }
+/* HOME'S DAY CARD READS THE SAME (Alfred's live audit 2026-10-13: one flexible row on Home still showed "FLEXIBLE" at the left and
+   "UNTIL 7:00 PM" pinned to the far right). The release above covered the Schedule tab only; the day card on Home is .sched-ticker.
+   Same rule, same geometry, so every flexible row on both surfaces is one left-aligned unit under its title. */
+.ruled .sched-ticker .sched-holds .sched-body > .sched-cat > .sched-fact { margin-left: 0; padding-left: 0; }
 /* The attachment count and the provenance ride the end of the line (Dave 2026-09-27, no third line). */
 .ruled .sched-body > .sched-cat > .sched-fact-attach, .ruled .sched-body > .sched-cat > .sched-fact-prov { flex: 0 0 auto; }
 .ruled .sched-body > .sched-cat > .sched-fact-attach > .clip-ic { width: 12px; height: 12px; vertical-align: -1px; margin-right: var(--s-1); }
