@@ -2,7 +2,7 @@
 // shapes, the one order with its tiebreak, a merge that never duplicates,
 // and the server's codes carried through as the command vocabulary.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { apiPost, gmailLink, inboxPage, mergeRows, newestFirst, type InboxRow, type RpcClient } from "./emailClient";
+import { apiPost, gmailLink, inboxPage, mergeRows, newestFirst, setBuiltSignature, setSignature, type InboxRow, type RpcClient } from "./emailClient";
 
 const row = (id: string, iso: string, extra: Partial<InboxRow> = {}): InboxRow => ({
   id, account_id: "a", account: "dave@example.test", provider_id: id, thread_id: id, internal_date: iso, from_address: "x@y.test", from_name: "",
@@ -67,5 +67,30 @@ describe("the server's answers", () => {
   it("a good answer is the body", async () => {
     const r = await apiPost<{ synced: number }>("/api/email/sync", {}, "jwt", (async () => res({ ok: true, synced: 3 }, 200)) as unknown as typeof fetch);
     expect(r).toEqual({ ok: true, value: { ok: true, synced: 3 } });
+  });
+});
+
+describe("the signature doors (migration 0072)", () => {
+  const recorder = (answer: unknown) => {
+    const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+    const client: RpcClient = { rpc: async (fn, args) => { calls.push({ fn, args: (args ?? {}) as Record<string, unknown> }); return { data: answer, error: null }; } };
+    return { calls, client };
+  };
+  it("the builder's door sends the owner, the account, the details, the picture reference and the revision it saw", async () => {
+    const { calls, client } = recorder({ account_id: "a1", signature_text: "Dave", signature_revision: 5, signature_kind: "built", signature_fields: { name: "Dave" }, signature_image: null });
+    const r = await setBuiltSignature(client, "u1", "a1", { name: "Dave" }, null, 4);
+    expect(calls).toEqual([{ fn: "email_signature_build_set", args: { p_owner: "u1", p_account: "a1", p_fields: { name: "Dave" }, p_image: null, p_expected_revision: 4 } }]);
+    expect(r).toEqual({ ok: true, value: expect.objectContaining({ signature_kind: "built", signature_revision: 5 }) });
+  });
+  it("carries the server's refusal as the command vocabulary (a stale revision, a detail it will not take)", async () => {
+    const stale = await setBuiltSignature(recorder({ error: "SIGNATURE_CONFLICT", signature_revision: 9 }).client, "u1", "a1", { name: "D" }, null, 1);
+    expect(stale).toMatchObject({ ok: false, code: "SIGNATURE_CONFLICT", data: { signature_revision: 9 } });
+    const bad = await setBuiltSignature(recorder({ error: "INVALID_PAYLOAD", detail: "image" }).client, "u1", "a1", { name: "D" }, null);
+    expect(bad).toMatchObject({ ok: false, code: "INVALID_PAYLOAD", detail: "image" });
+  });
+  it("the plain door is unchanged on the wire", async () => {
+    const { calls, client } = recorder({ account_id: "a1", signature_text: "Words", signature_revision: 2 });
+    await setSignature(client, "u1", "a1", "Words", 1);
+    expect(calls).toEqual([{ fn: "email_signature_set", args: { p_owner: "u1", p_account: "a1", p_text: "Words", p_expected_revision: 1 } }]);
   });
 });

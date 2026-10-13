@@ -19,21 +19,23 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import PageHeader from "../shared/PageHeader";
 import RowActionSheet from "../shared/RowActionSheet";
 import { FieldRow, MenuRow, Row, TextRow, Tile } from "../shared/FormSheet";
-import { Mail, Paperclip } from "../shared/icons";
+import { Image as ImageGlyph, Mail, Paperclip } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
 import { failure, lineFor, type CommandFailure, type CommandResult, type RpcClient } from "../substrate/commands/errors";
 import { prepareUpload, validateUpload } from "../shared/fileStorage";
 import type { FileStore } from "../files/FileStore";
+import { useFileUrl } from "../files/useFileUrl";
 import {
   ATTACH, ATTACH_FAILED, ATTACH_NEEDS_APP, ATTACH_TOO_MUCH, ATTACHMENTS_LABEL, ATTACHMENTS_WAIT, BAD_ADDRESS, BCC_LABEL, BODY_LABEL, CC_BCC, CC_LABEL, CLOSE_DRAFT, COMPOSE_TITLE,
   CONFLICT_TITLE, DISCARD_ASK, DISCARD_DRAFT, DISCARD_OFFLINE, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
-  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, ADD_SIGNATURE, NO_SIGNATURE_NOTE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE,
+  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, ADD_SIGNATURE, NO_SIGNATURE_NOTE, SIG_PICTURE_ROW, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE,
 } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
 import SignatureSheet from "./SignatureSheet";
 import { announceSignature } from "./signatureBus";
+import { travellingPicture } from "./signature";
 import ReplyCoverage from "../messages/coverage/ReplyCoverage";
 import type { CoverageOverride, CoverageOverrides } from "../messages/replyCoverage";
 import type { ThreadBriefAI } from "../messages/threadBrief";
@@ -308,8 +310,12 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
   // Fix order item 2 (2026-10-11): an account with no saved signature says so in the composer, with Add Signature.
   // Saving it here saves it for the account (the same RPC as Settings) and adds it to this draft once, at the end.
   const [addingSig, setAddingSig] = useState(false);
+  const [editingSig, setEditingSig] = useState(false);
   const [sigAdded, setSigAdded] = useState<string | null>(null);
   const currentAcct = accounts.find((a) => a.id === accountId) ?? null;
+  // The built signature's picture goes with this draft only while the draft ends with its untouched block (the rule send_review applies).
+  const sigPicture = travellingPicture(fields.body_text, fields.signature_revision, currentAcct);
+  const sigPictureUrl = useFileUrl(fileStore, sigPicture?.storage_id);
   const noSignature = !!currentAcct && !currentAcct.signature_text && sigAdded === null;
 
   // The account is part of the draft too; a switch also decides the signature.
@@ -543,14 +549,28 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
           (Dave's locked row-actions rule: a quiet text action in the key colour, never a capsule). */}
       {noSignature && !sigOffer && <div className="email-note quiet"><span>{NO_SIGNATURE_NOTE}</span><button className="quiet-action" onClick={() => setAddingSig(true)}>{ADD_SIGNATURE}</button></div>}
       {addingSig && currentAcct && (
-        <SignatureSheet client={client} userId={userId} account={currentAcct} onClose={() => setAddingSig(false)}
-          onSaved={(id, text, revision) => {
-            announceSignature({ accountId: id, text, revision });
+        <SignatureSheet client={client} userId={userId} account={currentAcct} fileStore={fileStore} onClose={() => setAddingSig(false)}
+          onSaved={(_id, text, revision, saved) => {
+            announceSignature(saved);
             setSigAdded(text);
             if (text) setFields((f) => ({ ...f, body_text: withSignature(f.body_text, text), signature_revision: revision }));
           }} />
       )}
       {sigOffer && <div className="email-note quiet"><span>{SIGNATURE_OFFER_NOTE}</span><button className="quiet-action" onClick={applySignature}>{USE_SAVED_SIGNATURE}</button></div>}
+      {/* The picture is not in the words, so the draft says it goes: a row, whose door is the builder (edit it there, and the draft's
+          own block is offered the new signature, never rewritten in silence). */}
+      {sigPicture && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          <div className="row sig-pic-row" {...rowDoor(() => setEditingSig(true))}>
+            <span className="sig-pic">{sigPictureUrl ? <img className="sig-pic-img" src={sigPictureUrl} alt="" /> : <ImageGlyph className="ic" />}</span>
+            <div className="row-grow"><div className="conn-name">{SIG_PICTURE_ROW}</div></div>
+            <div className="chev"></div>
+          </div>
+        </div></div>
+      )}
+      {editingSig && currentAcct && (
+        <SignatureSheet client={client} userId={userId} account={currentAcct} fileStore={fileStore} onClose={() => setEditingSig(false)} onSaved={(_id, _text, _revision, saved) => announceSignature(saved)} />
+      )}
 
       <div className="pad-x"><div className="card list-card-ruled">
         {fields.attachment_refs.length > 0 && <div className="eyebrow email-eyebrow">{ATTACHMENTS_LABEL}</div>}

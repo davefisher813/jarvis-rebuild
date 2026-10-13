@@ -88,6 +88,16 @@ describe("Email Sections: the moves, each with Put Back", () => {
     expect(names).toContain("A Moved Message");
     expect(fetchTrap).not.toHaveBeenCalled();
   });
+
+  it("with no signed-in id the page reads the key the Email tab writes under, 'local', so a move made there is listed (issue 104)", () => {
+    // EmailFlow files a move under "local" when there is no user id; the page used "" and listed nothing.
+    recordMove("local", row({ id: "m1" }), "money", new Date("2026-10-10T09:00:00Z"));
+    saveSnapshot("local", { accounts: [], rows: [row({ id: "m2", subject: "Weekly Digest", from_name: "News" })] });
+    moveToSection("local", "m2", "lists");
+    const { container } = render(<EmailSectionsPage onBack={() => {}} />);
+    expect([...container.querySelectorAll(".set-row .conn-name")].map((n) => n.textContent).sort()).toEqual(["Weekly Digest", "Your October Bill"]);
+    expect(screen.queryByText(NO_MOVES_TITLE)).toBeNull();
+  });
 });
 
 describe("Email Sections: the old filters' data stays for the Messages screen", () => {

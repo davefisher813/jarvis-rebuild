@@ -12,6 +12,7 @@ import { apiPost, type EmailAccount, type Fetch, type MessageDetail } from "./em
 import { ACCOUNT_PREFIX } from "../messages/mailCache";
 import { mailAccountKey } from "../messages/mailIdentity";
 import { replySubject } from "../connections/google/map";
+import { SIGNATURE_DELIM, type SignatureFields, type SignatureImage } from "./signature";
 
 export type SendState = "draft" | "sending" | "sent" | "unknown" | "failed";
 
@@ -50,9 +51,6 @@ export interface Saved { draft_id: string; revision: number; saved_at: string; s
 export const emptyFields = (): DraftFields => ({ thread_id: null, to_addresses: [], cc_addresses: [], bcc_addresses: [], subject: "", body_text: "", attachment_refs: [], reply_headers: { in_reply_to: null, references: [], thread_id: null }, signature_revision: null });
 
 // ---- the saved signature (slice: Email v1 spec section 6, Dave's locked decision L3) --------------------------------
-
-/** The classic RFC 3676 sig-dashes convention: a distinct block, never baked into the words above it. */
-export const SIGNATURE_DELIM = "\n\n-- \n";
 
 /** The account's signature as the block startCompose appends, for a non-empty signature only. */
 export const signatureBlock = (text: string): string => SIGNATURE_DELIM + text;
@@ -138,6 +136,8 @@ export interface ExactSend {
   draft_id: string;
   draft_revision: number;
   client_message_id: string;
+  /** Present only when the draft ends with the account's untouched BUILT signature and that signature has a picture (migration 0072, send_review): the fields and the picture reference the message carries as HTML. */
+  signature?: { fields: SignatureFields; image: SignatureImage };
 }
 export interface Review {
   review: { action_id: string; review_nonce: string; payload_hash: string; expires_at: string; outbox_id: string };

@@ -15,7 +15,7 @@ import type { PrepareContext } from "../substrate/destinations/types";
 import { MODULE_OF } from "../substrate/destinations/types";
 import type { CandidateOrigin, CandidateStatus, CaptureKind, CapturePayload } from "../substrate/contracts";
 import { extractCandidates, readingKey, type ExtractInput, type Proposal, type Provenance } from "../substrate/extract";
-import { moneyWords } from "../money/ledger/emailBill";
+import { centsWords, moneyWords } from "../money/ledger/emailBill";
 import { monthDay } from "../money/bills";
 import { ACCOUNT_PREFIX } from "../messages/mailCache";
 import { mailAccountKey } from "../messages/mailIdentity";
@@ -98,6 +98,50 @@ export function readWithRules(row: Pick<InboxRow, "account_id" | "id" | "account
   return extractCandidates(extractInput(row, zone, body));
 }
 
+/**
+ * WHAT THE RULES MAY PROPOSE FROM A LIST ROW (Dave 2026-10-13, task 42: hide the old rule candidates; Email v1 spec 5.2
+ * and AC11; the Trim Decisions of 2026-10-08). A row in the list is only a subject and a snippet. Reading those for a
+ * bill, a receipt, a task or a waiting card is the automatic pass the spec bans: no email-to-task or Waiting detection,
+ * and no financial auto-parsing in v1 (manual entry only). So the list reads a row for the one kind the spec keeps, a
+ * calendar event, and for nothing else. What the person asks for is not a list reading and is not narrowed here: Find
+ * Useful Details, Add to JARVIS and Track This, an opened message's text and an opened calendar file read every kind
+ * as before.
+ *
+ * Hidden, not deleted: the templates, the readings and every card already on the server are untouched. Put a kind
+ * back in this list and the list proposes it again (the reading key below carries the list, so rows read before are
+ * read again).
+ */
+export const LIST_ROW_KINDS: readonly CaptureKind[] = ["event"];
+
+/** The proposals a list row may make: the rules' reading of it, cut to the kinds the list reads. */
+export function listRowProposals(proposals: readonly Proposal[]): Proposal[] {
+  return proposals.filter((p) => LIST_ROW_KINDS.includes(p.kind));
+}
+
+/** The key a list row is read under: the version and the kinds the list reads, so a kind turned back on reads the rows again. */
+export function listReadingKey(accountId: string, messageId: string, sourceHash: string): string {
+  return `${readingKey(accountId, messageId, sourceHash)}:list:${LIST_ROW_KINDS.join(",")}`;
+}
+
+/**
+ * WHAT THE WORDS OF AN OPENED MESSAGE MAY PROPOSE (Email v1 spec AC11: "Open mail / Find useful details: no automatic
+ * task/Waiting candidates; supported financial/event templates only"). Opening a message, and Find Useful Details, read
+ * its text for a bill, a receipt or an event. A task or a Waiting is never proposed from someone's words: those come from
+ * the person's own Add to JARVIS and Track This, with their own fields. Hidden, not deleted: put a kind back in this list
+ * and it is proposed again (the body reading key carries the list, so messages read before are read again).
+ */
+export const BODY_READ_KINDS: readonly CaptureKind[] = ["bill", "receipt", "event"];
+
+/** The proposals an opened message's text may make: the rules' reading of it, cut to the kinds the spec keeps. */
+export function bodyProposals(proposals: readonly Proposal[]): Proposal[] {
+  return proposals.filter((p) => BODY_READ_KINDS.includes(p.kind));
+}
+
+/** The key an opened message's text is read under: the version and the kinds read, so a kind turned back on reads the message again. */
+export function bodyReadingKey(accountId: string, messageId: string, sourceHash: string): string {
+  return `${readingKey(accountId, messageId, sourceHash)}:body:${BODY_READ_KINDS.join(",")}`;
+}
+
 /** The text of an opened message, as the rules should read it: plain text first, the snippet when there is none. */
 export function textOf(m: Pick<MessageDetail, "text" | "snippet" | "html">): string {
   if (m.text && m.text.trim()) return m.text;
@@ -143,11 +187,17 @@ export const BADGE: Record<CaptureKind, string> = { bill: "Money", receipt: "Mon
 // the exact pair Dave photographed on the Email card. The badge names where it lands, the button names the effect.
 export const KIND_WORD: Record<CaptureKind, string> = { bill: "Bill", receipt: "Receipt", task: "Task", event: "Event", waiting: "Waiting" };
 
-/** The headline amount, and what it still needs: a number with no currency reads as the number and asks for the currency as a need, never as a dotted string in the headline. */
+/**
+ * The headline amount, and what it still needs: a number with no currency reads as the number (thousands grouped, as
+ * every amount is) and asks for the currency as a need, never as a dotted string in the headline. An amount that is
+ * zero or below (a blank manual card, a credit or a refund proposed as a bill: a bill is never negative, and a
+ * negative is not an amount to save) reads "Amount Needed" and names the Amount among the needs, like every other
+ * field the card is still waiting for (issue 112, populated Money).
+ */
 const money = (a: { minor_units: number; currency: string }): { text: string; needs: string[] } =>
   a.minor_units > 0 && /^[A-Z]{3}$/.test(a.currency) ? { text: moneyWords(a.minor_units, a.currency), needs: [] }
-    : a.minor_units > 0 ? { text: (a.minor_units / 100).toFixed(2), needs: ["Currency"] }
-      : { text: "Amount Needed", needs: [] };
+    : a.minor_units > 0 ? { text: centsWords(a.minor_units), needs: ["Currency"] }
+      : { text: "Amount Needed", needs: ["Amount"] };
 
 /**
  * The facts line of a card, in the catalog's order (2026-10-05): the one amber fact leads when something is
@@ -185,14 +235,33 @@ export function cardLines(c: Pick<Candidate, "payload">, now: Date = new Date())
       try {
         const d = new Date(t.start_at);
         const e = new Date(t.end_at);
-        const fmt = (x: Date) => x.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...(zone ? { timeZone: zone } : {}) });
-        return { value, facts: line(zone ? [] : ["Zone"], [{ text: dayLabel(t.start_at, now), tone: "date" }, { text: `${fmt(d)} to ${fmt(e)}`, tone: "date" }], zone ? [{ text: shortZone(zone) }] : []) };
+        // 12-hour with AM or PM whatever the phone's own locale says (the clock law), in the zone the event is in.
+        const fmt = (x: Date) => x.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, ...(zone ? { timeZone: zone } : {}) });
+        // The span is built before the day, so a zone this runtime does not know throws here and falls to the catch below.
+        const span = `${fmt(d)} to ${fmt(e)}`;
+        return { value, facts: line(zone ? [] : ["Zone"], [{ text: zone ? dayIn(t.start_at, zone, now) : dayLabel(t.start_at, now), tone: "date" }, { text: span, tone: "date" }], zone ? [{ text: shortZone(zone) }] : []) };
       } catch {
         return { value, facts: line([], [{ text: dayLabel(t.start_at, now), tone: "date" }, { text: timeOf(t.start_at), tone: "date" }], []) };
       }
     }
     case "waiting": return { value: p.title || "Title Needed", facts: line(p.counterparty_display ? [] : ["From"], p.follow_up_on ? [{ text: `Follow Up ${monthDay(p.follow_up_on)}`, tone: windowTone(p.follow_up_on, today) }] : [], p.counterparty_display ? [{ text: `From ${p.counterparty_display}` }] : []) };
   }
+}
+
+/**
+ * The day an event falls on in the zone its clock is printed in: Today, Yesterday, else the short date. The day used to
+ * come from hub/format's dayLabel, which reads the date off the front of the ISO instant (the UTC date) while the times
+ * beside it were printed in the event's zone, so an evening event was labelled a day late (10:00 PM Eastern on Oct 6 is
+ * 02:00 Oct 7 UTC and read "Oct 7"). The event and "now" are both read in that one zone, so the three facts agree.
+ */
+function dayIn(iso: string, zone: string, now: Date): string {
+  if (Number.isNaN(new Date(iso).getTime())) return "";
+  const day = localDate(iso, zone);
+  const today = localDate(now.toISOString(), zone);
+  if (day === today) return "Today";
+  const before = new Date(`${today}T12:00:00Z`);
+  before.setUTCDate(before.getUTCDate() - 1);
+  return day === before.toISOString().slice(0, 10) ? "Yesterday" : monthDay(day);
 }
 
 const ZONE_SHORT: Record<string, string> = { "America/New_York": "Eastern", "America/Chicago": "Central", "America/Denver": "Mountain", "America/Phoenix": "Arizona", "America/Los_Angeles": "Pacific", "America/Anchorage": "Alaska", "Pacific/Honolulu": "Hawaii", UTC: "UTC", "Europe/London": "London", "Europe/Berlin": "Central European" };

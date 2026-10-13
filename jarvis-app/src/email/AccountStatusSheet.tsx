@@ -43,7 +43,10 @@ export function signInFacts(account: EmailAccount, view: ClientView | undefined,
     if (view.state === "connected") return { facts: [{ text: SIGNED_IN, tone: "good" }], reconnect: false };
     if (view.state === "pending_auth") return { facts: [{ text: view.headline, tone: "warn" }, ...(view.detail ? [{ text: view.detail }] : [])], reconnect: true };
     if (view.state === "offline" || view.state === "stale") return { facts: [{ text: view.headline === "Offline" ? "Offline" : NOT_CONFIRMED, tone: "warn" }, ...(view.detail && view.state === "stale" ? [{ text: view.detail }] : [])], reconnect: false };
-    if (status?.auth_state === "valid") return { facts: [{ text: SIGNED_IN, tone: "good" }], reconnect: false };
+    // An error view (Gmail refused the check, or answered as a different account) is a problem on THIS row too, in amber: the
+    // credential refreshed, but "Signed In" in green beside a headline that says Can't Read Mail was two answers to one question
+    // (issue 107, X2). The other states here (a throttle, an outage) leave the sign-in itself working, so they still say so.
+    if (status?.auth_state === "valid" && view.state !== "error") return { facts: [{ text: SIGNED_IN, tone: "good" }], reconnect: false };
     return { facts: [{ text: view.headline, tone: "warn" }, ...(view.detail ? [{ text: view.detail }] : [])], reconnect: false };
   }
   if (account.state === "connected") return { facts: [{ text: STATE_WORD.connected, tone: "good" }], reconnect: false };

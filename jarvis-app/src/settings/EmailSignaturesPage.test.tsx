@@ -8,6 +8,7 @@ import EmailSignaturesPage, { LOAD_FAILED_TITLE, NO_MAILBOXES_SUB, NO_MAILBOXES_
 import { onSignatureSaved, type SignatureSaved } from "../email/signatureBus";
 import { NO_SIGNATURE, SIGNATURE_LABEL } from "../email/copy";
 import type { EmailAccount, RpcClient } from "../email/emailClient";
+import { composeSignatureText, type SignatureFields } from "../email/signature";
 
 const acct = (o: Partial<EmailAccount>): EmailAccount => ({
   id: "a1", address: "dave@example.test", state: "connected", last_sync_at: null, sync_error: null, capabilities: { archive: true, trash: true, read: true },
@@ -17,14 +18,21 @@ const acct = (o: Partial<EmailAccount>): EmailAccount => ({
 afterEach(() => cleanup());
 
 describe("Email Signatures page", () => {
-  it("lists each connected mailbox with its signature or Not Set, and saves through the editor", async () => {
+  const rig = () => {
     const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
     const client: RpcClient = { rpc: async (fn, args) => {
-      calls.push({ fn, args: (args ?? {}) as Record<string, unknown> });
+      const a = (args ?? {}) as Record<string, unknown>;
+      calls.push({ fn, args: a });
       if (fn === "email_accounts") return { data: [acct({}), acct({ id: "a2", address: "dave@work.test", signature_text: "\nDave F.\nWork" }), acct({ id: "a3", address: "old@example.test", state: "disconnected" })], error: null };
-      if (fn === "email_signature_set") return { data: { account_id: (args as Record<string, unknown>).p_account, signature_text: (args as Record<string, unknown>).p_text, signature_revision: 2 }, error: null };
+      if (fn === "email_signature_set") return { data: { account_id: a.p_account, signature_text: a.p_text, signature_revision: 2, signature_kind: "text", signature_fields: {}, signature_image: null }, error: null };
+      if (fn === "email_signature_build_set") return { data: { account_id: a.p_account, signature_text: composeSignatureText(a.p_fields as SignatureFields), signature_revision: 2, signature_kind: "built", signature_fields: a.p_fields, signature_image: a.p_image }, error: null };
       return { data: null, error: null };
     } };
+    return { calls, client };
+  };
+
+  it("lists each connected mailbox with its signature or Not Set; a mailbox with none opens the builder, and a save updates the row and is announced", async () => {
+    const { calls, client } = rig();
     const heard: SignatureSaved[] = [];
     const off = onSignatureSaved((s) => heard.push(s));
     render(<EmailSignaturesPage onBack={() => {}} client={client} userId="u1" />);
@@ -33,11 +41,29 @@ describe("Email Signatures page", () => {
     expect(screen.getByText("Dave F.")).toBeInTheDocument();
     expect(screen.queryByText("old@example.test")).toBeNull();
     fireEvent.click(screen.getByText("dave@example.test"));
-    fireEvent.change(screen.getByLabelText(SIGNATURE_LABEL), { target: { value: "Dave Fisher" } });
+    // No signature yet: the builder, the address already in as the email detail.
+    expect(screen.getByLabelText("Email")).toHaveValue("dave@example.test");
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Dave Fisher" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.getByText("Dave Fisher")).toBeInTheDocument());
-    expect(calls.find((c) => c.fn === "email_signature_set")!.args).toMatchObject({ p_owner: "u1", p_account: "a1", p_text: "Dave Fisher", p_expected_revision: 1 });
-    expect(heard).toEqual([{ accountId: "a1", text: "Dave Fisher", revision: 2 }]);
+    expect(calls.find((c) => c.fn === "email_signature_build_set")!.args).toEqual({ p_owner: "u1", p_account: "a1", p_fields: { name: "Dave Fisher", email: "dave@example.test" }, p_image: null, p_expected_revision: 1 });
+    expect(heard).toEqual([{ accountId: "a1", text: "Dave Fisher\ndave@example.test", revision: 2, kind: "built", fields: { name: "Dave Fisher", email: "dave@example.test" }, image: null }]);
+    off();
+  });
+
+  it("a mailbox whose signature was typed opens the plain editor, and a save is the typed words alone", async () => {
+    const { calls, client } = rig();
+    const heard: SignatureSaved[] = [];
+    const off = onSignatureSaved((s) => heard.push(s));
+    render(<EmailSignaturesPage onBack={() => {}} client={client} userId="u1" />);
+    await waitFor(() => expect(screen.getByText("dave@work.test")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("dave@work.test"));
+    fireEvent.change(screen.getByLabelText(SIGNATURE_LABEL), { target: { value: "Dave F.\nWork\nTyped" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(calls.some((c) => c.fn === "email_signature_set")).toBe(true));
+    expect(calls.find((c) => c.fn === "email_signature_set")!.args).toMatchObject({ p_owner: "u1", p_account: "a2", p_text: "Dave F.\nWork\nTyped", p_expected_revision: 1 });
+    expect(calls.some((c) => c.fn === "email_signature_build_set")).toBe(false);
+    expect(heard).toEqual([{ accountId: "a2", text: "Dave F.\nWork\nTyped", revision: 2, kind: "text", fields: {}, image: null }]);
     off();
   });
 

@@ -1,35 +1,30 @@
-// EMAIL ON TODAY, RESTRAINED (Email v1 spec section 7, V10; Dave 2026-10-12).
-// Inside the Today page's own mail band: the ONE combined paused-sends card,
-// "2 Replies Need Your Review", only while a send stopped before it reached
-// Gmail waits for a fresh review (never an ordinary draft, a held send, a sent
-// message or an unknown outcome); then committed email-origin records that are
-// due, at most five rows in all, nothing padded, nothing for tomorrow, each
-// destination once and never one Today already shows on its own. The generic
-// proposal-review count is gone from Today: it stays on the Email surface.
-// Bills stay with Money's own Today line. A tap opens Email's recovery list,
-// or the record's own module. Nothing here sends; there is no Send All.
+// EMAIL ON TODAY, RESTRAINED (Email v1 spec section 7, V10; Dave 2026-10-12; issue 112, Dave 2026-10-13).
+// Inside the Today page's own mail band, Email draws only what is Email's: the ONE combined paused-sends card,
+// "2 Replies Need Your Review", only while a send stopped before it reached Gmail waits for a fresh review (never an
+// ordinary draft, a held send, a sent message or an unknown outcome); then the open Waiting follow-ups that are due or
+// overdue. At most five rows in all, nothing padded, nothing for tomorrow, each destination once.
+//
+// A task, an event or a bill that a capture made is NOT drawn here: Tasks, Schedule and Money show it on Today, once, as
+// the ordinary task, event or bill it is (today/onceOnToday.ts). The band used to carry a second, email-flavoured copy of
+// each; it has no task or schedule input any more, so it cannot. The generic proposal-review count is gone from Today
+// too: it stays on the Email surface. A tap opens Email's recovery list or the Waiting record. Nothing here sends; there
+// is no Send All.
 
 import { useEffect, useState } from "react";
 import { rowDoor } from "../shared/rowDoor";
-import { Calendar, CheckSquare, Hourglass, Mail } from "../shared/icons";
+import { Hourglass, Mail } from "../shared/icons";
 import type { RpcClient } from "../substrate/commands/errors";
-import type { TasksService } from "../tasks/TasksService";
-import type { ScheduleService } from "../schedule/ScheduleService";
 import type { WaitingService } from "../substrate/waiting/WaitingService";
 import { emailTodayRows, pausedSends, type EmailFocus, type TodayEmailRow } from "../email/waiting";
 import EmailFacts from "../email/EmailFacts";
 
-export default function EmailToday({ client, tasks, schedule, waiting, today, excludeIds = [], refreshKey = 0, onOpenEmail, onOpenEntity, onEmptyChange }: {
+export default function EmailToday({ client, waiting, today, refreshKey = 0, onOpenEmail, onEmptyChange }: {
   client: RpcClient | null;
-  tasks: TasksService | null;
-  schedule: ScheduleService | null;
   waiting: WaitingService | null;
   today: string;
-  /** Items Today already shows on its own (the dealt task): left to it. */
-  excludeIds?: readonly string[];
+  /** Bumped by the page whenever it reloads, so a Track This or a pause that landed since the band mounted is read. */
   refreshKey?: number;
   onOpenEmail: (focus?: EmailFocus) => void;
-  onOpenEntity: (kind: "task" | "event", id: string) => void;
   onEmptyChange?: (empty: boolean) => void;
 }) {
   const [rows, setRows] = useState<TodayEmailRow[]>([]);
@@ -37,30 +32,26 @@ export default function EmailToday({ client, tasks, schedule, waiting, today, ex
     let alive = true;
     void (async () => {
       // A database without migration 0068 has no paused_sends: the card is simply not drawn.
-      const [paused, t, e, w] = await Promise.all([
+      const [paused, w] = await Promise.all([
         client ? pausedSends(client).then((r) => (r.ok ? { count: Number(r.value.count) || 0, replies: Number(r.value.replies) || 0 } : null)).catch(() => null) : Promise.resolve(null),
-        tasks ? tasks.listTasks().catch(() => []) : Promise.resolve([]),
-        schedule ? schedule.eventsOn(today).catch(() => []) : Promise.resolve([]),
         waiting ? waiting.list().catch(() => []) : Promise.resolve([]),
       ]);
       if (!alive) return;
-      setRows(emailTodayRows({ paused, tasks: t, events: e, waiting: w, today, excludeIds: new Set(excludeIds) }));
+      setRows(emailTodayRows({ paused, waiting: w, today }));
     })();
     return () => { alive = false; };
-    // excludeIds is a fresh array each render; its content is what matters.
-  }, [client, tasks, schedule, waiting, today, refreshKey, excludeIds.join("|")]);
+  }, [client, waiting, today, refreshKey]);
   useEffect(() => { onEmptyChange?.(rows.length === 0); }, [rows.length, onEmptyChange]);
 
   if (rows.length === 0) return null;
   const open = (r: TodayEmailRow) => {
     if (r.kind === "paused") onOpenEmail({ kind: "paused" });
-    else if (r.kind === "waiting") onOpenEmail({ kind: "waiting", id: r.id });
-    else onOpenEntity(r.kind, r.id);
+    else onOpenEmail({ kind: "waiting", id: r.id });
   };
-  const Icon = (k: TodayEmailRow["kind"]) => k === "paused" ? Mail : k === "task" ? CheckSquare : k === "event" ? Calendar : Hourglass;
-  // A TYPE ICON CARRIES ITS TYPE'S COLOUR (Dave 2026-10-05: the envelope and the check were flat black in light).
-  // The tones are the ones the sheets already use for these types: Email teal, Task red, Event sky, Waiting purple.
-  const Tone = (k: TodayEmailRow["kind"]) => k === "paused" ? "teal" : k === "task" ? "red" : k === "event" ? "sky" : "purple";
+  // A TYPE ICON CARRIES ITS TYPE'S COLOUR (Dave 2026-10-05: the envelope was flat black in light).
+  // The tones are the ones the sheets already use for these types: Email teal, Waiting purple.
+  const Icon = (k: TodayEmailRow["kind"]) => (k === "paused" ? Mail : Hourglass);
+  const Tone = (k: TodayEmailRow["kind"]) => (k === "paused" ? "teal" : "purple");
   return (
     <div className="card list-card-ruled email-today-band" data-email-today={rows.length}>
       {rows.map((r) => {

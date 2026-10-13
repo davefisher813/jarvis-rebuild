@@ -26,7 +26,7 @@
 // one section, and All by Date shows the same rows without the grouping.
 
 import type { InboxRow } from "./emailClient";
-import { matchMoney } from "./moneyRegistry";
+import { matchMoney, type MoneySemantics } from "./moneyRegistry";
 
 export const SECTION_KEYS = ["conversations", "schedule", "money", "lists", "other"] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -56,37 +56,90 @@ type Facts = Pick<InboxRow, "attachment_metadata" | "mime_type" | "content_class
 
 const CALENDAR_MIME = new Set(["text/calendar", "application/ics"]);
 
+/** Which of the three calendar tests a row passed, in the order the resolver tries them. */
+export type CalendarHit = "mime" | "content_class" | "attachment";
+
+/** The first calendar test a row passes: its own message type, its Content-Class, then a calendar part or .ics file. Null: none. */
+function calendarHit(r: Facts): CalendarHit | null {
+  if (r.mime_type && CALENDAR_MIME.has(r.mime_type.toLowerCase())) return "mime";
+  if (r.content_class && /calendarmessage/i.test(r.content_class)) return "content_class";
+  if ((r.attachment_metadata ?? []).some((a) => CALENDAR_MIME.has((a.mime || "").toLowerCase()) || /\.ics$/i.test(a.filename || ""))) return "attachment";
+  return null;
+}
+
 /** Calendar MIME structure, never words. */
 export function isCalendar(r: Facts): boolean {
-  if (r.mime_type && CALENDAR_MIME.has(r.mime_type.toLowerCase())) return true;
-  if (r.content_class && /calendarmessage/i.test(r.content_class)) return true;
-  return (r.attachment_metadata ?? []).some((a) => CALENDAR_MIME.has((a.mime || "").toLowerCase()) || /\.ics$/i.test(a.filename || ""));
+  return calendarHit(r) !== null;
+}
+
+/** Which list headers a row carries, each parsed: a header with something in it. */
+function listHeaders(r: Facts): { listId: boolean; unsubscribe: boolean } {
+  return { listId: !!(r.list_id && r.list_id.trim()), unsubscribe: !!(r.list_unsubscribe && r.list_unsubscribe.trim()) };
 }
 
 /** List-Unsubscribe or List-ID, parsed: a header with something in it. */
 export function isMailingList(r: Facts): boolean {
-  return !!(r.list_id && r.list_id.trim()) || !!(r.list_unsubscribe && r.list_unsubscribe.trim());
-}
-
-/**
- * Money: exactly one registered sender template matches this message's from address and subject (spec 3.2 rule 4,
- * 5.2). A currency sign or a filename, which the spec calls insufficient, is never read.
- */
-export function isRegisteredMoney(r: Facts): boolean {
-  return matchMoney(r).kind === "match";
+  const h = listHeaders(r);
+  return h.listId || h.unsubscribe;
 }
 
 export type Overrides = Record<string, SectionKey>;
 
-/** The one primary section for a row. */
+// ---- WHY A MESSAGE SITS WHERE IT DOES (issue 112, item 15; spec 3.2: "Click Why this section? for the rule and evidence") ----
+//
+// The decision and its reason are ONE function. `natural` runs the spec's rules in order and returns the section together
+// with the fact that decided it; `sectionOf` keeps only the key and `whySection` keeps both, so the explanation on a
+// person's screen cannot disagree with where the row is drawn. Every piece of evidence is a fact a rule actually read.
+// Nothing here guesses a reason, reads a body, or names what the data does not name: own_reply is one yes or no for the
+// whole thread, so no sent message is ever named.
+
+/** The fact that decided a section. `moved` is the person's own override and carries what the message's own facts would have given (never another `moved`); the rest are the resolver's rules. */
+export type WhyEvidence =
+  | { kind: "moved"; natural: SectionWhy }
+  | { kind: "conversation" }
+  | { kind: "calendar"; hit: CalendarHit }
+  | { kind: "money"; issuer: string; semantics: MoneySemantics; sender: string }
+  | { kind: "list"; listId: boolean; unsubscribe: boolean }
+  | { kind: "other"; factsKept: boolean; moneyAmbiguous: boolean };
+/** Which rule decided: the key the explanation's words are looked up by. */
+export type WhyVia = WhyEvidence["kind"];
+export interface SectionWhy { key: SectionKey; evidence: WhyEvidence }
+
+/** The person's own Move to Section for this message, when it names a section that exists (spec 3.2 rule 1). */
+function movedTo(id: string, overrides: Overrides): SectionKey | null {
+  const o = overrides[id];
+  return o && (SECTION_KEYS as readonly string[]).includes(o) ? o : null;
+}
+
+/** The section a row's own facts give it, with the fact that gave it: spec 3.2 rules 2 to 6, in order, first match wins. */
+function natural(r: Facts): SectionWhy {
+  // 2. Conversations: this account's cached thread holds a SENT message from one of the owner's own addresses.
+  if (r.own_reply === true) return { key: "conversations", evidence: { kind: "conversation" } };
+  // 3. Schedule: calendar MIME structure, never subject words.
+  const hit = calendarHit(r);
+  if (hit) return { key: "schedule", evidence: { kind: "calendar", hit } };
+  // 4. Money: exactly one registered sender template matches the from address and the subject (5.2). A currency sign or a
+  //    filename, which the spec calls insufficient, is never read. Two templates at once is ambiguous, and ambiguous is Other.
+  const money = matchMoney(r);
+  if (money.kind === "match") return { key: "money", evidence: { kind: "money", issuer: money.match.issuer, semantics: money.match.semantics, sender: r.from_address ?? "" } };
+  // 5. Mailing Lists: a List-ID or List-Unsubscribe header with something in it.
+  const lists = listHeaders(r);
+  if (lists.listId || lists.unsubscribe) return { key: "lists", evidence: { kind: "list", ...lists } };
+  // 6. Other. A row cached before migration 0067 carries none of the five facts the rules above read, so "nothing matched"
+  //    is all it can say; a row read after 0067 has every one of them (null when the header is absent).
+  const factsKept = [r.own_reply, r.list_id, r.list_unsubscribe, r.mime_type, r.content_class].some((v) => v !== undefined);
+  return { key: "other", evidence: { kind: "other", factsKept, moneyAmbiguous: money.kind === "ambiguous" } };
+}
+
+/** The one primary section for a row, and why. */
+export function whySection(r: Facts & Pick<InboxRow, "id">, overrides: Overrides = {}): SectionWhy {
+  const o = movedTo(r.id, overrides);
+  return o ? { key: o, evidence: { kind: "moved", natural: natural(r) } } : natural(r);
+}
+
+/** The one primary section for a row. Defined from the same two steps whySection runs, so the two cannot disagree. */
 export function sectionOf(r: Facts & Pick<InboxRow, "id">, overrides: Overrides = {}): SectionKey {
-  const o = overrides[r.id];
-  if (o && (SECTION_KEYS as readonly string[]).includes(o)) return o;
-  if (r.own_reply === true) return "conversations";
-  if (isCalendar(r)) return "schedule";
-  if (isRegisteredMoney(r)) return "money";
-  if (isMailingList(r)) return "lists";
-  return "other";
+  return movedTo(r.id, overrides) ?? natural(r).key;
 }
 
 export interface Section { key: SectionKey; rows: InboxRow[] }
@@ -204,6 +257,28 @@ export function loadView(userId: string, storage: Store | null = typeof localSto
 
 export function saveView(userId: string, view: HomeView, storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): void {
   try { storage?.setItem(viewKey(userId), view); } catch { /* private mode: the choice lasts the visit */ }
+}
+
+// ---- the one-time Use Grouped Mail explainer (issue 112, item 17; spec 2.2 and AC01) ----------------------------------
+//
+// "Shows once, dismissible, never shown again after dismissal" means UNTIL IT IS DEALT WITH, then never again. It is dealt
+// with three ways, each permanent: Use Grouped Mail (the explicit approval), the Dismiss X, and any tap on the Grouped / All
+// by Date control (an explicit presentation choice settles the question). It is remembered per device and per person, beside
+// the choice it explains (Dave 2026-10-12: the view and the moves are kept on this phone), so there is no server flag. The
+// key is deliberately NOT on Clear Local Data's lists (settings/clearLocalData.ts): clearing a cache must not bring back a
+// card somebody already dismissed.
+
+const introKey = (userId: string) => `jarvis.email.groupedIntro.v1:${userId}`;
+
+/** Whether this person has dealt with the Use Grouped Mail explainer on this device. False when nothing was stored or storage cannot be read. */
+export function loadGroupedIntroDone(userId: string, storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): boolean {
+  try {
+    return storage?.getItem(introKey(userId)) === "1";
+  } catch { return false; }
+}
+
+export function saveGroupedIntroDone(userId: string, storage: Store | null = typeof localStorage !== "undefined" ? localStorage : null): void {
+  try { storage?.setItem(introKey(userId), "1"); } catch { /* private mode: the screen's own state keeps it gone for the visit */ }
 }
 
 /** Move to Section, per message, on this device. */

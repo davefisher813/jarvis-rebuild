@@ -4,8 +4,9 @@
 // prompt 06 "Verify before completing"). The real screens render; the
 // database functions are a recorder with the candidate table's own rules
 // (dedupe by fingerprint, dismissed stays dismissed, the atomic save marks
-// the card saved and answers once). What the tests hold: the rules read the
-// loaded rows and make cards only where the catalog says; one tap saves
+// the card saved and answers once). What the tests hold: the list reads no
+// row's words into a bill, receipt, task or waiting card (Dave 2026-10-13, spec
+// 5.2 and AC11) while the opened message still does; one tap saves
 // exactly the shown card once with no second popup and leaves a receipt
 // line; Undo is a compensating action; two cards under one mail stay
 // independent; dismiss removes the card and only the card; a changed email
@@ -16,10 +17,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EmailFlow from "./EmailFlow";
-import { ADD_TO_JARVIS, EMAIL_CHANGED, REVIEW_LATEST, SHOW_DISMISSED, RESTORE, UNDO, CAPTURE_TITLE, CAPTURE_KIND, NOT_SAVED_YET, VIEW_RECEIPT } from "./copy";
+import { ADD_TO_JARVIS, EMAIL_CHANGED, FIND_DETAILS, REVIEW_LATEST, SHOW_DISMISSED, RESTORE, UNDO, CAPTURE_TITLE, CAPTURE_KIND, NOT_SAVED_YET, VIEW_RECEIPT, foundLine } from "./copy";
 import type { EmailAccount, InboxRow, MessageDetail, RpcClient } from "./emailClient";
 import { EXTRACTOR_VERSION } from "../substrate/extract";
-import { KIND_WORD, PRIMARY, type Candidate } from "./candidates";
+import { KIND_WORD, PRIMARY, listReadingKey, readWithRules, readingsOf, type Candidate } from "./candidates";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 
 const NOW = new Date("2026-10-03T15:00:00Z");
@@ -42,6 +43,20 @@ const detailOf = (r: InboxRow): MessageDetail => ({
   to_addresses: [{ address: DAVE, name: "" }], cc_addresses: [], subject: r.subject, snippet: r.snippet, provider_labels: r.provider_labels, read: true, deleted: false, source_hash: r.source_hash,
   attachments: [], has_body: true, text: r.snippet, html: null,
 });
+
+// A card as the server holds it. The list proposes no bill, receipt, task or waiting card from a row's words (Dave
+// 2026-10-13: hide the old rule candidates), so a test about a card's own behaviour starts from the card, the way it sits
+// on the server after the person's Find Useful Details or Add to JARVIS, or after an older build read the list. Fresh
+// objects each time: the fake server changes them.
+const held = (id: string, messageId: string, payload: Record<string, unknown>, o: Partial<Candidate> = {}): Candidate => ({
+  id, message_id: messageId, account_id: "acct-dave", kind: payload.kind as Candidate["kind"], origin: "rule", agent_name: null, status: "proposed", revision: 1,
+  payload: payload as unknown as Candidate["payload"], payload_hash: "h-" + id, provenance_by_field: {}, missing_fields: [], fingerprint: "fp1:" + id, source_hash: "sh-1", message_source_hash: "sh-1",
+  destination_id: null, action_id: null, proposal_id: null, extractor_version: EXTRACTOR_VERSION, created_at: NOW.toISOString(), updated_at: NOW.toISOString(), saved_sibling: null, ...o,
+});
+const BILL_142 = { kind: "bill", issuer: "Con Edison", amount: { minor_units: 14230, currency: "USD" }, due_date: "2026-10-15", no_due_date_confirmed: false };
+const TASK_ADDRESS = { kind: "task", title: "Update Your Mailing Address", due_date: "2026-10-30", notes: "" };
+const billCard = (messageId = "u-m1"): Candidate => held("cand-bill", messageId, BILL_142);
+const MAILING_ROW = (): InboxRow[] => [row("m9", "2026-10-03T11:00:00Z", { snippet: "Amount due: USD 142.30 by October 15, 2026. Can you update your mailing address by October 30?" })];
 
 type Fn = (args: Record<string, unknown>) => unknown;
 interface World { cands: Candidate[]; items: Array<{ id: string; entity_type: string; data: Record<string, unknown> }>; actions: Record<string, { candidate: string; payload_hash: string; item: string }>; registered: string[] }
@@ -133,13 +148,29 @@ let unsub = () => {};
 beforeEach(() => { localStorage.clear(); resetToasts(); toasts = []; unsub = subscribeToast((t) => { if (t) toasts.push(t); }); Object.defineProperty(navigator, "onLine", { value: true, configurable: true }); });
 afterEach(() => { unsub(); cleanup(); vi.unstubAllGlobals(); });
 
-describe("E07: the rules read the loaded rows", () => {
-  it("Con Edison gets a bill card and Coach Miller a waiting card; Wei and the promo get none; each proposal carries its fingerprint, provenance and version", async () => {
+const openRow = (name: RegExp) => fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow") && name.test(b.getAttribute("aria-label")!))!);
+
+describe("E07: the list reads no row into a card; the opened message reads bills, receipts and events only (Dave 2026-10-13, spec 5.2, AC11)", () => {
+  it("loading the four rows proposes nothing: no bill for Con Edison, no waiting card for Coach Miller, and the list draws no card", async () => {
     const r = rig();
     mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(4));
+    // Every row was read once by the list's rules (remembered per message and version) and none of them made a card ...
+    await waitFor(() => expect(rows.every((x) => readingsOf(USER).has(listReadingKey(x.account_id, x.id, x.source_hash)))).toBe(true));
+    expect(r.calls.filter((c) => c.fn === "candidate_propose")).toEqual([]);
+    expect(cardEls()).toEqual([]);
+    expect(r.world.items).toEqual([]);
+    // ... though the same words DO read to a bill and to a promise when the rules are asked directly: the readings are hidden, not gone.
+    expect(readWithRules(rows[0]!, "America/New_York").map((p) => p.kind)).toContain("bill");
+    expect(readWithRules(rows[1]!, "America/New_York").map((p) => p.kind)).toContain("waiting");
+  });
+
+  it("opening Con Edison's mail reads its text once, and the bill card appears under that message with its fingerprint, provenance and version", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(4));
+    openRow(/Con Edison/);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
-    await waitFor(() => expect(cardFor("waiting")).toBeTruthy());
-    expect(cardEls().length).toBe(2);
     const bill = cardFor("bill")!;
     expect(bill).toHaveTextContent("$142.30");
     // 2026-10-05: the facts are separate spans, the dot is the stylesheet's; a later due date is a neutral small-caps fact, the issuer the one grey.
@@ -147,29 +178,80 @@ describe("E07: the rules read the loaded rows", () => {
     expect(bill.querySelector(".fact.date")).toHaveTextContent("Due Oct 15");
     expect(within(bill).getByText("Save Bill")).toBeEnabled();
     expect(within(bill).getByText("Money")).toBeInTheDocument();
-    expect(cardFor("waiting")).toHaveTextContent("Peña's Transcript");
-    expect(within(cardFor("waiting")!).getByText("Track This")).toBeInTheDocument();
-    // The card sits under its own row, and the row is still the row.
-    expect(rowLabels().length).toBe(4);
     const proposals = r.calls.filter((c) => c.fn === "candidate_propose");
-    expect(proposals.length).toBe(2);
+    expect(proposals.length).toBe(1);
     expect(proposals[0]!.args).toMatchObject({ p_message: "u-m1", p_kind: "bill", p_origin: "rule", p_extractor_version: EXTRACTOR_VERSION, p_source_hash: "sh-1", p_missing: [] });
     expect(String(proposals[0]!.args.p_fingerprint)).toMatch(/^fp1:/);
     expect((proposals[0]!.args.p_provenance as Record<string, { source: string }>).amount!.source).toBe("email");
     // No item exists: a card is not a record.
     expect(r.world.items).toEqual([]);
-    // Opening the tab again reads nothing twice: the same message, the same version, one reading.
+    // Opened again on another visit, the same message at the same version is one reading, not two.
     cleanup();
     const r2 = rig({ cands: r.world.cands });
     mount(r2);
+    await waitFor(() => expect(rowLabels().length).toBe(4));
+    openRow(/Con Edison/);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
     expect(r2.calls.filter((c) => c.fn === "candidate_propose")).toEqual([]);
+  });
+
+  it("Find Useful Details reads the opened text again on purpose, says how many it found, and makes no second card of the same one", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(4));
+    openRow(/Con Edison/);
+    await waitFor(() => expect(cardFor("bill")).toBeTruthy());
+    const proposed = () => r.calls.filter((c) => c.fn === "candidate_propose");
+    expect(proposed().length).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByText(FIND_DETAILS));
+    await waitFor(() => expect(proposed().length).toBe(2));
+    expect(proposed()[1]!.args).toMatchObject({ p_message: "u-m1", p_kind: "bill", p_origin: "rule" });
+    await waitFor(() => expect(toasts.some((t) => t.message === foundLine(1))).toBe(true));
+    // The same fingerprint: the same card, not a second.
+    expect(cardEls().length).toBe(1);
+  });
+
+  it("AC11: opening a message proposes no Waiting and no task from its words: Coach Miller's promise makes no card, and the mailing-address ask beside a bill makes only the bill", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(4));
+    openRow(/Coach Miller/);
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "email_message_read")).toBe(true));
+    await waitFor(() => expect(readingsOf(USER).size).toBeGreaterThan(0));
+    await new Promise((res) => setTimeout(res, 60));
+    expect(r.calls.filter((c) => c.fn === "candidate_propose")).toEqual([]);
+    expect(cardEls()).toEqual([]);
+    cleanup();
+    const r2 = rig({ rows: MAILING_ROW() });
+    mount(r2);
+    await waitFor(() => expect(rowLabels().length).toBe(1));
+    openRow(/Con Edison/);
+    await waitFor(() => expect(cardFor("bill")).toBeTruthy());
+    expect(r2.calls.filter((c) => c.fn === "candidate_propose").map((c) => c.args.p_kind)).toEqual(["bill"]);
+    expect(cardFor("task")).toBeNull();
+    // The words still read to a task and to a promise when the rules are asked directly: hidden, not gone.
+    expect(readWithRules(MAILING_ROW()[0]!, "America/New_York").map((p) => p.kind)).toContain("task");
+    expect(readWithRules(rows[1]!, "America/New_York").map((p) => p.kind)).toContain("waiting");
+  });
+
+  it("AC11: Find Useful Details on a message that only holds a promise finds nothing, and says so", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(4));
+    openRow(/Coach Miller/);
+    await waitFor(() => expect(r.calls.some((c) => c.fn === "email_message_read")).toBe(true));
+    fireEvent.click(await screen.findByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByText(FIND_DETAILS));
+    await waitFor(() => expect(toasts.some((t) => t.message === foundLine(0))).toBe(true));
+    expect(r.calls.filter((c) => c.fn === "candidate_propose")).toEqual([]);
+    expect(cardEls()).toEqual([]);
   });
 });
 
 describe("E09, E11: one tap, one record, one receipt, and Undo", () => {
   it("Save Bill commits exactly the shown card once through the atomic door, leaves a receipt line, and the toast's Undo is a compensating action", async () => {
-    const r = rig();
+    const r = rig({ cands: [billCard()] });
     mount(r);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
     const cand = r.world.cands.find((c) => c.kind === "bill")!;
@@ -199,7 +281,7 @@ describe("E09, E11: one tap, one record, one receipt, and Undo", () => {
   });
 
   it("View opens the receipt with its exact verb, and back returns to the inbox", async () => {
-    const r = rig();
+    const r = rig({ cands: [billCard()] });
     mount(r);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
     fireEvent.click(within(cardFor("bill")!).getByText("Save Bill"));
@@ -214,8 +296,7 @@ describe("E09, E11: one tap, one record, one receipt, and Undo", () => {
 
 describe("two cards, dismiss, a changed email, a shut module", () => {
   it("two cards under one mail are independent: saving the bill leaves the task's Add Task standing", async () => {
-    const two = [row("m9", "2026-10-03T11:00:00Z", { snippet: "Amount due: USD 142.30 by October 15, 2026. Can you update your mailing address by October 30?" })];
-    const r = rig({ rows: two });
+    const r = rig({ rows: MAILING_ROW(), cands: [billCard("u-m9"), held("cand-task", "u-m9", TASK_ADDRESS)] });
     mount(r);
     await waitFor(() => expect(cardFor("task")).toBeTruthy());
     expect(cardFor("bill")).toBeTruthy();
@@ -228,7 +309,7 @@ describe("two cards, dismiss, a changed email, a shut module", () => {
   });
 
   it("Dismiss removes only the card; the row stays; Show Dismissed Suggestions brings it back with Restore; the rules proposing it again leave it dismissed", async () => {
-    const r = rig();
+    const r = rig({ cands: [billCard()] });
     mount(r);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
     fireEvent.click(within(cardFor("bill")!).getByRole("button", { name: /^Dismiss/ }));
@@ -266,8 +347,7 @@ describe("two cards, dismiss, a changed email, a shut module", () => {
   });
 
   it("Money not ready: the bill's door is shut with the module's own line and the card stays; the task's door is open", async () => {
-    const two = [row("m9", "2026-10-03T11:00:00Z", { snippet: "Amount due: USD 142.30 by October 15, 2026. Can you update your mailing address by October 30?" })];
-    const r = rig({ rows: two, registered: ["task", "event", "waiting"] });
+    const r = rig({ rows: MAILING_ROW(), registered: ["task", "event", "waiting"], cands: [billCard("u-m9"), held("cand-task", "u-m9", TASK_ADDRESS)] });
     mount(r);
     await waitFor(() => expect(cardFor("task")).toBeTruthy());
     const bill = cardFor("bill")!;
@@ -311,7 +391,7 @@ describe("E24: manual capture, with every AI off", () => {
   });
 
   it("the sheet has one save: the foot's primary keeps the edit and commits it, nothing else saves half-way (spec 5.2)", async () => {
-    const r = rig();
+    const r = rig({ cands: [billCard()] });
     mount(r);
     await waitFor(() => expect(cardFor("bill")).toBeTruthy());
     fireEvent.click(within(cardFor("bill")!).getByText("Details"));

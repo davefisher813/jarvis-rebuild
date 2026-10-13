@@ -12,6 +12,7 @@ import "@testing-library/jest-dom";
 import EmailFlow from "./EmailFlow";
 import { ADD_SIGNATURE, COMPOSE_LABEL, FROM_LABEL, NO_SIGNATURE_NOTE, SIGNATURE_LABEL, SIGNATURE_OFFER_NOTE, USE_SAVED_SIGNATURE } from "./copy";
 import { announceSignature } from "./signatureBus";
+import { composeSignatureText, SIGNATURE_DELIM, type SignatureFields, type SignatureImage } from "./signature";
 import type { EmailAccount, InboxRow, RpcClient } from "./emailClient";
 import type { DraftFields, DraftRow } from "./drafts";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
@@ -46,7 +47,11 @@ function rig(o: { accounts?: EmailAccount[] } = {}): Rig {
     email_inbox: () => ({ rows, cached_total: 0, page: 30 }),
     substrate_readiness: () => ({ registered: ["money_bill", "money_receipt", "task", "event", "waiting"] }),
     candidates_for: () => [],
-    email_signature_set: (a) => ({ account_id: a.p_account, signature_text: a.p_text, signature_revision: ((a.p_expected_revision as number | null) ?? 1) + 1 }),
+    email_signature_set: (a) => ({ account_id: a.p_account, signature_text: a.p_text, signature_revision: ((a.p_expected_revision as number | null) ?? 1) + 1, signature_kind: "text", signature_fields: {}, signature_image: null }),
+    email_signature_build_set: (a) => ({
+      account_id: a.p_account, signature_text: composeSignatureText(a.p_fields as SignatureFields), signature_revision: ((a.p_expected_revision as number | null) ?? 1) + 1,
+      signature_kind: "built", signature_fields: a.p_fields, signature_image: a.p_image ?? null,
+    }),
     draft_save: (a) => {
       const f = a.p_fields as DraftFields;
       const id = (a.p_draft as string | null) ?? `d-${++seq}`;
@@ -143,11 +148,25 @@ describe("AC19: switching the From account decides the signature", () => {
 });
 
 describe("Fix order item 2: a missing signature is visible, and one saved anywhere shows up", () => {
-  it("an account with no signature says so in the composer; Add Signature saves it and puts it in this draft once", async () => {
+  it("an account with no signature says so in the composer; Add Signature opens the builder, and what it saves goes in this draft once", async () => {
     const r = rig({ accounts: [account({ signature_text: "" })] });
     await openCompose(r);
     expect(screen.getByText(NO_SIGNATURE_NOTE)).toBeInTheDocument();
     fireEvent.click(byRole(ADD_SIGNATURE));
+    // The builder, with the account's own address already in as the email detail.
+    expect(screen.getByLabelText("Email")).toHaveValue(DAVE);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Dave Fisher" } });
+    fireEvent.change(screen.getByLabelText("Organization"), { target: { value: "BFFSA" } });
+    fireEvent.click(byRole("Save"));
+    await waitFor(() => expect(messageValue()).toBe(SIGNATURE_DELIM + "Dave Fisher\nBFFSA\n" + DAVE));
+    expect(screen.queryByText(NO_SIGNATURE_NOTE)).toBeNull();
+  });
+
+  it("Write It Yourself is still there: the plain editor saves typed words, and they go in this draft once", async () => {
+    const r = rig({ accounts: [account({ signature_text: "" })] });
+    await openCompose(r);
+    fireEvent.click(byRole(ADD_SIGNATURE));
+    fireEvent.click(byRole("Write It Yourself"));
     fireEvent.change(screen.getByLabelText(SIGNATURE_LABEL), { target: { value: "Dave Fisher\nBFFSA" } });
     fireEvent.click(byRole("Save"));
     await waitFor(() => expect(messageValue()).toBe("\n\n-- \nDave Fisher\nBFFSA"));
@@ -168,5 +187,41 @@ describe("Fix order item 2: a missing signature is visible, and one saved anywhe
     await waitFor(() => expect(screen.getByLabelText("Message")).toBeInTheDocument());
     expect(messageValue()).toBe("\n\n-- \nFrom Settings");
     expect(screen.queryByText(NO_SIGNATURE_NOTE)).toBeNull();
+  });
+});
+
+describe("The builder's picture in a draft (issue 113)", () => {
+  const IMAGE: SignatureImage = { storage_id: "user-1/signature-acct-dave/sig.png", sha256: "ab".repeat(32), size_bytes: 20000, mime_type: "image/png", width: 384, height: 256 };
+  const built = (o: Partial<EmailAccount> = {}) => account({ signature_text: "Dave Fisher\nBFFSA", signature_revision: 4, signature_kind: "built", signature_fields: { name: "Dave Fisher", organization: "BFFSA" }, signature_image: IMAGE, ...o });
+
+  it("a draft that ends with the untouched block says the picture goes with it", async () => {
+    const r = rig({ accounts: [built()] });
+    await openCompose(r);
+    expect(messageValue()).toBe("\n\n-- \nDave Fisher\nBFFSA");
+    expect(screen.getByText("Signature Picture")).toBeInTheDocument();
+  });
+
+  it("the row goes the moment the block is edited, so the draft never claims a picture the message will not carry", async () => {
+    const r = rig({ accounts: [built()] });
+    await openCompose(r);
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Hi\n\n-- \nDave Fisher, edited" } });
+    await waitFor(() => expect(screen.queryByText("Signature Picture")).toBeNull());
+  });
+
+  it("an account whose signature has no picture, or was typed, shows no such row", async () => {
+    const r = rig({ accounts: [built({ signature_image: null })] });
+    await openCompose(r);
+    expect(screen.queryByText("Signature Picture")).toBeNull();
+    cleanup();
+    const t = rig({ accounts: [account({ signature_text: "Dave Fisher" })] });
+    await openCompose(t);
+    expect(screen.queryByText("Signature Picture")).toBeNull();
+  });
+
+  it("the row is a door to the builder", async () => {
+    const r = rig({ accounts: [built()] });
+    await openCompose(r);
+    fireEvent.click(screen.getByText("Signature Picture"));
+    expect(await screen.findByLabelText("Name")).toHaveValue("Dave Fisher");
   });
 });

@@ -14,6 +14,7 @@ import sendHandler from "./send";
 import reconcileHandler from "./reconcile";
 import { encrypt } from "../_google";
 import { decodeRaw, sha256Hex } from "../_mime";
+import { composeSignatureText, SIGNATURE_DELIM, signatureCid } from "../../src/email/signature";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -25,6 +26,7 @@ const OB = "55555555-5555-4555-8555-555555555555";
 const NONCE = "ab".repeat(32);
 const HASH = "cd".repeat(32);
 const PDF = new TextEncoder().encode("%PDF-1.4 fixture bytes");
+const PNG = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
 
 type Call = { url: string; method: string; body: Record<string, unknown> | null; headers: Record<string, string> };
 let calls: Call[] = [];
@@ -221,6 +223,89 @@ describe("POST /api/email/send", () => {
     expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "REVIEW_CHANGED" });
     expect(insideOwnerFolder(USER, `${USER}/draft/x.pdf`)).toBe(true);
     for (const bad of [`${USER}/../x`, `${USER}/./x`, `${USER}//x`, `${USER}/`, USER, `/${USER}/x`, `${USER}x/y`]) expect(insideOwnerFolder(USER, bad), bad).toBe(false);
+  });
+
+  describe("a built signature with a picture (issue 113)", () => {
+    const FIELDS = { name: "Dave Fisher", title: "Founder", email: "dave@bridge.example" };
+    const image = async (o: Record<string, unknown> = {}) => ({ storage_id: `${USER}/signature-${ACCT}/sig.png`, sha256: await sha256Hex(PNG), size_bytes: PNG.byteLength, mime_type: "image/png", width: 384, height: 256, ...o });
+    const claimWith = async (sigImage: Record<string, unknown>, body = "On it.\nTonight." + SIGNATURE_DELIM + composeSignatureText(FIELDS)) => ({
+      outbox_id: OB, action_id: ACT, owner_id: USER, kind: "send_email", payload: exact({ body_text: body, signature: { fields: FIELDS, image: sigImage } }), payload_hash: HASH, provider_account_id: ACCT, claim_token: "tok-1", attempt: 1, lease_until: "x",
+    });
+
+    it("the picture is fetched with the service role from the owner's own folder and goes out inside the message, referenced by Content-ID", async () => {
+      await stubWorld({ claim: await claimWith(await image()), storage: () => new Response(PNG, { status: 200 }) });
+      const r = await answer(await sendHandler(post("/api/email/send", tap)));
+      expect(r.json).toMatchObject({ outcome: "confirmed" });
+      const fetched = sent("/storage/v1/object/user-files/");
+      expect(fetched).toHaveLength(1);
+      expect(fetched[0]!.url).toContain(`/storage/v1/object/user-files/${USER}/signature-${ACCT}/sig.png`);
+      expect(fetched[0]!.headers.Authorization).toBe("Bearer service");
+      const raw = decodeRaw(String(gmailSends()[0]!.body!.raw));
+      expect(raw).toMatch(/Content-Type: multipart\/alternative; boundary="=_jarvis_alt_/);
+      expect(raw).toContain("Content-Type: text/plain; charset=UTF-8");
+      expect(raw).toContain("On it.\r\nTonight.\r\n\r\n-- \r\nDave Fisher\r\nFounder\r\ndave@bridge.example");
+      expect(raw).toContain(`Content-ID: <${signatureCid(await sha256Hex(PNG))}>`);
+      expect(raw).toContain("Content-Disposition: inline");
+      // base64 wrapped at 76 columns: the picture's bytes are all there once the line breaks are taken out
+      expect(raw.replace(/\r\n/g, "")).toContain(Buffer.from(PNG).toString("base64"));
+    });
+
+    it("a picture that is gone refuses the send with its own words and Gmail is never called", async () => {
+      await stubWorld({ claim: await claimWith(await image()), storage: () => new Response("", { status: 404 }) });
+      const r = await answer(await sendHandler(post("/api/email/send", tap)));
+      expect(r.json).toMatchObject({ outcome: "failed" });
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "ATTACHMENT_MISSING", p_verb: "Not Sent · The Signature Picture Is Missing" });
+      expect(gmailSends()).toHaveLength(0);
+    });
+
+    it("a picture that changed since the review (another size, another hash) refuses the send", async () => {
+      await stubWorld({ claim: await claimWith(await image({ sha256: "f".repeat(64) })), storage: () => new Response(PNG, { status: 200 }) });
+      await sendHandler(post("/api/email/send", tap));
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "ATTACHMENT_CHANGED", p_verb: "Not Sent · The Signature Picture Changed Since the Review" });
+      expect(gmailSends()).toHaveLength(0);
+      await stubWorld({ claim: await claimWith(await image({ size_bytes: PNG.byteLength + 1 })), storage: () => new Response(PNG, { status: 200 }) });
+      await sendHandler(post("/api/email/send", tap));
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_error: "ATTACHMENT_CHANGED" });
+      expect(gmailSends()).toHaveLength(0);
+    });
+
+    it("bytes that match the reference but are not a PNG or JPEG of the claimed type never leave", async () => {
+      const page = new TextEncoder().encode("<html><script>alert(1)</script></html>");
+      await stubWorld({ claim: await claimWith(await image({ sha256: await sha256Hex(page), size_bytes: page.byteLength })), storage: () => new Response(page, { status: 200 }) });
+      await sendHandler(post("/api/email/send", tap));
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "ATTACHMENT_CHANGED" });
+      expect(gmailSends()).toHaveLength(0);
+      // a real PNG, claimed to be a JPEG
+      await stubWorld({ claim: await claimWith(await image({ mime_type: "image/jpeg" })), storage: () => new Response(PNG, { status: 200 }) });
+      await sendHandler(post("/api/email/send", tap));
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_error: "ATTACHMENT_CHANGED" });
+      expect(gmailSends()).toHaveLength(0);
+    });
+
+    it("a picture outside the owner's folder is never fetched and never leaves", async () => {
+      await stubWorld({ claim: await claimWith(await image({ storage_id: `someone-else/signature-${ACCT}/sig.png` })), storage: () => new Response(PNG, { status: 200 }) });
+      await sendHandler(post("/api/email/send", tap));
+      expect(sent("/storage/v1/object/")).toHaveLength(0);
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "REVIEW_CHANGED" });
+      expect(gmailSends()).toHaveLength(0);
+    });
+
+    it("a reference that is not an object is an invalid payload, not a crash", async () => {
+      await stubWorld({ claim: await claimWith("not an object" as never) });
+      await sendHandler(post("/api/email/send", tap));
+      expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "INVALID_PAYLOAD" });
+      expect(gmailSends()).toHaveLength(0);
+    });
+
+    it("words that no longer end with the signature go as plain text with no picture, even though one was offered", async () => {
+      await stubWorld({ claim: await claimWith(await image(), "On it.\nTonight.\n\n-- \nDave Fisher (edited)"), storage: () => new Response(PNG, { status: 200 }) });
+      const r = await answer(await sendHandler(post("/api/email/send", tap)));
+      expect(r.json).toMatchObject({ outcome: "confirmed" });
+      const raw = decodeRaw(String(gmailSends()[0]!.body!.raw));
+      expect(raw).toContain("Content-Type: text/plain; charset=UTF-8\r\n");
+      expect(raw).not.toContain("cid:");
+      expect(raw).not.toContain("multipart/");
+    });
   });
 
   it("Gmail refusing the scope is Not Sent with PROVIDER_SCOPE; a revoked token marks the account reauth", async () => {
