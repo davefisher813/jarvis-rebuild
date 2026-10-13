@@ -22,8 +22,8 @@ const gone: NoteListItem[] = [
   { id: "d2", title: "Gone Two", edited: NOW, category: "", first: "", body: "", deleted: true },
 ];
 
-const SOFT_ONE = "Delete This Note, Restore It Within 30 Days";
-const FOREVER_ONE = "Delete This Note for Good, No Undo";
+const SOFT_ONE = "Delete \u201cCoach Plan\u201d, Restore It Within 30 Days";
+const FOREVER_ONE = (name: string) => `Delete \u201c${name}\u201d for Good, No Undo`;
 const sheetTitle = () => document.querySelector(".sheet-scrim .eyebrow")?.textContent ?? null;
 const openView = (name: RegExp) => {
   fireEvent.click(screen.getByLabelText("View"));
@@ -106,7 +106,7 @@ describe("NotesList: Recently Deleted's Forever paths ask first", () => {
     openView(/Recently Deleted/);
     fireEvent.click(screen.getByLabelText("Delete forever: Gone One"));
     expect(onDeleteForever).not.toHaveBeenCalled();
-    expect(sheetTitle()).toBe(FOREVER_ONE);
+    expect(sheetTitle()).toBe(FOREVER_ONE("Gone One"));
     fireEvent.click(screen.getByText("Delete Note Forever"));
     expect(onDeleteForever).toHaveBeenCalledTimes(1);
     expect(onDeleteForever).toHaveBeenCalledWith("d1");
@@ -119,7 +119,7 @@ describe("NotesList: Recently Deleted's Forever paths ask first", () => {
     fireEvent.click(screen.getByText("Gone Two"));
     fireEvent.click(within(document.querySelector(".action-sheet") as HTMLElement).getByText("Delete Forever"));
     expect(onDeleteForever).not.toHaveBeenCalled();
-    expect(sheetTitle()).toBe(FOREVER_ONE);
+    expect(sheetTitle()).toBe(FOREVER_ONE("Gone Two"));
     fireEvent.click(screen.getByText("Delete Note Forever"));
     expect(onDeleteForever).toHaveBeenCalledWith("d2");
   });

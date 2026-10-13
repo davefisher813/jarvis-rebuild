@@ -4,6 +4,7 @@ import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHea
 import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
+import { deleteAskTitle } from "../deleteAsk";
 import { useRowMenu } from "../../shared/useRowMenu";
 import { Archive, Check, FileText, RotateCcw, Trash2, PenLine, Table, ListOrdered } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
@@ -674,9 +675,11 @@ export default function NotesList({
             // Undo" is the catalog's own word for the permanent one, joined
             // with a comma so the label is one phrase (2026-10-05). The
             // restorable one must not claim it cannot be undone.
-            title={ask.forever
-              ? (one ? "Delete This Note for Good, No Undo" : `Delete ${n} Notes for Good, No Undo`)
-              : (one ? "Delete This Note, Restore It Within 30 Days" : `Delete ${n} Notes, Restore Within 30 Days`)}
+            // One note is named (2026-10-13: the confirmation names the page being deleted).
+            title={one
+              ? deleteAskTitle(ordered.find((x) => x.id === ask.ids[0])?.title ?? "", ask.forever)
+              : (ask.forever ? `Delete ${n} Notes for Good, No Undo` : `Delete ${n} Notes, Restore Within 30 Days`)}
+            cancelFirst
             actions={[{
               label: ask.forever
                 ? (one ? "Delete Note Forever" : `Delete ${n} Notes Forever`)

@@ -36,12 +36,17 @@ export default function RowActionSheet({
   title,
   actions,
   onCancel,
+  cancelFirst = false,
 }: {
   // What the sheet is about, so a menu that opened over a list says which row
   // it belongs to.
   title?: string;
   actions: RowAction[];
   onCancel: () => void;
+  // A confirmation before something is deleted: Cancel holds the focus when
+  // the sheet opens, so the safe answer is the default one (Enter, a
+  // keyboard, a switch). Absent, every existing menu is unchanged.
+  cancelFirst?: boolean;
 }) {
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
@@ -62,7 +67,7 @@ export default function RowActionSheet({
       </div>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="action-sheet">
-          <button className="cancel" onClick={onCancel}>Cancel</button>
+          <button className="cancel" autoFocus={cancelFirst} onClick={onCancel}>Cancel</button>
         </div>
       </div>
     </div>,

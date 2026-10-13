@@ -49,7 +49,7 @@ describe("NotesList: clean rows", () => {
     fireEvent.click(buttons[1]!);
     expect(onDelete).not.toHaveBeenCalled();
     const sheet = document.querySelector(".sheet-scrim .action-sheet") as HTMLElement;
-    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete \u201cCoach Onboarding Plan\u201d, Restore It Within 30 Days");
     fireEvent.click(within(sheet).getByText("Delete Note"));
     expect(onDelete).toHaveBeenCalledWith("n1");
   });
@@ -77,7 +77,7 @@ describe("NotesList: clean rows", () => {
     fireEvent.contextMenu(screen.getByText("Coach Onboarding Plan"));
     fireEvent.click(within(document.querySelector(".action-sheet") as HTMLElement).getByText("Delete"));
     expect(onDelete).not.toHaveBeenCalled();
-    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete \u201cCoach Onboarding Plan\u201d, Restore It Within 30 Days");
   });
 
   it("a deleted note has no Restore capsule: its tap is its menu, and its swipe is Restore then Delete Forever", () => {
@@ -98,7 +98,7 @@ describe("NotesList: clean rows", () => {
     // deleted until Delete Note Forever is tapped.
     fireEvent.click(screen.getByLabelText("Delete forever: Gone Draft"));
     expect(onDeleteForever).not.toHaveBeenCalled();
-    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete This Note for Good, No Undo");
+    expect(document.querySelector(".sheet-scrim .eyebrow")!.textContent).toBe("Delete \u201cGone Draft\u201d for Good, No Undo");
     fireEvent.click(screen.getByText("Delete Note Forever"));
     expect(onDeleteForever).toHaveBeenCalledWith("d1");
   });

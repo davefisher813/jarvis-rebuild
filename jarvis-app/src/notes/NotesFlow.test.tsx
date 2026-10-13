@@ -416,7 +416,7 @@ describe("NotesFlow: delete asks first", () => {
     const got: { message: string; actionLabel?: string }[] = [];
     const stop = subscribeToast((t) => { if (t) got.push(t); });
     fireEvent.click(screen.getByLabelText("Delete Roster"));
-    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete \u201cRoster\u201d, Restore It Within 30 Days");
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
     expect((await svc.note(id))!.deletedAt).toBeFalsy();
     expect(screen.getByText("Roster")).toBeInTheDocument();
@@ -437,7 +437,7 @@ describe("NotesFlow: delete asks first", () => {
     const { svc, id } = await openNoteWith([{ type: "text", text: "keep me" }]);
     fireEvent.click(screen.getByLabelText("Note options"));
     fireEvent.click(screen.getByText("Delete Note"));
-    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete \u201cRace\u201d, Restore It Within 30 Days");
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
     expect((await svc.note(id))!.deletedAt).toBeFalsy();
     expect(screen.getByLabelText("Note")).toBeInTheDocument();

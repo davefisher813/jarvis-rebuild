@@ -5,6 +5,8 @@ import { showToast } from "../../shared/toast";
 import { lineCase, titleCase } from "../../shared/casing";
 import { usePickFile, PICK_TABLE } from "../../shared/usePickFile";
 import { FormSheet, Group, TextRow, Note } from "../../shared/FormSheet";
+import RowActionSheet from "../../shared/RowActionSheet";
+import { deleteAskTitle } from "../deleteAsk";
 import { Head, Card, Row } from "../../settings/kit";
 import { Undo2, Share, MoreHorizontal, Trash2, Copy, Clock, PenLine, Table, Camera, Search, ListOrdered } from "../../shared/icons";
 import { todayISO } from "../../schedule/calendar";
@@ -72,6 +74,8 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   const [view, setView] = useState<View>(startWith === "lineup" ? "lineup" : "page");
   const [sheet, setSheet] = useState<Sheet>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Delete Page asks first, naming the page; nothing is written until its Delete is tapped.
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [hole, setHole] = useState(1);
   const [pending, setPending] = useState<PendingImport | null>(pendingImport ?? null);
   const [lineups, setLineups] = useState<{ id: string; title: string; date: string }[]>([]);
@@ -266,10 +270,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       onChanged();
       onOpenNote(id);
     })() },
-    { label: "Delete Page", icon: <Trash2 className="ic" />, danger: true, run: () => void (async () => {
-      const ok = await attemptWrite(() => svc.trashNote(noteId));
-      if (ok) onTrashed(noteId, shownTitle);
-    })() },
+    { label: "Delete Page", icon: <Trash2 className="ic" />, danger: true, run: () => setConfirmDelete(true) },
   ];
 
   // ---- the hole screen, pushed over the scorecard
@@ -439,6 +440,17 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           if (url) window.open(url, "_blank", "noopener");
           else showToast({ message: "Couldn't Open the Original" });
         }} />
+      )}
+      {confirmDelete && (
+        <RowActionSheet
+          title={deleteAskTitle(shownTitle)}
+          cancelFirst
+          actions={[{ label: "Delete Page", destructive: true, onPick: () => void (async () => {
+            const ok = await attemptWrite(() => svc.trashNote(noteId));
+            if (ok) onTrashed(noteId, shownTitle);
+          })() }]}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
       {picker.input}
     </div>
