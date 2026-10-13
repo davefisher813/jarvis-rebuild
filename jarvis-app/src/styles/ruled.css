@@ -3327,8 +3327,11 @@
 /* The build line is the door to the Admin screen (five taps, slice 09 QA 2026-10-04). The
    padding and the matching negative margin cancel, so the line sits exactly where it did and
    only the tap target grows; the line stays a block, not flex, because the dot between the two
-   facts takes its spacing from the markup's own space. */
-.about-hero .about-build { cursor: pointer; padding: var(--s-3) var(--s-4); margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-4)); }
+   facts takes its spacing from the markup's own space.
+   It is plain text and not a control (issue 106 V5, Dave 2026-10-13): no pointer cursor, no fill,
+   no border, so nothing here says "button". It is explicitly selectable, so a long press copies
+   the stamp natively; src/settings/AboutPage.test.tsx holds the rule. */
+.about-hero .about-build { padding: var(--s-3) var(--s-4); margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-4)); -webkit-user-select: text; user-select: text; }
 /* THE MOVING ELEMENT OF A SWIPE ROW IS GLASS TOO (2026-10-05, found rendering the gym's Days in light): .swipe-row paints the
    page ground so a reveal never shows through, but inside a ruled card every row is transparent and the reveals are hidden at rest
    (the roster above), so the opaque ground only drew a lighter plate over the card. */

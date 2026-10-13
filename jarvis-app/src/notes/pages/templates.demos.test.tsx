@@ -220,19 +220,17 @@ describe("issue #115 slice 1: the acceptance demos", () => {
 });
 
 describe("#106 V3: a template tap answers at once and can never make two notes", () => {
-  it("the tapped row is pressed with a spinner, and a repeat tap is ignored until it lands", async () => {
-    let resolve: () => void = () => {};
-    const onSelect = vi.fn(() => new Promise<void>((r) => { resolve = r; }));
-    render(<Templates onSelect={onSelect} />);
+  it("a pending template row is pressed with a spinner and every row, template pages included, stands down", async () => {
+    const onSelect = vi.fn();
+    const onPage = vi.fn();
+    render(<Templates onSelect={onSelect} onPage={onPage} pending="meeting" />);
     const row = screen.getByText("Meeting Notes").closest("[role=button]")!;
-    fireEvent.click(row);
-    fireEvent.click(row);
-    fireEvent.click(screen.getByText("Blank").closest("[role=button]")!);
-    await waitFor(() => expect(row).toHaveAttribute("aria-busy", "true"));
+    expect(row).toHaveAttribute("aria-busy", "true");
     expect(row.querySelector(".spinner")).toBeTruthy();
-    expect(onSelect).toHaveBeenCalledTimes(1);
-    await act(async () => { resolve(); });
-    await waitFor(() => expect(row).not.toHaveAttribute("aria-busy"));
+    fireEvent.click(screen.getByText("Blank").closest("[role=button]")!);
+    fireEvent.click(screen.getByText("Golf Scorecard").closest("[role=button]")!);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onPage).not.toHaveBeenCalled();
   });
 
   it("through the real flow, two quick taps on a template make one note", async () => {

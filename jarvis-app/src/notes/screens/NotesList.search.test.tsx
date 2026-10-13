@@ -115,7 +115,7 @@ describe("Delete in select mode inside Recently Deleted", () => {
     expect(document.querySelector(".select-del")).toHaveTextContent("Delete 2 Forever");
   });
 
-  it("the live list's Delete is unchanged: no Forever, no confirm, Undo lives in the flow", () => {
+  it("the live list's Delete says no Forever, asks first (issue 105), and Undo lives in the flow", () => {
     const onDeleteMany = vi.fn();
     const onDeleteManyForever = vi.fn();
     render(<NotesList notes={LIST} onDeleteMany={onDeleteMany} onDeleteManyForever={onDeleteManyForever} />);
@@ -125,6 +125,8 @@ describe("Delete in select mode inside Recently Deleted", () => {
     const del = document.querySelector(".select-del") as HTMLElement;
     expect(del).not.toHaveTextContent("Forever");
     fireEvent.click(del);
+    expect(onDeleteMany).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Delete Note"));
     expect(onDeleteMany).toHaveBeenCalledWith(["a1"]);
     expect(onDeleteManyForever).not.toHaveBeenCalled();
   });

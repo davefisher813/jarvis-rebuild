@@ -34,41 +34,23 @@ export default function Templates({
   onSelect,
   onPage,
   onBack,
+  pending = null,
 }: {
   onSelect?: (key: TemplateKey) => unknown;
   onPage?: (key: PageKind) => unknown;
   onBack?: () => void;
+  // The template whose note is being made and opened (issue 106, V3). While
+  // one is, its row is the pressed one and carries the ring in place of the
+  // chevron, and every row stands down: a second tap would make a second note.
+  pending?: TemplateKey | null;
 }) {
-  // #106 V3 (Dave, with #115): a template tap answers the instant it lands.
-  // The row takes its pressed state and a spinner while the note is made and
-  // the editor loads, and every other tap waits for it, so a second tap on a
-  // slow phone can never make a second note.
-  const [busy, setBusy] = useState<string | null>(null);
-  const busyRef = useRef<string | null>(null);
+  const locked = pending != null;
+  // Template pages (#115) answer the same way: the tapped row is pressed and ringed at once, and every row stands
+  // down until the page is made (the flow's creatingRef is the guard against a second page).
+  const [pageBusy, setPageBusy] = useState<string | null>(null);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
-  const tap = (key: string, run: () => unknown) => {
-    if (busyRef.current) return;
-    busyRef.current = key;
-    setBusy(key);
-    void Promise.resolve().then(run).finally(() => {
-      busyRef.current = null;
-      if (alive.current) setBusy(null);
-    });
-  };
-  const row = (key: string, name: string, desc: string, cat: string, Icon: typeof AlignLeft, run: () => unknown) => (
-    <div className="lib-row" key={key} aria-busy={busy === key || undefined} aria-disabled={(busy !== null && busy !== key) || undefined}
-      {...pressable(() => tap(key, run))}>
-      <div className={"lib-ico cat-fg-" + cat}>
-        <Icon className="ic" />
-      </div>
-      <div className="lib-stack">
-        <div className="lib-name">{name}</div>
-        <div className="lib-sub">{desc}</div>
-      </div>
-      {busy === key ? <span className="spinner" role="status" aria-label={"Opening " + name} /> : <div className="chev"></div>}
-    </div>
-  );
+  const anyBusy = locked || pageBusy !== null;
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -81,11 +63,51 @@ export default function Templates({
       {/* V4: templates are a content list, the Library form. Bare colored
           glyphs, flat rows, one mini-caps label. */}
       <div className="sh2 sh2-quiet"><span className="t">Templates</span></div>
-      {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => row(key, name, desc, cat, Icon, () => onSelect?.(key)))}
+      {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => {
+        const busy = pending === key;
+        return (
+          // Busy and unavailable are said in ARIA and drawn from it (components.css,
+          // .lib-row[aria-busy]), so the look cannot drift from what a screen reader hears.
+          // The back link above stays live: a person who changed their mind is never trapped.
+          <div className="lib-row" key={key}
+            aria-busy={busy || undefined}
+            aria-disabled={anyBusy && !busy ? true : undefined}
+            {...pressable(() => onSelect?.(key), { disabled: anyBusy })}>
+            <div className={"lib-ico cat-fg-" + cat}>
+              <Icon className="ic" />
+            </div>
+            <div className="lib-stack">
+              <div className="lib-name">{name}</div>
+              <div className="lib-sub">{desc}</div>
+            </div>
+            {busy ? <span className="spinner" role="status" aria-label="Opening" /> : <div className="chev"></div>}
+          </div>
+        );
+      })}
       {onPage && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Template Pages</span></div>
-          {PAGES_LIST.map(({ key, name, desc, cat, Icon }) => row("page-" + key, name, desc, cat, Icon, () => onPage(key)))}
+          {PAGES_LIST.map(({ key, name, desc, cat, Icon }) => {
+            const busy = pageBusy === key;
+            return (
+              <div className="lib-row" key={"page-" + key}
+                aria-busy={busy || undefined}
+                aria-disabled={anyBusy && !busy ? true : undefined}
+                {...pressable(() => {
+                  setPageBusy(key);
+                  void Promise.resolve(onPage(key)).finally(() => { if (alive.current) setPageBusy(null); });
+                }, { disabled: anyBusy })}>
+                <div className={"lib-ico cat-fg-" + cat}>
+                  <Icon className="ic" />
+                </div>
+                <div className="lib-stack">
+                  <div className="lib-name">{name}</div>
+                  <div className="lib-sub">{desc}</div>
+                </div>
+                {busy ? <span className="spinner" role="status" aria-label="Opening" /> : <div className="chev"></div>}
+              </div>
+            );
+          })}
         </>
       )}
     </div>

@@ -7,7 +7,7 @@
 import "../shared/tiptapTest";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { useState } from "react";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 // C-18 (Astra, 2026-09-12): Connections moved into the note menu, behind
@@ -357,6 +357,8 @@ describe("NotesFlow: Recently Deleted", () => {
     // Groceries", not "Delete note". Matched by VERB so a change to a note's
     // title does not break a test about the swipe.
     fireEvent.click(screen.getAllByLabelText(/^Delete /)[0]!);
+    // The swipe asks first (issue 105): nothing is trashed until the sheet's Delete Note.
+    fireEvent.click(await screen.findByText("Delete Note"));
     await waitFor(() => expect(screen.queryByText("Roster")).toBeNull(), { timeout: 4000 });
     expect((await svc.note(id))!.deletedAt).toBeTruthy();
     // AMENDED 2026-09-17 (Unified Headers, rule 2: "Do not mix area names,
@@ -389,9 +391,64 @@ describe("NotesFlow: Recently Deleted", () => {
     fireEvent.click(document.querySelector(".hmenu-scrim")!);
     // Delete again, then for good.
     fireEvent.click(screen.getAllByLabelText(/^Delete /)[0]!);
+    fireEvent.click(await screen.findByText("Delete Note"));
     await waitFor(async () => { await openDeleted(); }, { timeout: 4000 });
     fireEvent.click(await screen.findByLabelText(/^Delete forever/));
+    fireEvent.click(await screen.findByText("Delete Note Forever"));
     await waitFor(async () => expect(await svc.note(id)).toBeNull(), { timeout: 4000 });
+  });
+});
+
+// ISSUE 105: a delete asks before anything is written, from the list and from
+// the editor's More menu; the Undo toast after the soft delete stays.
+describe("NotesFlow: delete asks first", () => {
+  it("the list's swipe Delete leaves the note alone while the sheet is up, then trashes it with an Undo toast", async () => {
+    svcRef = null;
+    resetToasts();
+    const user = "u-del-confirm-list";
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => { id = (await svc.createNote("Roster", ""))!; await svc.createNote("Kept", ""); });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await screen.findByText("Roster", {}, { timeout: 4000 });
+    const got: { message: string; actionLabel?: string }[] = [];
+    const stop = subscribeToast((t) => { if (t) got.push(t); });
+    fireEvent.click(screen.getByLabelText("Delete Roster"));
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    expect((await svc.note(id))!.deletedAt).toBeFalsy();
+    expect(screen.getByText("Roster")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cancel"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    expect((await svc.note(id))!.deletedAt).toBeFalsy();
+    fireEvent.click(screen.getByLabelText("Delete Roster"));
+    fireEvent.click(screen.getByText("Delete Note"));
+    await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeTruthy(), { timeout: 4000 });
+    await waitFor(() => expect(got.at(-1)?.message).toBe("Note Deleted"), { timeout: 4000 });
+    expect(got.at(-1)?.actionLabel).toBe("Undo");
+    stop();
+    resetToasts();
+  });
+
+  it("the editor's More menu Delete Note leaves the store untouched until the sheet is confirmed", async () => {
+    resetToasts();
+    const { svc, id } = await openNoteWith([{ type: "text", text: "keep me" }]);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Delete Note"));
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete This Note, Restore It Within 30 Days");
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    expect((await svc.note(id))!.deletedAt).toBeFalsy();
+    expect(screen.getByLabelText("Note")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cancel"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    expect((await svc.note(id))!.deletedAt).toBeFalsy();
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Delete Note"));
+    fireEvent.click(within(document.querySelector(".sheet-scrim .action-sheet") as HTMLElement).getByText("Delete Note"));
+    await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeTruthy(), { timeout: 4000 });
+    resetToasts();
   });
 });
 

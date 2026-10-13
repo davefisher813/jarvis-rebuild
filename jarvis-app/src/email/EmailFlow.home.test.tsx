@@ -98,7 +98,7 @@ describe("the grouped home (spec 3.1, 3.2)", () => {
     expect(document.querySelector(".email-hero .pagehead-title")).toHaveTextContent("Inbox");
     expect(screen.getByRole("tab", { name: "Grouped" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
-    expect(document.querySelector(".email-compose")).toHaveAttribute("aria-label", "Compose");
+    expect(document.querySelector(".email-fab")).toHaveAttribute("aria-label", "Compose");
   });
 
   it("All by Date shows the same rows under days, and the choice is remembered on this device", async () => {
@@ -125,6 +125,50 @@ describe("the grouped home (spec 3.1, 3.2)", () => {
     fireEvent.click(document.querySelector(".email-acct")!);
     fireEvent.click(screen.getAllByText("All Accounts").find((e) => e.closest(".email-acct") === null)!);
     expect(rowEls().length).toBe(5);
+  });
+});
+
+describe("one row per message, and the thread count (issue 103)", () => {
+  const THREAD: InboxRow[] = [
+    row("g1", "2026-10-03T12:00:00Z", { thread_id: "geico", own_reply: true, subject: "Subject g1" }),
+    row("g2", "2026-10-03T11:30:00Z", { thread_id: "geico", list_unsubscribe: "<mailto:off@geico.test>", subject: "Subject g2" }),
+    row("g3", "2026-10-03T11:00:00Z", { thread_id: "geico", mime_type: "text/calendar", subject: "Subject g3" }),
+    row("g4", "2026-10-03T10:30:00Z", { thread_id: "geico", subject: "Subject g4" }),
+    row("o1", "2026-10-03T10:00:00Z"),
+  ];
+  const facts = () => rowEls().map((e) => e.querySelector(".mthread")?.textContent ?? null);
+
+  it("Grouped and All by Date each draw every message once; Grouped says '4 Messages' on the thread's rows only, All by Date stays plain", async () => {
+    mount(rig({ rows: THREAD }));
+    await waitFor(() => expect(rowEls().length).toBe(5));
+    expect(subjects().sort()).toEqual(["g1", "g2", "g3", "g4", "o1"]);
+    expect(facts().filter(Boolean)).toEqual(["4 Messages", "4 Messages", "4 Messages", "4 Messages"]);
+    expect(rowEls().find((e) => /Subject o1/.test(e.getAttribute("aria-label")!))!.querySelector(".mthread")).toBeNull();
+    // A fact, not a pill, and no dot in the string.
+    for (const f of document.querySelectorAll(".mthread")) { expect(f.tagName).toBe("SPAN"); expect(f.textContent).not.toMatch(/[\u00b7\u2022]/); expect(f.closest(".pill-act, .row-act")).toBeNull(); }
+    fireEvent.click(screen.getByRole("tab", { name: "All by Date" }));
+    expect(subjects().sort()).toEqual(["g1", "g2", "g3", "g4", "o1"]);
+    expect(document.querySelectorAll(".mthread").length).toBe(0);
+    fireEvent.click(screen.getByRole("tab", { name: "Grouped" }));
+    expect(subjects().sort()).toEqual(["g1", "g2", "g3", "g4", "o1"]);
+  });
+
+  it("the same message arriving under two row ids is one row in Grouped", async () => {
+    const dup = [...THREAD, row("g4", "2026-10-03T10:30:00Z", { id: "u-g4-stale", thread_id: "geico", subject: "Subject g4" })];
+    mount(rig({ rows: dup }));
+    await waitFor(() => expect(rowEls().length).toBeGreaterThan(0));
+    expect(subjects().sort()).toEqual(["g1", "g2", "g3", "g4", "o1"]);
+    expect(heads().reduce((n, h) => n + parseInt(String(h[1]), 10), 0)).toBe(5);
+  });
+
+  it("select mode stays per message: a tap on a threaded row picks that message alone", async () => {
+    const r = rig({ rows: THREAD });
+    mount(r);
+    await waitFor(() => expect(rowEls().length).toBe(5));
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    fireEvent.click(rowEls()[0]!);
+    expect(rowEls()[0]!).toHaveAttribute("aria-pressed", "true");
+    expect(rowEls().filter((e) => e.getAttribute("aria-pressed") === "true")).toHaveLength(1);
   });
 });
 

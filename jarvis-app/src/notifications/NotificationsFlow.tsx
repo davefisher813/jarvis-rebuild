@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useTasks, useSchedule, useGoals, useProfile } from "../data/NotesProvider";
 import { todayISO } from "../ai/useAIContext";
-import { buildFeed, loadNudgeDismissed, dismissNudge, type Nudge, type NudgeKind } from "./feed";
+import { buildFeed, loadNudgeDismissed, dismissNudge, dismissNudges, restoreNudges, type Nudge, type NudgeKind } from "./feed";
 import { RowGlyph, type RowKind } from "../shared/anatomy";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -104,6 +104,25 @@ export default function NotificationsFlow({ onOpen, onBack }: { onOpen?: (kind: 
     setFeed((f) => f.filter((x) => x.id !== n.id));
   };
 
+  // CLEAR ALL (Dave, issue 106). A notification here is a derived fact, not a stored message, so there is nothing to
+  // mark read: clearing is dismissing every nudge on screen until tomorrow, the one-row dismissal written for the whole
+  // list. It carries an Undo (undoLaw) and no confirm, because it is reversible and expires at midnight. `day` is read
+  // once so an Undo tapped after midnight cannot write into the new day. A nudge hidden by the notify prefs is not in
+  // `feed`, so it is not dismissed.
+  const clearAll = () => {
+    if (feed.length === 0) return;
+    haptics.selection();
+    const ids = feed.map((x) => x.id);
+    const day = todayISO();
+    dismissNudges(ids, day);
+    setFeed([]);
+    showToast({
+      message: `${ids.length} ${ids.length === 1 ? "Notification" : "Notifications"} Cleared`,
+      actionLabel: "Undo",
+      onAction: () => { restoreNudges(ids, day); void reload(); },
+    });
+  };
+
   // 2026-09-11: Undo puts back the pre-tap snapshot (SHARED-F-03), never a second toggleDone; and every row for this
   // task goes, since the sliding one can also be overdue, and Done on the twin un-completed it.
   const finishTask = (n: Nudge) => {
@@ -145,7 +164,13 @@ export default function NotificationsFlow({ onOpen, onBack }: { onOpen?: (kind: 
         <div>
           {bands.map((b) => (
             <div key={b.key}>
-              <div className="sh2 sh2-quiet"><span className="t">{b.head}</span><span className="n">{b.rows.length}</span></div>
+              <div className="sh2 sh2-quiet"><span className="t">{b.head}</span><span className="n">{b.rows.length}</span>
+                {/* A section-level action lives in the section head, never in a card (Dave 2026-10-05). It rides the
+                    first band only, so there is one, and it clears every band. */}
+                {b.key === bands[0]!.key && (
+                  <button type="button" className="see-all pill-action" aria-label="Clear All Notifications" onClick={clearAll}>Clear All</button>
+                )}
+              </div>
               <div className="heads-up-stream stream-grouped"><div className="card stream-card">
               {b.rows.map((n) => (
                 <NudgeRow key={n.id} n={n} onDone={() => finishTask(n)} onDismiss={() => onDismissNudge(n)}>

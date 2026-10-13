@@ -325,6 +325,9 @@ export default function NoteEditor({
 }) {
   const guard = useHyperfocusGuard();
   const [menuOpen, setMenuOpen] = useState(false);
+  // The More menu's Delete Note asks first (issue 105): nothing is written
+  // until the sheet's destructive button is tapped.
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [fileAsOpen, setFileAsOpen] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [relatedOpen, setRelatedOpen] = useState(false);
@@ -481,7 +484,7 @@ export default function NoteEditor({
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onArchive(); }}><Archive className="ic" /> {archived ? "Unarchive" : "Archive"}</button>
                 )}
                 {onDeleteNote && (
-                  <button className="block-menu-item danger" role="menuitem" onClick={() => { setMenuOpen(false); onDeleteNote(); }}><Trash2 className="ic" /> Delete Note</button>
+                  <button className="block-menu-item danger" role="menuitem" onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}><Trash2 className="ic" /> Delete Note</button>
                 )}
               </div>
             </>
@@ -645,6 +648,13 @@ export default function NoteEditor({
             { label: "Copy as Markdown", onPick: () => void copy("markdown") },
           ]}
           onCancel={() => setCopyAsOpen(false)}
+        />
+      )}
+      {confirmDelete && onDeleteNote && (
+        <RowActionSheet
+          title="Delete This Note, Restore It Within 30 Days"
+          actions={[{ label: "Delete Note", destructive: true, onPick: () => onDeleteNote() }]}
+          onCancel={() => setConfirmDelete(false)}
         />
       )}
       {fileAsOpen && onFileNote && (

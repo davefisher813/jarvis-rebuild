@@ -83,6 +83,36 @@ describe("TaskSheet", () => {
     expect(screen.getByText("Delete Task")).toBeInTheDocument();
   });
 
+  // Issue 102: a FINISHED task offers no Quick Actions. Every verb in that group is for work still to do, and Mark Done on a
+  // finished task reopened it. The prop is the caller's fact about the task; the rest of the sheet is untouched.
+  it("completed: the Quick Actions label and card are not drawn, and the rest of the sheet is", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "pay rent" }} completed onSave={() => {}} onCancel={() => {}}
+      onStart={() => {}} onFirstStep={() => {}} onMove={() => {}} onDelete={() => {}} />);
+    expect(screen.queryByText("Quick Actions")).not.toBeInTheDocument();
+    expect(document.querySelector(".xs-do")).toBeNull();
+    for (const w of ["Start", "First Step", "Move to Tomorrow", "Mark Done"]) expect(screen.queryByText(w)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Task")).toHaveValue("Pay Rent");
+    expect(screen.getByText("Delete Task")).toBeInTheDocument();
+  });
+
+  it("not completed (the default): the Quick Actions are drawn", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "pay rent" }} onSave={() => {}} onCancel={() => {}} onMove={() => {}} />);
+    expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+    expect(screen.getByText("Mark Done")).toBeInTheDocument();
+  });
+
+  // BRAIN-F-09 with issue 102: a save that answers false (the write did not land) gives Save back, so Retry works.
+  it("a save that answers false gives Save back instead of holding Saving", async () => {
+    const onSave = vi.fn(async (_draft: unknown) => false);
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "pay rent" }} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Mark Done"));
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave.mock.calls[1]![0]).toMatchObject({ closeNow: true });
+  });
+
   // THE ACTION CARD, WHOLE (2026-10-05, the perfect bar): it scrolls WITH the form (it sat pinned and covered the rows going under it),
   // Done is the green tile, and a chevron means "opens another screen", so the two acts (Move, Mark Done) carry none.
   it("the action card scrolls with the form, Mark Done wears the green done tile, and only a row that opens a screen has a chevron", () => {

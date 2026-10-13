@@ -114,3 +114,21 @@ export function dismissNudge(id: string, today: string, storage: Pick<Storage, "
   try { storage.setItem(DKEY, JSON.stringify({ day: today, ids })); } catch { /* private mode */ }
   return ids;
 }
+
+// CLEAR ALL (Dave, issue 106). This page is a derived status screen, so there is no read flag to set: clearing every
+// nudge on it is the same dismissal as clearing one, written for the whole list at once, quiet until tomorrow. The
+// storage is the one key above, day-keyed, so an Undo is the same list minus the ids that were just added.
+export function dismissNudges(ids: readonly string[], today: string, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): string[] {
+  const all = [...new Set([...loadNudgeDismissed(today, storage), ...ids])];
+  try { storage.setItem(DKEY, JSON.stringify({ day: today, ids: all })); } catch { /* private mode */ }
+  return all;
+}
+
+// Undo for dismissNudges: it SETS the list to what it was without these ids (SHARED-F-03), so a second or late tap lands
+// on the same answer, and it leaves every other dismissal of the day alone.
+export function restoreNudges(ids: readonly string[], today: string, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): string[] {
+  const drop = new Set(ids);
+  const rest = loadNudgeDismissed(today, storage).filter((k) => !drop.has(k));
+  try { storage.setItem(DKEY, JSON.stringify({ day: today, ids: rest })); } catch { /* private mode */ }
+  return rest;
+}

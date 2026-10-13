@@ -315,6 +315,22 @@ export function canonicalFields(f: DraftFields): DraftFields {
 /** The fields of a server row, as the composer edits them. */
 export const fieldsOf = (d: DraftRow): DraftFields => canonicalFields({ thread_id: d.thread_id, to_addresses: d.to_addresses, cc_addresses: d.cc_addresses, bcc_addresses: d.bcc_addresses, subject: d.subject, body_text: d.body_text, attachment_refs: d.attachment_refs, reply_headers: d.reply_headers ?? { in_reply_to: null, references: [], thread_id: null }, signature_revision: d.signature_revision });
 
+/**
+ * The device copies the Drafts list still has to show beside the server's rows. A copy is the SAME draft, not a second one, when
+ * the server lists its id (as a draft, or already sent) and either holds the same words or was saved later than the copy was
+ * written (another device got there after it). Words the server does not have, edited here since the last save or never sent at
+ * all, stay listed: nothing typed is ever hidden. The id decides, never the two clocks alone: a copy is written a moment AFTER
+ * the save it follows, by this phone's clock, so by the clocks it always looked newer than the server's row and one draft was
+ * listed twice (issue 103).
+ */
+export function deviceOnly(locals: readonly LocalDraft[], listed: readonly DraftRow[]): LocalDraft[] {
+  return locals.filter((l) => {
+    const id = l.draft_id ?? l.key;
+    const d = listed.find((x) => x.id === id);
+    return !(d && (d.saved_at >= l.saved_at || sameFields(fieldsOf(d), l.fields)));
+  });
+}
+
 export const MAX_ATTACHMENTS_BYTES = 20 * 1024 * 1024;
 export const attachmentsBytes = (refs: readonly AttachmentRef[]): number => refs.reduce((n, r) => n + r.size_bytes, 0);
 

@@ -127,8 +127,16 @@ export default function TaskSheet({
   onOpenNote,
   onAddNote,
   slidingNote: slidingText,
+  completed = false,
 }: {
   mode: "new" | "edit";
+  /** A FINISHED TASK OFFERS NO QUICK ACTIONS (issue 102). Start, First Step,
+   *  Move to Tomorrow and Mark Done are all verbs for work still to do, and on
+   *  a task already done Mark Done reopened it, which reads as a dead button.
+   *  So the group is not drawn. A prop, not a draft field: it is a fact about
+   *  the task as the caller holds it, never saved or loaded (the sheetFields
+   *  law is about stored fields). */
+  completed?: boolean;
   /** ONE NEGATIVE PER ROW (Dave 2026-09-11: "We also don't need 'pushed 8
    *  times', it's two negative notifications. It's too much. It can be inside
    *  the task but not there"). The list row says the verdict once, as the
@@ -456,6 +464,9 @@ export default function TaskSheet({
         <div className="sheet-form">
           {/* A LABEL LIKE EVERY OTHER GROUP (Dave 2026-10-05, the round-2 review: the first card had no kicker while Task, Notes,
               When and Where all do). */}
+          {/* A FINISHED TASK DRAWS NONE OF THIS (issue 102): the label and the card are one group, gated together on `completed`,
+              around the edit-mode gates that were here before it (the law that keeps the group off the checklist reads those). */}
+          {!completed && <>
           {mode === "edit" && <div className="grp xs-grp"><div className="eyebrow">Quick Actions</div></div>}
           {mode === "edit" && (
             <div className="pad-x"><div className="card xs-group xs-do">
@@ -500,6 +511,7 @@ export default function TaskSheet({
               </div>
             </div></div>
           )}
+          </>}
           {/* SHARED-F-17 (2026-09-05): the sheet's provenance line opens its
               source too, when the flow has a route to it. */}
           <Provenance source={source} {...(source && openSourceFor ? { onOpen: openSourceFor(source) } : {})} />
