@@ -42,7 +42,7 @@ import {
   EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
   IMAGES_OFF, PUT_BACK, READ_CONFLICT, READ_FAILED, RESTORED, RETRY, SHOW_HEADERS, SHOW_IMAGES, SOURCE_GONE, TRASH, UNREAD_FAILED, UNSUPPORTED_ACTION,
   FORWARD_IN_GMAIL, FORWARD_WHY, REPLY, REPLY_ALL,
-  ALSO_IN, MOVE_TO_SECTION,
+  ALSO_IN, MOVE_TO_SECTION, contactDoorLabel,
 } from "./copy";
 import { attachmentBlob, attachmentText, downloadAttachment, gmailLink, isCalendarFile, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
 import { loadMessage, saveMessage } from "./deviceCache";
@@ -73,7 +73,7 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture, onMoveToSection, sectionName, alsoIn = [] }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture, onMoveToSection, sectionName, alsoIn = [], onContact }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
@@ -110,6 +110,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
   onMoveToSection?: () => void;
   /** Where the message sits now, the row's one fact. Absent when the flow cannot say (a message opened from outside the loaded list): the row then draws no fact. */
   sectionName?: string;
+  /** The sender's circle is a button that opens the contact sheet over this one (issue 112, item 14). Absent: the circle is the plain mark it was. */
+  onContact?: (who: { address: string; name: string }) => void;
 }) {
   const [detail, setDetail] = useState<MessageDetail | null>(() => loadMessage(userId, row.id));
   const [loading, setLoading] = useState(true);
@@ -327,7 +329,13 @@ export default function MessageScreen({ client, token, userId, row, account, off
           <div className="email-head">
             <div className="email-subject">{(m?.subject ?? row.subject).trim() || "(No Subject)"}</div>
             <div className="email-from">
-              <span className={"email-avatar mface cat-bg-" + face.face} aria-hidden="true">{((fromName || fromAddress)[0] ?? "?").toUpperCase()}</span>
+              {/* The circle is already 44 by 44 here (email.css), so the button needs no reach of its own; nothing around it is a tap. */}
+              {onContact && fromAddress.trim() ? (
+                <button type="button" className={"email-avatar mface cat-bg-" + face.face} aria-label={contactDoorLabel(fromName || fromAddress)}
+                  onClick={() => onContact({ address: fromAddress, name: fromName })}>{((fromName || fromAddress)[0] ?? "?").toUpperCase()}</button>
+              ) : (
+                <span className={"email-avatar mface cat-bg-" + face.face} aria-hidden="true">{((fromName || fromAddress)[0] ?? "?").toUpperCase()}</span>
+              )}
               <div className="email-from-who">
                 <div className="email-from-top">
                   <span className="email-from-name">{fromName || fromAddress}</span>

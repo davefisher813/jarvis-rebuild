@@ -52,12 +52,13 @@ import { attemptWrite } from "../shared/guard";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { useConnectionStatus } from "../connections/useConnectionStatus";
-import { useOptionalCategories, useOptionalLedger, useFileStore, useStore, useUserId } from "../data/NotesProvider";
+import { useOptionalCategories, useOptionalLedger, useOptionalPeople, useFileStore, useStore, useUserId } from "../data/NotesProvider";
 import { failure, lineFor, newRequestId, type CommandFailure } from "../substrate/commands/errors";
 import { cancelCommand } from "../substrate/commands/sends";
 import { fetchReadiness, notReadyLine, readinessFrom, type Readiness } from "../substrate/destinations/registry";
 import type { CaptureKind, CapturePayload } from "../substrate/contracts";
 import type { Category } from "../categories/types";
+import type { Person } from "../people/types";
 import type { Bill, Receipt } from "../money/ledger/types";
 import ReceiptDetail from "../hub/ReceiptDetail";
 import {
@@ -71,7 +72,7 @@ import {
   GROUPED_INTRO_SUB, GROUPED_INTRO_TITLE, USE_GROUPED,
 } from "./copy";
 import {
-  answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
+  answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, searchCached, syncAccount, PAGE,
   type EmailAccount, type InboxRow, type MessageDetail, type RpcClient,
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
@@ -117,6 +118,8 @@ import EmptyState from "./EmptyState";
 import CandidateCards from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
 import WhySectionSheet from "./WhySectionSheet";
+import ContactSheet from "./ContactSheet";
+import { recentFrom, resolveSender } from "./contactResolve";
 import {
   bodyProposals, bodyReadingKey, candidatesFor, contextFor, isProvisional, isToReview, listReadingKey, listRowProposals, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
   type Candidate,
@@ -150,6 +153,9 @@ type Screen =
 
 const outcomeTitle = (d: DraftRow): string => { const o = outcomeOf(d); return o === "sent" ? SENT_TITLE : o === "unknown" ? UNKNOWN_TITLE : o === "failed" ? NOT_SENT_TITLE : SENDING_LINE; };
 
+/** Where a message opened from the contact sheet goes back to: the place the sheet was opened over (a message keeps its own). */
+const messageFrom = (s: Screen): "inbox" | "search" | "review" => (s.kind === "message" ? s.from : s.kind === "search" ? "search" : s.kind === "reviewList" ? "review" : "inbox");
+
 interface Question extends SuggestionDue { suggestionId: string | null }
 
 const rowOf = (m: MessageDetail): InboxRow => ({
@@ -175,7 +181,7 @@ export function manualStart(kind: CaptureKind, row: InboxRow, zone: string, now:
   }
 }
 
-export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, focus, focusNonce, onFocusConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), zone: givenZone, initialScreen, waiting: givenWaiting, briefAI: givenBriefAI }: {
+export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, focus, focusNonce, onFocusConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, people: givenPeople, now: nowFn = () => new Date(), zone: givenZone, initialScreen, waiting: givenWaiting, briefAI: givenBriefAI }: {
   onOpenConnections: () => void;
   /** A life record's own screen (a receipt's destination). */
   onOpenEntity?: (kind: string, id: string) => void;
@@ -190,6 +196,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   token?: string | null;
   userId?: string;
   categories?: Category[];
+  /** The saved contacts the contact sheet resolves a sender against. A test or a bench passes its own; undefined means the app's People store. */
+  people?: Person[];
   now?: () => Date;
   /** The reader's zone; a test pins it. */
   zone?: string;
@@ -210,6 +218,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const ctxUser = useUserId();
   const userId = givenUser ?? ctxUser ?? "local";
   const catsSvc = useOptionalCategories();
+  const peopleSvc = useOptionalPeople();
   const ledger = useOptionalLedger();
   const store = useStore();
   const zone = givenZone ?? readerZone();
@@ -244,6 +253,11 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // Why This Section? (issue 112, item 15): the message whose reason is on screen, by id, so the sheet always reads the freshest
   // row. Read-only; opening it writes nothing.
   const [whyId, setWhyId] = useState<string | null>(null);
+  // The contact sheet on a sender's circle (issue 112, item 14): who was tapped, the saved contacts read when it opened, and
+  // the cached mail found from that address. All three are gone the moment the sheet closes; nothing is kept or written.
+  const [contact, setContact] = useState<{ address: string; name: string } | null>(null);
+  const [directory, setDirectory] = useState<Person[] | null>(null);
+  const [found, setFound] = useState<InboxRow[]>([]);
   // Select mode (spec 11): the selection is frozen at each tap, as exact messages, never "whatever is loaded later".
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<Picked[]>([]);
@@ -673,6 +687,31 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
   // One handler for every inbox row, so a memoised row is not redrawn by a new closure (slice 09).
   const openInboxRow = useCallback((row: InboxRow) => setScreen({ kind: "message", row, from: "inbox" }), []);
+  // THE SENDER'S CIRCLE (issue 112, item 14): the contact sheet. Stable for the same reason as the line above; the open message's
+  // head hands its sender in as an object, a list row hands the row.
+  const openContactRow = useCallback((r: InboxRow) => setContact({ address: r.from_address, name: r.from_name }), []);
+  const openContactWho = useCallback((who: { address: string; name: string }) => setContact({ address: who.address, name: who.name }), []);
+  // Read fresh every time the sheet opens, and dropped when it closes: the saved contacts (so a rename or a delete is always
+  // current, AC10) and, from the cache, the mail that mentions the address (the sheet keeps only what that sender wrote). Offline,
+  // or with no People store, the sheet shows what it has and claims nothing more. A plain awaited read, no timer; an answer for a
+  // sheet that has since closed or moved on is dropped.
+  useEffect(() => {
+    if (!contact) { setDirectory(null); setFound((f) => (f.length ? [] : f)); return; }
+    let alive = true;
+    setDirectory(null);
+    setFound([]);
+    if (!givenPeople && peopleSvc) {
+      void peopleSvc.list().then((list) => { if (alive) setDirectory(list); }).catch(() => { /* unreadable: the sheet says nothing about contacts */ });
+    }
+    if (client && !offline) {
+      void searchCached(client, contact.address).then((r) => { if (alive && r.ok) setFound(r.value.rows); });
+    }
+    return () => { alive = false; };
+    // One read per open: the object in state is the key, the rest is read inside.
+  }, [contact]);
+  // A move to another kind of screen that this sheet did not make (a deep link, a focus from Today) closes it, so it cannot wait
+  // behind that screen and come back over the inbox later. Its own doors close it first, so they are unaffected.
+  useEffect(() => { setContact(null); }, [screen.kind]);
 
   // A message another surface asked for: found in the loaded rows, else read
   // from the cache; an id that is not the person's simply does not open.
@@ -1077,6 +1116,16 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     <CaptureSheet client={client} candidate={sheet.candidate} row={sheet.row} ctx={contextFor(sheet.row, zone, nowFn)} ready={ready} readyLine={readyLine} offline={offline}
       evidenceText={sheet.text ?? bodyText.current[sheet.row.id]} onClose={() => setSheet(null)} onChanged={() => loadCards([sheet.row.id])} onSaved={onCardSaved} />
   ) : null;
+  // The contact sheet. Whether the address is a saved contact is decided now, from the contacts as they stand (contactResolve.ts):
+  // exact address only, the person's own mailboxes excluded, two matches offered and never picked between. The shell's way into
+  // the Contacts module is the only door out; with none given (a test, a bench) Open Contact is not drawn, so no button is dead.
+  const contactEl = contact ? (
+    <ContactSheet target={contact} resolved={resolveSender(contact.address, givenPeople ?? directory, accounts.map((a) => a.address))}
+      categories={categories} recent={recentFrom(contact.address, [rows, found])} labels={labels} now={now}
+      onOpenMessage={(r) => { setScreen({ kind: "message", row: r, from: messageFrom(screen) }); void loadCards([r.id]); }}
+      onOpenContact={onOpenEntity ? (id) => onOpenEntity("person", id) : undefined}
+      onClose={() => setContact(null)} />
+  ) : null;
   const captureEl = capturing ? (
     <RowActionSheet title={CAPTURE_TITLE} actions={(["bill", "receipt", "task", "event", "waiting"] as CaptureKind[]).map((k) => ({ label: CAPTURE_KIND[k]!, onPick: () => void startCapture(capturing.row, k, capturing.text) }))} onCancel={() => setCapturing(null)} />
   ) : null;
@@ -1145,7 +1194,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   ) : null;
   const messageOverlay = messageScreen && messageCurrent && client ? (
     <>
-      <MessageScreen client={client} token={token} userId={userId} row={messageCurrent} account={accountOf(messageScreen.row)} offline={offline}
+      <MessageScreen key={messageCurrent.id} client={client} token={token} userId={userId} row={messageCurrent} account={accountOf(messageScreen.row)} offline={offline}
         categories={categories} categoryId={catOf(messageScreen.row)}
         onBack={leaveMessage}
         onRowChanged={patchRow}
@@ -1156,24 +1205,25 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         onReply={(m, all) => startReply(m, all, messageScreen)}
         onCapture={(kind) => void startCapture(messageCurrent, kind, bodyText.current[messageCurrent.id])}
         onMoveToSection={() => setMovingRow(messageCurrent)} sectionName={sectionNow}
-        alsoIn={same[messageCurrent.id] ?? []} />
-      {sheetEl}{captureEl}{moveSheet}{whySheet}
+        alsoIn={same[messageCurrent.id] ?? []} onContact={openContactWho} />
+      {/* The contact sheet stacks above whatever the message sheet has open, by DOM order, like the other sheets. */}
+      {sheetEl}{captureEl}{moveSheet}{whySheet}{contactEl}
     </>
   ) : null;
   if ((screen.kind === "search" || (messageScreen?.from === "search")) && client) {
     return <div className={pushCls}>
       <SearchScreen client={client} token={token} accounts={accounts} labels={labels} offline={offline} state={search} onState={setSearch}
         categories={categories} categoryOf={catOf} categoryId={searchChip} onCategory={setSearchChip} now={now}
-        onBack={() => setScreen({ kind: "root" })} onOpen={(row) => { setScreen({ kind: "message", row, from: "search" }); void loadCards([row.id]); }} />
-      {messageOverlay}
+        onBack={() => setScreen({ kind: "root" })} onOpen={(row) => { setScreen({ kind: "message", row, from: "search" }); void loadCards([row.id]); }} onContact={openContactRow} />
+      {messageOverlay}{!messageScreen && contactEl}
     </div>;
   }
   if ((screen.kind === "reviewList" || messageScreen?.from === "review") && client) {
     return <div className={pushCls}>
       <ReviewListScreen rows={reviewRows} loading={reviewLoading} labels={labels} now={now} onBack={() => setScreen({ kind: "root" })}
-        onOpen={(row) => setScreen({ kind: "message", row, from: "review" })}
+        onOpen={(row) => setScreen({ kind: "message", row, from: "review" })} onContact={openContactRow}
         renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
-      {messageOverlay}{!messageScreen && sheetEl}
+      {messageOverlay}{!messageScreen && sheetEl}{!messageScreen && contactEl}
     </div>;
   }
   if (screen.kind === "paused" && client) {
@@ -1422,7 +1472,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
           )}
           <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
             selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
-            onOpen={openInboxRow}
+            onOpen={openInboxRow} onContact={openContactRow}
             // The open message owns its own cards inside the sheet; the dimmed
             // row behind it does not draw them a second time.
             renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
@@ -1442,7 +1492,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
             ...live.map((a) => ({ label: a.address, onPick: () => { setAccountFilter(a.address); setPickingAccount(false); } }))]}
           onCancel={() => setPickingAccount(false)} />
       )}
-      {!messageScreen && sheetEl}{!messageScreen && captureEl}
+      {!messageScreen && sheetEl}{!messageScreen && captureEl}{!messageScreen && contactEl}
       {messageOverlay}
     </div>
   );

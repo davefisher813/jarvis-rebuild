@@ -38,7 +38,7 @@ export interface SearchState {
 
 export const EMPTY_SEARCH_STATE: SearchState = { q: "", scope: null, rows: [], coverage: "none", covered: [], failed: [], window: 0, next: null, searching: false, transportFailed: null };
 
-export default function SearchScreen({ client, token, accounts, labels, offline, state, onState, categories, categoryOf, categoryId, onCategory, now, onBack, onOpen }: {
+export default function SearchScreen({ client, token, accounts, labels, offline, state, onState, categories, categoryOf, categoryId, onCategory, now, onBack, onOpen, onContact }: {
   client: RpcClient;
   token: string | null | undefined;
   accounts: EmailAccount[];
@@ -55,6 +55,8 @@ export default function SearchScreen({ client, token, accounts, labels, offline,
   now: Date;
   onBack: () => void;
   onOpen: (row: InboxRow) => void;
+  /** A sender's circle was tapped: the contact sheet (issue 112, item 14). Absent: the circle is the plain mark. */
+  onContact?: (row: InboxRow) => void;
 }) {
   const [draft, setDraft] = useState(state.q);
   const seq = useRef(0);
@@ -164,7 +166,7 @@ export default function SearchScreen({ client, token, accounts, labels, offline,
       {shown.length > 0 && (
         <div className="pad-x">
           <div className="list-flat">
-            {shown.map((r) => <MailRow key={r.id} row={r} accountLabel={labels[r.account] ?? ""} now={now} onOpen={onOpen} />)}
+            {shown.map((r) => <MailRow key={r.id} row={r} accountLabel={labels[r.account] ?? ""} now={now} onOpen={onOpen} onContact={onContact} />)}
           </div>
           {state.next ? (
             <ListFloor>

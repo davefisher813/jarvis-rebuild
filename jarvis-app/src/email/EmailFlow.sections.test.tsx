@@ -502,7 +502,11 @@ describe("the catalog, on the whole populated home", () => {
 
   it("no capsule sits in a row, and no card holds more than one: a wall of pills is not a section", async () => {
     await mount(rig());
-    expect(document.querySelectorAll(".erow .pill-act, .erow .row-act, .erow button").length).toBe(0);
+    expect(document.querySelectorAll(".erow .pill-act, .erow .row-act, .erow .btn-sm, .erow .quiet-action").length).toBe(0);
+    // The one control a row holds is the sender's circle, the door to the contact sheet (issue 112, item 14; spec 2.3: one tap target
+    // for detail plus an avatar target for contact). One per row, a circle and never a pill.
+    expect(document.querySelectorAll(".erow button:not(.mav)").length).toBe(0);
+    expect(document.querySelectorAll(".erow button.mav").length).toBe(document.querySelectorAll(".erow").length);
     for (const c of document.querySelectorAll(".email-card")) expect(c.querySelectorAll(".pill-act").length).toBeLessThanOrEqual(1);
   });
 });

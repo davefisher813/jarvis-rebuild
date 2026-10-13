@@ -102,6 +102,17 @@
   font-size: var(--t-sub); font-weight: var(--w-bold); letter-spacing: 0.02em; }
 /* Unread is the primary ink, a dot at the badge's shoulder: a fact about the inbox, never a red (the unread law). */
 .munread { position: absolute; top: 0; right: -2px; width: 10px; height: 10px; border-radius: var(--r-circle); background: var(--tx-1); }
+/* THE CIRCLE IS A DOOR, AND REACHES 44 WITHOUT MOVING (issue 112, item 14: the sender's circle opens the contact sheet). The paint
+   stays 40; the reach is the pseudo-element's, the technique .hit44, .today-av and .swatch already use. It grows 2px into the row's
+   own padding on every side, never into the text beside it (a 12px gap) or the row above or below. Only the button form carries it:
+   in select mode the circle is a plain span and the whole row is the door. */
+button.mav::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
+}
+/* A button does not inherit its line height the way the span it replaces does (the browser gives it "normal"), which would nudge the
+   initials a fraction of a pixel. It is told to inherit, so they sit exactly where they sat: measured against the span, row and head. */
+button.mav, button.mface { line-height: inherit; }
 .erow .mline1 { align-items: baseline; }
 .erow .mfrom { font-size: var(--t-name); font-weight: var(--w-semi); }
 .erow .mfrom.strong { font-weight: var(--w-bold); }

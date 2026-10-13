@@ -13,7 +13,7 @@ import { EMAIL_TITLE, EMPTY_REVIEW, REVIEW_LIST_TITLE } from "./copy";
 import { dayGroups } from "./format";
 import type { InboxRow } from "./emailClient";
 
-export default function ReviewListScreen({ rows, loading, labels, now, onBack, onOpen, renderBelow }: {
+export default function ReviewListScreen({ rows, loading, labels, now, onBack, onOpen, renderBelow, onContact }: {
   /** The messages with a card to review; null while the first read is out. */
   rows: InboxRow[] | null;
   loading: boolean;
@@ -22,13 +22,15 @@ export default function ReviewListScreen({ rows, loading, labels, now, onBack, o
   onBack: () => void;
   onOpen: (row: InboxRow) => void;
   renderBelow: (row: InboxRow) => ReactNode;
+  /** A sender's circle was tapped: the contact sheet (issue 112, item 14). */
+  onContact?: (row: InboxRow) => void;
 }) {
   return (
     <div className="screen ruled">
       <PageHeader title={REVIEW_LIST_TITLE} back={EMAIL_TITLE} onBack={onBack} />
       {loading && !rows && <SkeletonRows rows={3} />}
       {rows && rows.length === 0 && <EmptyState copy={EMPTY_REVIEW} onAction={onBack} />}
-      {rows && rows.length > 0 && <InboxList groups={dayGroups(rows, now)} labels={labels} now={now} atEnd onOpen={onOpen} renderBelow={renderBelow} />}
+      {rows && rows.length > 0 && <InboxList groups={dayGroups(rows, now)} labels={labels} now={now} atEnd onOpen={onOpen} renderBelow={renderBelow} onContact={onContact} />}
       <div className="screen-foot" />
     </div>
   );
