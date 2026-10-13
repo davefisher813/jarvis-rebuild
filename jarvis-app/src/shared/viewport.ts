@@ -126,3 +126,77 @@ export function trackVisualViewport(): () => void {
     document.removeEventListener("visibilitychange", settle);
   };
 }
+
+// THE SHELL REACHES THE SCREEN'S FOOT (Dave 2026-10-13, tab bar round 4: "It's
+// the same. Take an extreme measure. I never want to see this again").
+//
+// Three rounds fixed the tab bar's foot and the bar never moved on his phone,
+// because the bar was never the problem: it sits at the foot of .app-shell, and
+// the shell's height was whatever the phone said the viewport was. His
+// 2026-10-13 screenshot measures the labels 82pt above the screen's foot with
+// a bar whose own foot is a fixed 16pt, so roughly 60pt of the gap lives BELOW
+// the bar, in the shell's shortfall. The CSS half of this fix nails the shell
+// to the viewport's edges (position: fixed, inset: 0 in components.css), which
+// covers a short height measurement. What it cannot cover is a standalone
+// window whose LAYOUT viewport itself stops short of the physical screen: a
+// fixed element is laid out against that viewport, short measure and all.
+//
+// So the shell is measured against the one number that names the hardware:
+// screen.height. In a standalone window (home-screen app, or the native shell)
+// the layout viewport and the screen are the same thing, so any shortfall
+// between them is the defect itself, and the shell is stretched the exact
+// difference, never more, never less. In an ordinary browser tab the two are
+// SUPPOSED to differ (chrome, window frames), so this only ever runs in a
+// standalone window, and only in portrait, where the reports live. It never
+// shrinks the shell, and it re-measures at the same settle moments the band
+// above does, because a resume is exactly when the wrong size would land.
+
+/** The shell's shortfall against the physical screen, in CSS pixels. Zero
+ *  unless the gap is real and plausible: a hair of rounding is not a defect,
+ *  and a difference the size of a browser window is a browser window. */
+export function shellShortfallPx(innerHeight: number, screenHeight: number): number {
+  const d = screenHeight - innerHeight;
+  return d > 4 && d < 200 ? d : 0;
+}
+
+function inStandaloneWindow(): boolean {
+  try {
+    if (typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches) return true;
+  } catch { /* an old webview */ }
+  const nav = navigator as Navigator & { standalone?: boolean };
+  const win = window as Window & { Capacitor?: unknown };
+  return nav.standalone === true || typeof win.Capacitor !== "undefined";
+}
+
+/** Stretch .app-shell to the physical screen height when a standalone
+ *  window's layout viewport stops short of it. Returns the stopper. */
+export function fitShellToScreen(): () => void {
+  if (typeof window === "undefined" || typeof document === "undefined") return () => {};
+  if (!inStandaloneWindow()) return () => {};
+  let stopped = false;
+  const measure = () => {
+    if (stopped) return;
+    const shell = document.querySelector<HTMLElement>(".app-shell");
+    if (!shell) return;
+    const portrait = window.screen.height >= window.screen.width;
+    const short = portrait ? shellShortfallPx(window.innerHeight, window.screen.height) : 0;
+    if (short > 0) shell.style.height = window.screen.height + "px";
+    else if (shell.style.height) shell.style.height = "";
+  };
+  const settle = () => { measure(); setTimeout(measure, 350); };
+  measure();
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(measure);
+  setTimeout(measure, 300);
+  setTimeout(measure, 1200);
+  window.addEventListener("resize", settle);
+  window.addEventListener("orientationchange", settle);
+  window.addEventListener("pageshow", settle);
+  document.addEventListener("visibilitychange", settle);
+  return () => {
+    stopped = true;
+    window.removeEventListener("resize", settle);
+    window.removeEventListener("orientationchange", settle);
+    window.removeEventListener("pageshow", settle);
+    document.removeEventListener("visibilitychange", settle);
+  };
+}
