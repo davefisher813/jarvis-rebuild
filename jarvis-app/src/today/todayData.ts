@@ -2,7 +2,8 @@
 // data produced (and already tested) by the Schedule and Tasks services.
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
-import { partition } from "../tasks/filters";
+import { partition, type Partitioned } from "../tasks/filters";
+import { emailTasksGoToList, isFromEmail } from "../tasks/emailTasks";
 import { lineCase } from "../shared/casing";
 import { billAmount } from "../money/billView";
 import { dayGap } from "../money/ledger/dates";
@@ -45,9 +46,22 @@ export interface DaySummary {
   moves: number;
 }
 
+// THE LISTS TODAY DRAWS FROM (issue 112, Dave 2026-10-13: an email-derived task appears on Today as a normal task, and
+// nothing Dave approved from an email disappears). Tasks keeps an open task a thread made out of the Today and Overdue
+// lists by default (tasks/emailTasks.ts, Dave 2026-09-13), so with the Email band no longer drawing it the approved task
+// would have been on no Today list at all while the day ring and the badge still counted it. `emailAsNormal` names the
+// email-born tasks Today treats as ordinary ones: they join the lists whatever the Tasks setting says. An email-born task
+// it does not name stays where the setting puts it (From Email, by default). Omitted, the setting alone decides, exactly
+// as before (the Email flag off). The Tasks tab itself still reads partition() directly and is not changed.
+function listsFor(tasks: TaskItem[], today: string, emailAsNormal?: (t: TaskItem) => boolean): Partitioned {
+  if (!emailAsNormal) return partition(tasks, today);
+  const pool = emailTasksGoToList() ? tasks : tasks.filter((t) => !isFromEmail(t.data) || emailAsNormal(t));
+  return partition(pool, today, true);
+}
+
 // Counts for the one-line briefing under the greeting.
-export function daySummary(todayEvents: EventItem[], tasks: TaskItem[], today: string, moves = 0): DaySummary {
-  const p = partition(tasks, today);
+export function daySummary(todayEvents: EventItem[], tasks: TaskItem[], today: string, moves = 0, emailAsNormal?: (t: TaskItem) => boolean): DaySummary {
+  const p = listsFor(tasks, today, emailAsNormal);
   return { events: todayEvents.length, due: p.today.length, overdue: p.overdue.length, moves };
 }
 
@@ -75,8 +89,8 @@ export function dayRing(tasks: TaskItem[], today: string): { done: number; total
 }
 
 // Home "Today's Tasks" = overdue first, then due-today. Done and later tasks excluded.
-export function todaysTasks(tasks: TaskItem[], today: string): TaskItem[] {
-  const p = partition(tasks, today);
+export function todaysTasks(tasks: TaskItem[], today: string, emailAsNormal?: (t: TaskItem) => boolean): TaskItem[] {
+  const p = listsFor(tasks, today, emailAsNormal);
   return [...p.overdue, ...p.today];
 }
 

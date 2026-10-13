@@ -7722,9 +7722,11 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .ruled .sched-row.sched-row-bare { padding-left: var(--s-4); }
 .ruled .sched-row.sched-row-bare + .sched-row.sched-row-bare::before { left: var(--s-4); }
 
-/* The Email tab's warning mark while a mailbox is lost (Foundation Fix Spec 3). A glyph in the system red, no number, at the icon's
-   corner. It is a status, and it is gone the moment the account proves healthy. */
-.tab .tab-warn { position: absolute; top: 2px; right: calc(50% - 22px); width: 16px; height: 16px; color: var(--red); }
+/* The Email tab's warning mark while a mailbox is lost (Foundation Fix Spec 3). A glyph in the key's amber, no number, at the icon's
+   corner (Dave 2026-10-12: a recoverable problem is amber, and red is for late and destructive; every open incident is recoverable,
+   and the banner this marks is amber, so a red mark beside an amber banner said two things about one problem). It is a status, and it
+   is gone the moment the account proves healthy. The same --warn the fact words and notes wear, so light and dark differ in value only. */
+.tab .tab-warn { position: absolute; top: 2px; right: calc(50% - 22px); width: 16px; height: 16px; color: var(--warn); }
 
 /* THE LOUD CONNECTION BANNER (Foundation Fix Spec 3, 2026-10-07; recoloured 2026-10-12). "Banner color: Dave ruled AMBER"
    (2026-10-12): a lost or stalled mailbox is a RECOVERABLE problem, and the spec's own rule (2.8) is that waiting and

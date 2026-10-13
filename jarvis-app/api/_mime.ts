@@ -7,8 +7,17 @@
 // here because Gmail reads it from the raw message and strips it from what the
 // recipients receive. Attachments ride as base64 parts under multipart/mixed,
 // with the bytes the worker fetched and hashed, never bytes from the browser.
+//
+// A BUILT SIGNATURE WITH A PICTURE (issue 113) is the one case where the message is
+// not plain text only: the same words go out as the text/plain part (every client
+// can read it, and it is what the hash bound) and as an HTML part in which the
+// signature's lines sit beside the picture. The picture is the message's own part,
+// referenced by Content-ID (cid:), so the recipient needs no remote address and
+// nothing loads from outside. Every piece of that HTML comes from
+// src/email/signature.ts, the same functions that draw the builder's preview.
 
 import { b64urlEncode } from "../src/connections/google/map";
+import { signatureBodyHtml, signatureCid, pictureSize, type SignatureFields, type SignatureImage } from "../src/email/signature";
 
 export interface ExactAttachment { storage_id: string; filename: string; size_bytes: number; sha256: string; mime_type: string }
 export interface ExactSend {
@@ -24,6 +33,8 @@ export interface ExactSend {
   draft_id: string;
   draft_revision: number;
   client_message_id: string;
+  /** Present only when send_review saw an untouched built signature with a picture at the end of the body (migration 0072). */
+  signature?: { fields: SignatureFields; image: SignatureImage };
 }
 
 export interface AttachmentBytes { filename: string; mime: string; bytes: Uint8Array }
@@ -83,8 +94,79 @@ export function crlf(text: string): string {
   return text.replace(/\r\n?/g, "\n").replace(/\n/g, "\r\n");
 }
 
-/** The raw message, as base64url, for Gmail's messages.send. `parts` are the attachments' bytes in the snapshot's order. */
-export function buildRawMessage(exact: ExactSend, parts: AttachmentBytes[], now: Date = new Date()): string {
+/** What the first bytes say a picture is: PNG or JPEG, or null. A signature picture is trusted only when its bytes are what its reference claims. */
+export function pictureKind(bytes: Uint8Array): "image/png" | "image/jpeg" | null {
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return "image/png";
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  return null;
+}
+
+/** One MIME entity: its header lines and its body. */
+interface Entity { headers: string[]; body: string }
+
+/** A boundary line inside the text it is meant to separate would cut the message in two; none ever should, and one never leaves. */
+function clearOf(boundaries: string[], text: string): void {
+  const lines = text.split("\n");
+  for (const b of boundaries) if (lines.some((l) => l.startsWith("--" + b))) throw new Error("boundary inside the text");
+}
+
+/** The three boundaries a message can need. None is the start of another (a parser that matches only the start of a line would take it for the outer one). */
+function boundariesFor(exact: ExactSend): { mixed: string; alt: string; rel: string } {
+  const tail = exact.draft_id.replace(/-/g, "").slice(0, 16) + "_" + exact.draft_revision.toString(36);
+  return { mixed: "=_jarvis_" + tail, alt: "=_jarvis_alt_" + tail, rel: "=_jarvis_rel_" + tail };
+}
+
+/**
+ * The person's words as one entity. Plain text, with the text itself untouched, unless the snapshot carries a built signature
+ * with its picture and the body still ends with exactly that signature's block: then the same text is the first alternative
+ * and the second is the HTML (the words, then the signature table beside its picture) with the picture as the HTML's own
+ * related part, referenced by Content-ID. Anything short of all of that is plain text, never a picture beside changed words.
+ */
+function wordsEntity(exact: ExactSend, plain: string, picture: Uint8Array | undefined, alt: string, rel: string): Entity {
+  const sig = exact.signature;
+  const asText: Entity = { headers: ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: 8bit"], body: plain };
+  if (!sig || !picture) return asText;
+  const mime = sig.image.mime_type;
+  if (mime !== "image/png" && mime !== "image/jpeg") throw new Error("signature picture type");
+  const cid = signatureCid(sig.image.sha256);
+  const html = signatureBodyHtml(exact.body_text, sig.fields, { src: "cid:" + cid, ...pictureSize(sig.image) });
+  if (html === null) return asText;
+  clearOf([alt, rel], plain);
+  const related = [
+    `--${rel}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64Lines(new TextEncoder().encode(html)),
+    `--${rel}`,
+    `Content-Type: ${mime}`,
+    "Content-Transfer-Encoding: base64",
+    `Content-ID: <${headerValue("Content-ID", cid)}>`,
+    "Content-Disposition: inline",
+    "",
+    base64Lines(picture),
+    `--${rel}--`,
+  ].join("\r\n");
+  const body = [
+    `--${alt}`,
+    ...asText.headers,
+    "",
+    plain,
+    `--${alt}`,
+    `Content-Type: multipart/related; type="text/html"; boundary="${rel}"`,
+    "",
+    related,
+    `--${alt}--`,
+  ].join("\r\n");
+  return { headers: [`Content-Type: multipart/alternative; boundary="${alt}"`], body };
+}
+
+/**
+ * The raw message, as base64url, for Gmail's messages.send. `parts` are the attachments' bytes in the snapshot's order.
+ * `signaturePicture` is the built signature's picture, fetched and verified by the worker (api/_send.ts); without it, or
+ * without a signature in the snapshot, the message is exactly what it was before the builder existed.
+ */
+export function buildRawMessage(exact: ExactSend, parts: AttachmentBytes[], now: Date = new Date(), signaturePicture?: Uint8Array): string {
   if (parts.length !== exact.attachments.length) throw new Error("attachments and bytes differ");
   if (exact.to.length === 0) throw new Error("no recipient");
   const headers: string[] = [];
@@ -101,18 +183,19 @@ export function buildRawMessage(exact: ExactSend, parts: AttachmentBytes[], now:
   if (refs.length) headers.push(`References: ${refs.join("\r\n ")}`);
   headers.push("MIME-Version: 1.0");
 
-  const body = crlf(exact.body_text);
+  const { mixed: boundary, alt, rel } = boundariesFor(exact);
+  const plain = crlf(exact.body_text);
+  const words = wordsEntity(exact, plain, signaturePicture, alt, rel);
   if (parts.length === 0) {
-    headers.push("Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: 8bit");
-    return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + body);
+    headers.push(...words.headers);
+    return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + words.body);
   }
-  const boundary = "=_jarvis_" + exact.draft_id.replace(/-/g, "").slice(0, 16) + "_" + exact.draft_revision.toString(36);
+  clearOf([boundary], plain);
   const sections = [
     `--${boundary}`,
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: 8bit",
+    ...words.headers,
     "",
-    body,
+    words.body,
   ];
   parts.forEach((p, i) => {
     const meta = exact.attachments[i]!;

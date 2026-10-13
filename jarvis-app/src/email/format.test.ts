@@ -114,3 +114,63 @@ describe("the account chip", () => {
     expect(accountLabels(["dave@example.test", "dave@example.test"])).toEqual({ "dave@example.test": "dave@example.test" });
   });
 });
+
+// ROW DATES ARE THE READER'S OWN DAY (issue 112, populated sections). The date on a row, over a day group and in a
+// message header was read off the front of the ISO instant, which for a UTC instant is the UTC date: mail that arrived
+// at 9 PM Eastern on Oct 1 read "Oct 2" beside its 9:00 PM clock, and two local days' mail could share one heading.
+// The fixtures above carry no zone, as a local time, which is why nothing caught it; these carry a Z, as the
+// database's timestamps do, and run the process in more than one zone.
+describe("the reader's own day on a row, over a group and in a header", () => {
+  function inZone(zone: string, body: () => void): void {
+    const before = process.env.TZ;
+    process.env.TZ = zone;
+    try { body(); } finally { if (before === undefined) delete process.env.TZ; else process.env.TZ = before; }
+  }
+  const NOON_EASTERN = new Date("2026-10-10T16:00:00Z");
+  /** 9:00 PM Eastern on Oct 1; 10:00 AM in Tokyo on Oct 2; 01:00 UTC on Oct 2. */
+  const LATE = "2026-10-02T01:00:00Z";
+  const time = (f: { text: string }) => f.text.replace(/\u202f/g, " ");
+  const rowAt = (id: string, iso: string): InboxRow => row(id, iso);
+
+  it("an older row's date is the day it arrived where the reader is", () => {
+    inZone("America/New_York", () => expect(whenShort(LATE, NOON_EASTERN)).toBe("Oct 1"));
+    inZone("America/Los_Angeles", () => expect(whenShort(LATE, NOON_EASTERN)).toBe("Oct 1"));
+    inZone("Asia/Tokyo", () => expect(whenShort(LATE, NOON_EASTERN)).toBe("Oct 2"));
+    inZone("UTC", () => expect(whenShort(LATE, NOON_EASTERN)).toBe("Oct 2"));
+    inZone("Pacific/Kiritimati", () => expect(whenShort(LATE, NOON_EASTERN)).toBe("Oct 2"));
+  });
+
+  it("Today shows the clock and Yesterday says so, in the reader's zone", () => {
+    inZone("America/New_York", () => {
+      expect(whenShort("2026-10-10T14:05:00Z", NOON_EASTERN).replace(/\u202f/g, " ")).toBe("10:05 AM");
+      expect(whenShort("2026-10-10T01:30:00Z", NOON_EASTERN)).toBe("Yesterday");
+    });
+  });
+
+  it("a day group is a local day: mail either side of local midnight is two groups, and one local evening is one group", () => {
+    inZone("America/New_York", () => {
+      // 11:30 PM Oct 1 and 12:30 AM Oct 2 in New York: the same UTC date, two local days.
+      const across = dayGroups([rowAt("b", "2026-10-02T04:30:00Z"), rowAt("a", "2026-10-02T03:30:00Z")], NOON_EASTERN);
+      expect(across.map((g) => [g.label, g.rows.map((r) => r.id)])).toEqual([["Oct 2", ["b"]], ["Oct 1", ["a"]]]);
+      // 7:00 PM and 11:00 PM on Oct 1 in New York: two UTC dates, one local day.
+      const evening = dayGroups([rowAt("d", "2026-10-02T03:00:00Z"), rowAt("c", "2026-10-01T23:00:00Z")], NOON_EASTERN);
+      expect(evening.map((g) => [g.label, g.rows.map((r) => r.id)])).toEqual([["Oct 1", ["d", "c"]]]);
+    });
+    inZone("UTC", () => {
+      const across = dayGroups([rowAt("b", "2026-10-02T04:30:00Z"), rowAt("a", "2026-10-02T03:30:00Z")], NOON_EASTERN);
+      expect(across.map((g) => g.label)).toEqual(["Oct 2"]);
+    });
+  });
+
+  it("a message header and the Last Checked line read the same day as the row", () => {
+    inZone("America/New_York", () => {
+      expect(whenFacts(LATE, NOON_EASTERN).map(time)).toEqual(["Oct 1", "9:00 PM"]);
+      expect(whenWords(LATE, NOON_EASTERN).replace(/\u202f/g, " ")).toBe("Oct 1 9:00 PM");
+      expect(checkedFacts(LATE, NOON_EASTERN).map(time)).toEqual(["Last Checked Oct 1", "9:00 PM"]);
+      expect(homeFreshness([account({ last_sync_at: LATE })], NOON_EASTERN).map(time)).toEqual(["Last Checked Oct 1", "9:00 PM"]);
+    });
+    inZone("Asia/Tokyo", () => {
+      expect(whenFacts(LATE, NOON_EASTERN).map(time)).toEqual(["Oct 2", "10:00 AM"]);
+    });
+  });
+});

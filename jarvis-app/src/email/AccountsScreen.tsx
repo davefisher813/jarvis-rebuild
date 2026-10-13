@@ -16,11 +16,13 @@ import { checkedFacts, isCatchingUp, type EmailFact } from "./format";
 import type { EmailAccount } from "./emailClient";
 import type { AccountStatus, ClientView } from "../connections/connectionStatus";
 import type { RpcClient } from "../substrate/commands/errors";
+import type { FileStore } from "../files/FileStore";
+import type { SignatureSaved } from "./signatureBus";
 import EmptyState from "./EmptyState";
 import SignatureSheet from "./SignatureSheet";
 import AccountStatusSheet, { STATUS_SHEET_TITLE } from "./AccountStatusSheet";
 
-export default function AccountsScreen({ accounts, views, statuses, client, userId, onBack, onOpenConnections, onReconnect, onRetrySync, onOpenDrafts, onSignatureSaved }: {
+export default function AccountsScreen({ accounts, views, statuses, client, userId, fileStore, onBack, onOpenConnections, onReconnect, onRetrySync, onOpenDrafts, onSignatureSaved }: {
   accounts: EmailAccount[];
   /** The server's answer per account (sendReady, delivery), for the status sheet's Sending row. */
   statuses?: readonly AccountStatus[];
@@ -33,12 +35,14 @@ export default function AccountsScreen({ accounts, views, statuses, client, user
   /** The session's client, for the signature editor's one RPC. No client, no menu: a row with no working door to open is not offered one. */
   client?: RpcClient | null;
   userId?: string;
+  /** Where the signature picture is kept (the signature builder); without one the picture step is not offered. */
+  fileStore?: FileStore | null;
   onBack: () => void;
   onOpenConnections: () => void;
   /** Drafts and what was sent from JARVIS (slice 07), reached from the mailbox picker as section 09 says. */
   onOpenDrafts?: () => void;
   /** The saved signature changed (Email v1 spec L3), so the caller's own copy of this account can be updated without a full reload. */
-  onSignatureSaved?: (accountId: string, text: string, revision: number) => void;
+  onSignatureSaved?: (accountId: string, text: string, revision: number, saved: SignatureSaved) => void;
 }) {
   const [menuFor, setMenuFor] = useState<EmailAccount | null>(null);
   const [editing, setEditing] = useState<EmailAccount | null>(null);
@@ -123,8 +127,8 @@ export default function AccountsScreen({ accounts, views, statuses, client, user
           {...(onReconnect ? { onReconnect } : {})} {...(onRetrySync ? { onRetrySync } : {})} onClose={() => setStatusFor(null)} />
       )}
       {editing && client && (
-        <SignatureSheet client={client} userId={userId ?? ""} account={editing} onClose={() => { setEditing(null); setMenuFor(null); }}
-          onSaved={(accountId, text, revision) => onSignatureSaved?.(accountId, text, revision)} />
+        <SignatureSheet client={client} userId={userId ?? ""} account={editing} fileStore={fileStore ?? null} onClose={() => { setEditing(null); setMenuFor(null); }}
+          onSaved={(accountId, text, revision, saved) => onSignatureSaved?.(accountId, text, revision, saved)} />
       )}
     </div>
   );

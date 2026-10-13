@@ -27,6 +27,7 @@ import AccountsScreen from "./AccountsScreen";
 import DraftsScreen from "./DraftsScreen";
 import SearchScreen, { EMPTY_SEARCH_STATE, type SearchState } from "./SearchScreen";
 import MessageScreen from "./MessageScreen";
+import WhySectionSheet from "./WhySectionSheet";
 import ComposeScreen from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
@@ -176,7 +177,9 @@ describe("the cards: the facts are separate spans, the colour is the key, the li
   });
 
   it("an event: the day and the 12-hour span are neutral small-caps facts, the zone is the one grey; a missing zone is a need", () => {
-    const { container } = cards([cand("c1", EVENT), cand("c2", { ...EVENT, time: { ...EVENT.time, timezone: "" } }, { id: "c2", missing_fields: ["timezone"] })]);
+    // The day is read in the event's own zone (issue 112), so "now" is noon Eastern as an instant, not the host's local noon,
+    // which is already another day in New York on a machine far enough east.
+    const { container } = cards([cand("c1", EVENT), cand("c2", { ...EVENT, time: { ...EVENT.time, timezone: "" } }, { id: "c2", missing_fields: ["timezone"] })], { now: () => new Date("2026-10-05T16:00:00Z") });
     const [zoned, bare] = [...container.querySelectorAll(".email-card")];
     expect(texts(zoned!, ".conn-meta .fact")).toEqual(["Today", "10:00 AM to 11:00 AM", "Eastern"]);
     expect(zoned!.querySelectorAll(".fact.date").length).toBe(2);
@@ -451,6 +454,32 @@ describe("The message head and its attachments", () => {
     expect(row.querySelector(".fact b")).toHaveTextContent("240 KB");
     expect(row).not.toHaveTextContent("application/pdf");
   });
+  // Move to Section on the sheet's face (issue 104): a plain row, the tile in Email's teal, the section it sits in as its one grey fact.
+  it("the Move to Section row: its title, then the section as the one grey fact, a span with no dot, no pill; the whole sheet still follows the catalog", () => {
+    render(
+      <MessageScreen client={noClient} token={null} userId="u-head" row={ROW_} account={null} offline categories={[AREA]} categoryId="c1" onBack={noop} onRowChanged={noop} onLeftInbox={noop} onFileUnder={noop} onMoveToSection={noop} sectionName="Mailing Lists" />,
+    );
+    const row = [...document.body.querySelectorAll(".email-actions .row")].find((r) => r.querySelector(".conn-name")?.textContent === "Move to Section")!;
+    expect(row, "the Move to Section row is on the sheet's face").toBeTruthy();
+    expect(texts(row, ".fact")).toEqual(["Mailing Lists"]);
+    expect(row.querySelector(".fact")!.tagName).toBe("SPAN");
+    // The one grey: no tone, no area dot, no white number. Its colour is the row's secondary ink and nothing else.
+    expect(row.querySelector(".fact")!.className).toBe("fact");
+    expect(row.querySelector(".sec-ico")).toHaveClass("ico-teal");
+    expect(row.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    expect(catalogViolations(document.body)).toEqual([]);
+  });
+  it("with no section to name the row is its title alone: no facts line is drawn, and without the prop there is no row at all", () => {
+    render(
+      <MessageScreen client={noClient} token={null} userId="u-head" row={ROW_} account={null} offline categories={[AREA]} categoryId="c1" onBack={noop} onRowChanged={noop} onLeftInbox={noop} onFileUnder={noop} onMoveToSection={noop} />,
+    );
+    const row = [...document.body.querySelectorAll(".email-actions .row")].find((r) => r.querySelector(".conn-name")?.textContent === "Move to Section")!;
+    expect(row, "the Move to Section row is on the sheet's face").toBeTruthy();
+    expect(row.querySelector(".facts, .conn-meta, .fact")).toBeNull();
+    cleanup();
+    message();
+    expect([...document.body.querySelectorAll(".email-actions .row")].some((r) => r.textContent?.includes("Move to Section"))).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -564,5 +593,159 @@ describe("copy.ts: every constant is Title Case after every dot and number, and 
     const all = strings().map(([, v]) => v);
     for (const dead of ["Open Email to Review", "No Follow-Up Date", "No Messages Sent From JARVIS Yet", "Check Gmail Before Trying Again", "A Reply Never Resolves This on Its Own"]) expect(all).not.toContain(dead);
     expect(Object.keys(copy)).not.toContain("OPEN_TO_REVIEW");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WHY THIS SECTION? (issue 112, item 15): the explanation sheet follows the catalog like every other sheet of the tab
+// ---------------------------------------------------------------------------
+describe("Why This Section?: one grey a row, facts as spans, no dot in a string, Title Case, 12-hour time", () => {
+  // The sheet portals to document.body, so the check runs there. A row of facts is a bare mailbox row plus the facts that decide it.
+  const FACTS = { rfc_message_id: null, list_id: null, list_unsubscribe: null, mime_type: null, content_class: null, own_reply: null } as const;
+  const msg = (o: Partial<InboxRow>): InboxRow => ({ ...ROW_, attachment_metadata: [], ...FACTS, ...o });
+  const sheet = (r: InboxRow, o: Partial<Parameters<typeof WhySectionSheet>[0]> = {}) =>
+    render(<WhySectionSheet row={r} overrides={{}} now={NOW} onMove={noop} onPutBack={noop} onClose={noop} {...o} />);
+  const rows = () => [...document.body.querySelectorAll('[role="dialog"] .row')] as HTMLElement[];
+  const lines = () => rows().map((r) => [r.querySelector(".conn-name")!.textContent, texts(r, ".fact").map((t) => (t ?? "").replace(/ /g, " "))] as const);
+
+  const CASES: Array<[string, InboxRow, Partial<Parameters<typeof WhySectionSheet>[0]>, ReadonlyArray<readonly [string | null, string[]]>]> = [
+    ["Conversations", msg({ own_reply: true }), {}, [["Rule", ["You Sent a Message in This Thread"]], ["Evidence", ["Sent Message in Synced Mail", "dave@example.test"]]]],
+    ["Schedule by type", msg({ mime_type: "text/calendar" }), {}, [["Rule", ["It Has Calendar Structure"]], ["Evidence", ["Message Type Is Calendar"]]]],
+    ["Schedule by Content-Class", msg({ content_class: "urn:content-classes:calendarmessage" }), {}, [["Rule", ["It Has Calendar Structure"]], ["Evidence", ["Marked as a Calendar Message"]]]],
+    ["Schedule by file", msg({ attachment_metadata: [{ filename: "invite.ics", mime: "application/octet-stream", attachmentId: "i", size: 1 }] }), {}, [["Rule", ["It Has Calendar Structure"]], ["Evidence", ["Calendar File Attached"]]]],
+    ["Money", msg({ from_address: "noreply@billing.coned.com", subject: "Your Con Edison Bill Is Due" }), {}, [["Rule", ["It Matches a Money Sender Template"]], ["Evidence", ["Con Edison", "Invoice", "noreply@billing.coned.com"]]]],
+    ["Mailing Lists, both headers", msg({ list_id: "<l>", list_unsubscribe: "<u>" }), {}, [["Rule", ["It Has a Mailing List Header"]], ["Evidence", ["List-ID and List-Unsubscribe Headers"]]]],
+    ["Mailing Lists, one header", msg({ list_unsubscribe: "<u>" }), {}, [["Rule", ["It Has a Mailing List Header"]], ["Evidence", ["List-Unsubscribe Header"]]]],
+    ["Other, facts kept", msg({}), {}, [["Rule", ["No Section Rule Matched"]]]],
+    ["Other, facts not kept", { ...ROW_ }, {}, [["Rule", ["No Section Rule Matched"]], ["Evidence", ["Facts Not Kept for This Message"]]]],
+    ["a move with its time", msg({}), { overrides: { m1: "money" }, movedAt: "2026-10-05T09:12:00" }, [["Rule", ["You Moved It Here"]], ["Evidence", ["Saved on This Phone Only", "Today", "9:12 AM"]], ["Without Your Move", ["Other"]]]],
+    ["a move over a Money message, an older day", msg({ from_address: "noreply@billing.coned.com", subject: "Your Con Edison Bill Is Due" }), { overrides: { m1: "lists" }, movedAt: "2026-10-01T21:05:00" }, [["Rule", ["You Moved It Here"]], ["Evidence", ["Saved on This Phone Only", "Oct 1", "9:05 PM"]], ["Without Your Move", ["Money"]]]],
+    ["a move over a row with no facts kept", { ...ROW_ }, { overrides: { m1: "schedule" } }, [["Rule", ["You Moved It Here"]], ["Evidence", ["Saved on This Phone Only"]], ["Without Your Move", ["Other", "Facts Not Kept for This Message"]]]],
+  ];
+
+  for (const [name, r, o, expected] of CASES) {
+    it(`${name}: says what it should, and passes the catalog check`, () => {
+      sheet(r, o);
+      expect(lines()).toEqual(expected);
+      expect(catalogViolations(document.body)).toEqual([]);
+      // Every fact is a span; no row holds a control; the only buttons are the sheet's own, under the rows.
+      for (const f of document.body.querySelectorAll('[role="dialog"] .fact')) expect(f.tagName).toBe("SPAN");
+      for (const row of rows()) expect(row.querySelector("button, .pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+      expect(document.body.querySelector('[role="dialog"] .facts')).toBeNull();
+    });
+  }
+
+  it("a row that has nothing to say is not drawn: Other with its facts kept is a Rule alone", () => {
+    sheet(msg({}));
+    expect(rows()).toHaveLength(1);
+    expect(document.body.querySelectorAll('[role="dialog"] .conn-meta')).toHaveLength(1);
+  });
+
+  it("the head names the section, the actions are the sheet's own (Move to Section, Done), and a section dot is the only colour", () => {
+    sheet(msg({ from_address: "noreply@billing.coned.com", subject: "Your Con Edison Bill Is Due" }), { overrides: { m1: "lists" } });
+    expect(document.body.querySelector('[role="dialog"] .grp .eyebrow')).toHaveTextContent("In Mailing Lists");
+    expect([...document.body.querySelectorAll(".action-sheet button")].map((b) => b.textContent)).toEqual(["Move to Section", "Use Its Own Section", "Done"]);
+    // The dot on the section the message would be in is the slot colour the Money heading wears; the other facts are white, grey or small caps.
+    const without = rows().find((r) => r.querySelector(".conn-name")?.textContent === "Without Your Move")!;
+    expect(without.querySelector(".fact.cat .cd")).toHaveClass("cat-bg-teal");
+    expect(document.body.querySelector('[role="dialog"] .fact.warn, [role="dialog"] .fact.red, [role="dialog"] .fact.good')).toBeNull();
+  });
+
+  it("every explanation string is Title Case with no dot, dash or sentence in it (the copy test above reads these too)", () => {
+    const strings = [copy.WHY_SECTION, copy.WHY_ROW_RULE, copy.WHY_ROW_EVIDENCE, copy.WHY_ROW_WITHOUT_MOVE, copy.WHY_SAVED_HERE, copy.WHY_SENT_FOUND, copy.WHY_NO_FACTS, copy.WHY_MONEY_AMBIGUOUS,
+      copy.whyIn("Mailing Lists"), ...Object.values(copy.WHY_RULE), ...Object.values(copy.WHY_CAL), ...Object.values(copy.WHY_MONEY_WORD), ...Object.values(copy.WHY_LIST)];
+    expect(Object.keys(copy.WHY_RULE).sort()).toEqual(["calendar", "conversation", "list", "money", "moved", "other"]);
+    expect(Object.keys(copy.WHY_CAL).sort()).toEqual(["attachment", "content_class", "mime"]);
+    expect(Object.keys(copy.WHY_MONEY_WORD).sort()).toEqual(["invoice", "receipt", "statement"]);
+    for (const s of strings) {
+      expect(isTitleCase(s), s).toBe(true);
+      // A middle dot, a bullet, an en dash or an em dash, by code (no such character is written in this file).
+      for (const code of [0x00b7, 0x2022, 0x2013, 0x2014]) expect(s.includes(String.fromCharCode(code)), s).toBe(false);
+      expect(s, s).not.toMatch(/\. [A-Z]| - /);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE USE GROUPED MAIL EXPLAINER (issue 112, item 17): the one-time card at the top of the Grouped list follows the catalog
+// ---------------------------------------------------------------------------
+import EmailFlow from "./EmailFlow";
+import { capsulesInRows, loneActionBoxes, numberCaseViolations } from "../laws/catalogCheck";
+
+describe("The Use Grouped Mail explainer: one grey fact span, Title Case, no dot or dash, a capsule and a Dismiss, Email's own colour", () => {
+  const mailbox = account({ id: "a" });
+  const message: InboxRow = { ...ROW_, attachment_metadata: [] };
+  const answers: Record<string, unknown> = {
+    email_accounts: [mailbox], email_inbox: { rows: [message], cached_total: 1, page: 30 }, substrate_readiness: { registered: [] }, candidates_for: [],
+  };
+  const client: RpcClient = { rpc: async (fn) => ({ data: answers[fn] ?? null, error: null }) };
+  const mountHome = async () => {
+    localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, synced: 0, removed: 0, next_page: null, complete: true, resynced: false }) }) as Response));
+    const ui = render(<EmailFlow client={client} token="jwt" userId="u-intro" categories={[]} now={() => NOW} onOpenConnections={noop} />);
+    await waitFor(() => expect(ui.container.querySelector(".email-intro .notice-card")).not.toBeNull(), { timeout: 4000 });
+    return ui;
+  };
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("passes the same check every Email screen passes, and nothing else on the screen is a violation", async () => {
+    const { container } = await mountHome();
+    expect(catalogViolations(container)).toEqual([]);
+    expect(numberCaseViolations(container)).toEqual([]);
+    expect(capsulesInRows(container)).toEqual([]);
+    expect(loneActionBoxes(container)).toEqual([]);
+  });
+
+  it("its title is the card's name and its one fact is a span: Title Case, one untoned grey, no dot, dash or sentence, nothing in a row beside it", async () => {
+    const { container } = await mountHome();
+    const card = container.querySelector(".email-intro .notice-card") as HTMLElement;
+    expect(texts(card, ".conn-name")).toEqual([copy.GROUPED_INTRO_TITLE]);
+    const facts = [...card.querySelectorAll(".fact")];
+    expect(facts.map((f) => f.textContent)).toEqual([copy.GROUPED_INTRO_SUB]);
+    expect(facts.every((f) => f.tagName === "SPAN")).toBe(true);
+    expect(facts.filter(isGrey)).toHaveLength(1);
+    expect(facts.some((f) => TONES.some((t) => f.classList.contains(t)))).toBe(false);
+    // Drawn once, by the shared line: a .facts line holding the one fact inside the card's own meta line, not a wrapping line inside a line.
+    expect(card.querySelectorAll(".conn-meta")).toHaveLength(1);
+    expect(card.querySelectorAll(".conn-meta > .facts > .fact")).toHaveLength(1);
+    for (const f of facts) expect(f.textContent).not.toMatch(SEPARATOR);
+    // A row with nothing to say shows nothing: there is no third line, no placeholder and no repeat of the title or the action.
+    expect([...card.querySelectorAll(".conn-name, .conn-meta, .pill-act")].map((e) => e.textContent)).toEqual([copy.GROUPED_INTRO_TITLE, copy.GROUPED_INTRO_SUB, copy.USE_GROUPED]);
+  });
+
+  it("its controls are the shared capsule and the shared 44px Dismiss, the capsule is the only one, and the hidden swipe duplicate of Dismiss is not drawn", async () => {
+    const { container } = await mountHome();
+    const card = container.querySelector(".email-intro .notice-card") as HTMLElement;
+    expect(within(card).getByText(copy.USE_GROUPED)).toHaveClass("pill-act");
+    expect(card.querySelectorAll(".pill-act, .row-act, .btn-sm, .quiet-action")).toHaveLength(1);
+    // The 44px box is .notice-x's own rule (components.css, pinned by today/NoticeCard.test.tsx); this holds the card to it.
+    const x = within(card).getByRole("button", { name: "Dismiss" });
+    expect(x).toHaveClass("notice-x");
+    expect(card.querySelector(".notice-dismiss")).toBeNull();
+    // The Email tab's own capsule home: a notice card, never a list row or a list card's foot.
+    expect(card.closest(".list-card-ruled, .email-list")).toBeNull();
+    expect(card.querySelector(".row .row-act")).toBeNull();
+  });
+
+  it("its type icon wears Email's teal, the colour of the envelope everywhere else, and the card has no colour of its own", async () => {
+    const { container } = await mountHome();
+    const card = container.querySelector(".email-intro .notice-card") as HTMLElement;
+    const disc = card.querySelector(".notice-disc") as HTMLElement;
+    expect(disc).toHaveClass("cat-bg-teal");
+    expect(disc.querySelector("svg")).not.toBeNull();
+    // No inline colour anywhere in it, and no colour class but the one tone.
+    expect(card.querySelector("[style*='color'], [style*='background']")).toBeNull();
+    expect([...card.querySelectorAll("[class*='cat-']")].map((e) => [...e.classList].filter((c) => /^cat-/.test(c)))).toEqual([["cat-bg-teal"]]);
+  });
+
+  it("the three new strings are Title Case with no dot, dash or sentence in them, and the title stays short enough for two lines at 1.4x", () => {
+    for (const s of [copy.GROUPED_INTRO_TITLE, copy.GROUPED_INTRO_SUB, copy.USE_GROUPED]) {
+      expect(isTitleCase(s), s).toBe(true);
+      for (const code of [0x00b7, 0x2022, 0x2013, 0x2014]) expect(s.includes(String.fromCharCode(code)), s).toBe(false);
+      expect(s, s).not.toMatch(/\. [A-Z]| - /);
+    }
+    // The spec's own sentence (66 characters) was drawn through the real card at 390 wide: three lines at the normal text size and four
+    // at 1.4x. The title that ships is 23 and takes one line at 1x and two at 1.4x in the widest face tried. A long title comes back as a long card.
+    expect(copy.GROUPED_INTRO_TITLE.length).toBeLessThanOrEqual(32);
   });
 });

@@ -4,18 +4,17 @@
 // one receipt on the server; the reads bring the source thread back for the
 // evidence, Open in Gmail, New Reply and a follow-up's real address; the
 // words here are computed from the record alone, in the person's local
-// dates. The Today rows are a pure function: a generic count first, then
-// committed email-origin items due today or overdue, five at most, nothing
-// padded, nothing proposed, no title that is not already the person's own.
+// dates. The Today rows are a pure function and Email's own, nothing else
+// (spec section 7, issue 112): the one combined paused-sends card, then the
+// open Waiting follow-ups that are due or overdue, five at most, nothing
+// padded, nothing proposed. A task, an event or a bill that a capture made is
+// its owning module's to show; Email draws no copy of it.
 
 import { callCommand, newRequestId, type CommandResult, type RpcClient } from "../substrate/commands/errors";
 import type { WaitingData, WaitingItem } from "../substrate/waiting/types";
-import type { TaskItem } from "../tasks/TasksService";
-import type { EventItem } from "../schedule/types";
 import type { InboxRow, MailAddress } from "./emailClient";
 import type { Candidate } from "./candidates";
 import type { DraftRow } from "./drafts";
-import { fmtTime } from "../schedule/calendar";
 import type { EmailFact } from "./format";
 import { isAutoSubject } from "./autoReply";
 
@@ -181,7 +180,7 @@ export function orderWaiting(items: readonly WaitingItem[], today: string): { op
   return { open, resolved };
 }
 
-// ---- Today (12, T1): the one number and the committed items ------------------
+// ---- Today (12, T1; spec section 7, issue 112): Email's own rows and no others ---
 
 export const TODAY_EMAIL_CAP = 5;
 
@@ -189,7 +188,8 @@ export const TODAY_EMAIL_CAP = 5;
 export type TodayEmailFact = EmailFact;
 
 export interface TodayEmailRow {
-  kind: "paused" | "task" | "event" | "waiting";
+  /** Only Email's own: the combined paused-sends card and a Waiting follow-up that is due. A task, an event or a bill a capture made is the owning module's row. */
+  kind: "paused" | "waiting";
   /** The destination item id, or "paused" for the combined paused-sends card. */
   id: string;
   title: string;
@@ -201,37 +201,24 @@ export interface TodayEmailRow {
   sort: [number, string, string];
 }
 
-export const emailOriginTask = (t: TaskItem): boolean => !!t.data.fromThread || t.data.source?.type === "email";
-export const emailOriginEvent = (e: EventItem): boolean => e.data.source?.type === "email" || (e.data.emailIds?.length ?? 0) > 0;
-
-
-/** 10:00 AM to 10:15 AM from "10:00", "10:15": 12-hour with AM/PM, as every clock time is written (Dave 2026-09-26). */
-function timeSpan(start: string, end?: string): string {
-  const t = (hhmm: string) => { const f = fmtTime(hhmm); return `${f.time} ${f.ap}`; };
-  return end ? `${t(start)} to ${t(end)}` : t(start);
-}
-
 /** Oct 15 from 2026-10-15, without a zone shift. */
 function monthDayOf(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   return new Date(Date.UTC(y ?? 2000, (m ?? 1) - 1, d ?? 1)).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/** The rows Today may show for Email (spec section 7): the one combined paused-sends card when there is paused work, then committed email-origin tasks due today or overdue, events today, and open waiting items whose follow-up is today or overdue. Five at most, each destination once, nothing padded, and never anything for tomorrow. */
-export function emailTodayRows(input: { paused?: { count: number; replies: number } | null; tasks: readonly TaskItem[]; events: readonly EventItem[]; waiting: readonly WaitingItem[]; today: string; excludeIds?: ReadonlySet<string>; cap?: number }): TodayEmailRow[] {
+/**
+ * The rows Today may show for Email (spec section 7, issue 112): the one combined paused-sends card when there is paused work, then the open Waiting
+ * items whose follow-up is today or overdue. Five at most, each destination once, nothing padded, and never anything for tomorrow.
+ *
+ * There is no task, event or bill input on purpose. A confirmed task or event is shown by Tasks and Schedule on Today, once (today/onceOnToday.ts);
+ * a bill by Money. A Waiting item is neither, no other Today surface draws it, so an approved Track This would vanish from Today without its row here.
+ */
+export function emailTodayRows(input: { paused?: { count: number; replies: number } | null; waiting: readonly WaitingItem[]; today: string; cap?: number }): TodayEmailRow[] {
   const cap = input.cap ?? TODAY_EMAIL_CAP;
   const rows: TodayEmailRow[] = [];
-  const seen = new Set<string>(input.excludeIds ?? []);
+  const seen = new Set<string>();
   const take = (r: TodayEmailRow) => { if (seen.has(r.id)) return; seen.add(r.id); rows.push(r); };
-  for (const t of input.tasks) {
-    if (t.data.done || !t.data.due || t.data.due > input.today || !emailOriginTask(t)) continue;
-    const overdue = t.data.due < input.today;
-    take({ kind: "task", id: t.id, title: t.data.text, facts: [overdue ? { text: `Was Due ${monthDayOf(t.data.due)}`, tone: "red" } : { text: "Due Today", tone: "warn" }], sort: [overdue ? 0 : 1, t.data.due, t.id] });
-  }
-  for (const e of input.events) {
-    if (e.data.date !== input.today || !emailOriginEvent(e)) continue;
-    take({ kind: "event", id: e.id, title: e.data.title, facts: [{ text: timeSpan(e.data.start, e.data.end), tone: "date" }], sort: [1, input.today + "T" + e.data.start, e.id] });
-  }
   for (const w of input.waiting) {
     const d = w.data;
     if (d.status !== "open" || !d.followUpOn || d.followUpOn > input.today) continue;

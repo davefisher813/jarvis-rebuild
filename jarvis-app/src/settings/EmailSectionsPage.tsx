@@ -37,7 +37,9 @@ export default function EmailSectionsPage({ onBack, onOpenEmail, userId: givenUs
   userId?: string;
 }) {
   const ctxUser = useUserId();
-  const userId = givenUser ?? ctxUser ?? "";
+  // The Email tab files a move under "local" when there is no signed-in id (EmailFlow), so this page reads the same key. With
+  // "" here, a move made without an id was written under local: and listed under an empty one, and Settings showed none.
+  const userId = givenUser ?? ctxUser ?? "local";
   const known = () => { try { return loadSnapshot(userId)?.rows ?? []; } catch { return []; } };
   const [moves, setMoves] = useState<SectionMove[]>(() => listMoves(userId, known()));
   const [menuFor, setMenuFor] = useState<SectionMove | null>(null);

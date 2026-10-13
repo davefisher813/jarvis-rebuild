@@ -44,7 +44,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import SkeletonRows from "../shared/SkeletonRows";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
-import { ChevronRight, PenLine, RotateCcw, Search } from "../shared/icons";
+import { ChevronRight, Mail, PenLine, RotateCcw, Search } from "../shared/icons";
+import NoticeCard from "../today/NoticeCard";
 import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -65,8 +66,9 @@ import {
   TRASHED, UNDO, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, DRAFT_SAVED, DRAFT_SAVED_HERE, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
   REVIEW_OPEN, reviewItemsLine, WAITING_TITLE, waitingDeleted,
-  ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
-  SIGN_IN_FIRST, VIEW_DATE, VIEW_GROUPED, VIEW_LABEL, WAITING_SEGMENT_TITLE, selectAllLoaded, selectedWord,
+  ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, MOVED_BACK, movedToLine, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
+  SIGN_IN_FIRST, VIEW_DATE, VIEW_GROUPED, VIEW_LABEL, WAITING_SEGMENT_TITLE, WHY_SECTION, selectAllLoaded, selectedWord,
+  GROUPED_INTRO_SUB, GROUPED_INTRO_TITLE, USE_GROUPED,
 } from "./copy";
 import {
   answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
@@ -75,7 +77,7 @@ import {
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
 import { accountLabels, dayGroups, homeFreshness, isCatchingUp, senderOf } from "./format";
-import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, loadOverrides, loadView, loadedWord, recordMove, saveView, sameContent as sameContentOf, sectionOf, threadCounts, type HomeView, type Overrides } from "./sections";
+import { SECTION_KEYS, SECTION_NAME, SECTION_SLOT, groupSections, listMoves, loadGroupedIntroDone, loadOverrides, loadView, loadedWord, recordMove, saveGroupedIntroDone, saveView, sameContent as sameContentOf, sectionOf, threadCounts, type HomeView, type Overrides, type SectionKey } from "./sections";
 import { OP_OF, REVERSE, attentionLine, doneLine, pickOf, reasonsOf, runBatch, tally, type BatchOutcome, type Picked, type TrayVerb } from "./bulk";
 import MailSelectTray from "./MailSelectTray";
 import type { BatchOp } from "./emailClient";
@@ -89,7 +91,7 @@ import ComposeScreen, { type ComposeStart } from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
 import HeldSendView from "./HeldSendView";
-import { onSignatureSaved as listenSignature } from "./signatureBus";
+import { onSignatureSaved as listenSignature, withSavedSignature, type SignatureSaved } from "./signatureBus";
 import { isHeld, type HoldStatus } from "./drafts";
 import type { HeldSend } from "./sendHold";
 import DraftsScreen from "./DraftsScreen";
@@ -114,8 +116,9 @@ import { replySubject } from "../connections/google/map";
 import EmptyState from "./EmptyState";
 import CandidateCards from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
+import WhySectionSheet from "./WhySectionSheet";
 import {
-  candidatesFor, contextFor, isProvisional, isToReview, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
+  bodyProposals, bodyReadingKey, candidatesFor, contextFor, isProvisional, isToReview, listReadingKey, listRowProposals, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
   type Candidate,
 } from "./candidates";
 import { EXTRACTOR_VERSION } from "../substrate/extract";
@@ -217,8 +220,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const snapshot = useMemo(() => loadSnapshot(userId), [userId]);
   const [accounts, setAccounts] = useState<EmailAccount[]>(snapshot?.accounts ?? []);
   // A signature saved in Settings (Email Signatures) is the one the next compose inserts, without a reload.
-  useEffect(() => listenSignature(({ accountId, text, revision }) =>
-    setAccounts((prev) => prev.map((a) => (a.id === accountId ? { ...a, signature_text: text, signature_revision: revision } : a)))), []);
+  useEffect(() => listenSignature((saved) => setAccounts((prev) => prev.map((a) => withSavedSignature(a, saved)))), []);
   const [rows, setRows] = useState<InboxRow[]>(snapshot?.rows ?? []);
   const [cachedTotal, setCachedTotal] = useState<number>(snapshot?.rows.length ?? 0);
   const [providerNext, setProviderNext] = useState<Record<string, string | null>>({});
@@ -232,10 +234,16 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [chip, setChip] = useState<string | null>(null);
   // The mail home (spec 3.1): grouped or by date, kept per device; Move to Section, kept per device; one account or all.
   const [view, setView] = useState<HomeView>(() => loadView(userId));
+  // The one-time Use Grouped Mail explainer (issue 112, item 17): dealt with on this device, or not yet. The screen's own state
+  // keeps it gone for the visit even when storage cannot be written.
+  const [introDone, setIntroDone] = useState<boolean>(() => loadGroupedIntroDone(userId));
   const [overrides, setOverrides] = useState<Overrides>(() => loadOverrides(userId));
   const [accountFilter, setAccountFilter] = useState<string | null>(null);
   const [pickingAccount, setPickingAccount] = useState(false);
   const [movingRow, setMovingRow] = useState<InboxRow | null>(null);
+  // Why This Section? (issue 112, item 15): the message whose reason is on screen, by id, so the sheet always reads the freshest
+  // row. Read-only; opening it writes nothing.
+  const [whyId, setWhyId] = useState<string | null>(null);
   // Select mode (spec 11): the selection is frozen at each tap, as exact messages, never "whatever is loaded later".
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<Picked[]>([]);
@@ -343,14 +351,18 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
   // The rules over a loaded row's subject and snippet, once per message per
   // version on this phone (the server deduplicates by fingerprint anyway).
+  // Only for the kinds the list reads (candidates.ts LIST_ROW_KINDS): a row's
+  // words make no bill, receipt, task or waiting card (spec 5.2, AC11; Dave
+  // 2026-10-13, hide the old rule candidates). What the person asks for is read
+  // below, by readBody and readCalendarFile, over every kind.
   const readRows = useCallback(async (list: InboxRow[]) => {
     if (!client || offline) return;
     const seen = readingsOf(userId);
     const touched: string[] = [];
     for (const row of list) {
-      const key = readingKey(row.account_id, row.id, row.source_hash);
+      const key = listReadingKey(row.account_id, row.id, row.source_hash);
       if (seen.has(key)) continue;
-      const proposals = readWithRules(row, zone);
+      const proposals = listRowProposals(readWithRules(row, zone));
       // A reading is remembered only when every proposal reached the server:
       // a dropped signal is read again next time, not lost to this phone.
       let kept = true;
@@ -364,13 +376,14 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   }, [client, offline, userId, zone, loadCards]);
 
   // The rules over an opened message's text, once per message per version;
-  // Find Useful Details reads it again on purpose.
+  // Find Useful Details reads it again on purpose. Only for the kinds the spec keeps
+  // (candidates.ts BODY_READ_KINDS, AC11): no task or Waiting is proposed from the words.
   const readBody = useCallback(async (row: InboxRow, text: string, force = false): Promise<number> => {
     bodyText.current[row.id] = text;
     if (!client || offline) return 0;
-    const key = readingKey(row.account_id, row.id, row.source_hash) + ":body";
+    const key = bodyReadingKey(row.account_id, row.id, row.source_hash);
     if (!force && readingsOf(userId).has(key)) return 0;
-    const proposals = readWithRules(row, zone, text);
+    const proposals = bodyProposals(readWithRules(row, zone, text));
     let kept = true;
     if (proposals.length) kept = (await proposeExtracted(client, proposals, { id: row.id, source_hash: row.source_hash })).failed === 0;
     if (kept) rememberReading(userId, key);
@@ -695,7 +708,12 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const threads = useMemo(() => (view === "grouped" ? threadCounts(visible) : undefined), [view, visible]);
   // Spec 3.3: an exact Message-ID in two connected mailboxes is a label on both rows. Nothing merges and nothing hides.
   const same = useMemo(() => sameContentOf(rows), [rows]);
-  const chooseView = (v: HomeView) => { setView(v); saveView(userId, v); };
+  // The Use Grouped Mail explainer is dealt with once and never comes back (issue 112, item 17): by its Dismiss, by its own
+  // approval below, or by ANY use of the Grouped / All by Date control, which is an explicit presentation choice in itself.
+  const finishIntro = () => { if (introDone) return; saveGroupedIntroDone(userId); setIntroDone(true); };
+  const chooseView = (v: HomeView) => { setView(v); saveView(userId, v); finishIntro(); };
+  // Use Grouped Mail is the spec's explicit presentation approval (2.2, AC01): Grouped stays, now stored as the person's choice.
+  const approveGrouped = () => chooseView("grouped");
   const live = accounts.filter((a) => a.state !== "disconnected");
   // A mailbox still listing its window (spec 8.1, AC39): the header says Catching Up on Mail and an empty list is still loading.
   const catchingUp = live.some(isCatchingUp);
@@ -835,10 +853,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // the Store, so the Waiting list (which answers from the device's cached copy first) did not have it: the person
   // tapped Track This and Email > Waiting still said Nothing You're Waiting On. The saved record is read back by its
   // id at once and kept on screen until the list carries it. Only an explicit save gets here; nothing is created.
+  // EVERY KIND LANDS THE SAME WAY (issue 112): a task or an event is written on the server too, not through the Store, so the
+  // cached lists are dropped for any saved card and Today reads the new task or event the next time it opens, instead of
+  // showing the old day until the background refresh finds the change. Only Waiting is read back by id below.
   const onCardSaved = useCallback((c: Candidate, a: ActionResult) => {
+    store?.invalidateAll();
     if (c.kind !== "waiting" || !a.destination_id || !waitingSvc) return;
     const id = a.destination_id;
-    store?.invalidateAll();
     void waitingSvc.get(id).then((it) => {
       if (!it) return;
       tracked.current[it.id] = it;
@@ -1075,26 +1096,58 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // door (startCapture) the More menu's own Capture entry already opens.
   const messageScreen = screen.kind === "message" ? screen : null;
   const messageCurrent = messageScreen ? (rows.find((r) => r.id === messageScreen.row.id) ?? messageScreen.row) : null;
+  // Where a message sheet goes back to: the inbox, the search it came from, or the review list.
+  const leaveMessage = () => setScreen(messageScreen?.from === "search" ? { kind: "search" } : messageScreen?.from === "review" ? { kind: "reviewList" } : { kind: "root" });
+  // The Move to Section row's one fact: where the message sits now. The person's own move is known for certain; the resolver's
+  // answer holds only for a row whose facts are in the loaded list. A row opened from outside it (an older search hit, a deep
+  // link) carries none of them, so the row says nothing there rather than guess.
+  const sectionNow = messageCurrent && (overrides[messageCurrent.id] || rows.some((r) => r.id === messageCurrent.id)) ? SECTION_NAME[sectionOf(messageCurrent, overrides)] : undefined;
   const messageMore: RowAction[] = messageScreen && messageCurrent ? [
     { label: FIND_DETAILS, onPick: () => void (async () => { const n = await readBody(messageCurrent, bodyText.current[messageCurrent.id] ?? messageCurrent.snippet, true); showToast({ message: foundLine(n) }); })(), disabled: offline },
     { label: CAPTURE_TITLE, onPick: () => setCapturing({ row: messageCurrent, text: bodyText.current[messageCurrent.id] }), disabled: offline },
     { label: showDismissed ? HIDE_DISMISSED : SHOW_DISMISSED, onPick: () => setShowDismissed((v) => !v) },
-    // Spec 3.2 rule 1: the person's own section for this message, on this device. It moves nothing in Gmail.
+    // Spec 3.2 rule 1: the person's own section for this message, on this device. It moves nothing in Gmail. The sheet's own
+    // Move to Section row is the first door (issue 104); this is the second.
     { label: MOVE_TO_SECTION, onPick: () => setMovingRow(messageCurrent) },
+    // Spec 3.2: "Click Why this section? for the rule and evidence" (issue 112, item 15). Offered only where a section is on screen
+    // to explain (Grouped) and the loaded list holds this message's facts: a row opened from outside it carries none, and a reason
+    // is never guessed.
+    ...(view === "grouped" && rows.some((r) => r.id === messageCurrent.id) ? [{ label: WHY_SECTION, onPick: () => setWhyId(messageCurrent.id) }] : []),
   ] : [];
+  // MOVE TO SECTION, ONE HELPER FOR EVERY PICK (issue 104). The move is written, the message sheet closes, and a receipt with an
+  // Undo goes up over the list: the same shape as Archive's. The sheet has to close first, because a toast is painted behind an
+  // open sheet and an Undo under a scrim cannot be tapped, which is how a move that worked read as a dead button. In All by Date
+  // nothing regroups, so the receipt is the confirmation. Undo SETS the section the message was in before (shared/toast.ts,
+  // SHARED-F-03), never toggles, so a second tap or a late one lands on the same answer.
+  const moveMessage = (row: InboxRow, to: SectionKey | null) => {
+    const before = overrides[row.id] ?? null;
+    // The earlier move's own time, so Undo puts it back as it was: Settings lists the moves newest first.
+    const was = before ? listMoves(userId).find((m) => m.id === row.id)?.at : null;
+    setOverrides(recordMove(userId, row, to));
+    setMovingRow(null);
+    leaveMessage();
+    showToast({ message: to ? movedToLine(SECTION_NAME[to]) : MOVED_BACK, actionLabel: UNDO, onAction: () => setOverrides(recordMove(userId, row, before, was ? new Date(was) : new Date())) });
+  };
   const moveSheet = movingRow ? (
     <RowActionSheet title={MOVE_TO_SECTION}
       actions={[
-        ...SECTION_KEYS.filter((k) => k !== sectionOf(movingRow, overrides)).map((k) => ({ label: SECTION_NAME[k], onPick: () => { setOverrides(recordMove(userId, movingRow, k)); setMovingRow(null); } })),
-        ...(overrides[movingRow.id] ? [{ label: PUT_BACK_SECTION, onPick: () => { setOverrides(recordMove(userId, movingRow, null)); setMovingRow(null); } }] : []),
+        ...SECTION_KEYS.filter((k) => k !== sectionOf(movingRow, overrides)).map((k) => ({ label: SECTION_NAME[k], onPick: () => moveMessage(movingRow, k) })),
+        ...(overrides[movingRow.id] ? [{ label: PUT_BACK_SECTION, onPick: () => moveMessage(movingRow, null) }] : []),
       ]}
       onCancel={() => setMovingRow(null)} />
+  ) : null;
+  // Why This Section?: the reason, drawn from the resolver that placed the row. Its Move to Section is the picker above, and its
+  // Use Its Own Section is moveMessage's (the receipt, the Undo), so there is one way to move and one way to put back.
+  const whyNow = whyId && messageCurrent && messageCurrent.id === whyId ? messageCurrent : null;
+  const whySheet = whyNow ? (
+    <WhySectionSheet row={whyNow} overrides={overrides} movedAt={listMoves(userId).find((m) => m.id === whyNow.id)?.at ?? null} now={now}
+      onMove={() => setMovingRow(whyNow)} onPutBack={() => moveMessage(whyNow, null)} onClose={() => setWhyId(null)} />
   ) : null;
   const messageOverlay = messageScreen && messageCurrent && client ? (
     <>
       <MessageScreen client={client} token={token} userId={userId} row={messageCurrent} account={accountOf(messageScreen.row)} offline={offline}
         categories={categories} categoryId={catOf(messageScreen.row)}
-        onBack={() => setScreen(messageScreen.from === "search" ? { kind: "search" } : messageScreen.from === "review" ? { kind: "reviewList" } : { kind: "root" })}
+        onBack={leaveMessage}
         onRowChanged={patchRow}
         onLeftInbox={leftInbox}
         onFileUnder={(r, c) => void onFileUnder(r, c)}
@@ -1102,8 +1155,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         onCalendarFile={(text) => void readCalendarFile(messageCurrent, text)}
         onReply={(m, all) => startReply(m, all, messageScreen)}
         onCapture={(kind) => void startCapture(messageCurrent, kind, bodyText.current[messageCurrent.id])}
+        onMoveToSection={() => setMovingRow(messageCurrent)} sectionName={sectionNow}
         alsoIn={same[messageCurrent.id] ?? []} />
-      {sheetEl}{captureEl}{moveSheet}
+      {sheetEl}{captureEl}{moveSheet}{whySheet}
     </>
   ) : null;
   if ((screen.kind === "search" || (messageScreen?.from === "search")) && client) {
@@ -1129,13 +1183,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     </div>;
   }
   if (screen.kind === "accounts") {
-    const onSignatureSaved = (accountId: string, text: string, revision: number) => setAccounts((prev) => {
-      const next = prev.map((a) => (a.id === accountId ? { ...a, signature_text: text, signature_revision: revision } : a));
+    const onSignatureSaved = (_accountId: string, _text: string, _revision: number, saved: SignatureSaved) => setAccounts((prev) => {
+      const next = prev.map((a) => withSavedSignature(a, saved));
       persist(next, rows);
       return next;
     });
     return <div className={pushCls}>
-      <AccountsScreen accounts={accounts} views={conn.views} statuses={conn.answer?.accounts} client={client} userId={userId} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections}
+      <AccountsScreen accounts={accounts} views={conn.views} statuses={conn.answer?.accounts} client={client} userId={userId} fileStore={fileStore} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections}
         onReconnect={(email) => void reconnect.start(email)} onRetrySync={() => void load("refresh")} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} onSignatureSaved={onSignatureSaved} />
     </div>;
   }
@@ -1172,7 +1226,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     const s = screen;
     const backToCompose = () => { void cancelCommand(client, s.review.review.action_id); setSendFailure(null); setScreen({ kind: "compose", start: s.start, from: s.from }); };
     return <div className={pushCls}>
-      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} hold onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
+      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} hold fileStore={fileStore} onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
     </div>;
   }
   if (screen.kind === "held" && client) {
@@ -1341,12 +1395,38 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         </div>
       )}
       {client && segment === "inbox" && visible.length > 0 && (
-        <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
-          selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
-          onOpen={openInboxRow}
-          // The open message owns its own cards inside the sheet; the dimmed
-          // row behind it does not draw them a second time.
-          renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
+        <>
+          {/* THE ONE-TIME USE GROUPED MAIL EXPLAINER (issue 112, item 17; spec 2.2 and AC01). It sits at the top of the Grouped list
+              and nowhere else: never in All by Date, never over an empty or loading inbox (this block needs rows), never while
+              selecting, never in Search (its own screen). It is the settled notice-card offer: its own words, its own
+              action (Use Grouped Mail, the explicit approval) and a real 44px Dismiss. "Show All by Date" is the arrangement
+              control directly above, equally available, so the card does not draw a second copy of it. Once dealt with it is
+              gone for good (finishIntro, kept on this device). The words are a title and one fact, so it states what the
+              arrangement is and that nothing is hidden, and carries no instruction text and no placeholder. */}
+          {view === "grouped" && !selecting && !introDone && (
+            <div className="email-intro">
+              {/* row-tap: an explainer with no page behind it; the approval is the capsule's own explicit tap, so the body does nothing */}
+              <NoticeCard
+                offer
+                uniform={false}
+                stack
+                icon={<Mail className="ic" />}
+                tone="cat-fg-teal"
+                title={GROUPED_INTRO_TITLE}
+                sub={<EmailFacts facts={[{ text: GROUPED_INTRO_SUB }]} />}
+                action={{ label: USE_GROUPED, onClick: approveGrouped }}
+                onDismiss={finishIntro}
+                dismissButton
+              />
+            </div>
+          )}
+          <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
+            selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
+            onOpen={openInboxRow}
+            // The open message owns its own cards inside the sheet; the dimmed
+            // row behind it does not draw them a second time.
+            renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />
+        </>
       )}
       <div className="screen-foot" />
 

@@ -65,7 +65,7 @@ describe("the signature editor (AC17, AC18, AC19's own settings half)", () => {
     expect(screen.getByLabelText("Signature")).toHaveValue("Dave Fisher");
     fireEvent.change(screen.getByLabelText("Signature"), { target: { value: "Dave Fisher\nSent from JARVIS" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(onSignatureSaved).toHaveBeenCalledWith("acct-dave", "Dave Fisher\nSent from JARVIS", 2));
+    await waitFor(() => expect(onSignatureSaved).toHaveBeenCalledWith("acct-dave", "Dave Fisher\nSent from JARVIS", 2, { accountId: "acct-dave", text: "Dave Fisher\nSent from JARVIS", revision: 2, kind: "text", fields: {}, image: null }));
     expect(r.calls).toEqual([{ fn: "email_signature_set", args: { p_owner: "u1", p_account: "acct-dave", p_text: "Dave Fisher\nSent from JARVIS", p_expected_revision: 1 } }]);
     expect(toasts.some((t) => t.message === SIGNATURE_SAVED)).toBe(true);
     // The sheet closed on its own.
@@ -79,7 +79,7 @@ describe("the signature editor (AC17, AC18, AC19's own settings half)", () => {
     openEditor();
     fireEvent.change(screen.getByLabelText("Signature"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(onSignatureSaved).toHaveBeenCalledWith("acct-dave", "", 2));
+    await waitFor(() => expect(onSignatureSaved).toHaveBeenCalledWith("acct-dave", "", 2, { accountId: "acct-dave", text: "", revision: 2, kind: "text", fields: {}, image: null }));
     expect(r.calls[0]!.args.p_text).toBe("");
   });
 

@@ -4,11 +4,12 @@ import { Mail } from "../shared/icons";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { Head, Card, Row, Foot } from "./kit";
 import { supabase } from "../auth/supabaseClient";
-import { useUserId } from "../data/NotesProvider";
+import { useFileStore, useUserId } from "../data/NotesProvider";
+import type { FileStore } from "../files/FileStore";
 import { lineFor, type RpcClient } from "../substrate/commands/errors";
 import { listAccounts, type EmailAccount } from "../email/emailClient";
 import SignatureSheet from "../email/SignatureSheet";
-import { announceSignature } from "../email/signatureBus";
+import { announceSignature, withSavedSignature } from "../email/signatureBus";
 import { MAILBOXES, NO_SIGNATURE, SIGNATURES_FOOT, SIGNATURES_TITLE } from "../email/copy";
 
 // EMAIL SIGNATURES (Email v1 fix order item 2, 2026-10-11). The per-account
@@ -33,15 +34,19 @@ export const OPEN_CONNECTIONS = "Open Connections";
 export const LOAD_FAILED_TITLE = "Couldn't Load Your Mailboxes";
 export const TRY_AGAIN = "Try Again";
 
-export default function EmailSignaturesPage({ onBack, onOpenConnections, client: given, userId: givenUser }: {
+export default function EmailSignaturesPage({ onBack, onOpenConnections, client: given, userId: givenUser, fileStore: givenStore }: {
   onBack: () => void;
   /** Settings, Connections: the empty state's door. */
   onOpenConnections?: () => void;
   /** A test passes its own; undefined means the app's. */
   client?: RpcClient | null;
   userId?: string;
+  /** Where the signature picture is kept; undefined means the app's. */
+  fileStore?: FileStore | null;
 }) {
   const client: RpcClient | null = given === undefined ? supabase : given;
+  const ctxStore = useFileStore();
+  const fileStore = givenStore === undefined ? ctxStore : givenStore;
   const ctxUser = useUserId();
   const userId = givenUser ?? ctxUser ?? "";
   const [accounts, setAccounts] = useState<EmailAccount[] | null>(null);
@@ -90,10 +95,10 @@ export default function EmailSignaturesPage({ onBack, onOpenConnections, client:
         </div>
       )}
       {editing && client && (
-        <SignatureSheet client={client} userId={userId} account={editing} onClose={() => setEditing(null)}
-          onSaved={(accountId, text, revision) => {
-            setAccounts((prev) => (prev ?? []).map((a) => (a.id === accountId ? { ...a, signature_text: text, signature_revision: revision } : a)));
-            announceSignature({ accountId, text, revision });
+        <SignatureSheet client={client} userId={userId} account={editing} fileStore={fileStore} onClose={() => setEditing(null)}
+          onSaved={(_accountId, _text, _revision, saved) => {
+            setAccounts((prev) => (prev ?? []).map((a) => withSavedSignature(a, saved)));
+            announceSignature(saved);
           }} />
       )}
       <div className="screen-foot" />

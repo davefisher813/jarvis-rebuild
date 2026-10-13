@@ -9,14 +9,18 @@
 
 import { useState } from "react";
 import PageHeader from "../shared/PageHeader";
+import { Image as ImageGlyph } from "../shared/icons";
+import type { FileStore } from "../files/FileStore";
+import { useFileUrl } from "../files/useFileUrl";
 import { lineFor, type CommandFailure } from "../substrate/commands/errors";
 import {
   APPROVAL_SCOPE, ATTACHMENTS_LABEL, BCC_LABEL, CC_LABEL, EDIT_MESSAGE, EMPTY_BODY_WARN, EMPTY_SUBJECT_WARN, FROM_LABEL, NOT_SENT_YET, OFFLINE_SEND, REVIEW_AGAIN, REVIEW_EXPIRED,
-  REVIEW_TITLE, SENDING_LINE, SEND_THIS, HOLD_FIRST_USE, HOLD_WINDOW, SUBJECT_LABEL, TO_LABEL, COMPOSE_TITLE,
+  REVIEW_TITLE, SENDING_LINE, SEND_THIS, HOLD_FIRST_USE, HOLD_WINDOW, SUBJECT_LABEL, TO_LABEL, COMPOSE_TITLE, SIG_PICTURE_ROW,
 } from "./copy";
 import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
 import { reviewExpired, type Review } from "./drafts";
+import { signatureBodyHtml } from "./signature";
 
 /** Read once per review screen, so the line does not flip from the long form to the short one while it is on screen. */
 function holdNoteOnce(): string {
@@ -27,7 +31,7 @@ function holdNoteOnce(): string {
   return HOLD_FIRST_USE;
 }
 
-export default function SendReviewScreen({ review, offline, now, sending, failure, hold, onEdit, onSend, onReviewAgain }: {
+export default function SendReviewScreen({ review, offline, now, sending, failure, hold, fileStore, onEdit, onSend, onReviewAgain }: {
   review: Review;
   offline: boolean;
   now: () => Date;
@@ -36,12 +40,19 @@ export default function SendReviewScreen({ review, offline, now, sending, failur
   failure: CommandFailure | null;
   /** Email v1: the 30-second hold is on. Said above Send: the full promise the first time, the short reminder after. */
   hold?: boolean;
+  /** Where the signature picture is kept, to draw the picture this message carries. */
+  fileStore?: FileStore | null;
   onEdit: () => void;
   onSend: () => void;
   onReviewAgain: () => void;
 }) {
   const [holdNote] = useState<string | null>(() => (hold ? holdNoteOnce() : null));
   const e = review.exact;
+  // The server put the picture in the snapshot only while the draft ends with the signature's untouched block: what is drawn is what is sent.
+  // The sender draws the picture only when the words still end with exactly that signature's lines (signatureBodyHtml says so), so
+  // this screen does too: it never promises a picture the message will not carry.
+  const sig = e.signature && signatureBodyHtml(e.body_text, e.signature.fields) !== null ? e.signature : null;
+  const sigPictureUrl = useFileUrl(fileStore ?? null, sig?.image.storage_id);
   const expired = reviewExpired(review.review.expires_at, now());
   const refusedForGood = failure && (failure.code === "REVIEW_CHANGED" || failure.code === "APPROVAL_EXPIRED" || failure.code === "DRAFT_SENT" || failure.code === "NOT_FOUND");
   // One tap on this screen: Send while the review stands, Review Again once it cannot be used.
@@ -60,6 +71,12 @@ export default function SendReviewScreen({ review, offline, now, sending, failur
             <dt>{SUBJECT_LABEL}</dt><dd>{e.subject.trim() ? e.subject : <span className="email-warn-word">{EMPTY_SUBJECT_WARN}</span>}</dd>
           </dl>
           <div className="email-review-body">{e.body_text.trim() ? e.body_text : <span className="email-warn-word">{EMPTY_BODY_WARN}</span>}</div>
+          {sig && (
+            <div className="email-review-sig">
+              <div className="eyebrow email-eyebrow">{SIG_PICTURE_ROW}</div>
+              <span className="sig-pic">{sigPictureUrl ? <img className="sig-pic-img" src={sigPictureUrl} alt="" /> : <ImageGlyph className="ic" />}</span>
+            </div>
+          )}
           {e.attachments.length > 0 && (
             <div className="email-review-attachments">
               <div className="eyebrow email-eyebrow">{ATTACHMENTS_LABEL}</div>

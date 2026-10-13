@@ -3,11 +3,13 @@
 // E29; 09 M2; 13; CLAUDE.md "Row actions, warm neutrals and the perfect bar").
 // The message opens as a sheet over the dimmed inbox, never a full-screen
 // push: the handle, the subject, the sender and date, the body, its
-// attachments, the candidate cards, four visible rows (Add to JARVIS, Track
-// This, Archive, Open in Gmail) and ONE prominent primary (Reply) at the
-// foot, Reply All a quieter control beside it. Everything else -- headers,
-// Copy Message Id, Forward in Gmail, File Under, Mark Read/Unread, Trash --
-// lives in the More overflow, the same RowActionSheet every other row uses.
+// attachments, the candidate cards, five visible rows (Add to JARVIS, Track
+// This, Move to Section, Archive, Open in Gmail) and ONE prominent primary
+// (Reply) at the foot, Reply All a quieter control beside it. Everything else
+// -- headers, Copy Message Id, Forward in Gmail, File Under, Mark Read/Unread,
+// Trash -- lives in the More overflow, the same RowActionSheet every other row
+// uses; Move to Section is in both (issue 104: the face row is the door a
+// person finds, the More entry stays as the second).
 //
 // The sender's words stay inert: the HTML goes through the app's sanitiser
 // into a frame that runs nothing, the text is drawn as text. Opening marks
@@ -25,7 +27,7 @@ import { createPortal } from "react-dom";
 import { BarAction } from "../shared/PageHeader";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 import SkeletonRows from "../shared/SkeletonRows";
-import { Archive as ArchiveIcon, CornerUpLeft, FileText, Hourglass, MoreHorizontal, Share, Sparkles } from "../shared/icons";
+import { Archive as ArchiveIcon, CornerUpLeft, FileText, FolderKanban, Hourglass, MoreHorizontal, Share, Sparkles } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
 import { showToast } from "../shared/toast";
 import { saveFile } from "../shared/saveFile";
@@ -40,7 +42,7 @@ import {
   EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
   IMAGES_OFF, PUT_BACK, READ_CONFLICT, READ_FAILED, RESTORED, RETRY, SHOW_HEADERS, SHOW_IMAGES, SOURCE_GONE, TRASH, UNREAD_FAILED, UNSUPPORTED_ACTION,
   FORWARD_IN_GMAIL, FORWARD_WHY, REPLY, REPLY_ALL,
-  ALSO_IN,
+  ALSO_IN, MOVE_TO_SECTION,
 } from "./copy";
 import { attachmentBlob, attachmentText, downloadAttachment, gmailLink, isCalendarFile, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
 import { loadMessage, saveMessage } from "./deviceCache";
@@ -71,7 +73,7 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture, alsoIn = [] }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, finish, moreActions, onBodyText, onCalendarFile, onReply, onCapture, onMoveToSection, sectionName, alsoIn = [] }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
@@ -104,6 +106,10 @@ export default function MessageScreen({ client, token, userId, row, account, off
   onReply?: (m: MessageDetail, all: boolean) => void;
   /** Add to JARVIS and Track This: a blank candidate of the chosen kind, through the same manual-capture door the More menu's Capture entry already opens. */
   onCapture?: (kind: CaptureKind) => void;
+  /** Move to Section (issue 104): the face row's door to the section picker the flow owns. Absent: no row, and nothing else changes. Local, so it is never disabled. */
+  onMoveToSection?: () => void;
+  /** Where the message sits now, the row's one fact. Absent when the flow cannot say (a message opened from outside the loaded list): the row then draws no fact. */
+  sectionName?: string;
 }) {
   const [detail, setDetail] = useState<MessageDetail | null>(() => loadMessage(userId, row.id));
   const [loading, setLoading] = useState(true);
@@ -268,8 +274,10 @@ export default function MessageScreen({ client, token, userId, row, account, off
 
   // Headers, Copy Id, Forward and File Under stay in the overflow: the four
   // rows the sheet shows on its own face (Add to JARVIS, Track This, Archive,
-  // Open in Gmail) are the ones Astra's design calls out by name. Archive
-  // left this list for the sheet face; Trash stays here on purpose.
+  // Open in Gmail) are the ones Astra's design calls out by name, and the flow's
+  // own Move to Section joined them (issue 104) while keeping its entry in
+  // moreActions below. Archive left this list for the sheet face; Trash stays
+  // here on purpose.
   const actions: RowAction[] = [
     { label: m?.read === false ? MARK_READ : MARK_UNREAD, onPick: () => void toggleUnread(), disabled: !token || offline || !m },
     { label: FILE_UNDER, onPick: () => setFiling(true), disabled: categories.length === 0 },
@@ -399,10 +407,11 @@ export default function MessageScreen({ client, token, userId, row, account, off
           {cards}
 
           {/* Astra's design, approved 2026-10-10: four visible rows, not a More
-              menu. Add to JARVIS and Track This hand off to the same manual-
-              capture door the More menu's own Capture entry already opens
-              (EmailFlow's startCapture); Archive and Open in Gmail are the
-              message's own provider commands, promoted off the overflow. */}
+              menu (Move to Section is a fifth, issue 104). Add to JARVIS and
+              Track This hand off to the same manual-capture door the More
+              menu's own Capture entry already opens (EmailFlow's
+              startCapture); Archive and Open in Gmail are the message's own
+              provider commands, promoted off the overflow. */}
           <div className="card list-card-ruled email-actions">
             {onCapture && (
               <div className="row" {...rowDoor(() => setAddingKind(true))}>
@@ -415,6 +424,19 @@ export default function MessageScreen({ client, token, userId, row, account, off
               <div className="row" {...rowDoor(() => onCapture("waiting"))}>
                 <div className="sec-ico ico-teal" aria-hidden="true"><Hourglass className="ic" /></div>
                 <div className="row-grow"><div className="conn-name">{PRIMARY.waiting}</div></div>
+                <div className="chev"></div>
+              </div>
+            )}
+            {/* Move to Section (issue 104, Dave 2026-10-13): the fifth face row. It names where the message sits now (its one
+                fact, a span) and opens the flow's section picker; the More menu keeps its own Move to Section as the second
+                door. Local to this phone, so it is never dimmed offline. The icon wears Email's teal. */}
+            {onMoveToSection && (
+              <div className="row" {...rowDoor(onMoveToSection)}>
+                <div className="sec-ico ico-teal" aria-hidden="true"><FolderKanban className="ic" /></div>
+                <div className="row-grow">
+                  <div className="conn-name">{MOVE_TO_SECTION}</div>
+                  {sectionName && <EmailFacts facts={[{ text: sectionName }]} />}
+                </div>
                 <div className="chev"></div>
               </div>
             )}

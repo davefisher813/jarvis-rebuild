@@ -9,8 +9,9 @@ import { CAPTURE_PAYLOAD_VERSION, type EvidenceField, type Json, type TaskPayloa
 import { notPrepared, undoGuard, type Committed, type DestinationAdapter, type PrepareContext, type PrepareResult, type UndoCheck } from "./types";
 
 // TASKS. A task from a card is the task TasksService.createTask makes, with
-// its email provenance (source and fromThread), so Today folds it into the
-// Email band and the From Email list the way it folds every mail task. No
+// its email provenance (source and fromThread). Today shows it as an ordinary
+// task, once, and the Email band draws no copy of it (issue 112, Dave
+// 2026-10-13); the Tasks tab still lists it under From Email. No
 // amount, no vendor, no bill: a bill-shaped thing never reaches this file,
 // because the registry routes bills to Money and the task service's own guard
 // is the second wall.

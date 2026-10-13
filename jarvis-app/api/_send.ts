@@ -11,7 +11,8 @@
 // token never leaves this process; nothing here retries on its own.
 
 import { mailboxToken, serviceRpc, serviceSelect, type EmailEnv } from "./_email";
-import { buildRawMessage, sha256Hex, type ExactAttachment, type ExactSend } from "./_mime";
+import { buildRawMessage, pictureKind, sha256Hex, type ExactAttachment, type ExactSend } from "./_mime";
+import type { SignatureImage } from "../src/email/signature";
 import { UNKNOWN_LINE, type ClaimedCommand, type DispatchOutcome } from "../src/substrate/outbox/worker";
 
 export const GMAIL_SEND_TIMEOUT_MS = 20_000;
@@ -35,6 +36,11 @@ const NOT_SENT: Record<string, string> = {
   ATTACHMENT_MISSING: "Not Sent · An Attachment Is Missing",
   ATTACHMENT_CHANGED: "Not Sent · An Attachment Changed Since the Review",
   UNSUPPORTED: "Not Sent · Not a Message This Door Sends",
+};
+/** The same refusals, in the words for a signature picture (issue 113): the codes stay the attachment ones. */
+const SIGNATURE_NOT_SENT: Record<string, string> = {
+  ATTACHMENT_MISSING: "Not Sent · The Signature Picture Is Missing",
+  ATTACHMENT_CHANGED: "Not Sent · The Signature Picture Changed Since the Review",
 };
 const refused = (code: string, verb?: string): DispatchOutcome => ({ kind: "refused", code, verb: verb ?? NOT_SENT[code] ?? `Not Sent · ${code}` });
 
@@ -73,6 +79,18 @@ export async function fetchAttachment(env: EmailEnv, owner: string, ref: ExactAt
   if (bytes.byteLength !== ref.size_bytes) return { ok: false, code: "ATTACHMENT_CHANGED" };
   if ((await sha256Hex(bytes)) !== ref.sha256) return { ok: false, code: "ATTACHMENT_CHANGED" };
   return { ok: true, bytes };
+}
+
+/**
+ * The built signature's picture, or why not: the bytes the review bound (the owner's own folder, the size and the hash the
+ * snapshot names) and really a PNG or JPEG of the type the reference claims. A picture that is gone or changed refuses the
+ * send before anything leaves; the message is never quietly sent without the picture the person reviewed.
+ */
+export async function fetchSignaturePicture(env: EmailEnv, owner: string, image: SignatureImage): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; code: string }> {
+  const got = await fetchAttachment(env, owner, { storage_id: image.storage_id, filename: "signature", size_bytes: image.size_bytes, sha256: image.sha256, mime_type: image.mime_type });
+  if (!got.ok) return got;
+  if (pictureKind(got.bytes) !== image.mime_type) return { ok: false, code: "ATTACHMENT_CHANGED" };
+  return got;
 }
 
 export interface GmailSendAnswer { status: number; body: { id?: string; threadId?: string; error?: { message?: string; status?: string } } | null }
@@ -122,9 +140,15 @@ export function dispatchFor(env: EmailEnv, deps: { now?: () => Date; doFetch?: t
       if (!got.ok) return refused(got.code);
       parts.push({ filename: ref.filename, mime: ref.mime_type, bytes: got.bytes });
     }
+    let signaturePicture: Uint8Array | undefined;
+    if (exact.signature) {
+      const pic = exact.signature.image && typeof exact.signature.image === "object" ? await fetchSignaturePicture(env, cmd.owner_id, exact.signature.image) : ({ ok: false, code: "INVALID_PAYLOAD" } as const);
+      if (!pic.ok) return refused(pic.code, SIGNATURE_NOT_SENT[pic.code]);
+      signaturePicture = pic.bytes;
+    }
     let raw: string;
     try {
-      raw = buildRawMessage(exact, parts, now());
+      raw = buildRawMessage(exact, parts, now(), signaturePicture);
     } catch {
       return refused("INVALID_PAYLOAD");
     }

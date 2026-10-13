@@ -140,3 +140,22 @@ item_link is a projection; write the JSONB field, never the table. The
 `item_memory` trigger (migration 0060) derives every link row from the
 registered id paths in `item.data`; the browser cannot write the table, and
 a link written any other way would not survive the offline queue or a restore.
+
+## Email, 2026-10-13 (issues 104, 112, 113)
+
+- **Mail's words propose bills, receipts and events only.** The list reads a row for an event
+  (`email/candidates.ts` `LIST_ROW_KINDS`); an opened message and Find Useful Details read a bill, a
+  receipt or an event (`BODY_READ_KINDS`, spec AC11). A task or a Waiting is never proposed from someone's
+  words: those come from the person's own Add to JARVIS and Track This. Hidden, not deleted: the templates
+  and the cards already on the server are untouched.
+- **A saved signature may carry one picture** (issue 113, Dave: "Upload a pic. It auto scales."). The lines
+  stay plain text everywhere; the picture rides only beside the untouched built block, as inline HTML with
+  the same text as the plain part. One module, `src/email/signature.ts`, draws the builder's preview and the
+  sent HTML. Rules and deploy notes: `docs/jarvis-unified/EMAIL-SIGNATURE-BUILDER.md`.
+- **A class that roots a screen is scope, never geometry.** `.email-compose` was also given to the Compose
+  button, and its 48 pixel circle rule sized the whole Compose screen (live from 2026-10-12 until 6773297). A
+  law in `emailCss.test.ts` now refuses it. Render the REAL flow, not only the new component, for anything
+  that opens from the list.
+- **A toast under an open sheet is invisible.** The toast dock is z-index 2 and `.sheet-scrim` is 200
+  (`chromeParity.test.ts` pins 2), so a toast raised while a sheet is open is painted behind it and its Undo
+  cannot be tapped. Close the sheet first, as Archive does. An app-wide fix is Dave's call.

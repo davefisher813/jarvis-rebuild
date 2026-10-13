@@ -21,6 +21,7 @@ import { onProfileName } from "../profile/profileName";
 import { greetingFor, longDate, shortDate } from "./greeting";
 import DaySheet from "./DaySheet";
 import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, dueBills, payTarget } from "./todayData";
+import { eventsOnceOnToday, onceById } from "./onceOnToday";
 import TodayPage from "./TodayPage";
 import MailNotices, { type MailActResult } from "./MailNotices";
 import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
@@ -376,10 +377,26 @@ export default function TodayFlow({
   const incidentsOnToday = useIncidentLedger(authSession?.user.id);
   const waitingSvc = useMemo(() => (storeForWaiting && uidForWaiting ? new WaitingService(storeForWaiting, uidForWaiting) : null), [storeForWaiting, uidForWaiting]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
-  // A task born from a thread is the Ready to Send band's: it never leads
-  // Your Move, never rides the momentum chain, never sits in the slid card.
+  // With the Email flag OFF this still holds: a task born from a thread is
+  // the Ready to Send band's, and it never leads Your Move, never rides the
+  // momentum chain, never sits in the slid card.
   const isMailTask = (t: TaskItem): boolean => isFromEmail(t.data);
   const notMail = (t: TaskItem): boolean => !isMailTask(t);
+  // WITH THE EMAIL FLAG ON (issue 112, Dave 2026-10-13: "An email-derived task
+  // or event appears on Today exactly once, as a normal task or event ... and
+  // nothing Dave approved from an email disappears from Today either"). The
+  // Email band no longer draws tasks, so the surfaces that own a task must
+  // take it: one that carries the email source stamp (what a capture Dave
+  // approves writes) is dealt, ranked, listed and counted like any other task.
+  // Know what the stamp is not: the older Messages flow wrote it too, so it
+  // cannot tell a capture from an old auto-made task. What it does keep out is
+  // a task that only has a thread link or a "Get back to" title and no email
+  // stamp; those stay where they were. Today's lists take the same answer
+  // (emailAsNormal), so Up Next, the evening list, the "N due" line and the
+  // goal pulse cannot disagree about one task.
+  const emailTaskIsNormal = (t: TaskItem): boolean => t.data.source?.type === "email";
+  const dealable = (t: TaskItem): boolean => (unifiedEmail ? emailTaskIsNormal(t) || notMail(t) : notMail(t));
+  const emailAsNormal = unifiedEmail ? emailTaskIsNormal : undefined;
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   // Group C (item 14): the Day Loop's draft for today.
@@ -398,6 +415,9 @@ export default function TodayFlow({
   // Whether the Email band has anything to show. Reported BY MailNotices, so
   // the head and the content can never disagree about being empty.
   const [mailEmpty, setMailEmpty] = useState(true);
+  // The unified Email band reads once per tick (issue 112): reload() bumps it, so a Track This or a pause that landed
+  // after the band mounted is read on the next repaint. A plain counter, no subscription and no timer.
+  const [mailTick, setMailTick] = useState(0);
   // WAVE 4: the mail band's foot receipt already opens the inbox and names
   // what is left there. When it is showing, the head's Open Inbox is a
   // second door to the same room, so the head stands down.
@@ -805,9 +825,12 @@ export default function TodayFlow({
       // that method's comment for why a second, generic announcement here
       // would say less than the toast already shown at creation.
       if (capRule && rulesSvc) await rulesSvc.announceIfFirstUse(capRule);
-      setTodayEvents(te);
-      setTomorrowEvents(tm);
-      setTaskItems(tk);
+      // ISSUE 112: the one assembly point. With the Email flag on, a task or an event is drawn on Today once: each id
+      // once, and an appointment the Google import and an email both made once (today/onceOnToday.ts). allEvents stays
+      // raw on purpose: the conflict guard must see every row there is.
+      setTodayEvents(unifiedEmail ? eventsOnceOnToday(te) : te);
+      setTomorrowEvents(unifiedEmail ? eventsOnceOnToday(tm) : tm);
+      setTaskItems(unifiedEmail ? onceById(tk) : tk);
       setAllEvents(all);
       setName(prof?.name ?? "");
       setPlanCap(capRule ? Number(capRule.data.to) || undefined : undefined);
@@ -821,8 +844,9 @@ export default function TodayFlow({
       showToast({ message: "Couldn't Load Today · Check Your Connection", actionLabel: "Retry", onAction: () => { void reload(); } });
     } finally {
       setLoading(false);
+      if (unifiedEmail) setMailTick((n) => n + 1);
     }
-  }, [schedule, tasks, profile, rulesSvc, ledgerSvc, today, tmrw]);
+  }, [schedule, tasks, profile, rulesSvc, ledgerSvc, today, tmrw, unifiedEmail]);
 
   useEffect(() => { reload(); }, [reload]);
   // THE REPAINT TODAY NEVER GOT (Dave 2026-08-30: "things aren't clearing").
@@ -879,7 +903,7 @@ export default function TodayFlow({
       // The season pause candidatesFor applies, at the other door a task
       // becomes work. nextBest already refuses bills and reminders.
       const fresh = (await tasks.listTasks()).filter((t) => !pausedCats.has(t.data.category ?? ""));
-      const next = nextBest(fresh.filter(notMail), id, before.category ?? "");
+      const next = nextBest(fresh.filter(dealable), id, before.category ?? "");
       setMomentum(next ? { task: next, afterCategory: before.category ?? "" } : null);
     }
     const advanced = before && !before.done ? movedByTask(before, id) : null;
@@ -1539,7 +1563,7 @@ export default function TodayFlow({
   const planDate = planningTomorrow ? tomorrow : today;
   const planEvents = planningTomorrow ? tomorrowEvents : todayEvents;
   const openPlan = async (target: "today" | "tomorrow") => {
-    if (target === "tomorrow") setTomorrowEvents(await schedule.eventsOn(tomorrow));
+    if (target === "tomorrow") { const tm = await schedule.eventsOn(tomorrow); setTomorrowEvents(unifiedEmail ? eventsOnceOnToday(tm) : tm); }
     setPlanTarget(target);
     setPlanOpen(true);
   };
@@ -1808,7 +1832,7 @@ export default function TodayFlow({
   // behind it is a count on a receipt line that opens the Focus deck. One
   // target on screen, because choosing among three is a decision tax the
   // page was charging before work could start.
-  const upNextAll = rankOpen(taskItems.filter(notMail), today);
+  const upNextAll = rankOpen(taskItems.filter(dealable), today);
   const upNextRows = upNextAll.slice(0, 1);
   const inPeakNow = !!energy && nowMin >= energy.peakStartMin && nowMin < energy.peakEndMin;
 
@@ -1903,7 +1927,7 @@ export default function TodayFlow({
   // PICK 3: the goal nothing on today's plate touches. goalNudgeTick lets a
   // dismissal re-derive without a reload.
   void goalNudgeTick; // re-derive after a dismissal (same pattern as dismissTick)
-  const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
+  const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today, emailAsNormal), today);
   // The chain's one meta line: derived facts only, and the task's own length
   // when it has one (UP-CORE-02), because "10m" is what makes it startable.
   // §AK, §AM (2026-09-26): "Same category" is the line's one grey and the
@@ -2061,8 +2085,10 @@ export default function TodayFlow({
   // NOT THE EMAILS (Dave 2026-09-17: "they have their own section on the
   // home page; there is no need to have repetitiveness"). A task that was
   // born from a thread is the email band's to surface, with its verb; the
-  // slid-task card only ever names a task that is nothing but a task.
-  const mailBorn = (id: string): boolean => { const t = taskItems.find((x) => x.id === id); return !!t && isMailTask(t); };
+  // slid-task card only ever names a task that is nothing but a task. With
+  // the Email flag on (issue 112) a task Today deals as an ordinary one is
+  // one too, so it is named here like any other.
+  const mailBorn = (id: string): boolean => { const t = taskItems.find((x) => x.id === id); return !!t && !dealable(t); };
   const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow.filter((m) => !mailBorn(m.id)), today) : null;
   // THE DAY LOOP (Group C item 14). Draft at first open, deterministic and
   // instant; Accept stays the one honest commit moment.
@@ -4253,7 +4279,10 @@ export default function TodayFlow({
       key="connection"
       weight={FAILING}
       icon={<ShieldAlert className="ic" />}
-      tone={leadIncident.reconnect ? "cat-fg-orange" : "cat-fg-slate"}
+      // AMBER FOR EVERY OPEN INCIDENT (Dave 2026-10-12, issue 107 X2): an incident is a recoverable problem whether it is a lost grant
+      // (auth, Reconnect) or an outage that has lasted (degraded, no Reconnect), and the Email banner for the same incident is amber for
+      // both. It was slate for a degraded one, so Today and Email disagreed about one problem.
+      tone="cat-fg-orange"
       title={leadIncident.title}
       sub={incidentModels.length > 1 ? `${leadIncident.address} · ${incidentModels.length - 1} More` : leadIncident.address}
       {...(leadIncident.reconnect && onGoConnections ? { action: { label: "Reconnect", onClick: onGoConnections } } : {})}
@@ -4264,7 +4293,10 @@ export default function TodayFlow({
       key="connection"
       weight={FAILING}
       icon={<ShieldAlert className="ic" />}
-      tone={conn.worst.view.offerReconnect ? "cat-fg-orange" : "cat-fg-slate"}
+      // A PROVEN PROBLEM IS AMBER (Dave 2026-10-12, issue 107 X2): needs reconnecting, Gmail refused the read, the service is limited or
+      // down, or mail has stopped updating are all recoverable, and the Email tab draws each of them amber. Only the two states where
+      // nothing is proven wrong stay the neutral slate: the phone has no connection, or the last answer is too old to trust.
+      tone={conn.worst.view.state === "offline" || conn.worst.view.state === "stale" ? "cat-fg-slate" : "cat-fg-orange"}
       title={conn.worst.view.offerReconnect ? "Gmail Needs Reconnecting" : conn.worst.view.headline}
       sub={conn.worst.view.state === "offline" ? conn.worst.view.detail : conn.worst.account.email}
       {...(conn.worst.view.offerReconnect && onGoConnections ? { action: { label: "Reconnect", onClick: onGoConnections } } : {})}
@@ -4375,7 +4407,7 @@ export default function TodayFlow({
     <TodayPage
       greeting={name ? `${greetingFor(now)}, ${name}` : greetingFor(now)}
       dateLong={longDate(now)}
-      summary={daySummary(todayEvents, taskItems, today, movesCount(goalIdx, todaysTasks(taskItems, today)))}
+      summary={daySummary(todayEvents, taskItems, today, movesCount(goalIdx, todaysTasks(taskItems, today, emailAsNormal)), emailAsNormal)}
       todayEvents={todayEvents}
       now={nhm}
       nowLabel={fmtTime(nhm).time}
@@ -4383,7 +4415,7 @@ export default function TodayFlow({
       weekly={weekly}
       tomorrowTasks={taskItems.filter((t) => !t.data.done && t.data.recurrence && t.data.recurrence !== "daily" && t.data.due === tmrw)}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
-      tasks={todaysTasks(taskItems, today)}
+      tasks={todaysTasks(taskItems, today, emailAsNormal)}
       parentOf={(t) => parentForTask(parentIdx, t)}
       // SHARED-F-16 (2026-09-05): the escalating burst finally reaches a
       // row. burstSize has existed in shared/completion since the dopamine
@@ -4427,9 +4459,9 @@ export default function TodayFlow({
       onClearMail={mailClear ?? undefined}
       mailHead={unifiedEmail ? { title: EMAIL_BAND_TITLE, action: OPEN_EMAIL } : undefined}
       mail={unifiedEmail ? (
-        <EmailToday key="mail" client={supabase} tasks={tasks} schedule={schedule} waiting={waitingSvc} today={today} excludeIds={upNextRows.map((r) => r.id)}
+        <EmailToday key="mail" client={supabase} waiting={waitingSvc} today={today} refreshKey={mailTick}
           onOpenEmail={(focus) => { if (focus && onGoEmailFocus) onGoEmailFocus(focus); else onGoEmail?.(); }}
-          onOpenEntity={(kind, id) => onOpenEntity?.(kind, id)} onEmptyChange={setMailEmpty} />
+          onEmptyChange={setMailEmpty} />
       ) : (
         <MailNotices
           key="mail"

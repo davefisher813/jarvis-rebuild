@@ -13,6 +13,7 @@
 import { callCommand, failure, isCommandErrorCode, type CommandFailure, type CommandResult, type RpcClient } from "../substrate/commands/errors";
 import { apiUrl } from "../shared/apiBase";
 import { b64urlDecodeBytes } from "../connections/google/map";
+import type { SignatureFields, SignatureImage } from "./signature";
 
 export type { RpcClient, CommandFailure, CommandResult };
 
@@ -37,6 +38,12 @@ export interface EmailAccount {
   signature_text: string;
   /** Bumped on every signature save; the optimistic-concurrency check for email_signature_set, and what a draft's own signature_revision is compared against. */
   signature_revision: number;
+  /** How the signature was made (migration 0072): typed or pasted ("text", no picture) or from the builder ("built"). Absent before 0072: plain text. */
+  signature_kind?: "text" | "built";
+  /** The builder's six info fields as saved (a blank one is simply absent); {} for a typed signature. */
+  signature_fields?: SignatureFields;
+  /** The builder's picture: a reference to one small PNG or JPEG in the person's own folder of the private files bucket, or null. */
+  signature_image?: SignatureImage | null;
   /** The sync dimension (Email v1 spec 8.1; migration 0065). Absent before 0065: freshness is then last_sync_at alone. */
   sync_state?: SyncState | null;
   /** When the 90-day Inbox and Sent window was last fully listed and reconciled through Gmail's history. */
@@ -134,9 +141,24 @@ export function searchCached(client: RpcClient, q: string, accounts: string[] | 
 
 export interface RuleShape { sender_exact: string; account_id: string; category_id: string }
 
-/** Save the account's one signature (spec L3): email_signature_set. Empty text is a valid, explicit save. p_expected_revision null skips the conflict check. */
-export function setSignature(client: RpcClient, ownerId: string, accountId: string, text: string, expectedRevision: number | null = null): Promise<CommandResult<{ account_id: string; signature_text: string; signature_revision: number }>> {
+/** What the signature doors answer with: the new text and revision, and (migration 0072) how it was made. */
+export interface SignatureAnswer {
+  account_id: string;
+  signature_text: string;
+  signature_revision: number;
+  signature_kind?: "text" | "built";
+  signature_fields?: SignatureFields;
+  signature_image?: SignatureImage | null;
+}
+
+/** Save the account's one signature (spec L3): email_signature_set. Empty text is a valid, explicit save. p_expected_revision null skips the conflict check. Typed words are the whole signature: any builder picture is removed with it. */
+export function setSignature(client: RpcClient, ownerId: string, accountId: string, text: string, expectedRevision: number | null = null): Promise<CommandResult<SignatureAnswer>> {
   return callCommand(client, "email_signature_set", { p_owner: ownerId, p_account: accountId, p_text: text, p_expected_revision: expectedRevision });
+}
+
+/** Save the account's signature from the builder (migration 0072): the info fields and one picture reference (or none). The server composes the lines and keeps the picture only while the signature stays built. */
+export function setBuiltSignature(client: RpcClient, ownerId: string, accountId: string, fields: SignatureFields, image: SignatureImage | null, expectedRevision: number | null = null): Promise<CommandResult<SignatureAnswer>> {
+  return callCommand(client, "email_signature_build_set", { p_owner: ownerId, p_account: accountId, p_fields: fields, p_image: image, p_expected_revision: expectedRevision });
 }
 
 export function offerSuggestion(client: RpcClient, rule: RuleShape, tapIds: string[]): Promise<CommandResult<{ suggestion_id: string; status: string; replay: boolean }>> {

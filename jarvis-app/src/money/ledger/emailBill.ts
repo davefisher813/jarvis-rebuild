@@ -71,9 +71,14 @@ function dayWords(iso: string): string {
   return `${MONTHS[m - 1]} ${d}`;
 }
 
-/** "$84.12", or "EUR 84.12" for any currency that is not dollars. */
+/** "1,284.56": cents as dollars to the cent with the thousands grouped, the way the Money tab writes an amount (money/tracker.ts fmtCents). */
+export function centsWords(cents: number): string {
+  return (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** "$84.12", "$1,284.56", or "EUR 84.12" for any currency that is not dollars. */
 export function moneyWords(cents: number, currency = "USD"): string {
-  const n = (cents / 100).toFixed(2);
+  const n = centsWords(cents);
   return currency === "USD" ? `$${n}` : `${currency} ${n}`;
 }
 

@@ -13,12 +13,22 @@ export function senderOf(r: Pick<InboxRow, "from_name" | "from_address">): strin
   return r.from_name.trim() || r.from_address || "Unknown Sender";
 }
 
-/** The right-hand time on a row: the clock today, the short date otherwise. */
-export function whenShort(iso: string, now: Date = new Date()): string {
+/**
+ * A moment's day in the reader's own zone: Today, Yesterday, else the short date of the day it fell on HERE. The Hub's
+ * dayLabel reads the date off the front of the ISO instant, which for a UTC instant is the UTC date, so a message that
+ * arrived at 9 PM Eastern on Oct 1 (02:00 Oct 2 UTC) read "Oct 2" on its row, over its group and in its header while its
+ * clock read 9:00 PM, and two local days' mail could share one heading. Local to Email on purpose: the Hub's own screens
+ * keep dayLabel as it is (issue 112, populated sections).
+ */
+function dayWord(iso: string, now: Date): string {
   const label = dayLabel(iso, now);
-  if (label === "Today") return timeOf(iso);
-  if (label === "Yesterday") return label;
-  return shortDate(iso.slice(0, 10));
+  return label === "Today" || label === "Yesterday" || label === "" ? label : shortDate(iso);
+}
+
+/** The right-hand time on a row: the clock today, the short date (of the reader's own day) otherwise. */
+export function whenShort(iso: string, now: Date = new Date()): string {
+  const label = dayWord(iso, now);
+  return label === "Today" ? timeOf(iso) : label || shortDate(iso);
 }
 
 export interface DayGroup { label: string; rows: InboxRow[] }
@@ -27,7 +37,7 @@ export interface DayGroup { label: string; rows: InboxRow[] }
 export function dayGroups(rows: readonly InboxRow[], now: Date = new Date()): DayGroup[] {
   const out: DayGroup[] = [];
   for (const r of rows) {
-    const label = dayLabel(r.internal_date, now) || "Undated";
+    const label = dayWord(r.internal_date, now) || "Undated";
     const last = out[out.length - 1];
     if (last && last.label === label) last.rows.push(r);
     else out.push({ label, rows: [r] });
@@ -55,7 +65,7 @@ export interface EmailFact { text: string; tone?: "warn" | "red" | "good" | "dat
 
 /** A day and a time as two neutral facts: Today, 9:12 AM. Replaces hub's whenLine here, which bakes a dot into one string. */
 export function whenFacts(iso: string, now: Date = new Date()): EmailFact[] {
-  const day = dayLabel(iso, now);
+  const day = dayWord(iso, now);
   const time = timeOf(iso);
   return [...(day ? [{ text: day, tone: "date" as const }] : []), ...(time ? [{ text: time, tone: "date" as const }] : [])];
 }
@@ -67,7 +77,7 @@ export function whenWords(iso: string, now: Date = new Date()): string {
 
 /** "Checked Today" in the row's one grey, then the time as small caps (spec 3.1: "Checked 9:12 AM"). */
 export function checkedFacts(iso: string, now: Date = new Date()): EmailFact[] {
-  const day = dayLabel(iso, now);
+  const day = dayWord(iso, now);
   const time = timeOf(iso);
   return [{ text: day ? `${CHECKED} ${day}` : CHECKED }, ...(time ? [{ text: time, tone: "date" as const }] : [])];
 }
@@ -88,7 +98,7 @@ export function homeFreshness(accounts: readonly EmailAccount[], now: Date = new
   const synced = live.map((a) => a.verified_through_at ?? a.last_sync_at).filter((x): x is string => !!x).sort();
   if (synced.length === 0) return [{ text: NOT_SYNCED }];
   const at = synced[0]!;
-  if (dayLabel(at, now) === "Today") return [{ text: CHECKED }, { text: timeOf(at), tone: "date" }];
+  if (dayWord(at, now) === "Today") return [{ text: CHECKED }, { text: timeOf(at), tone: "date" }];
   return checkedFacts(at, now);
 }
 

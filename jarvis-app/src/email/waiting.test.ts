@@ -67,49 +67,72 @@ describe("New Reply and the follow-up's address (E12, E14)", () => {
   });
 });
 
-describe("Today's Email rows (12, E15, T1)", () => {
+// ISSUE 112 (ruling 18, Dave 2026-10-13; Email Build Spec section 7, AC48). These tests were rewritten when the Email band stopped
+// drawing a second, email-flavoured copy of the tasks and events a capture made. They used to cover "committed email-origin
+// items" (tasks, events and Waiting) in one list; Email's Today rows are now the combined paused card and the due Waiting
+// follow-ups, and nothing else. The task and event copies are Tasks' and Schedule's to show, once (today/onceOnToday.ts).
+describe("Today's Email rows (12, E15, T1; issue 112)", () => {
+  const dueToday = (n: number) => Array.from({ length: n }, (_, i) => w(`w${i}`, { followUpOn: TODAY }));
+  const paused = { count: 1, replies: 1 };
+  const none = { count: 0, replies: 0 };
+
   it("the combined paused card leads only while paused sends exist, in Dave's words; the generic review count is never on Today", () => {
     expect(pausedLine(2, 2)).toBe("2 Replies Need Your Review");
     expect(pausedLine(1, 1)).toBe("1 Reply Needs Your Review");
     expect(pausedLine(1, 0)).toBe("1 Message Needs Your Review");
     expect(pausedLine(3, 2)).toBe("3 Messages Need Your Review");
-    expect(emailTodayRows({ paused: { count: 2, replies: 2 }, tasks: [], events: [], waiting: [], today: TODAY }).map((r) => r.title)).toEqual(["2 Replies Need Your Review"]);
-    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: [], events: [], waiting: [], today: TODAY })).toEqual([]);
-    expect(emailTodayRows({ paused: null, tasks: [], events: [], waiting: [], today: TODAY })).toEqual([]);
+    expect(emailTodayRows({ paused: { count: 2, replies: 2 }, waiting: [], today: TODAY }).map((r) => r.title)).toEqual(["2 Replies Need Your Review"]);
+    expect(emailTodayRows({ paused: none, waiting: [], today: TODAY })).toEqual([]);
+    expect(emailTodayRows({ paused: null, waiting: [], today: TODAY })).toEqual([]);
   });
-  it("committed email-origin items due today or overdue, overdue first, then by time; tomorrow never; nothing padded", () => {
+
+  it("open Waiting follow-ups due today or overdue, overdue first, then today's; tomorrow, later, undated and resolved never; nothing padded", () => {
     const rows = emailTodayRows({
       paused: { count: 2, replies: 2 }, today: TODAY,
-      tasks: [task("t-today", TODAY), task("t-over", "2026-10-01"), task("t-tomorrow", "2026-10-04"), task("t-done", TODAY, { done: true }), task("t-plain", TODAY, { fromThread: undefined, source: undefined } as Partial<TaskItem["data"]>), task("t-nodue", null)],
-      events: [event("e-today", TODAY, "10:00"), event("e-tomorrow", "2026-10-04", "10:00"), event("e-plain", TODAY, "09:00", { source: undefined, emailIds: [] })],
-      waiting: [w("w-today", { followUpOn: TODAY }), w("w-over", { followUpOn: "2026-10-02" }), w("w-later", { followUpOn: "2026-10-09" }), w("w-none"), w("w-resolved", { followUpOn: TODAY, status: "resolved" })],
+      waiting: [w("w-today", { followUpOn: TODAY }), w("w-over", { followUpOn: "2026-10-02" }), w("w-older", { followUpOn: "2026-10-01" }), w("w-tomorrow", { followUpOn: "2026-10-04" }), w("w-later", { followUpOn: "2026-10-09" }), w("w-none"), w("w-resolved", { followUpOn: TODAY, status: "resolved" })],
       cap: 10,
     });
-    // Overdue first by date; then today's, the dated ones before the timed one, each by its key.
-    expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(["paused:paused", "task:t-over", "waiting:w-over", "task:t-today", "waiting:w-today", "event:e-today"]);
-    expect(rows[1]!.facts).toEqual([{ text: "Was Due Oct 1", tone: "red" }]);
-    expect(rows[3]!.facts).toEqual([{ text: "Due Today", tone: "warn" }]);
+    // The card first; then overdue by date, oldest first; then today's.
+    expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(["paused:paused", "waiting:w-older", "waiting:w-over", "waiting:w-today"]);
+    expect(rows[1]!.facts).toEqual([{ text: "Follow Up Was Oct 1", tone: "red" }, { text: "Waiting On Coach Miller" }]);
     // The toned fact leads and the free-text name is last: a facts line ellipsizes only its last fact.
-    expect(rows[4]!.facts).toEqual([{ text: "Follow Up Today", tone: "warn" }, { text: "Waiting On Coach Miller" }]);
-    expect(rows[5]!.facts).toEqual([{ text: "10:00 AM to 10:15 AM", tone: "date" }]);
+    expect(rows[3]!.facts).toEqual([{ text: "Follow Up Today", tone: "warn" }, { text: "Waiting On Coach Miller" }]);
   });
-  it("five at most including the count: 0, 1, 3, 5 and 8 eligible items", () => {
-    const many = (n: number) => Array.from({ length: n }, (_, i) => task(`t${i}`, TODAY));
-    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(0), events: [], waiting: [], today: TODAY }).length).toBe(1);
-    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(1), events: [], waiting: [], today: TODAY }).length).toBe(2);
-    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(3), events: [], waiting: [], today: TODAY }).length).toBe(4);
-    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(5), events: [], waiting: [], today: TODAY }).length).toBe(5);
-    expect(emailTodayRows({ paused: { count: 1, replies: 1 }, tasks: many(8), events: [], waiting: [], today: TODAY }).length).toBe(5);
-    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: many(8), events: [], waiting: [], today: TODAY }).length).toBe(5);
-    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: many(2), events: [], waiting: [], today: TODAY }).length).toBe(2);
+
+  it("five at most including the card: 0, 1, 3, 5 and 8 due Waiting items", () => {
+    expect(emailTodayRows({ paused, waiting: dueToday(0), today: TODAY }).length).toBe(1);
+    expect(emailTodayRows({ paused, waiting: dueToday(1), today: TODAY }).length).toBe(2);
+    expect(emailTodayRows({ paused, waiting: dueToday(3), today: TODAY }).length).toBe(4);
+    expect(emailTodayRows({ paused, waiting: dueToday(5), today: TODAY }).length).toBe(5);
+    expect(emailTodayRows({ paused, waiting: dueToday(8), today: TODAY }).length).toBe(5);
+    expect(emailTodayRows({ paused: none, waiting: dueToday(8), today: TODAY }).length).toBe(5);
+    expect(emailTodayRows({ paused: none, waiting: dueToday(2), today: TODAY }).length).toBe(2);
+    // The card is never the row the cap cuts.
+    expect(emailTodayRows({ paused, waiting: dueToday(8), today: TODAY })[0]).toMatchObject({ kind: "paused" });
   });
-  it("each destination once: an item Today already shows elsewhere is left to it, and a duplicate id is one row", () => {
-    const rows = emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: [task("dealt", TODAY), task("other", TODAY)], events: [], waiting: [], today: TODAY, excludeIds: new Set(["dealt"]) });
-    expect(rows.map((r) => r.id)).toEqual(["other"]);
-    expect(emailTodayRows({ paused: { count: 0, replies: 0 }, tasks: [task("same", TODAY), task("same", "2026-10-01")], events: [], waiting: [], today: TODAY }).length).toBe(1);
+
+  it("each destination once: a Waiting record that appears twice is one row", () => {
+    const rows = emailTodayRows({ paused: none, waiting: [w("same", { followUpOn: "2026-10-02" }), w("same", { followUpOn: "2026-10-01" }), w("other", { followUpOn: TODAY })], today: TODAY });
+    expect(rows.map((r) => r.id)).toEqual(["same", "other"]);
+    // The first of the two is the row that was taken.
+    expect(rows[0]!.facts[0]).toEqual({ text: "Follow Up Was Oct 2", tone: "red" });
   });
+
+  it("Email's rows are its own (issue 112): the only kinds are the paused card and Waiting, and a task or an event handed in anyway draws nothing", () => {
+    // A task and an event with an email origin, due today. They used to be band rows; they are Tasks' and Schedule's now.
+    const stale = { paused, waiting: [w("w1", { followUpOn: TODAY })], today: TODAY, tasks: [task("t1", TODAY), task("t2", "2026-10-01")], events: [event("e1", TODAY, "10:00")] };
+    const rows = emailTodayRows(stale as unknown as Parameters<typeof emailTodayRows>[0]);
+    expect(rows.map((r) => r.kind)).toEqual(["paused", "waiting"]);
+    expect(rows.map((r) => r.id)).toEqual(["paused", "w1"]);
+    // And the type says so: there is no task or event input to pass.
+    // @ts-expect-error tasks is not an input any more
+    emailTodayRows({ waiting: [], today: TODAY, tasks: [] });
+    // @ts-expect-error events is not an input any more
+    emailTodayRows({ waiting: [], today: TODAY, events: [] });
+  });
+
   it("no proposed title ever rides along: the only Email words are the paused card's", () => {
-    const rows = emailTodayRows({ paused: { count: 3, replies: 3 }, tasks: [], events: [], waiting: [], today: TODAY });
+    const rows = emailTodayRows({ paused: { count: 3, replies: 3 }, waiting: [], today: TODAY });
     expect(rows[0]).toMatchObject({ kind: "paused", id: "paused", title: "3 Replies Need Your Review", facts: [] });
   });
 });

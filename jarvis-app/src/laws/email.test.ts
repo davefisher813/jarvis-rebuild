@@ -468,3 +468,54 @@ describe("EMAIL law 11: Reply Coverage never leaves the device and never runs pe
     expect(hook, "typing never reaches the lookup").not.toMatch(/draftText|\.body\b/);
   });
 });
+
+// Issue 112, ruling 18 (Dave 2026-10-13): "An email-derived task or event appears on Today exactly once, as a normal task
+// or event. Email adds no second, email-flavored copy of the same item on Today. The combined replies card remains the only
+// email-specific surface. Implement deduplication by item identity so nothing shows twice, and nothing Dave approved from
+// an email disappears from Today either." Email Build Spec 2026-10-08 section 7 and AC48. The Email band used to draw its
+// own row for every task and event a capture had made, next to the Today stream's row for the same id. Two halves, both
+// pinned here as source: the band cannot draw a task, an event or a bill (it has no input for one), and the page that does
+// draw them takes them whole and once (the seal at its one assembly point, and no filter that would keep an approved task
+// out of Your Move). Proven to bite, in a scratch copy of the tree: a task input planted back into emailTodayRows, a task
+// icon into the band, a tasks prop handed to it by the page, a filter(notMail) back into Your Move, and the event seal taken
+// off the assembly point; the law went red naming each and green again when each was removed. The rendered proof is
+// today/TodayFlow.email.test.tsx.
+describe("EMAIL law 12: Email draws no second copy of a task, event or bill on Today", () => {
+  const code = (f: string) => read(join(SRC, f)).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const BAND = code("today/EmailToday.tsx");
+  const ROWS = code("email/waiting.ts");
+  const PAGE = code("today/TodayFlow.tsx");
+  it("the band takes no Tasks or Schedule service and has no task or event icon", () => {
+    expect(BAND, "the band must not import or accept the services that own the items").not.toMatch(/TasksService|ScheduleService/);
+    expect(BAND, "a task or event icon means a task or event row").not.toMatch(/\b(CheckSquare|Calendar)\b/);
+    expect(BAND, "it opens Email, never a task or an event").not.toMatch(/onOpenEntity/);
+  });
+  it("emailTodayRows takes the paused card and Waiting, and no task, event or excluded-id input", () => {
+    const at = ROWS.indexOf("export function emailTodayRows(");
+    expect(at, "emailTodayRows exists").toBeGreaterThan(-1);
+    const signature = ROWS.slice(at, ROWS.indexOf("): TodayEmailRow[] {", at));
+    expect(signature).toMatch(/waiting: readonly WaitingItem\[\]/);
+    expect(signature, "no task, event or excludeIds input").not.toMatch(/\b(tasks|events|excludeIds)\b/);
+    expect(ROWS, "no email-origin predicate for a task or an event").not.toMatch(/emailOriginTask|emailOriginEvent/);
+    expect(ROWS, "a row is the paused card or a Waiting follow-up, nothing else").toMatch(/kind: "paused" \| "waiting";/);
+  });
+  it("the page's EmailToday call hands it no task, schedule, excluded ids or entity door", () => {
+    const at = PAGE.indexOf("<EmailToday");
+    expect(at, "TodayFlow mounts the band").toBeGreaterThan(-1);
+    const call = PAGE.slice(at, PAGE.indexOf("/>", at));
+    expect(call).not.toMatch(/\b(tasks|schedule|excludeIds|onOpenEntity)=/);
+    expect(call, "the band re-reads when the page reloads").toMatch(/refreshKey=\{mailTick\}/);
+  });
+  it("Today seals what it draws at its one assembly point: each task and event id once, the Google and email pair once", () => {
+    expect(PAGE).toMatch(/from "\.\/onceOnToday"/);
+    expect(PAGE).toMatch(/setTodayEvents\([^;]*eventsOnceOnToday\(/);
+    expect(PAGE).toMatch(/setTomorrowEvents\([^;]*eventsOnceOnToday\(/);
+    expect(PAGE).toMatch(/setTaskItems\([^;]*onceById\(/);
+  });
+  it("nothing approved from an email is filtered out of Your Move, the momentum chain or the slid card", () => {
+    expect(PAGE, "a raw filter(notMail) would drop the approved task again").not.toMatch(/\.filter\(notMail\)/);
+    expect(PAGE).toMatch(/rankOpen\(taskItems\.filter\(dealable\), today\)/);
+    expect(PAGE, "the Today list and the day summary agree with Your Move about which email tasks are ordinary").not.toMatch(/todaysTasks\(taskItems, today\)/);
+    expect(PAGE).toMatch(/daySummary\([^;]*emailAsNormal\)/);
+  });
+});

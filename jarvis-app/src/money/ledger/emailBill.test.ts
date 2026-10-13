@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { LedgerService } from "./LedgerService";
-import { describeUpdate, emailSourceFor, fileEmailBill, fileManualBill, findBillForThread, missingWords, threadFingerprint } from "./emailBill";
+import { centsWords, describeUpdate, emailSourceFor, fileEmailBill, fileManualBill, findBillForThread, missingWords, moneyWords, threadFingerprint } from "./emailBill";
 import type { Bill } from "./types";
 
 const NOW = () => "2026-10-02T12:00:00.000Z";
@@ -10,6 +10,31 @@ const setup = () => new LedgerService(new Store(new InMemoryAdapter()), "u", () 
 const billOf = (over: Partial<Bill["data"]> = {}, id = "b1"): Bill => ({
   id,
   data: { vendor: "ConEdison", amountCents: 8412, currency: "USD", source: emailSourceFor("t1"), fingerprint: "x", history: [], ...over },
+});
+
+// AN AMOUNT IN WORDS GROUPS ITS THOUSANDS (issue 112, populated Money). A $1,284.56 bill drew "$1284.56" on its card and in its
+// toast, while the Money tab (money/tracker.ts fmtCents) wrote "$1,284.56": the same bill, two spellings.
+describe("moneyWords and centsWords", () => {
+  it("write an amount to the cent with the thousands grouped", () => {
+    expect(moneyWords(128456)).toBe("$1,284.56");
+    expect(moneyWords(240000, "USD")).toBe("$2,400.00");
+    expect(moneyWords(100000, "EUR")).toBe("EUR 1,000.00");
+    expect(moneyWords(1_000_000_000)).toBe("$10,000,000.00");
+    expect(centsWords(128456)).toBe("1,284.56");
+  });
+  it("leave an amount under a thousand exactly as it was", () => {
+    expect(moneyWords(8412)).toBe("$84.12");
+    expect(moneyWords(999, "EUR")).toBe("EUR 9.99");
+    expect(moneyWords(5)).toBe("$0.05");
+    expect(moneyWords(0)).toBe("$0.00");
+    expect(moneyWords(100000 - 1)).toBe("$999.99");
+    expect(moneyWords(100000)).toBe("$1,000.00");
+  });
+  it("reach the strings a person reads: the update question and the duplicate line carry the grouped amount", () => {
+    const big = billOf({ amountCents: 128456 });
+    const u = describeUpdate(big, { amount: 130000 / 100 });
+    expect(u?.prompt).toBe("ConEdison is already in Money at $1,284.56 \u00b7 Update it to $1,300.00?");
+  });
 });
 
 describe("findBillForThread", () => {

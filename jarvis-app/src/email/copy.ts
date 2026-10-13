@@ -4,6 +4,10 @@
 // Every state says what is true: what was searched, what was reached, what
 // is saved on this phone and what is not.
 
+import type { SignatureField } from "./signature";
+import type { MoneySemantics } from "./moneyRegistry";
+import type { CalendarHit, WhyVia } from "./sections";
+
 export const EMAIL_TITLE = "Email";
 export const SEGMENTS = [
   { key: "inbox", label: "Inbox" },
@@ -136,6 +140,27 @@ export const ADD_SIGNATURE = "Add Signature";
 export const SIGNATURES_FOOT = "Added Once, at the End of New Messages and Replies";
 export const USE_SAVED_SIGNATURE = "Use Saved Signature";
 export const SIGNATURE_OFFER_NOTE = "This Account's Signature Isn't in This Draft";
+
+// The signature builder (issue 113; Dave 2026-10-13: "Upload a pic. It auto scales. Enter your info and it creates a perfect
+// signature." and "It should be super simple."): a picture, six details, a preview, one Save.
+export const SIG_PICTURE_LABEL = "Picture";
+export const SIG_PICTURE_ADD = "Add Picture";
+export const SIG_PICTURE_CHANGE = "Change Picture";
+export const SIG_PICTURE_REMOVE = "Remove Picture";
+export const SIG_PICTURE_NOTE = "Any Photo or Logo, It Fits Itself";
+export const SIG_PICTURE_FITTING = "Fitting";
+export const SIG_PICTURE_UNREADABLE = "Couldn't Read That Picture · Try Another";
+export const SIG_PICTURE_SAVE_FAILED = "Couldn't Save the Picture · Try Again";
+export const SIG_DETAILS_LABEL = "Your Details";
+export const SIG_DETAILS_NOTE = "Anything You Leave Blank Won't Show";
+export const SIG_FIELD_LABELS: Record<SignatureField, string> = { name: "Name", title: "Title", organization: "Organization", phone: "Phone", email: "Email", website: "Website" };
+export const SIG_PREVIEW_LABEL = "Preview";
+export const SIG_PREVIEW_NOTE = "Exactly What Goes in the Email";
+export const SIG_NEEDS_DETAIL = "Add a Detail to Go with the Picture";
+export const SIG_WRITE_IT = "Write It Yourself";
+export const SIG_USE_BUILDER = "Use the Signature Builder";
+/** The row in a draft and in Review Send that says the picture goes with this message. */
+export const SIG_PICTURE_ROW = "Signature Picture";
 
 /** "2 Accounts", "1 Account". */
 export function accountsWord(n: number): string {
@@ -348,6 +373,17 @@ export const ACCOUNT_PICK_TITLE = "Show Mail From";
 export const VIEW_LABEL = "Arrange Mail";
 export const VIEW_DATE = "All by Date";
 export const VIEW_GROUPED = "Grouped";
+// The one-time Use Grouped Mail explainer (issue 112, item 17; spec 2.2, AC01): a Title Case title and the card's one grey fact,
+// with no dot and no dash between them. Show All by Date needs no string of its own: it is the arrangement control directly
+// above (VIEW_DATE), equally available, so the card never draws a second copy of it.
+//
+// THE TITLE IS SHORT ON PURPOSE. The spec's own sentence ("Group mail by conversation, schedule, money and mailing list facts")
+// was drawn through the real card at 390 wide and wrapped to THREE lines at the normal text size and FOUR at 1.4x, in the
+// wide fallback face and in a Helvetica-metric one alike (issue 112 round, 2026-10-13). The five headings it lists sit
+// directly under the card, so the card says what the arrangement is and the headings say which facts.
+export const GROUPED_INTRO_TITLE = "Group Mail by Its Facts";
+export const GROUPED_INTRO_SUB = "Nothing Is Hidden";
+export const USE_GROUPED = "Use Grouped Mail";
 export const SELECT = "Select";
 export const CANCEL = "Cancel";
 export const SELECT_SECTION = "Select";
@@ -357,6 +393,43 @@ export const SAME_CONTENT = "Same Content";
 export const ALSO_IN = "Also In";
 export const MOVE_TO_SECTION = "Move to Section";
 export const PUT_BACK_SECTION = "Use Its Own Section";
+/** The receipt after a Move to Section (issue 104): "Moved to Money", with an Undo that sets the section the message was in. */
+export const movedToLine = (section: string): string => `Moved to ${section}`;
+/** The receipt after Use Its Own Section: the message is back where its own facts put it. Same Undo. */
+export const MOVED_BACK = "Back in Its Own Section";
+// Why This Section? (issue 112, item 15; spec 3.2: "Click Why this section? for the rule and evidence"). The More menu's entry and
+// the small sheet it opens. Every line is a fact the resolver really used (sections.ts whySection), written as a fragment: no
+// sentence, no dot, no dash. Nothing the data cannot support is here: no sender reputation, no category, no named message.
+export const WHY_SECTION = "Why This Section?";
+/** The sheet's head: where the message sits, in the section's own name. */
+export const whyIn = (section: string): string => `In ${section}`;
+export const WHY_ROW_RULE = "Rule";
+export const WHY_ROW_EVIDENCE = "Evidence";
+export const WHY_ROW_WITHOUT_MOVE = "Without Your Move";
+/** One line per rule, about the message and never about the sender's character. */
+export const WHY_RULE: Record<WhyVia, string> = {
+  moved: "You Moved It Here",
+  conversation: "You Sent a Message in This Thread",
+  calendar: "It Has Calendar Structure",
+  money: "It Matches a Money Sender Template",
+  list: "It Has a Mailing List Header",
+  other: "No Section Rule Matched",
+};
+/** A move is kept on the phone that made it (Settings says the same: Moves stay on this phone). */
+export const WHY_SAVED_HERE = "Saved on This Phone Only";
+/** own_reply is one yes or no for the whole thread, so the sheet says where the sent message was found, never which one it was. */
+export const WHY_SENT_FOUND = "Sent Message in Synced Mail";
+export const WHY_CAL: Record<CalendarHit, string> = {
+  mime: "Message Type Is Calendar",
+  content_class: "Marked as a Calendar Message",
+  attachment: "Calendar File Attached",
+};
+export const WHY_MONEY_WORD: Record<MoneySemantics, string> = { invoice: "Invoice", receipt: "Receipt", statement: "Statement" };
+export const WHY_LIST = { both: "List-ID and List-Unsubscribe Headers", id: "List-ID Header", unsubscribe: "List-Unsubscribe Header" };
+/** A row cached before the mail home kept its facts has nothing to go on, and says so rather than imply that a rule ran. */
+export const WHY_NO_FACTS = "Facts Not Kept for This Message";
+/** Two or more Money templates fit the same message: the spec leaves that to Other rather than guess between them. */
+export const WHY_MONEY_AMBIGUOUS = "More Than One Money Template Fit";
 export const TRASH_HELPER = "Moves Selected Messages to Trash.";
 export const RETRY_FAILED = "Retry Failed";
 export const SIGN_IN_FIRST = "Signed Out of JARVIS";
