@@ -1268,11 +1268,13 @@ html[data-motion="reduce"] *:not(.ticker-track), html[data-motion="reduce"] *::b
 /* Safe areas. The app shell and any fixed bar must respect these. */
 :root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
         --safe-left: env(safe-area-inset-left, 0px); --safe-right: env(safe-area-inset-right, 0px);
-        /* THE ROOM UNDER THE TAB LABELS (Dave 2026-10-13, third report). The home indicator is a 5pt line whose top sits about 13pt
-           above the screen's foot, so the labels need about 20pt under them to clear it, not the whole 34pt inset the phone reports.
-           This is the bar's own bottom room: the inset less 18pt, never under 12pt. On a 34pt inset that is 16pt (plus the tab's
-           own 4pt, 20pt in all); with no inset it is 12pt. */
-        --tab-clear: max(var(--s-3), calc(var(--safe-bottom) - 18px)); }
+        /* THE ROOM UNDER THE TAB LABELS, A FIXED LENGTH (Dave 2026-10-13, round 3). It never reads the phone's reported inset. Round 2
+           derived it from the inset (the inset less 18pt) and was tuned on an emulated 34pt inset; Dave's phone reports an inset
+           far larger than the home indicator needs (a 60pt inset moved the labels to 47pt above the edge, 88pt to 75pt, which is
+           the 65 to 70pt he photographed). The home indicator is a 5pt line whose top sits about 13pt above the screen's foot, so 16pt
+           of bar padding (20pt from label to edge with the tab's own 4pt) clears it on any phone, and a bigger or smaller reported
+           inset no longer moves the bar. src/laws/tabBar.test.ts holds this: nothing on .tab-bar may read env() or --safe-*. */
+        --tab-clear: 16px; }
 .screen { min-height: 100vh; padding-top: var(--safe-top); padding-bottom: calc(var(--safe-bottom) + var(--s-safe-b)); display: flex; flex-direction: column; }
 /* An empty state that IS the screen should centre in whatever room is left,
    not demand a fixed 65vh. On Tasks the nav bar, two filter rows, the quick-add
@@ -1282,10 +1284,10 @@ html[data-motion="reduce"] *:not(.ticker-track), html[data-motion="reduce"] *::b
    so empty states nested inside a card keep the original sizing. */
 .screen > .empty-state { flex: 1 1 auto; min-height: 200px; }
 .nav-bar, .nav-large { padding-top: calc(var(--s-3) + var(--safe-top)); }
-/* THE TAB BAR SITS LOW (Dave 2026-10-12, then again 2026-10-13: "It's taking up way too much vertical space LOWER IT"). The
-   first fix capped the bottom inset at 30pt, but a phone's home-indicator inset IS 34pt, so a 30pt cap moved nothing: the labels
-   still sat 38pt above the edge in dark and 44pt in the light capsule (measured on a 390 by 844 render with a 34pt inset).
-   The bar's own room is --tab-clear (tokens above): 20pt from label to edge, which clears the indicator and no more. */
+/* THE TAB BAR SITS LOW (Dave 2026-10-12, 2026-10-13 twice: "It's taking up way too much vertical space LOWER IT"). Three rounds,
+   one cause: every earlier version derived the bar's foot from the phone's reported bottom inset. A 30pt cap (round 1) still left
+   38 to 44pt under the labels; the inset less 18pt (round 2) was proven only at a standard 34pt and grew without bound on a
+   phone that reports more. The foot is --tab-clear, a fixed 16pt, and nothing on the bar reads the inset any more. */
 .tab-bar { padding-bottom: var(--tab-clear); }
 
 /* 44pt minimum hit target. Visual size may be smaller; the touch area is not. */
