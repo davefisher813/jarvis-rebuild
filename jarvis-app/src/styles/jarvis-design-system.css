@@ -1035,7 +1035,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .chip.active, .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 
 /* TAB BAR */
-.tab-bar { display: flex; background: var(--nav-bg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-1) + min(env(safe-area-inset-bottom, 0px), 30px)); }
+.tab-bar { display: flex; background: var(--nav-bg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 var(--tab-clear); }
 /* Unselected tab labels ride systemGray, not tertiaryLabel. tertiaryLabel
    is Apple's colour for text that has been deliberately de-emphasised
    INSIDE content; iOS tab bars use the opaque grey, because the tab bar is
@@ -1267,7 +1267,12 @@ html[data-motion="reduce"] *:not(.ticker-track), html[data-motion="reduce"] *::b
 
 /* Safe areas. The app shell and any fixed bar must respect these. */
 :root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --safe-left: env(safe-area-inset-left, 0px); --safe-right: env(safe-area-inset-right, 0px); }
+        --safe-left: env(safe-area-inset-left, 0px); --safe-right: env(safe-area-inset-right, 0px);
+        /* THE ROOM UNDER THE TAB LABELS (Dave 2026-10-13, third report). The home indicator is a 5pt line whose top sits about 13pt
+           above the screen's foot, so the labels need about 20pt under them to clear it, not the whole 34pt inset the phone reports.
+           This is the bar's own bottom room: the inset less 18pt, never under 12pt. On a 34pt inset that is 16pt (plus the tab's
+           own 4pt, 20pt in all); with no inset it is 12pt. */
+        --tab-clear: max(var(--s-3), calc(var(--safe-bottom) - 18px)); }
 .screen { min-height: 100vh; padding-top: var(--safe-top); padding-bottom: calc(var(--safe-bottom) + var(--s-safe-b)); display: flex; flex-direction: column; }
 /* An empty state that IS the screen should centre in whatever room is left,
    not demand a fixed 65vh. On Tasks the nav bar, two filter rows, the quick-add
@@ -1277,10 +1282,11 @@ html[data-motion="reduce"] *:not(.ticker-track), html[data-motion="reduce"] *::b
    so empty states nested inside a card keep the original sizing. */
 .screen > .empty-state { flex: 1 1 auto; min-height: 200px; }
 .nav-bar, .nav-large { padding-top: calc(var(--s-3) + var(--safe-top)); }
-/* THE TAB BAR SITS LOW (Dave 2026-10-12, twice: "It's taking up way too much vertical space LOWER IT"). The phone can report a
-   bottom inset far larger than the home indicator (measured on his screen: about 94pt of empty bar under the labels), so the
-   inset is capped at the home indicator's own room and only a hair is added: the labels clear the indicator and no more. */
-.tab-bar { padding-bottom: calc(var(--s-1) + min(var(--safe-bottom), 30px)); }
+/* THE TAB BAR SITS LOW (Dave 2026-10-12, then again 2026-10-13: "It's taking up way too much vertical space LOWER IT"). The
+   first fix capped the bottom inset at 30pt, but a phone's home-indicator inset IS 34pt, so a 30pt cap moved nothing: the labels
+   still sat 38pt above the edge in dark and 44pt in the light capsule (measured on a 390 by 844 render with a 34pt inset).
+   The bar's own room is --tab-clear (tokens above): 20pt from label to edge, which clears the indicator and no more. */
+.tab-bar { padding-bottom: var(--tab-clear); }
 
 /* 44pt minimum hit target. Visual size may be smaller; the touch area is not. */
 .nav-back, .nav-action, .action-sheet button, .stepper button, .btn-sm {
