@@ -76,7 +76,11 @@ export default function DayRow({
   hasNote = false,
   onNotes,
   state = null,
+  plain = false,
 }: {
+  /** THE HOME SCHEDULE IS THE FINISHED DAY (Dave 2026-10-13): a row there is its time and its title and nothing under them. No state word, no
+   *  length, no "Proposed", no "Flexible until", no category line, no counts. Those live on the Schedule page and in the detail sheet. */
+  plain?: boolean;
   e: EventItem;
   conflict: boolean;
   // N5 completion (hotfix 2026-08-21): the Overlaps badge stops being inert.
@@ -200,7 +204,7 @@ export default function DayRow({
   const sepMove = sepLeave || !!leaveBy;
   const sepAttach = sepMove || !!firstMove;
   const sepProv = sepAttach || !!attach;
-  const hasMeta = sepProv || !!prov;
+  const hasMeta = !plain && (sepProv || !!prov);
   const sep = <span className="sched-sep">&middot;</span>;
 
   return (
@@ -467,7 +471,7 @@ export default function DayRow({
               stamps itself done with the real minutes." Start is a capsule,
               not a filled red -- the schedule page already spends its one
               red on Plan My Day. */}
-          {gymDoor && !selecting && (
+          {gymDoor && !selecting && !plain && (
             <div className="sched-gym" onClick={(ev) => ev.stopPropagation()}>
               {gymDoor.trainedMin != null ? (
                 <div className="sched-cat sched-gym-line">

@@ -47,7 +47,11 @@ export default function ProposedRow({
   onComplete,
   onAccept,
   onOpen,
+  plain = false,
 }: {
+  /** THE HOME SCHEDULE IS THE FINISHED DAY (Dave 2026-10-13): time and title only, no "Proposed" and no length under it. The row is still cleared by
+   *  swiping right, and everything it says is in its accessible name and on the Schedule page. */
+  plain?: boolean;
   block: PlanBlock;
   /** A TASK UNDER ITS BLOCK (issue #106 V6, Dave 2026-10-13: "Proposed tasks get their own rows, indented under the block they
    *  belong to, instead of tappable rows nested inside the event button"). The Schedule tab passes this for a pick that lies
@@ -152,10 +156,12 @@ export default function ProposedRow({
           <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
           <div className="sched-body">
             <div className="sched-title"><span className="sched-t">{title}</span></div>
-            <div className="sched-cat">
-              <span className="sched-fact"><span className="prop-tag fact st gray">Proposed</span></span>
-              <span className="sched-fact">{sep}<span className="fact"><b>{spanLabel(mins)}</b></span></span>
-            </div>
+            {!plain && (
+              <div className="sched-cat">
+                <span className="sched-fact"><span className="prop-tag fact st gray">Proposed</span></span>
+                <span className="sched-fact">{sep}<span className="fact"><b>{spanLabel(mins)}</b></span></span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -187,8 +193,10 @@ export default function ProposedRow({
 // protected block's own row, so it cannot carry a swipe of its own (the block's rail is under the same finger); its Accept
 // capsule is the first line of the long-press menu now, beside Edit Task and Move to Anytime, and the tap opens the task as it
 // always has. Absent an editor the tap is the toggle it always was.
-export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete }: {
+export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete, plain = false }: {
   block: PlanBlock;
+  /** Home's finished day: the task's title and nothing else (no ring, no time, no "Proposed", no length). Done, Edit and Move are in its long-press menu. */
+  plain?: boolean;
   onOpen: () => void;
   onAccept?: () => void;
   onDrop?: () => void;
@@ -222,7 +230,7 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete }:
       onContextMenu={(ev) => { ev.stopPropagation(); handlers.onContextMenu(ev); }}
       onClick={(ev) => { ev.stopPropagation(); onOpen(); }}
     >
-      {onComplete ? (
+      {onComplete && !plain ? (
         <div className="task-check-tap bh-check" role="checkbox" aria-checked={false}
           aria-label={`Mark ${block.text} done`}
           onClick={(ev) => { ev.stopPropagation(); onComplete(); }}>
@@ -235,14 +243,14 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete }:
           it, so nothing is squeezed to make room for a time or a verb. */}
       <div className="block-held-col">
       <span className="block-held-t">{title}</span>
-      <span className="facts block-held-facts">
+      {!plain && <span className="facts block-held-facts">
         <span className="fact date">{fmtTime(block.start).time} {fmtTime(block.start).ap}</span>
         <span className="fact st gray">Proposed</span>
         {/* A length that cannot be tapped is a number with no state: white, not a second grey beside the block's own
             kicker (§AK, §AM). 2026-10-05 (the catalog gate): spanLabel spells it "45 Min" and "1h 30m"; it was glued
             "45m" by hand. */}
         <span className="fact"><b>{spanLabel(blockMinutes(block))}</b></span>
-      </span>
+      </span>}
       </div>
       {sheet}
     </div>

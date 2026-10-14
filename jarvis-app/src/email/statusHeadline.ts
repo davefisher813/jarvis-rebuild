@@ -102,7 +102,8 @@ export function statusHeadline(i: HeadlineInput): Headline {
   // 4. Sync. A catch-up in progress is already the header's words, so it holds the tier and draws nothing more.
   for (const a of live) {
     const v = viewOf(a);
-    if (v && (v.state === "warning" || v.state === "stale")) {
+    // "Status Unconfirmed" (a stale answer) is the absence of proof, not a problem, so it never holds the headline (Dave 2026-10-13).
+    if (v && v.state === "warning") {
       return { tier: "sync", email: a.address, facts: [{ text: v.headline, tone: "warn" }, ...(v.detail ? [{ text: v.detail }] : [])], action: null };
     }
   }

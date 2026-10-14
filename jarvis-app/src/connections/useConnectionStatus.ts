@@ -36,14 +36,40 @@ function writeStored(userId: string, answer: StatusResponse): void {
   try { localStorage.setItem(KEY, JSON.stringify({ userId, answer } satisfies Stored)); } catch { /* private mode: it lives in memory only */ }
 }
 
+/** How long one ask may take. A phone that was asleep can hand back a socket that never answers; without a deadline the ask never ends,
+ *  the one-at-a-time guard never lets go, and the last answer ages into "Status Unconfirmed" for the rest of the day. */
+export const ASK_DEADLINE_MS = 15_000;
+
+/** THE ANSWER, ON THIS DEVICE'S CLOCK (the root of the false amber banner, Dave 2026-10-13). The server stamps each proof with ITS clock, and
+ *  every age was then judged against this phone's. A phone a few minutes fast read a fresh proof as old; one that came back from sleep
+ *  judged a proof by how long ago the SERVER made it. The ages that matter are how long ago this device last HEARD, plus how old the proof
+ *  already was when it was sent (the gap between the answer's own time and the proof's, both the server's clock, so skew cancels). The
+ *  answer is rewritten once, when it arrives, so every consumer (the views, the incident ledger) reads one skew-free clock. */
+export function onDeviceClock(j: StatusResponse, receivedAt: number): StatusResponse {
+  const top = Date.parse(j.checkedAt);
+  if (!Number.isFinite(top)) return { ...j, checkedAt: new Date(receivedAt).toISOString() };
+  return {
+    checkedAt: new Date(receivedAt).toISOString(),
+    accounts: j.accounts.map((a) => {
+      const proved = Date.parse(a.checkedAt);
+      const gap = Number.isFinite(proved) ? Math.max(0, top - proved) : 0;
+      return { ...a, checkedAt: new Date(receivedAt - gap).toISOString() };
+    }),
+  };
+}
+
 async function fetchStatus(token: string, force: boolean, doFetch: typeof fetch): Promise<StatusResponse | null> {
+  const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), ASK_DEADLINE_MS) : null;
   try {
-    const r = await doFetch(apiUrl(STATUS_PATH + (force ? "?refresh=1" : "")), { headers: { Authorization: "Bearer " + token } });
+    const r = await doFetch(apiUrl(STATUS_PATH + (force ? "?refresh=1" : "")), { headers: { Authorization: "Bearer " + token }, ...(ctl ? { signal: ctl.signal } : {}) });
     if (!r.ok) return null;
     const j = (await r.json()) as StatusResponse;
-    return Array.isArray(j?.accounts) && typeof j.checkedAt === "string" ? j : null;
+    return Array.isArray(j?.accounts) && typeof j.checkedAt === "string" ? onDeviceClock(j, Date.now()) : null;
   } catch {
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -52,26 +78,32 @@ export interface ConnectionStatus {
   answer: StatusResponse | null;
   /** Each account judged by this device's clock, keyed by lowercase address. */
   views: Map<string, ClientView>;
-  /** Any account that is not plainly connected, worst first; null when all are. */
+  /** Any account that is PROVEN not plainly connected, worst first; null when all are, or when all that is left is "not heard lately". An answer too old to
+   *  trust is the absence of proof, never proof of a problem, so it is never what a banner is drawn from (it is `unconfirmed`, for the quiet surfaces). */
   worst: { account: AccountStatus; view: ClientView } | null;
   /** True when a confirmed auth loss on any account means Reconnect is the right offer. */
   needsReconnect: boolean;
+  /** Some account's last answer is too old to say anything. Not a problem with the account; a surface may say it quietly, never as a banner. */
+  unconfirmed: boolean;
   online: boolean;
   refresh: (force?: boolean) => Promise<void>;
 }
 
 const SEVERITY: Record<ClientView["state"], number> = { pending_auth: 5, error: 4, warning: 3, stale: 2, offline: 1, connected: 0 };
 
+/** The states a loud surface (the Today row, the Email headline) may be drawn from: a proven problem, or the phone being offline. */
+const BANNERABLE = (s: ClientView["state"]) => s !== "connected" && s !== "stale";
+
 /** Pure: the views and the worst of them, so a test needs no hook. */
-export function summarize(answer: StatusResponse | null, now: Date, online: boolean): Pick<ConnectionStatus, "views" | "worst" | "needsReconnect"> {
+export function summarize(answer: StatusResponse | null, now: Date, online: boolean): Pick<ConnectionStatus, "views" | "worst" | "needsReconnect" | "unconfirmed"> {
   const views = new Map<string, ClientView>();
   let worst: ConnectionStatus["worst"] = null;
   for (const a of answer?.accounts ?? []) {
     const v = viewOf(a, now, online);
     views.set(a.email.toLowerCase(), v);
-    if (v.state !== "connected" && (!worst || SEVERITY[v.state] > SEVERITY[worst.view.state])) worst = { account: a, view: v };
+    if (BANNERABLE(v.state) && (!worst || SEVERITY[v.state] > SEVERITY[worst.view.state])) worst = { account: a, view: v };
   }
-  return { views, worst, needsReconnect: [...views.values()].some((v) => v.offerReconnect) };
+  return { views, worst, needsReconnect: [...views.values()].some((v) => v.offerReconnect), unconfirmed: [...views.values()].some((v) => v.state === "stale") };
 }
 
 export function useConnectionStatus(token: string | null | undefined, userId: string | null | undefined, doFetch: typeof fetch = fetch): ConnectionStatus {
@@ -103,14 +135,21 @@ export function useConnectionStatus(token: string | null | undefined, userId: st
     const tick = setInterval(() => setNow(new Date()), 60e3);
     const goOnline = () => { setOnline(true); void refresh(true); };
     const goOffline = () => setOnline(false);
-    const back = () => { if (document.visibilityState === "visible") void refresh(); };
+    // COMING BACK IS A FRESH ASK, AND THE JUDGMENT IS RE-MADE AT ONCE. A phone that slept froze every timer above, so the last answer is as old as
+    // the sleep; the moment the app is in front again it asks (forced, so it proves rather than repeats) and re-reads the clock, instead of showing
+    // the old answer's age until the next tick. iOS home-screen apps do not always raise visibilitychange on resume, so pageshow and focus ask too.
+    const back = () => { if (document.visibilityState === "visible") { setNow(new Date()); void refresh(true); } };
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
+    window.addEventListener("pageshow", back);
+    window.addEventListener("focus", back);
     document.addEventListener("visibilitychange", back);
     return () => {
       clearInterval(poll); clearInterval(tick);
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
+      window.removeEventListener("pageshow", back);
+      window.removeEventListener("focus", back);
       document.removeEventListener("visibilitychange", back);
     };
   }, [refresh]);
