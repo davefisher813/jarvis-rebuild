@@ -60,7 +60,7 @@ import { haptics } from "../shared/haptics";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_TASK } from "../notes/types";
 
-const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
+const EMPTY: Partitioned = { all: [], today: [], tomorrow: [], overdue: [], nodate: [], email: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
 export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, startNonce, onStartConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onOpenEntity, onWhatNow, title, segments }: {
@@ -358,10 +358,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const visible = (f: TaskFilter): TaskItem[] => byCategory(parts[f], catFilter);
   const counts = {
     all: visible("all").length,
-    daily: visible("daily").length,
     today: visible("today").length,
     overdue: visible("overdue").length,
-    upcoming: visible("upcoming").length,
+    tomorrow: visible("tomorrow").length,
+    nodate: visible("nodate").length,
     email: visible("email").length,
     done: visible("done").length,
   };
@@ -1310,7 +1310,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           mode: "new",
           // Prefill from the filter being viewed, so a task made while looking
           // at Today is due today by default (audit 2026-07-30).
-          initial: filter === "today" || filter === "overdue" || filter === "all" ? { due: today } : filter === "daily" ? { repeat: "daily" } : undefined,
+          initial: filter === "today" || filter === "overdue" || filter === "all" ? { due: today } : filter === "tomorrow" ? { due: addDays(today, 1) } : undefined,
         })}
         loading={loading}
       />

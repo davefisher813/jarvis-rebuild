@@ -15,7 +15,7 @@ vi.mock("../shared/EntityStar", () => ({
   useRemember: () => ({ on, run }),
 }));
 
-const counts: Record<TaskFilter, number> = { all: 1, daily: 0, today: 1, overdue: 0, upcoming: 0, email: 0, done: 0 };
+const counts: Record<TaskFilter, number> = { all: 1, today: 1, tomorrow: 0, overdue: 0, nodate: 0, email: 0, done: 0 };
 const item: TaskItem = { id: "t1", data: { text: "Draft the Coach Onboarding Email", category: "", done: false, due: null } };
 const page = () => render(<TasksPage filter="all" counts={counts} items={[item]} today="2026-05-20" />);
 

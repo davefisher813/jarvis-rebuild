@@ -121,13 +121,8 @@ describe("recurrence", () => {
     expect((await svc.task(id))?.recurrence).toBeFalsy();
   });
 
-  it("the daily filter collects daily-recurring open tasks", () => {
-    const items: TaskItem[] = [
-      { id: "1", data: { text: "Meds", category: "", done: false, recurrence: "daily" } },
-      { id: "2", data: { text: "Weekly review", category: "", done: false, recurrence: "weekly" } },
-      { id: "3", data: { text: "Done daily", category: "", done: true, recurrence: "daily" } },
-    ];
-    const p = partition(items, "2026-05-27");
-    expect(p.daily.map((i) => i.id)).toEqual(["1"]);
+  it("there is no Daily filter: a daily item is a reminder, and Reminders holds it", () => {
+    const items: TaskItem[] = [{ id: "1", data: { text: "Meds", category: "", done: false, recurrence: "daily" } }];
+    expect(Object.keys(partition(items, "2026-05-27"))).not.toContain("daily");
   });
 });

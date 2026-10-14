@@ -8,29 +8,45 @@ import { emailTasksGoToList, isFromEmail } from "./emailTasks";
 // Dave 2026-07-30); Overdue is split out of Today here (the page shows one
 // filter at a time); the service still groups overdue into "today" for the
 // grouped() view. Pure + tested.
-export type TaskFilter = "all" | "daily" | "today" | "overdue" | "upcoming" | "email" | "done";
-export const FILTERS: TaskFilter[] = ["all", "daily", "today", "overdue", "upcoming", "email", "done"];
+export type TaskFilter = "all" | "today" | "tomorrow" | "overdue" | "nodate" | "email" | "done";
+export const FILTERS: TaskFilter[] = ["all", "today", "tomorrow", "overdue", "nodate", "email", "done"];
 export const FILTER_LABEL: Record<TaskFilter, string> = {
   all: "All",
-  daily: "Daily",
   today: "Today",
+  // Dave 2026-10-13: "Upcoming is identical to All". It held everything not due today, which is what All holds. It is Tomorrow now:
+  // what is due the day after today and nothing else.
+  tomorrow: "Tomorrow",
   overdue: "Overdue",
-  upcoming: "Upcoming",
+  // The Anytime pile: open tasks with no due date.
+  nodate: "No Date",
   // Dave 2026-09-13: "In the dropdown it should have a from email tab."
   email: "From Email",
   done: "Done",
 };
+// Daily is not a filter (Dave 2026-10-13): a daily item is a reminder, and the Reminders page holds those.
 
+const dayAfter = (iso: string): string => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(y!, m! - 1, d! + 1);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+};
+
+/** The filter a task is listed under. A task due later than tomorrow has no filter of its own and answers "all": it is in All and nowhere else. */
 export function filterOf(t: TaskData, today: string): TaskFilter {
   if (t.done) return "done";
-  if (groupFor(t, today) === "upcoming") return "upcoming";
+  if (groupFor(t, today) === "upcoming") {
+    if (!t.due) return "nodate";
+    return t.due === dayAfter(today) ? "tomorrow" : "all";
+  }
   return urgencyFor(t, today)?.kind === "overdue" ? "overdue" : "today";
 }
 
 export type Partitioned = Record<TaskFilter, TaskItem[]>;
 
 export function partition(items: TaskItem[], today: string = todayISO(), emailToList: boolean = emailTasksGoToList()): Partitioned {
-  const p: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
+  const p: Partitioned = { all: [], today: [], tomorrow: [], overdue: [], nodate: [], email: [], done: [] };
+  // Open tasks due after today that are not overdue: Tomorrow, No Date, and the later ones that only All holds.
+  const ahead: TaskItem[] = [];
   for (const it of items) {
     // REMINDERS ARE NOT TASKS (2026-08-19). They ride the task entity for
     // storage, but a reminder in a task list is exactly the clutter that made
@@ -46,8 +62,9 @@ export function partition(items: TaskItem[], today: string = todayISO(), emailTo
       p.email.push(it);
       if (!emailToList) continue;
     }
-    p[filterOf(it.data, today)].push(it);
-    if (it.data.recurrence === "daily" && !it.data.done) p.daily.push(it);
+    const f = filterOf(it.data, today);
+    if (f !== "all") p[f].push(it);
+    if (!it.data.done && f !== "today" && f !== "overdue") ahead.push(it);
   }
   // TASKS AUDIT 2026-08-29, FINDING #3. This used to sort by DATE only. Every
   // row inside "Today" shares the same date, so among them the sort was a
@@ -63,11 +80,13 @@ export function partition(items: TaskItem[], today: string = todayISO(), emailTo
   const key = (it: TaskItem) => (it.data.due ?? "9999-99-99") + "T" + timeOf(it);
   p.today.sort((a, b) => key(a).localeCompare(key(b)));
   p.overdue.sort((a, b) => key(a).localeCompare(key(b)));
-  p.upcoming.sort((a, b) => key(a).localeCompare(key(b)));
+  p.tomorrow.sort((a, b) => key(a).localeCompare(key(b)));
+  p.nodate.sort((a, b) => key(a).localeCompare(key(b)));
+  ahead.sort((a, b) => key(a).localeCompare(key(b)));
   p.email.sort((a, b) => key(a).localeCompare(key(b)));
   // All = every open task, soonest first (overdue leads), no-date last. Done
   // stays in its own chip so All is never a graveyard.
-  p.all = [...p.overdue, ...p.today, ...p.upcoming];
+  p.all = [...p.overdue, ...p.today, ...ahead];
   return p;
 }
 
