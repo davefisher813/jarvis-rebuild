@@ -142,9 +142,11 @@ export function uncertainties(kind: PageData["kind"], v: Record<string, string>)
 }
 
 /** A number written as "#7" is the number 7: the import tidies what it is sure of and flags what it is not. */
-function tidy(kind: PageData["kind"], v: Record<string, string>): Record<string, string> {
-  if (kind !== "team") return v;
+function tidy(page: PageData, v: Record<string, string>): Record<string, string> {
   const out = { ...v };
+  // A done mark comes back as Yes, true, x or a tick in a sheet; it is the page's own "1" once it is read.
+  for (const f of page.fields) if (f.type === "check" && f.key in out) out[f.key] = /^(1|y|yes|true|x|done|paid|\u2713|\u2714)$/i.test((out[f.key] ?? "").trim()) ? "1" : "";
+  if (page.kind !== "team") return out;
   if (out.number && /^#\s*\d{1,3}$/.test(out.number.trim())) out.number = out.number.trim().replace(/^#\s*/, "");
   return out;
 }
@@ -156,7 +158,7 @@ export function planImport(page: PageData, rows: string[][], map: ColumnMap[], n
   const records: PageRecord[] = [];
   const seen = new Set(page.records.map((r) => r.id));
   for (const row of rows) {
-    const v = tidy(page.kind, rowValues(map, keys, row));
+    const v = tidy(page, rowValues(map, keys, row));
     if (!Object.values(v).some((x) => x.trim())) continue;
     const given = idCol !== undefined ? (row[idCol] ?? "").trim() : "";
     const id = given && /^r_[A-Za-z0-9]+$/.test(given) && !seen.has(given) ? given : newId("r");
@@ -206,7 +208,7 @@ export function reconcile(page: PageData, rows: string[][], map: ColumnMap[], no
   const out: Changes = { added: [], changed: [], removed: [], keptLocal: [], conflicts: [], newFields, leftOut: map.filter((m) => m.target === T_SKIP && m.header.trim()).map((m) => m.header.trim()), dupes: [], notes, fileValues: {} };
   const inFile = new Set<string>();
   for (const row of rows) {
-    const v = tidy(page.kind, rowValues(map, keys, row));
+    const v = tidy(page, rowValues(map, keys, row));
     if (!Object.values(v).some((x) => x.trim())) continue;
     const id = idCol !== undefined ? (row[idCol] ?? "").trim() : "";
     const rec = id ? byId.get(id) : undefined;

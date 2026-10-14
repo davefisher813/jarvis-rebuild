@@ -36,7 +36,10 @@ import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/
 import { todayISO, addDays } from "../schedule/calendar";
 import PageScreen, { type PendingImport } from "./pages/PageScreen";
 import { type PageKind, type PageData, KIND_NAME, newTeamPage, newOutreachPage, newScorecardPage, pageSummary, takeSnapshot, markBase } from "./pages/pageModel";
-import { StartRoundSheet, PageShareSheet } from "./pages/PageSheets";
+import { StartRoundSheet, StartGameSheet, PageShareSheet } from "./pages/PageSheets";
+import { templateDef, newTemplatePage, isTemplateKey } from "./pages/templateDefs";
+import { newScoreboardPage } from "./pages/scoreboard";
+import { fromMyTemplate } from "./pages/templateLogic";
 import { keepOriginal, readSource, type TableSource } from "./pages/pageImport";
 import RowActionSheet from "../shared/RowActionSheet";
 
@@ -307,6 +310,7 @@ export default function NotesFlow({
           // A template page's second line says what it holds ("12 Players"); it has no document to quote.
           lines: d.page ? [pageSummary(d.page)] : contentLines(d.doc ?? blocksToDoc(d.blocks), 5).slice(d.title.trim() ? 0 : 1),
           ...(d.page ? { page: d.page.kind } : {}),
+          ...(d.page?.mine ? { mine: true } : {}),
           // C-18 / C-20
           ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}), ...(d.deletedAt ? { deleted: true } : {}),
           ...((d.found ?? []).some((c) => !c.added) ? { found: (d.found ?? []).filter((c) => !c.added).length } : {}),
@@ -616,16 +620,31 @@ export default function NotesFlow({
   // deliberately make another.
   const [alreadyHave, setAlreadyHave] = useState<{ kind: PageKind; have: NoteListItem[] } | null>(null);
   const makePage = async (kind: PageKind) => {
-    const id = await createPage(KIND_NAME[kind], kind === "team" ? newTeamPage() : newOutreachPage());
+    const page = kind === "team" ? newTeamPage() : kind === "outreach" ? newOutreachPage() : isTemplateKey(kind) ? newTemplatePage(kind) : null;
+    if (!page) return;
+    const id = await createPage(KIND_NAME[kind], page);
     if (id) openPage(id);
   };
-  const pickPage = async (kind: PageKind) => {
+  /** A page from the person's own template: its fields, headings and settings, fresh and empty. */
+  const startFromMine = async (templateId: string) => {
+    const t = await svc.note(templateId);
+    if (!t?.page) return;
+    const id = await createPage((t.title || KIND_NAME[t.page.kind]).replace(/\s*Template$/, "") || KIND_NAME[t.page.kind], fromMyTemplate(t.page));
+    if (id) openPage(id);
+  };
+  const [startGame, setStartGame] = useState(false);
+  const pickPage = async (kind: PageKind | string) => {
+    if (kind.startsWith("mine:")) { await startFromMine(kind.slice(5)); return; }
     if (kind === "scorecard") { setStartRound(true); return; }
     if (kind === "lineup") { setChooseTeam(true); return; }
-    const have = list.filter((n) => n.page === kind && !n.deleted && !n.archived);
-    if (have.length) { setAlreadyHave({ kind, have }); return; }
-    await makePage(kind);
+    if (kind === "scoreboard") { setStartGame(true); return; }
+    const k = kind as PageKind;
+    const running = k === "team" || k === "outreach" || !!templateDef(k)?.one;
+    const have = running ? list.filter((n) => n.page === k && !n.deleted && !n.archived && !n.mine) : [];
+    if (have.length) { setAlreadyHave({ kind: k, have }); return; }
+    await makePage(k);
   };
+  const mineTemplates = list.filter((n) => n.mine && !n.deleted).map((n) => ({ id: n.id, title: n.title, kindName: n.page ? KIND_NAME[n.page] : "Template" }));
   const teamSheets = list.filter((n) => n.page === "team" && !n.deleted && !n.archived);
 
   // IMPORT, STORED FIRST (issue #115's pipeline). The roster becomes a Team Sheet named after the file the moment it is
@@ -1111,7 +1130,14 @@ export default function NotesFlow({
   if (screen === "templates") {
     return (
       <div className={pushCls} key="templates">
-        <Templates onSelect={pickTemplate} onPage={pickPage} pending={creating} onBack={() => setScreen("list")} />
+        <Templates onSelect={pickTemplate} onPage={pickPage} mine={mineTemplates} pending={creating} onBack={() => setScreen("list")} />
+        {startGame && (
+          <StartGameSheet onCancel={() => setStartGame(false)} onStart={(sport) => void (async () => {
+            setStartGame(false);
+            const id = await createPage("Scoreboard", newScoreboardPage(sport, undefined, todayISO()));
+            if (id) openPage(id, "templates");
+          })()} />
+        )}
         {startRound && (
           <StartRoundSheet onCancel={() => setStartRound(false)} onStart={(o) => void (async () => {
             setStartRound(false);

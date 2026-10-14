@@ -1047,6 +1047,9 @@ describe("LAW: one filled red per screen", () => {
       // Brain Manual v1: the All Sorted empty state is an early return; the
       // triage card's primary never renders with it.
       "brain/manual/TriageScreen.tsx": "the All Sorted empty state is an early return before the triage card",
+      // Notes template pages: the score walk (Next / Finish) and the golf walk (Next Hole) are each an early return on `view`, so no
+      // two of them, and none of them with the page itself, ever render together.
+      "notes/pages/PageScreen.tsx": "the score walk and the hole walk are early returns on `view`; the page view draws no primary",
     };
 
     const bad: string[] = [];

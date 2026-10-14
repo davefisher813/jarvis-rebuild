@@ -1,0 +1,187 @@
+import { describe, it, expect } from "vitest";
+import { newTemplatePage, TEMPLATE_KEYS, TEMPLATES, SHELVES, templateDef } from "./templateDefs";
+import { addRecord, type PageData, takeSnapshot, restoreSnapshot, duplicatePage, pageSummary, recordName } from "./pageModel";
+import {
+  addSection, renameSection, removeSection, moveSection, setSection, groupedRecords, moveField, suggestedFor, addSuggested, sumOf, totalsLine, asMyTemplate, fromMyTemplate,
+  restDaysFor, pitcherStatuses, clockAfter, sessionClock, standingsOf, addGame, removeTeamAndGames, gamesOfTeam, num,
+} from "./templateLogic";
+
+describe("the catalog", () => {
+  it("every template has a shelf, a headline field it has, and Title Case words in its picker line", () => {
+    const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+    for (const k of TEMPLATE_KEYS) {
+      const d = TEMPLATES[k];
+      expect(SHELVES).toContain(d.shelf);
+      expect(d.fields.some((f) => f.key === d.headline), k).toBe(true);
+      for (const key of d.show) expect(d.fields.some((f) => f.key === key) || (d.suggested ?? []).some((f) => f.key === key), `${k}.${key}`).toBe(true);
+      expect(d.desc, k).not.toMatch(/\.$/);
+      const words = d.desc.split(/\s+/);
+      words.forEach((w, i) => { if (/^[a-z]/.test(w)) expect(i > 0 && i < words.length - 1 && SMALL.has(w), `${k}: ${d.desc}`).toBe(true); });
+    }
+  });
+  it("a new page is the smallest useful structure, never with a credential field", () => {
+    for (const k of TEMPLATE_KEYS) {
+      const p = newTemplatePage(k);
+      expect(p.kind).toBe(k);
+      expect(p.fields.length).toBeGreaterThan(0);
+      for (const f of [...p.fields, ...(TEMPLATES[k].suggested ?? [])]) expect(f.label, `${k}: ${f.label}`).not.toMatch(/password|passcode|\bpin\b|security code|login/i);
+    }
+  });
+  it("names are unique", () => {
+    expect(new Set(TEMPLATE_KEYS.map((k) => TEMPLATES[k].name)).size).toBe(TEMPLATE_KEYS.length);
+  });
+});
+
+const sheet = (): PageData => newTemplatePage("session");
+
+describe("sections: named, added, removed and ordered by the person; empty ones hide", () => {
+  it("draws only the headings that have rows, in order, with loose rows first", () => {
+    let p = sheet();
+    expect(groupedRecords(p)).toEqual([]);
+    const a = addRecord(p, { act: "Stretch", min: "10" }); p = setSection(a.page, a.id, p.sections![0]!.key);
+    const b = addRecord(p, { act: "Passing", min: "20" }); p = setSection(b.page, b.id, p.sections![1]!.key);
+    const c = addRecord(p, { act: "Loose" }); p = c.page;
+    const g = groupedRecords(p);
+    expect(g.map((x) => x.section?.label ?? null)).toEqual([null, "Warm-Up", "Drills"]); // Scrimmage and Cool-Down are empty, so not drawn
+  });
+  it("renames, adds, moves and removes; a removed heading keeps its rows", () => {
+    let p = sheet();
+    const a = addRecord(p, { act: "Stretch" }); p = setSection(a.page, a.id, p.sections![0]!.key);
+    p = renameSection(p, p.sections![0]!.key, "  Get   Loose ");
+    expect(p.sections![0]!.label).toBe("Get Loose");
+    const made = addSection(p, "Water Break");
+    p = moveSection(made.page, made.key, -1);
+    expect(p.sections!.map((s) => s.label).slice(-2)).toEqual(["Water Break", "Cool-Down"]);
+    const key = p.sections![0]!.key;
+    p = removeSection(p, key);
+    expect(p.sections!.find((s) => s.key === key)).toBeUndefined();
+    expect(p.records[0]!.sec).toBeUndefined();
+    expect(p.records).toHaveLength(1);
+    expect(renameSection(p, p.sections![0]!.key, "   ")).toBe(p);
+  });
+});
+
+describe("fields: reorder and suggested", () => {
+  it("moves a field and stops at the ends", () => {
+    const p = sheet();
+    const first = p.fields[0]!.key;
+    expect(moveField(p, first, -1)).toBe(p);
+    const moved = moveField(p, first, 1);
+    expect(moved.fields[1]!.key).toBe(first);
+  });
+  it("offers the template's suggested fields once, and adds one on a tap", () => {
+    let p = sheet();
+    const s = suggestedFor(p).map((f) => f.key);
+    expect(s).toEqual(["coach", "equip"]);
+    p = addSuggested(p, "coach");
+    expect(p.fields.some((f) => f.key === "coach")).toBe(true);
+    expect(suggestedFor(p).map((f) => f.key)).toEqual(["equip"]);
+  });
+});
+
+describe("totals", () => {
+  it("a session's minutes add up and read as words", () => {
+    let p = sheet();
+    p = addRecord(p, { act: "A", min: "10" }).page;
+    p = addRecord(p, { act: "B", min: "25" }).page;
+    p = addRecord(p, { act: "C", min: "" }).page;
+    expect(sumOf(p.records, "min")).toBe(35);
+    expect(totalsLine(p)).toBe("35 Min");
+    expect(num("$1,250.50")).toBe(1250.5);
+    expect(pageSummary(p)).toBe("3 Activities");
+  });
+});
+
+describe("my templates", () => {
+  it("keep the structure and none of the rows, and start a fresh page", () => {
+    let p = sheet();
+    p = addSuggested(p, "coach");
+    p = addRecord(p, { act: "Stretch", min: "10" }).page;
+    p = { ...p, meta: { start: "18:00" } };
+    const t = asMyTemplate(takeSnapshot(p, "manual", 1));
+    expect(t.mine).toBe(true);
+    expect(t.records).toEqual([]);
+    expect(t.snapshots).toBeUndefined();
+    expect(t.fields.map((f) => f.key)).toContain("coach");
+    expect(pageSummary(t)).toBe("Your Template");
+    const fresh = fromMyTemplate(t);
+    expect(fresh.mine).toBeUndefined();
+    expect(fresh.records).toEqual([]);
+    expect(fresh.meta?.start).toBe("18:00");
+  });
+  it("sections, snapshots and duplicates carry the new structure", () => {
+    let p = sheet();
+    const r = addRecord(p, { act: "X" }); p = setSection(r.page, r.id, p.sections![1]!.key);
+    const snap = takeSnapshot(p, "manual", 5);
+    const gone = { ...snap, sections: [], records: [] };
+    const back = restoreSnapshot(gone, 5, 6);
+    expect(back.sections).toHaveLength(4);
+    expect(back.records[0]!.sec).toBe(p.sections![1]!.key);
+    expect(duplicatePage(p).sections).toHaveLength(4);
+  });
+});
+
+describe("pitching: rest follows from the pitches", () => {
+  it("uses the common rest table", () => {
+    expect([0, 20, 21, 35, 36, 50, 51, 65, 66, 90].map(restDaysFor)).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+  });
+  it("says who is available today and when the others are", () => {
+    let p = newTemplatePage("pitching");
+    p = addRecord(p, { name: "Sam", date: "2026-10-12", pitches: "70" }).page; // 4 days: back on the 17th
+    p = addRecord(p, { name: "Lee", date: "2026-10-12", pitches: "15" }).page;  // 0 days: back the 13th
+    p = addRecord(p, { name: "Sam", date: "2026-10-01", pitches: "20" }).page;
+    const s = pitcherStatuses(p, "2026-10-14");
+    expect(s.map((x) => [x.name, x.availableNow, x.availableOn])).toEqual([["Lee", true, "2026-10-13"], ["Sam", false, "2026-10-17"]]);
+    expect(s.find((x) => x.name === "Sam")!.total).toBe(90);
+  });
+});
+
+describe("session: a start time puts a clock on every activity", () => {
+  it("runs the minutes along the order the page is drawn in", () => {
+    expect(clockAfter("18:30", 45)).toBe("7:15 PM");
+    expect(clockAfter("00:10", 5)).toBe("12:15 AM");
+    expect(clockAfter("", 5)).toBeNull();
+    let p = sheet();
+    const a = addRecord(p, { act: "Drills", min: "20" }); p = setSection(a.page, a.id, p.sections![1]!.key);
+    const b = addRecord(p, { act: "Stretch", min: "10" }); p = setSection(b.page, b.id, p.sections![0]!.key);
+    expect(sessionClock(p).size).toBe(0);
+    p = { ...p, meta: { start: "17:00" } };
+    const clock = sessionClock(p);
+    expect(clock.get(b.id)).toBe("5:00 PM");  // Warm-Up draws first
+    expect(clock.get(a.id)).toBe("5:10 PM");
+  });
+});
+
+describe("league standings work themselves out", () => {
+  it("from the games: wins, losses, ties, points for and against, in rank order", () => {
+    let p = newTemplatePage("standings");
+    const ids = ["Tigers", "Bears", "Owls"].map((n) => { const r = addRecord(p, { name: n }); p = r.page; return r.id; });
+    p = addGame(p, { date: "2026-10-01", a: ids[0]!, b: ids[1]!, sa: 3, sb: 1 });
+    p = addGame(p, { date: "2026-10-02", a: ids[1]!, b: ids[2]!, sa: 2, sb: 2 });
+    p = addGame(p, { date: "2026-10-03", a: ids[2]!, b: ids[0]!, sa: 0, sb: 4 });
+    const s = standingsOf(p);
+    expect(s.map((x) => [x.name, x.w, x.l, x.t, x.pts])).toEqual([["Tigers", 2, 0, 0, 4], ["Bears", 0, 1, 1, 1], ["Owls", 0, 1, 1, 1]]);
+    expect(s[0]!.pf).toBe(7);
+    expect(s[0]!.pa).toBe(1);
+    expect(gamesOfTeam(p, ids[0]!)).toBe(2);
+    const without = removeTeamAndGames(p, ids[0]!);
+    expect(without.games).toHaveLength(1);
+    expect(standingsOf(without).every((x) => x.gp <= 1)).toBe(true);
+  });
+  it("a page with no games is all zeros, in name order", () => {
+    let p = newTemplatePage("standings");
+    p = addRecord(p, { name: "B" }).page;
+    p = addRecord(p, { name: "A" }).page;
+    expect(standingsOf(p).map((x) => x.name)).toEqual(["A", "B"]);
+    expect(pageSummary(p)).toBe("2 Teams, 0 Games");
+  });
+});
+
+describe("names", () => {
+  it("a row is named by its template's headline", () => {
+    let p = newTemplatePage("pitching");
+    const r = addRecord(p, { name: "Sam" });
+    expect(recordName(r.page, r.page.records[0]!)).toBe("Sam");
+    expect(templateDef("pitching")!.noun).toBe("Outing");
+  });
+});

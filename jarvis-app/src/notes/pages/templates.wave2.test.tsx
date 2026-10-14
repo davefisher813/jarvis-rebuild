@@ -1,0 +1,217 @@
+// @vitest-environment jsdom
+// TEMPLATES WAVE 2 (issue #115, Sports), through the real Notes flow over the real store: the picker's shelves, the shared engine (headings that hide
+// when empty, a done mark that leads its row, "save as my template"), and the pages that do arithmetic for the person.
+import "../../shared/tiptapTest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
+import { NotesProvider, useNotes } from "../../data/NotesProvider";
+import NotesFlow from "../NotesFlow";
+import { newTemplatePage } from "./templateDefs";
+
+// Every read and write takes a network beat, the way the phone's does.
+class SlowAdapter extends InMemoryAdapter {
+  private beat() { return new Promise((r) => setTimeout(r, 5)); }
+  override async read(o: string, id: string): Promise<Item | null> { await this.beat(); return super.read(o, id); }
+  override async apply(o: string, id: string, p: ItemData, t?: number): Promise<boolean> { await this.beat(); return super.apply(o, id, p, t); }
+}
+vi.mock("../../data/store", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../../data/store")>();
+  return { ...mod, makeStore: () => new Store(new SlowAdapter()) };
+});
+
+let svcRef: ReturnType<typeof useNotes> | null = null;
+function Grab() { svcRef = useNotes(); return null; }
+
+async function mount(user: string, openId?: string) {
+  svcRef = null;
+  const view = render(<NotesProvider userId={user}><Grab /><NotesFlow openId={openId} /></NotesProvider>);
+  await waitFor(() => expect(svcRef).toBeTruthy());
+  return view;
+}
+const svc = () => svcRef!;
+const pageOf = async (kind: string) => { const n = (await svc().listNotes()).find((x) => (x.data as unknown as { page?: { kind?: string } }).page?.kind === kind && !(x.data as { deletedAt?: number }).deletedAt); return n ? { id: n.id, page: (n.data as unknown as { page: import("./pageModel").PageData }).page } : null; };
+const count = async (kind: string) => (await svc().listNotes()).filter((n) => (n.data as unknown as { page?: { kind?: string } }).page?.kind === kind && !(n.data as { deletedAt?: number }).deletedAt).length;
+
+afterEach(() => { vi.restoreAllMocks(); });
+
+
+async function openPicked(user: string, name: string) {
+  const view = await mount(user);
+  fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
+  fireEvent.click(await screen.findByText(name));
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  return view;
+}
+const sheetOf = () => document.querySelector(".sheet-scrim") as HTMLElement;
+
+describe("the picker", () => {
+  it("lists the templates on their shelves, the wave 2 sports among them", async () => {
+    await mount("u-w2-picker");
+    fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
+    await screen.findByText("Sports");
+    for (const n of ["Scoreboard", "Pitching Board", "Session Plan", "Event Day Pack", "Scouting Report", "Profile One-Pager", "Training Log", "Training Plan", "League Standings", "Group Manager Page"]) expect(screen.getByText(n)).toBeInTheDocument();
+    expect(screen.getByText("Golf Scorecard")).toBeInTheDocument();
+  });
+});
+
+describe("Session Plan: headings, minutes and a clock", () => {
+  it("starts with its headings hidden, shows one once it has a row, and totals the minutes", async () => {
+    await openPicked("u-w2-session", "Session Plan");
+    expect(screen.queryByText("Drills")).toBeNull();            // empty headings are not drawn
+    fireEvent.click(screen.getByText("Add Activity"));
+    fireEvent.change(await screen.findByLabelText("Activity"), { target: { value: "Passing Square" } });
+    fireEvent.change(screen.getByLabelText("Minutes"), { target: { value: "20" } });
+    // Put it under Drills.
+    fireEvent.click(screen.getByLabelText("Heading"));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Drills" }));
+    fireEvent.click(within(sheetOf()).getByText("Add"));
+    expect(await screen.findByText("Passing Square", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("Drills")).toBeInTheDocument();
+    expect(screen.queryByText("Scrimmage")).toBeNull();
+    expect(screen.getByText("20 Min")).toBeInTheDocument();
+    // A start time puts a clock on the row.
+    fireEvent.click(screen.getByText("Start Time"));
+    fireEvent.change(await screen.findByPlaceholderText("Start Time"), { target: { value: "17:30" } });
+    fireEvent.click(within(sheetOf()).getByText("Save"));
+    expect(await screen.findByText("5:30 PM", {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+
+  it("headings are edited on the page: renamed and added, and a removed one keeps its rows", async () => {
+    await openPicked("u-w2-headings", "Session Plan");
+    fireEvent.click(screen.getByLabelText("Page options"));
+    fireEvent.click(screen.getByText("Headings"));
+    fireEvent.change(await screen.findByLabelText("Name for Warm-Up"), { target: { value: "Get Loose" } });
+    fireEvent.change(screen.getByLabelText("New heading name"), { target: { value: "Water Break" } });
+    fireEvent.click(within(sheetOf()).getByText("Save"));
+    await waitFor(async () => {
+      const got = await pageOf("session");
+      expect(got!.page.sections!.map((s) => s.label)).toEqual(["Get Loose", "Drills", "Scrimmage", "Cool-Down", "Water Break"]);
+    }, { timeout: 4000 });
+  });
+});
+
+describe("Event Day Pack: the done mark leads the row", () => {
+  it("is a checkbox at the left of the row, and a tap on it ticks the item without opening it", async () => {
+    await openPicked("u-w2-eventday", "Event Day Pack");
+    fireEvent.click(screen.getByText("Add Item"));
+    fireEvent.change(await screen.findByLabelText("Item"), { target: { value: "Water Bottles" } });
+    fireEvent.click(within(sheetOf()).getByText("Add"));
+    const row = (await screen.findByText("Water Bottles", {}, { timeout: 4000 })).closest(".row")!;
+    const box = row.querySelector('[role="checkbox"]')!;
+    expect(box).toBeTruthy();
+    // It leads the row: it comes before the name in the row's own order.
+    expect(box.compareDocumentPosition(row.querySelector(".conn-name")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(box);
+    await waitFor(async () => expect((await pageOf("eventday"))!.page.records[0]!.v.done).toBe("1"), { timeout: 4000 });
+    expect(document.querySelector(".sheet-scrim")).toBeNull();
+  });
+});
+
+describe("Scoreboard: pick the sport and score it", () => {
+  it("Basketball arranges itself: four quarters, totals add up, the leader says so", async () => {
+    await mount("u-w2-score");
+    fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Scoreboard"));
+    fireEvent.click(await screen.findByText("Basketball"));
+    fireEvent.click(within(sheetOf()).getByText("Start"));
+    fireEvent.click(await screen.findByText("Start Quarter 1", {}, { timeout: 4000 }));
+    expect(await screen.findByText("Quarter 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("More Quarter 1 for Home"));
+    fireEvent.click(screen.getByLabelText("More Quarter 1 for Home"));
+    await waitFor(async () => expect((await pageOf("scoreboard"))!.page.records[0]!.v.p1).toBe("2"), { timeout: 4000 });
+    fireEvent.click(screen.getByText("Basketball"));   // back to the page
+    expect(await screen.findByText("Leading", {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+});
+
+describe("League Standings: record a game and the table works itself out", () => {
+  it("two teams and a game give a leader, wins, losses and points", async () => {
+    await openPicked("u-w2-standings", "League Standings");
+    for (const n of ["Tigers", "Bears"]) {
+      fireEvent.click(screen.getByText("Add Team"));
+      fireEvent.change(await screen.findByLabelText("Team"), { target: { value: n } });
+      fireEvent.click(within(sheetOf()).getByText("Add"));
+      await screen.findByText(n, {}, { timeout: 4000 });
+    }
+    fireEvent.click(await screen.findByText("Record a Game"));
+    fireEvent.change(await screen.findByLabelText("First team score"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Second team score"), { target: { value: "1" } });
+    fireEvent.click(within(sheetOf()).getByText("Add"));
+    await waitFor(async () => expect((await pageOf("standings"))!.page.games).toHaveLength(1), { timeout: 4000 });
+    expect(await screen.findByText("1-0")).toBeInTheDocument();
+    expect(screen.getByText("0-1")).toBeInTheDocument();
+  });
+});
+
+describe("Pitching Board: rest follows from the pitches", () => {
+  it("says a pitcher who threw 70 yesterday is resting, and when they are back", async () => {
+    svcRef = null;
+    const view = render(<NotesProvider userId="u-w2-pitch"><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    const yesterday = d.toISOString().slice(0, 10);
+    const base = newTemplatePage("pitching");
+    let id = "";
+    await act(async () => { id = (await svc().createPage("Pitching Board", { ...base, records: [{ id: "r_a1", v: { name: "Sam", date: yesterday, pitches: "70" } }] }))!; });
+    view.rerender(<NotesProvider userId="u-w2-pitch"><Grab /><NotesFlow openId={id} /></NotesProvider>);
+    expect(await screen.findByText(/Rests Until/, {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("Who Can Pitch")).toBeInTheDocument();
+  });
+});
+
+describe("Profile One-Pager: one record, empty fields stay off the page", () => {
+  it("opens with its one record and draws only what is filled in", async () => {
+    await openPicked("u-w2-profile", "Profile One-Pager");
+    expect((await pageOf("profile"))!.page.records).toHaveLength(1);
+    expect(screen.getByText("Add What You Want on the Page; Empty Fields Stay Off It")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Edit Profile"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Ava Chen" } });
+    fireEvent.click(within(sheetOf()).getByText("Save"));
+    expect(await screen.findByText("Ava Chen", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("GPA")).toBeNull();
+  });
+});
+
+describe("Training Log and Training Plan", () => {
+  it("the log reads Health rather than keeping workouts of its own", async () => {
+    await openPicked("u-w2-tlog", "Training Log");
+    expect(await screen.findByText("From Health")).toBeInTheDocument();
+    expect(screen.getByText(/Workouts Are Read From Health, Never Copied/)).toBeInTheDocument();
+    expect((await pageOf("traininglog"))!.page.records).toHaveLength(0);
+  });
+  it("the plan starts with a week and takes days", async () => {
+    await openPicked("u-w2-tplan", "Training Plan");
+    fireEvent.click(screen.getByText("Add Day"));
+    fireEvent.change(await screen.findByLabelText("Day"), { target: { value: "Monday" } });
+    fireEvent.click(within(sheetOf()).getByText("Add"));
+    expect(await screen.findByText("Monday", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("Week 1")).toBeInTheDocument();
+  });
+});
+
+describe("Save as My Template", () => {
+  it("keeps the edited structure with no rows, lists it in the picker, and starts a fresh page from it", async () => {
+    await openPicked("u-w2-mine", "Group Manager Page");
+    fireEvent.click(screen.getByLabelText("Page options"));
+    fireEvent.click(screen.getByText("Fields"));
+    fireEvent.click(await screen.findByText("Add Coming"));
+    fireEvent.click(within(sheetOf()).getByText("Save"));
+    await waitFor(async () => expect((await pageOf("group"))!.page.fields.some((f) => f.key === "coming")).toBe(true), { timeout: 4000 });
+    fireEvent.click(screen.getByLabelText("Page options"));
+    fireEvent.click(screen.getByText("Save as My Template"));
+    await waitFor(async () => expect((await svc().listNotes()).some((n) => (n.data as unknown as { page?: { mine?: boolean } }).page?.mine)).toBe(true), { timeout: 4000 });
+    // The picker lists it under My Templates.
+    fireEvent.click(document.querySelector(".nav-back")!);
+    fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
+    expect(await screen.findByText("My Templates", {}, { timeout: 4000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Group Manager Page Template"));
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await waitFor(async () => {
+      const made = (await svc().listNotes()).map((n) => (n.data as unknown as { page?: { kind: string; mine?: boolean; fields: { key: string }[]; records: unknown[] } }).page).filter((p) => p && p.kind === "group" && !p.mine);
+      expect(made.length).toBeGreaterThanOrEqual(2);
+      expect(made.some((p) => p!.fields.some((f) => f.key === "coming") && p!.records.length === 0)).toBe(true);
+    }, { timeout: 4000 });
+  });
+});

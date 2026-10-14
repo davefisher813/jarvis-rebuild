@@ -51,6 +51,8 @@ export interface NoteListItem {
   deleted?: boolean;
   // Issue #115: a template page, and which kind. Its row is the same row; its menu adds Export or Share and Duplicate.
   page?: import("../pages/pageModel").PageKind;
+  // A page kept as the person's own template (Save as My Template): structure with no rows. The picker lists it.
+  mine?: boolean;
 }
 
 // C-18: the filter chips. Choosers, so filled chips.
