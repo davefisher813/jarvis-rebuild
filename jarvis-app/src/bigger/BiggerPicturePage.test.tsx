@@ -329,3 +329,33 @@ describe("BiggerPicturePage: dropped goals", () => {
     expect(container.textContent).toContain("Dropped Goal");
   });
 });
+
+// ALFRED'S LIVE CHECK ON 64e9e55 (2026-10-14): a drag on a goal TILE opened the goal. The tiles sit in a shelf that scrolls sideways, so a
+// horizontal drag is the shelf's; the tile's actions are its overflow, and the list view swipes.
+describe("BiggerPicturePage goal tiles carry the swipe's actions as an overflow", () => {
+  const goal = { id: "g1", data: { title: "Open the Gym", state: "on_track" as const, tags: ["work"] } };
+  const draw = (over: Partial<Parameters<typeof BiggerPicturePage>[0]> = {}) => render(
+    <BiggerPicturePage lens="goals" segments={<div />} goals={[goal]} reachOfGoal={reach} projectRows={[]}
+      sections={[{ id: "work", name: "Work", color: "blue" }]}
+      onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} {...over} />,
+  );
+  it("the overflow offers Mark Achieved and Delete, and each does its write", () => {
+    const onAchieveGoal = vi.fn(); const onDeleteGoal = vi.fn();
+    draw({ onAchieveGoal, onDeleteGoal });
+    fireEvent.click(screen.getByLabelText("More for Open the Gym"));
+    expect([...document.querySelectorAll(".action-sheet button")].map((b) => b.textContent)).toEqual(["Mark Achieved", "Delete", "Cancel"]);
+    fireEvent.click(screen.getByText("Mark Achieved"));
+    expect(onAchieveGoal).toHaveBeenCalledWith("g1");
+    fireEvent.click(screen.getByLabelText("More for Open the Gym"));
+    fireEvent.click(screen.getByText("Delete"));
+    expect(onDeleteGoal).toHaveBeenCalledWith("g1");
+  });
+  it("with only Delete handed in the overflow is just Delete, and with no writes there is no overflow", () => {
+    draw({ onDeleteGoal: vi.fn() });
+    fireEvent.click(screen.getByLabelText("More for Open the Gym"));
+    expect([...document.querySelectorAll(".action-sheet button")].map((b) => b.textContent)).toEqual(["Delete", "Cancel"]);
+    cleanup();
+    draw();
+    expect(screen.queryByLabelText("More for Open the Gym")).toBeNull();
+  });
+});
