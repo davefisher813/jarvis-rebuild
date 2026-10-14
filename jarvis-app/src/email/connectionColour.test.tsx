@@ -143,7 +143,7 @@ describe("every state a mailbox can be in is amber or green, never red", () => {
     { name: "Gmail refusing the check (403)", status: proof({ ok: true, scope: SCOPE }, { ok: false, status: 403 }), view: "error", headline: "Can't Read Mail", signIn: "warn", tier: "auth" },
     { name: "Gmail answering as a different account", status: proof({ ok: true, scope: SCOPE }, { ok: true, status: 200, emailAddress: "other@example.test" }), view: "error", headline: "Can't Read Mail", signIn: "warn", tier: "auth" },
     { name: "a day without a sync", status: proof({ ok: true, scope: SCOPE }, READ_OK, "2026-10-01T00:00:00Z"), view: "warning", headline: "Mail Not Updating", signIn: "good", tier: "sync" },
-    { name: "an answer too old to trust", status: proof({ ok: true, scope: SCOPE }, READ_OK), at: new Date("2026-10-13T16:00:00Z"), view: "stale", headline: "Status Unconfirmed", signIn: "warn", tier: "sync" },
+    { name: "an answer too old to trust", status: proof({ ok: true, scope: SCOPE }, READ_OK), at: new Date("2026-10-13T16:00:00Z"), view: "stale", headline: "Status Unconfirmed", signIn: "warn", tier: "healthy" }, // the absence of proof is said in the sign-in sheet, never held as the headline (Dave 2026-10-13)
     { name: "the phone offline", status: proof({ ok: true, scope: SCOPE }, READ_OK), online: false, view: "offline", headline: "Offline", signIn: "warn", tier: "healthy" },
     { name: "plainly connected", status: proof({ ok: true, scope: SCOPE }, READ_OK), view: "connected", headline: "Connected", signIn: "good", tier: "healthy" },
   ];
@@ -161,7 +161,7 @@ describe("every state a mailbox can be in is amber or green, never red", () => {
     // The Sign-In row's state word: amber where the sign-in is not proven working, green only where the credential refreshed.
     expect(sign.facts[0]!.tone, `${c.name}: the Sign-In row`).toBe(c.signIn);
     // The headline the mail home draws: amber for every problem, nothing at all when healthy (or when the phone is simply offline).
-    if (c.view !== "connected" && c.view !== "offline") expect(head.facts[0]!.tone, `${c.name}: the headline`).toBe("warn");
+    if (c.view !== "connected" && c.view !== "offline" && c.view !== "stale") expect(head.facts[0]!.tone, `${c.name}: the headline`).toBe("warn");
     else expect(head.facts).toEqual([]);
     // Nowhere on the mailbox's three rows or its headline is a red.
     const all = [...tonesOf(sign.facts), ...tonesOf(head.facts), ...tonesOf(sendFacts(c.status)), ...tonesOf(syncFacts(account(), c.status, NOW).facts)];

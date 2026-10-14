@@ -78,14 +78,11 @@ describe("YourDay", () => {
         gymDoorFor={(e) => (e.data.gym ? { dayName: "Push Day", facts: { exercises: 6, estMin: 42 }, onStart: () => { started++; } } : null)}
       />,
     );
-    expect(screen.getByText("Push Day")).toBeInTheDocument();
-    // The facts, not a joined string (§AM F3, 2026-09-26): the count and the
-    // estimate are separate runs, so each can wear its own ink. The count is
-    // a number with no state, a white <b>; the estimate is the app's own
-    // arithmetic, sky.
-    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
-    expect(screen.getByText("6 Exercises").tagName).toBe("B");
-    expect(screen.getByText("Est 42 Min")).toHaveClass("fact", "est");
+    // THE HOME SCHEDULE IS THE FINISHED DAY (Dave 2026-10-13): the door's lift name, count and estimate live on the Schedule page. Home keeps the
+    // row (time and title) and the verb, which still starts the session.
+    expect(screen.queryByText("6 Exercises")).toBeNull();
+    expect(screen.queryByText("Est 42 Min")).toBeNull();
+    expect(screen.getByText("Gym")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Start Push Day" }));
     expect(started).toBe(1);
   });
@@ -418,9 +415,11 @@ describe("the nesting bug", () => {
       <YourDay events={[ev("x", "18:00")]} locked={[{ s: 12 * 60, e: 13 * 60, label: "Lunch", kind: "meal" }]}
         now="09:00" nowLabel="9:00" onSeeAll={() => {}} />,
     );
-    expect(screen.getByText("PROTECTED")).toBeInTheDocument();
+    // Home's rows are time and title only (Dave 2026-10-13): the state word and the "until" are the Schedule page's, not Home's.
+    expect(screen.getByText("Lunch")).toBeInTheDocument();
+    expect(screen.queryByText("PROTECTED")).toBeNull();
     expect(screen.queryByText("Protected")).toBeNull();
-    expect(screen.getByText(/Until 1:00/)).toBeInTheDocument();
+    expect(screen.queryByText(/Until 1:00/)).toBeNull();
   });
 });
 

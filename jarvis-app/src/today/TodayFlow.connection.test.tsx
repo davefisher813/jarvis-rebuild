@@ -64,7 +64,6 @@ const CASES: Case[] = [
   { name: "a day without a sync, no incident", status: { ...proof(OK, READ_OK, { incident: null }), delivery: { kind: "poll", liveness: "stale" } }, words: ["Mail Not Updating", ME], reconnect: false },
   // The two states X2 kept neutral. One word for offline (the date line already says so, and the Email status sheet says only that).
   { name: "the phone offline (nothing proven wrong)", status: proof(OK, READ_OK, { incident: null }), offline: true, words: ["Offline"], reconnect: false },
-  { name: "an answer too old to trust (nothing proven wrong)", status: proof(OK, READ_OK, { incident: null }, STATUS_STALE_MS + 5 * 60e3), words: ["Status Unconfirmed", ME], reconnect: false },
 ];
 
 const seedStatus = (accounts: AccountStatus[]) => {
@@ -124,6 +123,32 @@ describe("Today's connection problem is the one amber row (issues 107 X2 and 106
     // The words take you to Connections too (the whole row is a door).
     fireEvent.click(within(strip).getByRole("button", { name: new RegExp(c.words[0]!) }));
     await waitFor(() => expect(go).toHaveBeenCalledTimes(c.reconnect ? 2 : 1));
+  });
+
+  // THE FALSE AMBER BANNER (Dave 2026-10-13: "Status Unconfirmed, dave@bffsa.org" all day on a healthy connection). An answer too old to trust is
+  // the ABSENCE of proof, never proof of a problem: it is never a banner, whether the server can be reached again or not.
+  it("an answer too old to trust draws no row, while the server is unreachable", async () => {
+    const answer = { checkedAt: proof(OK, READ_OK, { incident: null }, STATUS_STALE_MS + 5 * 60e3).checkedAt, accounts: [proof(OK, READ_OK, { incident: null }, STATUS_STALE_MS + 5 * 60e3)] };
+    localStorage.setItem("jarvis.connections.status.v1", JSON.stringify({ userId: USER, answer }));
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => (String(url).includes("/api/connections/status") ? ({ ok: false, status: 503, json: async () => ({}) } as Response) : realFetch(url, init)));
+    const { container } = mountToday();
+    await waitFor(() => expect(container.querySelector(".today-hero")).not.toBeNull(), { timeout: 8000 });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(container.querySelector(".conn-strip")).toBeNull();
+    expect(container.textContent).not.toContain("Status Unconfirmed");
+  });
+
+  it("an old stored answer is replaced by the server's fresh proof, and the banner never comes back", async () => {
+    const old = proof(OK, READ_OK, { incident: null }, STATUS_STALE_MS + 5 * 60e3);
+    localStorage.setItem("jarvis.connections.status.v1", JSON.stringify({ userId: USER, answer: { checkedAt: old.checkedAt, accounts: [old] } }));
+    const fresh = proof(OK, READ_OK, { incident: null });
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => (String(url).includes("/api/connections/status")
+      ? ({ ok: true, status: 200, json: async () => ({ checkedAt: fresh.checkedAt, accounts: [fresh] }) } as Response)
+      : realFetch(url, init)));
+    const { container } = mountToday();
+    await waitFor(() => expect(container.querySelector(".today-hero")).not.toBeNull(), { timeout: 8000 });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(container.querySelector(".conn-strip")).toBeNull();
   });
 
   it("a healthy connection draws no row", async () => {
