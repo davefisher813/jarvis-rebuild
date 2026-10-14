@@ -232,7 +232,7 @@ describe("M2: the message", () => {
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
     await waitFor(() => expect(screen.getByText("Subject m3", { selector: ".email-subject" })).toBeInTheDocument());
     // Astra's sheet (2026-10-10): Archive is one of the sheet's own four visible rows now, not behind More.
-    fireEvent.click(screen.getByText("Archive"));
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
     await waitFor(() => expect(subjects()).toEqual(["m2", "m1", "m0"]));
     expect(r.posts.find((p) => p.body.op === "archive")!.body).toEqual({ email: DAVE, id: "m3", op: "archive" });
     const t = toasts.find((x) => x.message === ARCHIVED)!;
@@ -242,6 +242,30 @@ describe("M2: the message", () => {
     expect(r.posts.find((p) => p.body.op === "unarchive")).toBeTruthy();
     // Archive is a provider command: nothing here writes a life record or approves a card.
     expect(r.calls.some((c) => /^(capture_approve|action_undo|decision_save|exploration_keep)$/.test(c.fn))).toBe(false);
+  });
+
+  it("swiping a row archives it from the list with the same receipt and Undo", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(subjects().length).toBe(4));
+    fireEvent.click(document.querySelector(".task-swipe .mail-arch") as HTMLElement);
+    await waitFor(() => expect(subjects()).toEqual(["m2", "m1", "m0"]));
+    expect(r.posts.find((p) => p.body.op === "archive")!.body).toEqual({ email: DAVE, id: "m3", op: "archive" });
+    const t = toasts.find((x) => x.message === ARCHIVED)!;
+    expect(t.actionLabel).toBe(UNDO);
+    await act(async () => { t.onAction!(); });
+    await waitFor(() => expect(subjects()).toEqual(["m3", "m2", "m1", "m0"]));
+    expect(r.posts.find((p) => p.body.op === "unarchive")).toBeTruthy();
+  });
+
+  it("swiping Delete moves the row to Trash, recoverable from the toast", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(subjects().length).toBe(4));
+    fireEvent.click(document.querySelector(".task-swipe .task-del") as HTMLElement);
+    await waitFor(() => expect(subjects()).toEqual(["m2", "m1", "m0"]));
+    expect(r.posts.find((p) => p.body.op === "trash")!.body).toEqual({ email: DAVE, id: "m3", op: "trash" });
+    expect(toasts.find((x) => x.actionLabel === UNDO)).toBeTruthy();
   });
 
   it("archive is offered only when the account can do it, said on its own row; trash still needs the More menu", async () => {

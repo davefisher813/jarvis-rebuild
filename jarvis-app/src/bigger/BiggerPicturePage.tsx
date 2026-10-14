@@ -52,7 +52,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject,
+  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject, onAchieveGoal, onDeleteGoal,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -98,6 +98,9 @@ export default function BiggerPicturePage({
   onCloseProject?: (id: string) => void;
   /** Move to Goal: refile a project from its row (Dave 2026-09-13). null takes it off its goal. */
   onMoveProject?: (projectId: string, goalId: string | null) => void;
+  /** Swipe right on an open goal, and swipe left on any goal (Dave 2026-10-13: swipe is the standard). */
+  onAchieveGoal?: (id: string) => void;
+  onDeleteGoal?: (id: string) => void;
 }) {
   // The sealed-off half of the page: done projects fold to one quiet line.
   const [doneOpen, setDoneOpen] = useState(false);
@@ -333,7 +336,9 @@ export default function BiggerPicturePage({
         body={body} when={when} status={statusOf?.(g.id) ?? null}
         moving={finished || g.data.measure?.kind === "projects" ? 0 : moving} next={finished ? null : next?.text ?? null}
         checkin={finished ? null : checkinOf?.(g.id) ?? null}
-        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
+        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)}
+        onAchieve={onAchieveGoal && !finished ? () => onAchieveGoal(g.id) : undefined}
+        onDelete={onDeleteGoal ? () => onDeleteGoal(g.id) : undefined} />
     );
   };
 

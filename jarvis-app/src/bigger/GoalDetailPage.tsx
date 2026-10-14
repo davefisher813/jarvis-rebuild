@@ -22,6 +22,7 @@ import { TargetGlyph, ForkGlyph, FolderGlyph, DollarGlyph } from "../shared/glyp
 import { FormSheet, Group, FieldRow, Note } from "../shared/FormSheet";
 import { distanceFor, todayISO } from "../tasks/grouping";
 import { PenLine } from "../shared/icons";
+import RuledSwipe from "../shared/RuledSwipe";
 import { useOptionalDecisions } from "../data/NotesProvider";
 import type { DecisionRecord } from "../decisions/types";
 
@@ -74,6 +75,7 @@ export default function GoalDetailPage({
   onCheckin,
   onMilestoneDone,
   onAddMilestone,
+  onDeleteMilestone,
 }: {
   goal: Goal;
   // ARCHITECTURE C: one object carries both routes into this goal's work, so
@@ -131,6 +133,8 @@ export default function GoalDetailPage({
   // C-36: ticking and adding milestones, written by the flow.
   onMilestoneDone?: (id: string, done: boolean) => void;
   onAddMilestone?: (text: string) => void;
+  /** Swipe left on a milestone: Delete (the flow owns the Undo). Swipe right on an open one is the tick. */
+  onDeleteMilestone?: (id: string) => void;
 }) {
   const target = goal.data.moneyTarget;
   const progress = reach.progress;
@@ -305,8 +309,12 @@ export default function GoalDetailPage({
                 {/* NO PILL ON A ROW (Dave 2026-10-05). The row is the door and its one
                     verb is the tick, so the state sits on the row as the same ring every
                     task wears (state, not a command) and the whole row does the tick. */}
-                <div className="task-row p2 ms-row" role="button" tabIndex={0} aria-label={"Mark " + titleCase(next.text) + " done"}
-                  onClick={() => tick(next.id, true)} onKeyDown={rowKey(() => tick(next.id, true))}>
+                {/* row-tap: RuledSwipe's onOpen is the row's door, and its swipe is the check's second way */}
+                <RuledSwipe label={titleCase(next.text)} className="task-row p2 ms-row"
+                  rowProps={{ role: "button", tabIndex: 0, "aria-label": "Mark " + titleCase(next.text) + " done", onKeyDown: rowKey(() => tick(next.id, true)) }}
+                  onOpen={() => tick(next.id, true)}
+                  onRight={() => tick(next.id, true)}
+                  onDelete={onDeleteMilestone ? () => onDeleteMilestone(next.id) : undefined}>
                   <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done"
                     onClick={(e) => { e.stopPropagation(); tick(next.id, true); }}>
                     <div className="task-check" />
@@ -316,7 +324,7 @@ export default function GoalDetailPage({
                         under the name said it twice (§AK, 2026-09-26). */}
                     <span className="task-name">{titleCase(next.text)}</span>
                   </div>
-                </div>
+                </RuledSwipe>
               </div></div>
             </>
           )}
@@ -332,9 +340,12 @@ export default function GoalDetailPage({
           {(milestones.length > 0 || addingMs) && (
           <div className="pad-x"><div className="card list-card-ruled">
             {milestones.map((m) => (
-              <div className={"task-row p2 ms-row" + (m.done ? " completed" : "")} key={m.id}
-                role="button" tabIndex={0} aria-label={(m.done ? "Mark not done: " : "Mark done: ") + titleCase(m.text)}
-                onClick={() => tick(m.id, !m.done)} onKeyDown={rowKey(() => tick(m.id, !m.done))}>
+              /* row-tap: RuledSwipe's onOpen is the row's door, and its swipe is the check's second way */
+              <RuledSwipe key={m.id} label={titleCase(m.text)} className={"task-row p2 ms-row" + (m.done ? " completed" : "")}
+                rowProps={{ role: "button", tabIndex: 0, "aria-label": (m.done ? "Mark not done: " : "Mark done: ") + titleCase(m.text), onKeyDown: rowKey(() => tick(m.id, !m.done)) }}
+                onOpen={() => tick(m.id, !m.done)}
+                onRight={m.done ? undefined : () => tick(m.id, true)}
+                onDelete={onDeleteMilestone ? () => onDeleteMilestone(m.id) : undefined}>
                 <div
                   className="task-check-tap"
                   role="checkbox"
@@ -348,7 +359,7 @@ export default function GoalDetailPage({
                   <span className="task-name">{titleCase(m.text)}</span>
                   {m.done && <div className="r-k"><span className="r-goal fact good">Done {monthDay(m.done)}</span></div>}
                 </div>
-              </div>
+              </RuledSwipe>
             ))}
             {addingMs && onAddMilestone && (
               <div className="row" onClick={() => msInput.current?.focus()}>

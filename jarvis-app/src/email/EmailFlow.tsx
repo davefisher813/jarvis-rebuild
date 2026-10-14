@@ -64,7 +64,7 @@ import ReceiptDetail from "../hub/ReceiptDetail";
 import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
-  TRASHED, UNDO, foundLine, type Segment,
+  TRASHED, UNDO, PUT_BACK, RESTORED, UNSUPPORTED_ACTION, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, DRAFT_SAVED, DRAFT_SAVED_HERE, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
   REVIEW_OPEN, reviewItemsLine, WAITING_TITLE, waitingDeleted,
   ACCOUNT_PICK_TITLE, ALL_ACCOUNTS_PICK, CANCEL, INBOX_TITLE, MOVE_TO_SECTION, MOVED_BACK, movedToLine, NOTHING_SELECTED, PUT_BACK_SECTION, RECONNECT_FIRST, RETRY_FAILED, SEARCH_PLACEHOLDER, SELECT,
@@ -72,7 +72,7 @@ import {
   GROUPED_INTRO_SUB, GROUPED_INTRO_TITLE, USE_GROUPED,
 } from "./copy";
 import {
-  answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, searchCached, syncAccount, PAGE,
+  answerSuggestion, inboxPage, labelMessage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, searchCached, syncAccount, PAGE,
   type EmailAccount, type InboxRow, type MessageDetail, type RpcClient,
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
@@ -669,6 +669,25 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     forgetMessage(userId, row.id);
     showToast({ message: info.op === "archive" ? ARCHIVED : TRASHED, actionLabel: UNDO, onAction: () => void (async () => { if (await info.undo()) restoreRow(row, info.restored); })() });
   }, [accounts, persist, userId, restoreRow]);
+
+  // THE SWIPE ON AN INBOX ROW (Dave 2026-10-13: swipe is the standard). Archive and Delete (Gmail's Trash, recoverable) are the open
+  // message's own two verbs, done from the list: the same provider command, the same receipt toast, the same Undo.
+  const swipeLeave = useCallback(async (row: InboxRow, op: "archive" | "trash") => {
+    if (!token || offline) { showToast({ message: OFFLINE_LINE }); return; }
+    if (!accounts.find((a) => a.address === row.account)?.capabilities?.[op]) { showToast({ message: UNSUPPORTED_ACTION }); return; }
+    const r = await labelMessage(token, row.account, row.provider_id, op);
+    if (!r.ok) { showToast({ message: lineFor(r) }); return; }
+    const undoOp = op === "archive" ? "unarchive" : "untrash";
+    const undo = async (): Promise<boolean> => {
+      const back = await labelMessage(token, row.account, row.provider_id, undoOp);
+      if (!back.ok) { showToast({ message: lineFor(back) }); return false; }
+      showToast({ message: op === "archive" ? PUT_BACK : RESTORED });
+      return true;
+    };
+    leftInbox({ ...row, provider_labels: r.value.labels, read: r.value.read }, { op, undo, restored: { provider_labels: [...r.value.labels.filter((l) => l !== "TRASH"), "INBOX"] } });
+  }, [token, offline, accounts, leftInbox]);
+  const archiveRow = useCallback((row: InboxRow) => void swipeLeave(row, "archive"), [swipeLeave]);
+  const trashRow = useCallback((row: InboxRow) => void swipeLeave(row, "trash"), [swipeLeave]);
 
   const onFileUnder = useCallback(async (row: InboxRow, categoryId: string) => {
     const filed = fileUnder(userId, row, categoryId, now.toISOString());
@@ -1478,7 +1497,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
           )}
           <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
             selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
-            onOpen={openInboxRow} onContact={openContactRow} onWhy={openSectionWhy}
+            onOpen={openInboxRow} onContact={openContactRow} onWhy={openSectionWhy} onArchive={archiveRow} onTrash={trashRow}
             // The open message owns its own cards inside the sheet; the dimmed
             // row behind it does not draw them a second time.
             renderBelow={(r) => (messageCurrent && messageCurrent.id === r.id ? null : cardsFor(r))} />

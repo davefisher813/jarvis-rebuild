@@ -180,9 +180,11 @@ const heads = () => headEls().map((h) => [h.querySelector(".t")!.textContent, h.
 const keysUnder = (head: HTMLElement): Key[] => [...head.nextElementSibling!.querySelectorAll(".erow")].map(keyOfRow);
 const sections = () => headEls().map((h) => [h.querySelector(".t")!.textContent, keysUnder(h)] as const);
 /** The cards drawn straight under a row, up to the next row. */
-const cardsUnder = (el: Element): HTMLElement[] => {
+const cardsUnder = (row: Element): HTMLElement[] => {
   const out: HTMLElement[] = [];
-  for (let n = el.nextElementSibling; n && !n.classList.contains("erow"); n = n.nextElementSibling) if (n.matches(".email-card, .email-receipt-line")) out.push(n as HTMLElement);
+  // An inbox row swipes (Archive, Delete), so it sits inside its swipe wrapper and its cards follow the wrapper.
+  const el = row.closest(".task-swipe") ?? row;
+  for (let n = el.nextElementSibling; n && !n.classList.contains("erow") && !n.querySelector(".erow"); n = n.nextElementSibling) if (n.matches(".email-card, .email-receipt-line")) out.push(n as HTMLElement);
   return out;
 };
 // A clock is bound to its AM or PM with a no-break space (issue 106 V1) and a phone's ICU writes a narrow one: read both as the plain space.

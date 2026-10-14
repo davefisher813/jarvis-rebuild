@@ -16,6 +16,7 @@
 
 import { memo } from "react";
 import { Check, ChevronRight, Paperclip } from "../shared/icons";
+import MailSwipe from "../messages/MailSwipe";
 import "../styles/mail-rows.css";
 import { own, rowDoor } from "../shared/rowDoor";
 import { faceSlot } from "../messages/rowAnatomy";
@@ -34,7 +35,7 @@ export function initialsOf(r: Pick<InboxRow, "from_name" | "from_address">): str
   return (local.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2) || "?").toUpperCase();
 }
 
-function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0, onContact }: {
+function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0, onContact, onArchive, onTrash }: {
   row: InboxRow;
   /** More than one mailbox is in the list, so each row says whose it is; empty when there is one. */
   accountLabel: string;
@@ -50,6 +51,9 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
   threadCount?: number;
   /** The sender's circle opens the contact sheet (issue 112, item 14). Absent: the circle is the plain mark it was. Keep it stable (useCallback), or every row redraws. */
   onContact?: (row: InboxRow) => void;
+  /** SWIPE LEFT (Dave 2026-10-13: swipe is the standard): Archive and Delete, the mail rows' rail everywhere else in the app. Both stable. Absent, or in select mode, the row does not swipe. */
+  onArchive?: (row: InboxRow) => void;
+  onTrash?: (row: InboxRow) => void;
 }) {
   const name = senderOf(row);
   const unread = !row.read;
@@ -59,7 +63,7 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
   const label = `${name} · ${subject}${unread ? " · Unread" : ""}${sameContent ? " · " + SAME_CONTENT : ""}`;
   const hue = faceSlot(row.from_address || name);
   const initials = initialsOf(row);
-  return (
+  const rowEl = (
     <div className={"row mrow erow" + (picked ? " picked" : "")} {...rowDoor(tap)} aria-label={label}
       {...(selecting ? { "aria-pressed": picked } : {})}>
       {selecting && <span className={"sel-box" + (picked ? " on" : "")} aria-hidden="true">{picked && <Check className="ic" />}</span>}
@@ -97,6 +101,8 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
       {!selecting && <ChevronRight className="mchev" aria-hidden="true" />}
     </div>
   );
+  if (selecting || !onArchive || !onTrash) return rowEl;
+  return <MailSwipe label={name} onArchive={() => onArchive(row)} onDelete={() => onTrash(row)}>{rowEl}</MailSwipe>;
 }
 
 // A LONG LIST DOES NOT REDRAW EVERY ROW (slice 09; IMPLEMENTATION-SPEC.md 17:
@@ -106,5 +112,5 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
 // clock crossed a minute (the time words are minute-coarse). InboxList.test.tsx counts.
 const sameMinute = (a: Date, b: Date): boolean => Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 const MailRow = memo(MailRowBody, (a, b) => a.row === b.row && a.accountLabel === b.accountLabel && a.onOpen === b.onOpen && sameMinute(a.now, b.now)
-  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount && a.onContact === b.onContact);
+  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount && a.onContact === b.onContact && a.onArchive === b.onArchive && a.onTrash === b.onTrash);
 export default MailRow;

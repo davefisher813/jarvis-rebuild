@@ -27,7 +27,7 @@ export interface ListGroup {
   key?: string;
 }
 
-export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads, onContact, onWhy }: {
+export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads, onContact, onWhy, onArchive, onTrash }: {
   groups: ListGroup[];
   /** The label each mailbox wears on its rows; empty labels when there is one mailbox. */
   labels: Record<string, string>;
@@ -55,6 +55,9 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
   onContact?: (row: InboxRow) => void;
   /** A section heading's Why This Section? (issue 112 remainder): the flow opens the sheet for that section. */
   onWhy?: (group: ListGroup) => void;
+  /** Swipe left on a row: Archive and Delete. Keep both stable, or every row redraws. Absent, the rows do not swipe. */
+  onArchive?: (row: InboxRow) => void;
+  onTrash?: (row: InboxRow) => void;
 }) {
   return (
     <div className="pad-x">
@@ -77,7 +80,7 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
                 // A fragment, not a wrapper: the card's hairline is drawn between two adjacent rows.
                 <Fragment key={r.id}>
                   <MailRow row={r} accountLabel={labels[r.account] ?? ""} now={now} onOpen={onOpen}
-                    selecting={selecting} picked={selecting && !!isPicked?.(r.id)} onPick={onPick} sameContent={!!sameContent?.[r.id]} threadCount={threads?.[r.id]} onContact={onContact} />
+                    selecting={selecting} picked={selecting && !!isPicked?.(r.id)} onPick={onPick} sameContent={!!sameContent?.[r.id]} threadCount={threads?.[r.id]} onContact={onContact} onArchive={onArchive} onTrash={onTrash} />
                   {!selecting && renderBelow?.(r)}
                 </Fragment>
               ))}

@@ -2,6 +2,10 @@ import type { Progress } from "./progress";
 import { TargetGlyph } from "../shared/glyphs";
 import { lineCase, titleCase } from "../shared/casing";
 import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
+import { useRowMenu } from "../shared/useRowMenu";
+import { useSwipe } from "../shared/useSwipe";
+import type { RowAction } from "../shared/RowActionSheet";
+import { Check, Trash2 } from "../shared/icons";
 
 // THE GOAL ROW (Goals and Projects, Dave 2026-09-02: "One card, status
 // capsule on the right"). One anatomy wherever a goal is listed, on the
@@ -37,7 +41,7 @@ export function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
 }
 
-export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen }: {
+export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen, onAchieve, onDelete }: {
   title: string;
   /** A cat-fg-* class: the goal's home colour. */
   tone: string;
@@ -65,10 +69,30 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
    *  in the row's grey, the day not bolded as if it were a count. */
   when?: string | null;
   onOpen?: () => void;
+  /** THE ROW'S GESTURES (Dave 2026-10-13: swipe is the standard everywhere). Swipe right marks the goal achieved, the one
+   *  "complete" a goal has; swipe left deletes it (the flow gives it the same Undo the goal page's Delete has). Tap opens the goal,
+   *  whose page holds Drop and the rest. Either is absent where the caller has no such write, and a row with neither does not move. */
+  onAchieve?: () => void;
+  onDelete?: () => void;
 }) {
   const checkinKey = checkin ? checkinTone(checkin) : null;
-  return (
-    <div className="task-row p2 goal-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
+  const shown = titleCase(title);
+  const swipeable = !!onAchieve || !!onDelete;
+  const menuActions: RowAction[] = [
+    ...(onAchieve ? [{ label: "Mark Achieved", onPick: onAchieve }] : []),
+    ...(onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
+  ];
+  const rowMenu = useRowMenu({ title: shown, actions: menuActions, swipeEnabled: swipeable });
+  const swipe = useSwipe({
+    revealW: onDelete ? 88 : 0,
+    rightW: onAchieve ? 88 : 0,
+    ...(onAchieve ? { onRightCommit: onAchieve } : {}),
+    enabled: swipeable,
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { handlers, sheet } = rowMenu.bind(swipe);
+  const inner = (
+    <>
       <div className="task-check-tap"><span className={"gm-slot " + tone}><TargetGlyph /></span></div>
       <div className="task-title">
         {/* His own title, shown in Title Case; what he typed is stored
@@ -100,6 +124,34 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
         {bar && <Bar p={bar} />}
       </div>
       {onOpen && CHEV}
+    </>
+  );
+  if (!swipeable) {
+    return <div className="task-row p2 goal-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>{inner}</div>;
+  }
+  return (
+    <div className="task-swipe">
+      {onAchieve && (
+        <div className="task-done-rail" aria-hidden="true">
+          <Check className="ic" />
+          <span className="swipe-label">Achieved</span>
+        </div>
+      )}
+      {onDelete && (
+        <button className="task-del" aria-label={"Delete " + shown} onClick={() => swipe.closeThen(onDelete)}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">Delete</span>
+        </button>
+      )}
+      <div
+        {...handlers}
+        className={"task-row p2 goal-row-ruled" + (swipe.dragging ? " swiping" : "")}
+        style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
+        role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined}
+        onClick={() => { if (swipe.open || swipe.dx) { swipe.closeThen(); return; } onOpen?.(); }}>
+        {inner}
+      </div>
+      {sheet}
     </div>
   );
 }

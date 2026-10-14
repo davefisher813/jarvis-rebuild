@@ -442,6 +442,25 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   // links real again: nothing else points at anything, and the row is gone
   // by the time Undo is tappable, so the id is free to take (the pattern
   // NotesService.restoreNote uses, HMN-F-15).
+  // DELETE A STEP, from its sheet or by swiping it, with the same Undo. recreateFrom is the one function every Undo-after-delete
+  // calls (B1-3), and with the old id the step comes back as itself, checklist, plan, extra areas and repeat included
+  // (LIFE-F-15, 2026-09-05).
+  const deleteStep = async (id: string, fromSheet: boolean) => {
+    const kept = tasks.find((x) => x.id === id)?.data;
+    const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
+    if (fromSheet) setSheet({ kind: "closed" });
+    await reload();
+    if (!ok || !kept) return;
+    showToast({
+      message: "Step Deleted",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(() => tasksSvc.recreateFrom(kept, id));
+        await reload();
+      })(),
+    });
+  };
+
   const removeWithUndo = async (
     kind: "project" | "goal",
     id: string,
@@ -637,6 +656,23 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, measure: { kind: "milestones", items } })));
     if (ok) await reload();
   };
+  // DELETE A MILESTONE by swiping it, with an Undo that puts the whole list back as it was.
+  const deleteMilestone = async (g: Goal, id: string) => {
+    const m = g.data.measure;
+    if (!m || m.kind !== "milestones") return;
+    const before = m.items;
+    const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, measure: { kind: "milestones", items: before.filter((i) => i.id !== id) } })));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: "Milestone Deleted",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, measure: { kind: "milestones", items: before } })));
+        await reload();
+      })(),
+    });
+  };
   const nextActionTextOf = useCallback(
     (projectId: string) => nextActionOf(tasks, projectId)?.data.text ?? null,
     [tasks],
@@ -742,6 +778,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             .map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category }))}
           onToggleStep={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
           onOpenStep={(id) => setSheet({ kind: "editStep", id })}
+          onDeleteStep={(id) => void deleteStep(id, false)}
           onAddStep={() => setSheet({ kind: "newStep", projectId: detail.id })}
           onFinish={async () => {
             const p = detail;
@@ -867,27 +904,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 await reload();
                 return true;
               }}
-              onDelete={async () => {
-                const id = sheet.id;
-                const kept = t.data;
-                const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
-                setSheet({ kind: "closed" });
-                await reload();
-                if (!ok) return;
-                showToast({
-                  message: "Step Deleted",
-                  actionLabel: "Undo",
-                  onAction: () => void (async () => {
-                    // LIFE-F-15 (2026-09-05): this rebuilt the step from three
-                    // fields, so Undo handed back a task with no checklist, no
-                    // plan, no extra areas and no repeat. recreateFrom is the
-                    // one function every Undo-after-delete calls (B1-3), and
-                    // with the old id the step comes back as itself.
-                    await attemptWrite(() => tasksSvc.recreateFrom(kept, id));
-                    await reload();
-                  })(),
-                });
-              }}
+              onDelete={() => deleteStep(sheet.id, true)}
               onCancel={() => setSheet({ kind: "closed" })}
             />
           );
@@ -941,6 +958,50 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           });
         };
 
+  // MARK ACHIEVED, wherever the goal is: the detail page's button and the Goals lens's swipe are the same write, the same payoff
+  // and the same Undo. `fromDetail` is whether the page being left was the goal's own, which is where Undo should land.
+  const achieveGoal = async (g: Goal, fromDetail: boolean) => {
+    // LIFE-F-17 (2026-09-05): unguarded, and the payoff played
+    // whatever happened. A goal that failed to save must not be
+    // celebrated.
+    const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, state: "achieved" })));
+    await reload();
+    if (!ok) return;
+    const mine = projects.filter((p) => p.data.goalId === g.id);
+    const ids = new Set(mine.map((p) => p.id));
+    if (fromDetail) setGoalDetailId(null);
+    setPayoff({
+      kind: "goal",
+      title: g.data.title,
+      line: payoffLine({
+        projectsDone: mine.filter((p) => p.data.status === "done").length,
+        tasksDone: tasks.filter((t) => {
+          const pid = (t.data as { projectId?: string }).projectId;
+          return !!pid && ids.has(pid) && (t.data as { done?: boolean }).done === true;
+        }).length,
+      }),
+    });
+    // LIFE-F-16 (2026-09-05): Mark Achieved sits directly above Drop
+    // This Goal and was one quiet tap with no way back: it left live
+    // goals, Today's nudges, the AI context and every picker, and the
+    // edit sheet has no state control. It gets the Undo every other
+    // irreversible tap in this app gets, restoring the state it had
+    // and clearing the achieved date GoalService stamps on the way in.
+    showToast({
+      message: "Goal Achieved",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        // g.data is the snapshot read before the achieve, so this
+        // puts the goal's own state back rather than guessing one.
+        const ok2 = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, achievedOn: null })));
+        if (!ok2) return;
+        setPayoff(null);
+        setGoalDetailId(g.id);
+        await reload();
+      })(),
+    });
+  };
+
   if (goalDetail && !detail) {
     return (
       <>
@@ -957,6 +1018,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           onCheckin={strandsSvc ? (word) => void doCheckin(goalDetail, word) : undefined}
           onMilestoneDone={(id, done) => void setMilestone(goalDetail, id, done)}
           onAddMilestone={(text) => void addMilestone(goalDetail, text)}
+          onDeleteMilestone={(id) => void deleteMilestone(goalDetail, id)}
           projects={goalProjects}
           rowOf={(id) => projectRows.find((r) => r.project.id === id)}
           holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
@@ -968,48 +1030,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           onBack={() => setGoalDetailId(null)}
           onEdit={() => setSheet({ kind: "editGoal", id: goalDetail.id })}
           onDelete={() => void removeWithUndo("goal", goalDetail.id, () => setGoalDetailId(null))}
-          onAchieve={async () => {
-            const g = goalDetail;
-            // LIFE-F-17 (2026-09-05): unguarded, and the payoff played
-            // whatever happened. A goal that failed to save must not be
-            // celebrated.
-            const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, state: "achieved" })));
-            await reload();
-            if (!ok) return;
-            const mine = projects.filter((p) => p.data.goalId === g.id);
-            const ids = new Set(mine.map((p) => p.id));
-            setGoalDetailId(null);
-            setPayoff({
-              kind: "goal",
-              title: g.data.title,
-              line: payoffLine({
-                projectsDone: mine.filter((p) => p.data.status === "done").length,
-                tasksDone: tasks.filter((t) => {
-                  const pid = (t.data as { projectId?: string }).projectId;
-                  return !!pid && ids.has(pid) && (t.data as { done?: boolean }).done === true;
-                }).length,
-              }),
-            });
-            // LIFE-F-16 (2026-09-05): Mark Achieved sits directly above Drop
-            // This Goal and was one quiet tap with no way back: it left live
-            // goals, Today's nudges, the AI context and every picker, and the
-            // edit sheet has no state control. It gets the Undo every other
-            // irreversible tap in this app gets, restoring the state it had
-            // and clearing the achieved date GoalService stamps on the way in.
-            showToast({
-              message: "Goal Achieved",
-              actionLabel: "Undo",
-              onAction: () => void (async () => {
-                // g.data is the snapshot read before the achieve, so this
-                // puts the goal's own state back rather than guessing one.
-                const ok2 = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, achievedOn: null })));
-                if (!ok2) return;
-                setPayoff(null);
-                setGoalDetailId(g.id);
-                await reload();
-              })(),
-            });
-          }}
+          onAchieve={() => void achieveGoal(goalDetail, true)}
           onOpenProject={(id) => setDetailId(id)}
           onAddProject={() => setSheet({ kind: "newProject", goalId: goalDetail.id })}
           onLinkSuggestion={(id) => void linkSuggestion(id)}
@@ -1115,6 +1136,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         onMoveProject={(id, goalId) => void moveProject(id, goalId)}
         onAddGoal={() => setSheet({ kind: "newGoal" })}
         onOpenGoal={(id) => setGoalDetailId(id)}
+        onAchieveGoal={(id) => { const g = goals.find((x) => x.id === id); if (g) void achieveGoal(g, false); }}
+        onDeleteGoal={(id) => void removeWithUndo("goal", id, () => {})}
       />
       {(sheet.kind === "newProject" || sheet.kind === "editProject") && (
         <ProjectSheet
