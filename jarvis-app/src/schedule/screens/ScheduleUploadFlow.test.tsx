@@ -297,7 +297,7 @@ describe("Schedule upload: a read that never answers fails visibly, with a way b
       const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-hang");
       const onCancel = vi.fn();
       render(<ScheduleUploadFlow ai={hangingAI()} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={onCancel} />);
-      fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "Practice Sat 9am" } });
+      fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "Please read the attached" } });
       fireEvent.click(screen.getByText("Read the Pasted Text"));
       expect(screen.getAllByText("Reading...").length).toBeGreaterThan(0);
       await vi.advanceTimersByTimeAsync(45_001);
@@ -317,5 +317,42 @@ describe("Schedule upload: a read that never answers fails visibly, with a way b
     fireEvent.click(screen.getByText("Read the Pasted Text"));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't Find Any Events in That Text");
     expect(screen.getByText("Try Again")).toBeEnabled();
+  });
+});
+
+// ALFRED'S LIVE CHECK ON b4ff606 (2026-10-13): "Team call tomorrow at 2pm for 30 minutes" answered "Couldn't Find Any Events in That Text".
+describe("Schedule upload: a plain sentence is an event", () => {
+  const paste = (ai: AIService) => {
+    render(<ScheduleUploadFlow ai={ai} svc={new ScheduleService(new Store(new InMemoryAdapter()), "u-plain")} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "Team call tomorrow at 2pm for 30 minutes" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+  };
+
+  it("reaches the review list even when the model answers with nothing", async () => {
+    paste(fakeAI("{}"));
+    await screen.findByText("Review the Schedule");
+    expect(screen.getByText(/Team Call/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't Find Any Events/)).toBeNull();
+  });
+
+  it("reaches the review list when the model cannot be reached", async () => {
+    paste({ available: true, complete: async () => { throw new Error("offline"); } } as unknown as AIService);
+    await screen.findByText("Review the Schedule");
+    expect(screen.getByText(/Team Call/i)).toBeInTheDocument();
+  });
+
+  it("still says so when there is truly no event in the text", async () => {
+    render(<ScheduleUploadFlow ai={fakeAI("{}")} svc={new ScheduleService(new Store(new InMemoryAdapter()), "u-none")} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "hello there" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Couldn't Find Any Events/);
+  });
+
+  it("tells the model what today is", async () => {
+    const complete = vi.fn(async () => "{}");
+    paste({ available: true, complete } as unknown as AIService);
+    await screen.findByText("Review the Schedule");
+    const sent = (complete.mock.calls[0] as unknown as [{ content: string }[]])[0]![0]!.content;
+    expect(sent).toMatch(/Today is (Sun|Mon|Tues|Wednes|Thurs|Fri|Satur)day, \d{4}-\d{2}-\d{2}\./);
   });
 });

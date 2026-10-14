@@ -180,3 +180,60 @@ describe("the weekly grid the extractor can now see", () => {
     expect(parsed[0]!.weekdays).toEqual([1, 3]);
   });
 });
+
+// "Team call tomorrow at 2pm for 30 minutes" came back as "Couldn't Find Any Events" on production (2026-10-13): the prompt never said what
+// today was, so "tomorrow" was not a date the model could write down.
+import { scheduleExtractPrompt, readPlainSentences } from "./scheduleExtract";
+
+describe("the prompt carries today", () => {
+  it("says today's weekday and date, and how to resolve a relative day and a length", () => {
+    const p = scheduleExtractPrompt("2026-10-14");
+    expect(p).toContain("Today is Wednesday, 2026-10-14.");
+    expect(p).toMatch(/"tomorrow" is the day after/);
+    expect(p).toMatch(/set end to start plus that length/);
+  });
+});
+
+describe("a model reply in a looser shape still reads", () => {
+  it("takes a whole date and a length", () => {
+    const rows = parseScheduleExtract(JSON.stringify({ events: [{ title: "Team Call", date: "2026-10-15", start: "14:00", durationMin: 30 }] }))!;
+    expect(rows[0]).toMatchObject({ title: "Team Call", month: 10, day: 15, year: 2026, start: "14:00", end: "14:30" });
+  });
+  it("takes a bare list", () => {
+    const rows = parseScheduleExtract(JSON.stringify([{ title: "Dentist", month: 10, day: 16, start: "09:30" }]))!;
+    expect(rows).toHaveLength(1);
+  });
+});
+
+describe("plain sentences are events without the model", () => {
+  const today = "2026-10-14"; // a Wednesday
+  it("the sample that failed", () => {
+    const rows = readPlainSentences("Team call tomorrow at 2pm for 30 minutes", today)!;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ title: "Team call", month: 10, day: 15, year: 2026, start: "14:00", end: "14:30", recurring: false });
+  });
+  it("a weekday, a 24 hour time and hours", () => {
+    const r = readPlainSentences("Dentist Friday 9:30am for 1 hour", today)![0]!;
+    expect(r).toMatchObject({ title: "Dentist", month: 10, day: 16, start: "09:30", end: "10:30" });
+    expect(readPlainSentences("Practice on Saturday at 15:00", today)![0]).toMatchObject({ title: "Practice", day: 17, start: "15:00" });
+  });
+  it("today, tonight, and next week's weekday", () => {
+    expect(readPlainSentences("Dinner tonight at 7pm", today)![0]).toMatchObject({ title: "Dinner", day: 14, start: "19:00" });
+    expect(readPlainSentences("Game next Wednesday at 6pm", today)![0]).toMatchObject({ month: 10, day: 21 });
+  });
+  it("a written date, with and without a year, rolling a past date to next year", () => {
+    expect(readPlainSentences("Recital Nov 3 at 5pm", today)![0]).toMatchObject({ title: "Recital", month: 11, day: 3, year: 2026 });
+    expect(readPlainSentences("Checkup 3/9", today)![0]).toMatchObject({ month: 3, day: 9, year: 2027, start: null });
+  });
+  it("one event per line, and a line with no day is skipped rather than guessed", () => {
+    const rows = readPlainSentences("Standup tomorrow at 9am\nBring snacks\nReview Friday at 1pm", today)!;
+    expect(rows.map((r) => r.title)).toEqual(["Standup", "Review"]);
+  });
+  it("noon and midnight", () => {
+    expect(readPlainSentences("Lunch tomorrow at 12pm", today)![0]!.start).toBe("12:00");
+    expect(readPlainSentences("Reset tomorrow at 12am", today)![0]!.start).toBe("00:00");
+  });
+  it("nothing to read is null", () => {
+    expect(readPlainSentences("hello there", today)).toBeNull();
+  });
+});

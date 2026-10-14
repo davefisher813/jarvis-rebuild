@@ -5,7 +5,8 @@ import type { AIService } from "../../ai/AIService";
 import { buildVisionMessage } from "../../ai/AIService";
 import { JARVIS_VOICE } from "../../ai/voice";
 import { encodeImageForVision } from "../../shared/imageEncode";
-import { SCHEDULE_EXTRACT_PROMPT, parseScheduleExtract, buildScheduleRows, type ExtractedEvent, type ScheduleRow } from "../scheduleExtract";
+import { todayISO } from "../../tasks/grouping";
+import { scheduleExtractPrompt, parseScheduleExtract, readPlainSentences, buildScheduleRows, type ExtractedEvent, type ScheduleRow } from "../scheduleExtract";
 import { fmtRange } from "../calendar";
 import { showToast } from "../../shared/toast";
 import { WRITE_FAILED_MESSAGE, attemptWrite } from "../../shared/guard";
@@ -100,7 +101,7 @@ export default function ScheduleUploadFlow({
     }
   };
 
-  const runExtract = async (message: Parameters<AIService["complete"]>[0][number], source: "photo" | "text" = "photo") => {
+  const runExtract = async (message: Parameters<AIService["complete"]>[0][number], source: "photo" | "text" = "photo", pasted = "") => {
     setBusy(true);
     setFailure(null);
     // THE READ HAS A DEADLINE. Without one, a request that never comes back leaves the sheet on "Reading..." for good.
@@ -113,13 +114,18 @@ export default function ScheduleUploadFlow({
       // skip. Titles stay the source's own words; the voice rules govern the
       // model's side of the exchange.
       const out = await ai.complete([message], JARVIS_VOICE, { signal: ctl.signal });
-      const found = parseScheduleExtract(out);
+      // A plain sentence with a day and a time is an event whatever the model's reply looked like; the pasted lines are read directly
+      // when it found nothing (readPlainSentences). Photos have no text to fall back on.
+      const found = parseScheduleExtract(out) ?? (source === "text" ? readPlainSentences(pasted, todayISO()) : null);
       if (!found || found.length === 0) {
         say(source === "text" ? "Couldn't Find Any Events in That Text · Check It and Try Again" : "Couldn't Read That · Try a Clearer Photo");
         return;
       }
       afterExtract(found, year);
     } catch {
+      // The model did not answer, but the sentence still can: read it here before saying so.
+      const plain = source === "text" ? readPlainSentences(pasted, todayISO()) : null;
+      if (plain) { afterExtract(plain, year); return; }
       say(ctl.signal.aborted ? "That Took Too Long · Try Again" : "Couldn't Reach JARVIS · Try Again");
     } finally {
       clearTimeout(timer);
@@ -131,7 +137,7 @@ export default function ScheduleUploadFlow({
     try {
       const img = await encodeImageForVision(file);
       setThumb(`data:${img.mediaType};base64,${img.data}`);
-      await runExtract(buildVisionMessage(SCHEDULE_EXTRACT_PROMPT, img.data, img.mediaType));
+      await runExtract(buildVisionMessage(scheduleExtractPrompt(todayISO()), img.data, img.mediaType));
     } catch {
       showToast({ message: "Couldn't Open That Image \u00b7 Try Another File" });
     }
@@ -417,7 +423,7 @@ export default function ScheduleUploadFlow({
             <textarea className="input input-multiline" rows={5} placeholder="Paste the Schedule · A Message or Email Works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
-            onClick={() => void runExtract({ role: "user", content: SCHEDULE_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) }, "text")}>
+            onClick={() => void runExtract({ role: "user", content: scheduleExtractPrompt(todayISO()) + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) }, "text", text.trim().slice(0, 12000))}>
             {busy ? "Reading..." : failure ? "Try Again" : "Read the Pasted Text"}
           </button>
           {failure && <div className="input-error" role="alert">{failure}</div>}
