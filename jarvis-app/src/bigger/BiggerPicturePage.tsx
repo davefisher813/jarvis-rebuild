@@ -145,6 +145,7 @@ export default function BiggerPicturePage({
    *  Close It and Move to Goal -- and nothing new (the handoff: "the
    *  overflow menu keeps existing actions"). */
   const [cardMenu, setCardMenu] = useState<string | null>(null);
+  const [goalMenu, setGoalMenu] = useState<string | null>(null);
   /** THE AREA FILTER (2026-09-17). The one secondary control these two lenses
    *  genuinely have: both already file by area -- a project by its category,
    *  a goal by the first of its tags that names a live one -- and neither had
@@ -301,6 +302,10 @@ export default function BiggerPicturePage({
         foot={linked > 0 ? lineCase(`${linked} linked ${linked === 1 ? "project" : "projects"}`) : null}
         progress={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : null}
         onOpen={() => onOpenGoal(g.id)}
+        // A tile sits in a shelf that scrolls sideways, so a horizontal drag on it is the shelf's, not a swipe. The goal's actions
+        // are the overflow here (the list view beside it swipes: right Achieved, left Delete).
+        menuLabel={"More for " + g.data.title}
+        {...(onAchieveGoal || onDeleteGoal ? { onMenu: () => setGoalMenu(g.id) } : {})}
       />
     );
   };
@@ -517,6 +522,19 @@ export default function BiggerPicturePage({
           <RowActionSheet title={row.project.data.title} onCancel={() => setCardMenu(null)} actions={[
             ...(closable(row) && onCloseProject ? [{ label: "Close It", onPick: () => { setCardMenu(null); onCloseProject(row.project.id); } }] : []),
             ...(onMoveProject ? [{ label: "Move to Goal", onPick: () => { setCardMenu(null); setMoveFor(row.project.id); } }] : []),
+          ]} />
+        );
+      })()}
+
+      {/* THE GOAL TILE'S OVERFLOW: the same two actions the list row swipes, Achieved where the goal is still open, and Delete. */}
+      {goalMenu && (() => {
+        const g = goals.find((x) => x.id === goalMenu);
+        if (!g) return null;
+        const open = g.data.state !== "achieved" && !g.data.dropped;
+        return (
+          <RowActionSheet title={g.data.title} onCancel={() => setGoalMenu(null)} actions={[
+            ...(open && onAchieveGoal ? [{ label: "Mark Achieved", onPick: () => { setGoalMenu(null); onAchieveGoal(g.id); } }] : []),
+            ...(onDeleteGoal ? [{ label: "Delete", destructive: true, onPick: () => { setGoalMenu(null); onDeleteGoal(g.id); } }] : []),
           ]} />
         );
       })()}
