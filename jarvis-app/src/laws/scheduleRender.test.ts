@@ -25,11 +25,12 @@ describe("schedule rendering", () => {
     for (const b of [home, tab]) { expect(b).toMatch(/margin-left\s*:\s*0/); expect(b).toMatch(/padding-left\s*:\s*0/); }
   });
 
-  it("a row's check rides the end of the row, so it never takes room in front of the time", () => {
-    const b = bodies(".sched-row .sched-check").join(";");
-    expect(b).toMatch(/order\s*:\s*3/);
-    expect(b).toMatch(/margin-left\s*:\s*var\(--s-2\)/);
+  it("no schedule row draws a checkbox ahead of its time or at its end: a proposed row is cleared by swipe, so every time shares one left edge", () => {
+    const row = readFileSync(join(__dirname, "..", "schedule", "screens", "ProposedRow.tsx"), "utf8");
+    const proposed = row.slice(0, row.indexOf("export function HeldProposalRow"));
+    expect(proposed).not.toMatch(/sched-check|role="checkbox"/);
+    expect(bodies(".sched-row .sched-check")).toEqual([]);
     // Nothing gives a row with a check more left padding than one without.
-    for (const r of rules) if (/sched-proposed|sched-check/.test(r.sel) && /\.sched-row/.test(r.sel)) expect(r.body, r.sel).not.toMatch(/padding-left/);
+    for (const r of rules) if (/sched-proposed/.test(r.sel) && /\.sched-row/.test(r.sel)) expect(r.body, r.sel).not.toMatch(/padding-left/);
   });
 });

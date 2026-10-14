@@ -95,9 +95,8 @@ export default function DecisionSheet({ mode, initial, projectTitle, sourceLine,
           {options.map((o) => {
             const on = d.dependencies.some((r) => r.item_id === o.id);
             return (
-              <Row key={o.id} label={o.label} meta={o.kindLabel} onClick={() => toggleDep(o.id)}>
-                <div className={"radio" + (on ? " on" : "")} role="checkbox" aria-checked={on} aria-label={o.label} />
-              </Row>
+              <Row key={o.id} label={o.label} meta={o.kindLabel} onClick={() => toggleDep(o.id)}
+                lead={<div className={"radio" + (on ? " on" : "")} role="checkbox" aria-checked={on} aria-label={o.label} />} />
             );
           })}
         </Group>

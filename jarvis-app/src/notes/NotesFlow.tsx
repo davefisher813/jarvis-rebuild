@@ -19,7 +19,7 @@ import { usePushDepth } from "../shared/pushNav";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { fileMemory, showFilingConfirm } from "../ai/filingIntake";
 import type { BrainMemoryCategory } from "../ai/brainMemory";
 import { usePickFile, PICK_ANY, PICK_IMAGE, PICK_TABLE } from "../shared/usePickFile";
@@ -610,11 +610,21 @@ export default function NotesFlow({
       return ok ? id : null;
     } finally { creatingRef.current = false; }
   };
+  // A TEMPLATE PAGE THAT ALREADY EXISTS IS NEVER SILENTLY MADE AGAIN (Alfred's deep audit 2026-10-13: choosing Team Sheet quietly added a
+  // second "Team Sheet, 0 Players"). A Golf Scorecard starts at its round sheet and a Lineup Card at its team chooser, so each already
+  // asks; a Team Sheet and an Outreach Tracker are one running record, so when one is already kept the picker asks: open it, or
+  // deliberately make another.
+  const [alreadyHave, setAlreadyHave] = useState<{ kind: PageKind; have: NoteListItem[] } | null>(null);
+  const makePage = async (kind: PageKind) => {
+    const id = await createPage(KIND_NAME[kind], kind === "team" ? newTeamPage() : newOutreachPage());
+    if (id) openPage(id);
+  };
   const pickPage = async (kind: PageKind) => {
     if (kind === "scorecard") { setStartRound(true); return; }
     if (kind === "lineup") { setChooseTeam(true); return; }
-    const id = await createPage(KIND_NAME[kind], kind === "team" ? newTeamPage() : newOutreachPage());
-    if (id) openPage(id);
+    const have = list.filter((n) => n.page === kind && !n.deleted && !n.archived);
+    if (have.length) { setAlreadyHave({ kind, have }); return; }
+    await makePage(kind);
   };
   const teamSheets = list.filter((n) => n.page === "team" && !n.deleted && !n.archived);
 
@@ -1108,6 +1118,14 @@ export default function NotesFlow({
             const id = await createPage(o.course.trim() || "Golf Round", newScorecardPage({ ...o, date: todayISO() }));
             if (id) openPage(id, "templates");
           })()} />
+        )}
+        {alreadyHave && (
+          <RowActionSheet title={`You Already Have ${alreadyHave.have.length === 1 ? "a" : alreadyHave.have.length} ${KIND_NAME[alreadyHave.kind]}${alreadyHave.have.length === 1 ? "" : "s"}`}
+            onCancel={() => setAlreadyHave(null)}
+            actions={[
+              ...alreadyHave.have.slice(0, 4).map((n) => ({ label: `Open ${titleCase(n.title || KIND_NAME[alreadyHave.kind])}`, onPick: () => openPage(n.id, "templates") })),
+              { label: `Make Another ${KIND_NAME[alreadyHave.kind]}`, onPick: () => void makePage(alreadyHave.kind) },
+            ]} />
         )}
         {chooseTeam && (
           <RowActionSheet title="Lineup from Which Team Sheet" onCancel={() => setChooseTeam(false)}

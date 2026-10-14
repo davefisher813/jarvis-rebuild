@@ -267,3 +267,30 @@ describe("the goal page's project row next step", () => {
     expect(v.textContent).toBe("Draft the Coach Onboarding Email for the Launch");
   });
 });
+
+// A DROPPED GOAL CAN BE DELETED, AND ASKS FIRST (Alfred's deep audit 2026-10-13: dropped goals had no delete path).
+describe("a dropped goal's delete", () => {
+  const dropped: Goal = { id: "gd", data: { title: "Half marathon", state: "on_track", dropped: { on: "2026-08-14" } } };
+  const draw = (goal: Goal, onDelete = vi.fn()) => {
+    render(<GoalDetailPage goal={goal} reach={EMPTY} projects={[]} nextActionTextOf={() => null} onBack={() => {}} onEdit={() => {}}
+      onOpenProject={() => {}} onAddProject={() => {}} onDelete={onDelete} />);
+    return onDelete;
+  };
+
+  it("offers Delete This Goal, deletes nothing until confirmed, and Cancel leaves it", () => {
+    const onDelete = draw(dropped);
+    fireEvent.click(screen.getByText("Delete This Goal"));
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete “Half marathon”, Restore It With Undo");
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Delete This Goal"));
+    fireEvent.click(screen.getByText("Delete Goal"));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("is only on a dropped goal", () => {
+    draw({ id: "gl", data: { title: "Live goal", state: "on_track" } });
+    expect(screen.queryByText("Delete This Goal")).toBeNull();
+  });
+});

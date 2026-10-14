@@ -965,6 +965,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           suggestion={goalSuggestion}
           onBack={() => setGoalDetailId(null)}
           onEdit={() => setSheet({ kind: "editGoal", id: goalDetail.id })}
+          onDelete={() => void removeWithUndo("goal", goalDetail.id, () => setGoalDetailId(null))}
           onAchieve={async () => {
             const g = goalDetail;
             // LIFE-F-17 (2026-09-05): unguarded, and the payoff played

@@ -55,6 +55,7 @@ export default function GoalDetailPage({
   suggestion,
   onBack,
   onEdit,
+  onDelete,
   onOpenProject,
   onAddProject,
   onLinkSuggestion,
@@ -97,6 +98,8 @@ export default function GoalDetailPage({
   suggestion?: Project | null; // at most one, pre-gated by the caller
   onBack: () => void;
   onEdit: () => void;
+  /** Delete a goal that was dropped (Alfred's deep audit 2026-10-13: a dropped goal had no way to be deleted). Asks first; the caller owns Undo. */
+  onDelete?: () => void;
   onOpenProject: (id: string) => void;
   onAddProject: () => void;
   onLinkSuggestion?: (projectId: string) => void;
@@ -167,6 +170,7 @@ export default function GoalDetailPage({
     return () => { on = false; };
   }, [decisions, goal.id]);
   const [dropOpen, setDropOpen] = useState(false);
+  const [deleteAsk, setDeleteAsk] = useState(false);
   const [dropWhy, setDropWhy] = useState("");
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [savingsAmt, setSavingsAmt] = useState("");
@@ -564,6 +568,15 @@ export default function GoalDetailPage({
           <div className="facts"><span className="fact date">Dropped {monthDay(goal.data.dropped.on)}</span></div>
           {goal.data.dropped.decisionId && <div className="conn-meta">The Reason Is in Your Decisions</div>}
         </div>
+      )}
+      {goal.data.dropped && onDelete && (
+        <div className="pad-x conn-action">
+          <button className="btn btn-block" onClick={() => setDeleteAsk(true)}>Delete This Goal</button>
+        </div>
+      )}
+      {deleteAsk && onDelete && (
+        <RowActionSheet title={`Delete \u201c${goal.data.title}\u201d, Restore It With Undo`} cancelFirst onCancel={() => setDeleteAsk(false)}
+          actions={[{ label: "Delete Goal", destructive: true, onPick: onDelete }]} />
       )}
       {dropOpen && onDrop && (
         <FormSheet title="Drop This Goal" saveLabel="Drop It" onCancel={() => setDropOpen(false)} onSave={() => { onDrop(dropWhy.trim()); setDropOpen(false); }}>

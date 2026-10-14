@@ -133,24 +133,18 @@ export default function ProposedRow({
           role="button"
           tabIndex={0}
           aria-expanded={open}
+          // THE ROW'S NAME IS ONE WHOLE PHRASE (Alfred's deep audit 2026-10-13: the accessible name read "PROPOSE", losing its last letter to the
+          // facts line's clip, with "45 Min" outside the button). Said once from the facts themselves, so nothing a clip hides is missing.
+          aria-label={`${title}, ${t.time} ${t.ap}, Proposed, ${spanLabel(mins)}`}
           {...rowHandlers}
           onClick={() => { if (swipeOpen || dx) { closeThen(); return; } if (onOpen) onOpen(); else onToggle(); }}
         >
           <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
-          {/* THE CHECK SITS WHERE THE STAR SITS (Dave 2026-09-27, on his phone:
-              a 44px check box parked beside the time pushed the title a whole
-              line down and left a hole under it). An event row leads with its
-              16px star, then the time, then the title on its own line; a
-              proposed row leads with its check the same size in the same
-              slot, so every row in the card reads the same. The 44px hit is
-              the ::after expander, not the box. */}
-          {onComplete && (
-            <div className="sched-check" role="checkbox" aria-checked={false}
-              aria-label={`Mark ${title} done`}
-              onClick={(e) => { e.stopPropagation(); onComplete(); }}>
-              <div className="task-check" />
-            </div>
-          )}
+          {/* NO CHECKBOX ON A PROPOSED ROW (Dave 2026-10-13, amending Alfred's schedule order: "I never approved a checkbox on the right side
+              of a row"). The 2026-09-27 check sat in the star's slot, ahead of the time, which put this row's time 28px right of every other
+              row's; moving it to the row's end put the one checkbox in the app on the wrong side. Checkboxes live at the left, and the left
+              of a schedule row belongs to its time, so this row does not draw one. Clearing it is the swipe right (the Done rail, below),
+              the first thing the long-press menu says (Done), and the task's own sheet. */}
           {/* THE TIME IS IN THE TIME COLUMN (Dave 2026-10-11: "The time always goes in the LEFT time column, aligned with event
               times. One left edge for all times, one event column; that is the established schedule geometry."). This
               replaces the 2026-10-05 two-line shape that led the details line with the time. The row is an event row now:

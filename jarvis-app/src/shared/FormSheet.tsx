@@ -109,8 +109,11 @@ export function Group({ label, children, className = "" }: { label?: string; chi
 }
 
 /** A row: the tile, the words, whatever sits at the right. */
-export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, chev = false, className = "" }: {
+export function Row({ tone, glyph, lead, label, meta, children, onClick, forwardTo, chev = false, className = "" }: {
   tone?: string; glyph?: ReactNode; label?: ReactNode; meta?: ReactNode; children?: ReactNode;
+  /** A checkbox or other completion control, which always leads the row (Dave 2026-10-13: complete and checkbox controls live in one
+      position everywhere). Drawn before the tile and the label; `children` is the trailing slot and never holds one. */
+  lead?: ReactNode;
   onClick?: () => void;
   /** SHARED-F-11 (2026-09-05). A CSS selector for the control this row owns.
       The row then passes its own taps to that control, so the label, the tile
@@ -153,6 +156,7 @@ export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, ch
       data-forwards={forwardTo || undefined}
       {...(onClick ? pressable(onClick) : { onClick: forwardTo ? forward : undefined })}
     >
+      {lead}
       {tone && glyph && <Tile tone={tone}>{glyph}</Tile>}
       {label !== undefined && (meta
         ? <div className="row-grow"><div className="conn-name">{label}</div><div className="conn-meta">{meta}</div></div>

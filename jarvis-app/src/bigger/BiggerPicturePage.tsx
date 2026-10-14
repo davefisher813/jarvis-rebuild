@@ -195,6 +195,13 @@ export default function BiggerPicturePage({
     .filter((g) => !g.data.dropped && g.data.state === "achieved")
     .sort((a, b) => (b.data.achievedOn ?? "").localeCompare(a.data.achievedOn ?? ""));
 
+  // A GOAL HE DROPPED IS STILL HIS RECORD (Alfred's deep audit 2026-10-13: a dropped goal was missing from Active, Achieved and All, yet
+  // global search still returned it, and with no list to open it from there was no way to delete it). It has its own view now, and All
+  // means all, so what search can find is always somewhere the lists can too.
+  const droppedGoalsAll = goals
+    .filter((g) => !!g.data.dropped)
+    .sort((a, b) => (b.data.dropped?.on ?? "").localeCompare(a.data.dropped?.on ?? ""));
+
   const goalById = new Map(goals.map((g) => [g.id, g] as const));
 
   // ---- THE RULED LENSES (Goals and Projects, Dave 2026-09-02) ----
@@ -375,7 +382,7 @@ export default function BiggerPicturePage({
   /** The goals this view shows. Achieved goals leave the area cards on the
    *  Active view exactly as they always have; the chips are what bring them
    *  back, in place of the folded receipt at the foot. */
-  const viewGoals = (view === "achieved" ? doneGoals : view === "all" ? [...liveGoals, ...doneGoals] : liveGoals)
+  const viewGoals = (view === "achieved" ? doneGoals : view === "dropped" ? droppedGoalsAll : view === "all" ? [...liveGoals, ...doneGoals, ...droppedGoalsAll] : liveGoals)
     .filter((g) => hit(g.data.title) && inArea(homeOf(g)));
   // The four states a project can be looked at in. They were a chip row, then
   // three of them when Done came off it, and they are a menu as of
@@ -392,6 +399,7 @@ export default function BiggerPicturePage({
   const GOAL_VIEWS: HeaderView[] = [
     { key: "active", label: "Active" },
     { key: "achieved", label: "Achieved" },
+    { key: "dropped", label: "Dropped" },
     { key: "all", label: "All" },
   ];
   const movingProject = moveFor ? projectRows.find((r) => r.project.id === moveFor)?.project ?? null : null;

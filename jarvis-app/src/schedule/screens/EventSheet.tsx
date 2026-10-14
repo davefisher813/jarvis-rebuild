@@ -432,7 +432,8 @@ export default function EventSheet({
               <div className="conn-name">Date</div>
               {/* Tomorrow is a move of the DAY, so it lives on the Date row, not among the minute nudges, and only
                   while the event is on today (the moment it is wanted). */}
-              <RowCtxAction when={!!date && date === todayIso()} label="Tomorrow" onAct={() => { setDate(addDays(date, 1)); if (err) setErr(false); }} />
+              <RowCtxAction when={!!date && (date === todayIso() || date === addDays(todayIso(), 1))} label="Today" selected={date === todayIso()} onAct={() => { setDate(todayIso()); if (err) setErr(false); }} />
+              <RowCtxAction when={!!date && (date === todayIso() || date === addDays(todayIso(), 1))} label="Tomorrow" selected={date === addDays(todayIso(), 1)} onAct={() => { setDate(addDays(todayIso(), 1)); if (err) setErr(false); }} />
               <PickValue kind="date" ariaLabel="Date" value={date} invalid={err && !date}
                 onChange={(v) => { setDate(v); if (err) setErr(false); }} />
             </div>

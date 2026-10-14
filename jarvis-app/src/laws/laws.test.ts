@@ -5232,14 +5232,16 @@ describe("LAW: only one file asks for the screen wake lock", () => {
 // The control set state nothing displayed.
 // ===========================================================================
 describe("LAW: a planned task can be finished from where it is shown", () => {
-  it("the proposed row carries a completion ring, not only a duration picker", () => {
+  it("the proposed row can be finished from where it is shown, by swipe and by menu, and draws no checkbox", () => {
     const src = read(join(SRC, "schedule/screens/ProposedRow.tsx"));
     expect(src, "ProposedRow must accept a completion seam").toMatch(/onComplete\?:/);
-    // AMENDED 2026-09-27 (Dave, on his phone: the 44px tap box parked beside
-    // the time pushed the title a line down). The ring is still the app's
-    // own .task-check; it now sits in the star's slot as .sched-check, first
-    // on the line, with its 44px hit on the expander rather than the box.
-    expect(src, "and draw the app's own ring for it").toMatch(/className="sched-check"[\s\S]{0,400}?<div className="task-check" \/>/);
+    // AMENDED 2026-10-13 (Dave: "I never approved a checkbox on the right side of a row"). The 2026-09-27 ring is gone from this row: a
+    // checkbox lives at the left in every list, and the left of a schedule row is its time. Completion is the swipe right (the Done rail)
+    // and the long-press menu's Done; the nested held row inside a block keeps its leading ring, at the left like every other.
+    expect(src, "the swipe right commits it").toMatch(/onRightCommit: onComplete/);
+    expect(src, "and the Done rail draws under it").toMatch(/className="task-done-rail"/);
+    const row = src.slice(0, src.indexOf("export function HeldProposalRow"));
+    expect(row, "no checkbox is drawn on the row").not.toMatch(/sched-check|role="checkbox"|className="task-check"/);
   });
 
   it("a task nested inside a holding block carries the same ring", () => {

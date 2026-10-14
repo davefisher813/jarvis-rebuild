@@ -78,7 +78,7 @@ export class AIService {
   async complete(
     messages: AIMessage[],
     system?: string | AISystem,
-    opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown> },
+    opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown>; signal?: AbortSignal },
   ): Promise<string> {
     if (!this.available) throw new Error("AI is not configured in this build.");
     // The admin switch is checked first and says its own reason: a user whose
@@ -95,6 +95,8 @@ export class AIService {
     if (background && blocked) throw blocked;
     const token = this.getToken?.();
     const res = await this.fetchImpl(this.endpoint, {
+      // A caller that must never wait forever (a read the person is staring at) passes a signal; absent, nothing changes.
+      ...(opts?.signal ? { signal: opts.signal } : {}),
       method: "POST",
       headers: {
         "Content-Type": "application/json",
