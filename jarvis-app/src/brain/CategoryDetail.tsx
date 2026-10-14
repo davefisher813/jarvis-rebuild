@@ -1423,7 +1423,7 @@ export default function CategoryDetail({
   // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, personId: draft.personId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, personId: draft.personId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, priority: draft.priority }));
     if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();

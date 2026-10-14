@@ -7,7 +7,7 @@ import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Zap, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays, Brain } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Zap, Hourglass, Flag, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays, Brain } from "../../shared/icons";
 import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
@@ -44,6 +44,8 @@ export interface TaskDraft {
   // UP-CORE-02 (2026-09-05): how long this one takes, in minutes. Absent
   // means he has not said, and the learned category median answers instead.
   estimateMin?: number;
+  // How much it matters; absent is Normal.
+  priority?: "high" | "low";
   // UP-CORE-17 (2026-09-05): the contact this task is about, by id.
   personId?: string;
   // Set only by the "Close Task" offer under a fully-checked list: this
@@ -310,6 +312,7 @@ export default function TaskSheet({
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
+  const [priority, setPriority] = useState<"high" | "low" | undefined>(initial?.priority);
   const lengthLabel = estimateMin === null ? "None" : durLabel(estimateMin);
   const usualWord = categoryMinutes[category] ? durLabel(categoryMinutes[category]!) : "";
   const [err, setErr] = useState(false);
@@ -426,6 +429,7 @@ export default function TaskSheet({
       steps: steps.length ? steps : undefined,
       notes: notes.trim() || undefined,
       estimateMin: estimateMin ?? undefined,
+      priority,
       personId: personId || undefined,
       closeNow: closeNow || undefined,
     });
@@ -527,6 +531,23 @@ export default function TaskSheet({
                 value={text}
                 onChange={(e) => { setText(e.target.value); if (err) setErr(false); }}
               />
+            </div>
+            {/* PRIORITY (Dave, 2026-10-13). One tap, three answers, saved with
+                the task. Normal is the resting answer and stores nothing. */}
+            {/* row-tap: the three answers are the row's controls; the label beside them has nothing else to open */}
+            <div className="row xs-row xs-prio">
+              <Tile tone="red"><Flag className="ic" /></Tile>
+              <div className="row-grow"><div className="conn-name">Priority</div></div>
+              <div className="segmented seg-tri" role="group" aria-label="Priority">
+                {([["high", "High"], ["normal", "Normal"], ["low", "Low"]] as const).map(([k, label]) => {
+                  const on = (priority ?? "normal") === k;
+                  return (
+                    <div key={k} className={"seg" + (on ? " active" : "")} role="button" tabIndex={0} aria-pressed={on}
+                      onClick={() => setPriority(k === "normal" ? undefined : k)}
+                      onKeyDown={onPressKey(() => setPriority(k === "normal" ? undefined : k))}>{label}</div>
+                  );
+                })}
+              </div>
             </div>
           </div></div>
           {err && <div className="input-error xs-error">Add a task name.</div>}

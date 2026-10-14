@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { highFirst, isHigh, PriorityFlag } from "../tasks/priority";
 import { Camera, DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
@@ -141,7 +142,13 @@ function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }:
         {steps.total > 0 ? (
           <div className="task-line1">
             <span className="task-name">{name}</span>
+            {isHigh(t) && <PriorityFlag />}
             <StepCount {...steps} />
+          </div>
+        ) : isHigh(t) ? (
+          <div className="task-line1">
+            <span className="task-name">{name}</span>
+            <PriorityFlag />
           </div>
         ) : <span className="task-name">{name}</span>}
         {steps.total > 0 && <StepProgress {...steps} />}
@@ -706,7 +713,9 @@ export default function TodayPage({
   // email band already use. The full list is one tap away and tomorrow's
   // planner is the real home for it; tonight is his.
   const EVENING_TASKS_SHOWN = 5;
-  const shownTasks = evening ? tasks.slice(0, EVENING_TASKS_SHOWN) : tasks;
+  // High sorts to the top of the list, and is therefore never the part the evening fold hides.
+  const orderedTasks = highFirst(tasks);
+  const shownTasks = evening ? orderedTasks.slice(0, EVENING_TASKS_SHOWN) : orderedTasks;
   const foldedTasks = tasks.length - shownTasks.length;
   const openDoor = onSeeAllOpen ?? onSeeAllTasks;
   const tasksSection = tasks.length > 0 && (

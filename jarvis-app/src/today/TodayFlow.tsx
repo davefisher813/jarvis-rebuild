@@ -955,7 +955,7 @@ export default function TodayFlow({
     // the same TaskSheet the Tasks tab opens, so a project, an extra area or
     // an if-then plan set from Tasks would silently vanish the moment the
     // task was edited from home instead. Same sheet, same fields, both ends.
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, priority: t.priority, personId: t.personId } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same

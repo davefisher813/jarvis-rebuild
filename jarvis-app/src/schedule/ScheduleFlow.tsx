@@ -1044,7 +1044,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   const [taskSheet, setTaskSheet] = useState<{ id: string; initial: TaskDraft } | null>(null);
   const onOpenTask = async (id: string) => {
     const t = await tasksSvc.task(id);
-    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
+    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, priority: t.priority, personId: t.personId } });
   };
   const onSaveTask = async (draft: TaskDraft): Promise<boolean> => {
     if (taskSheet) {

@@ -7160,7 +7160,7 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
     // A done row says nothing on its title line either, the count included.
     expect(PAGE).toMatch(/const showSteps = !selecting && !shownDone && hasUnfinishedSteps\(steps\);/);
     expect(PAGE, "the count sits on the title line, after the name")
-      .toMatch(/showSteps \? \([\s\S]*?<div className="task-line1">\s*<span className="task-name">\{title\}<\/span>\s*<StepCount \{\.\.\.steps\} \/>/);
+      .toMatch(/showSteps \? \([\s\S]*?<div className="task-line1">\s*<span className="task-name">\{title\}<\/span>\s*(?:\{isHigh\(item\) && <PriorityFlag \/>\}\s*)?<StepCount \{\.\.\.steps\} \/>/);
     // And no pill came back: nothing in the slot is a capsule.
     expect(slot, "no capsule in the right slot").not.toMatch(/pill-act|row-act|btn-sm|onStart\(item\.id\)|action\.onClick/);
   });

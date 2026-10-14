@@ -36,7 +36,7 @@ describe("saveTaskEdit: every field the sheet shows is written", () => {
       projectId: "p1", goalId: "g1", eventId: "e1",
       plan: { cue: { kind: "time", what: "13:00" }, then: "Call Marco" },
       steps: [{ text: "Find the number", done: false }],
-      notes: "Ask about Saturday.", estimateMin: 25, personId: "pe1",
+      notes: "Ask about Saturday.", estimateMin: 25, priority: "high", personId: "pe1",
     };
     expect(await saveTaskEdit(svc, id, draft, { reload })).toBe(true);
     const t = (await svc.task(id))!;
@@ -52,10 +52,24 @@ describe("saveTaskEdit: every field the sheet shows is written", () => {
     expect(t.steps).toEqual([{ text: "Find the number", done: false }]);
     expect(t.notes).toBe("Ask about Saturday.");
     expect(t.estimateMin).toBe(25);
+    expect(t.priority).toBe("high");
     expect(t.personId).toBe("pe1");
     // A plain Save finishes nothing and says nothing.
     expect(t.done).toBeFalsy();
     expect(showToast).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveTaskEdit: priority", () => {
+  it("Normal clears a High mark, and Low is kept", async () => {
+    const { svc, reload } = setup();
+    const id = (await svc.createTask("Pay Rent", { due: todayISO(), priority: "high" }))!;
+    expect((await svc.task(id))!.priority).toBe("high");
+    const base = { text: "Pay Rent", category: "", due: todayISO(), repeat: "" };
+    expect(await saveTaskEdit(svc, id, { ...base, priority: "low" }, { reload })).toBe(true);
+    expect((await svc.task(id))!.priority).toBe("low");
+    expect(await saveTaskEdit(svc, id, base, { reload })).toBe(true);
+    expect((await svc.task(id))!.priority).toBeUndefined();
   });
 });
 
