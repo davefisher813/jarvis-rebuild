@@ -192,6 +192,7 @@ function DaySet({
       const door = gymDoorFor?.(en.ev) ?? null;
       out.push(
         <DayRow
+          plain
           key={en.ev.id}
           e={en.ev}
           conflict={conflicts?.has(en.ev.id) ?? false}
@@ -232,6 +233,7 @@ function DaySet({
       // Keys are prefixed because event ids and task ids share this list.
       out.push(
         <ProposedRow
+          plain
           key={"prop-" + en.b.taskId}
           block={en.b}
           open={proposed!.openId === en.b.taskId}
@@ -249,6 +251,7 @@ function DaySet({
       const blockId = en.l.id;
       out.push(
         <LockedRow
+          plain
           key={"lock-" + i}
           // THE GUIDE SHOWS THE RESOLVED TIME AND NOTHING ELSE (coordinator,
           // 2026-10-01, on Dave's 2026-09-27 freeze): a day's exception is
@@ -276,6 +279,7 @@ function DaySet({
                   every other task row in the app answers to. */}
               {props.map((b) => (
                 <HeldProposalRow
+                  plain
                   key={"p" + b.taskId}
                   block={b}
                   onOpen={() => proposed?.onOpen?.(b.taskId)}

@@ -52,7 +52,7 @@ export interface LockedRowRange {
 }
 
 export default function LockedRow({
-  l, past, onOpen, onShift, onRetime, onResize, onDelete, heldCount, onFillBlock, onBackToNormal, children, state = null,
+  l, past, onOpen, onShift, onRetime, onResize, onDelete, heldCount, onFillBlock, onBackToNormal, children, state = null, plain = false,
 }: {
   l: LockedRowRange;
   past: boolean;
@@ -72,6 +72,8 @@ export default function LockedRow({
   /** Clears this day's exception; offered only on a row that has one. */
   onBackToNormal?: () => void;
   children?: ReactNode;
+  /** THE HOME SCHEDULE IS THE FINISHED DAY (Dave 2026-10-13): time and title only. No state word, no "Flexible until", no category line. */
+  plain?: boolean;
 }) {
   const m = modeOf(l);
   const holds = m === "holds";
@@ -169,7 +171,7 @@ export default function LockedRow({
               {!holds && <LockGlyph className="ic lock-ic" />}
               <span className="sched-t">{label}</span>
             </div>
-            <div className="sched-cat">
+            {!plain && <div className="sched-cat">
               {/* C-28 (Astra, 2026-09-12): the state word, ahead of the
                   kicker that describes the same block in a sentence. */}
               {state && <span className={"fact st " + toneFor(state)}>{state}</span>}
@@ -194,7 +196,7 @@ export default function LockedRow({
                   <span className="sched-until">Until {end.time} {end.ap}</span>
                 )}
               </span>
-            </div>
+            </div>}
             {/* THE DAY'S OWN EXCEPTION, SAID ON THE ROW (2026-10-01). A block
                 moved or resized for one day reads exactly like its rule
                 until it says otherwise, and the rule is what every other day
@@ -202,7 +204,7 @@ export default function LockedRow({
                 spends its width on the state word and "Until", and a fact
                 added there is clipped at 390px (the facts line is one line,
                 whole facts only, by Dave's pick of 2026-09-27). */}
-            {l.justToday && (
+            {!plain && l.justToday && (
               <div className="sched-exc">
                 <span className="sched-until">Just Today</span>
                 {onOpen && backToNormal && (
@@ -217,7 +219,7 @@ export default function LockedRow({
             {/* THE HALF THAT WAS UNREACHABLE: blending only ever attached to
                 real calendar events, so the one block built to receive tasks
                 had no way to receive one. */}
-            {holds && onFillBlock && (
+            {!plain && holds && onFillBlock && (
               <button type="button" className="block-add" onClick={(ev) => { ev.stopPropagation(); onFillBlock(); }}>+ Put a Task in This Block</button>
             )}
           </div>
