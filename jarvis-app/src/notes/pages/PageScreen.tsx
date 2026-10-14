@@ -306,7 +306,8 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     if (!ok || !id) return;
     onChanged();
     // Honest about where the row is: while the Store still holds the write on this phone alone, the toast says Will Sync (shared/saved.ts).
-    showToast({ message: savedToastText("Saved as Your Template", heldText("Your Templates"), flagOn("trust_v1") && (store?.pending() ?? false)) });
+    const pending = flagOn("trust_v1") && (store?.pending() ?? false);
+    showToast({ message: savedToastText("Saved as Your Template", heldText("Your Templates"), pending) });
   };
 
   const menu: { label: string; icon: JSX.Element; run: () => void; danger?: boolean }[] = [
