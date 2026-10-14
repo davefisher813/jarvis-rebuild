@@ -66,7 +66,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; goalId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string; notes?: string } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; goalId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; priority?: "high" | "low"; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string; notes?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -112,6 +112,7 @@ export class TasksService {
     if (opts.source) data.source = opts.source;
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
     if (isLength(opts.estimateMin)) data.estimateMin = opts.estimateMin;
+    if (opts.priority === "high" || opts.priority === "low") data.priority = opts.priority;
     // UP-CORE-13 (2026-09-05): a receipt is a record of something ALREADY
     // paid, so the bill it becomes is born done, with the receipt's own date
     // as its lastDone. The only caller that passes these is the receipt read;
@@ -730,6 +731,16 @@ export class TasksService {
     const t = await this.getTask(id);
     if (!t) return false;
     await this.store.update(this.ownerId, id, { estimateMin: isLength(minutes) ? minutes : null });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // How much this one matters. Normal clears the field, so a task nobody ever
+  // marked and a task marked back to Normal are the same stored shape.
+  async setPriority(id: string, priority: "high" | "low" | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { priority: priority === "high" || priority === "low" ? priority : null });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

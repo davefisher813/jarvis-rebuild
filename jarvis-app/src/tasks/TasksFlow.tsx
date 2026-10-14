@@ -540,7 +540,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, priority: t.priority, personId: t.personId }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -571,7 +571,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(titleCase(draft.text), { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(titleCase(draft.text), { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, priority: draft.priority, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       // One chain for every screen that opens this sheet (saveTaskEdit.ts).
       // Close Task / Mark Done (closeNow) sets the task done and says what it

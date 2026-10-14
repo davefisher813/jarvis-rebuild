@@ -76,6 +76,7 @@ export async function saveTaskEdit(
     await svc.setSteps(id, draft.steps ?? []);
     await svc.setNotes(id, draft.notes ?? null);
     await svc.setEstimate(id, draft.estimateMin ?? null);
+    await svc.setPriority(id, draft.priority ?? null);
     await svc.setPerson(id, draft.personId ?? null);
     if (opts.closeNow) {
       // Read after the field writes and before the completion: Undo puts back

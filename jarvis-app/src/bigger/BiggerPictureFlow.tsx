@@ -803,6 +803,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   notes: d.notes,
                   // 2026-09-11: the sheet's Length row, kept as TasksFlow keeps it.
                   estimateMin: d.estimateMin,
+                  priority: d.priority,
                 }));
                 setSheet({ kind: "closed" });
                 await reload();
@@ -847,6 +848,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 steps: t.data.steps,
                 // 2026-09-11: Length read None here and an edit to it was dropped.
                 estimateMin: t.data.estimateMin,
+                priority: t.data.priority,
                 // 2026-09-19: and notes were WORSE than dropped. The save
                 // below has always called setNotes, so a box that opened
                 // empty (because this literal never read them) wrote that

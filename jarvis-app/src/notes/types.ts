@@ -336,6 +336,12 @@ export interface TaskData {
   // set, and its absence leaves the learned median exactly as it was
   // (schedule/useTaskEstimate.ts). Optional and additive, no migration.
   estimateMin?: number;
+  // HOW MUCH THIS ONE MATTERS (Dave, 2026-10-13: "weren't we supposed to be
+  // able to mark if it was important or high priority"). Absent means Normal,
+  // which is every task made before this field existed, so no migration and
+  // no backfill. "high" floats to the top of its group and wears a flag;
+  // "low" is stored so the choice sticks, and sorts exactly as Normal does.
+  priority?: "high" | "low";
   // UP-CORE-05 (2026-09-05): WHO MOVED THIS, TODAY. Auto-Sweep pulls overdue
   // work to today and re-flow re-times slipped blocks, both silently, and a
   // task whose date jumped overnight with nothing saying why is the exact

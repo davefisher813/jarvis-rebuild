@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { highFirst, isHigh, PriorityFlag } from "../priority";
 import EntityStar, { useRemember } from "../../shared/EntityStar";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
@@ -64,7 +65,9 @@ interface Group { key: string; head: string | null; color?: string; items: TaskI
 
 // Category heads follow the user's category order as the items arrive;
 // goal heads put No Goal last; due heads run late to far.
-function groupItems(items: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => string | null) | undefined, today: string): Group[] {
+function groupItems(all: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => string | null) | undefined, today: string): Group[] {
+  // High sorts to the top of its group, in every grouping; the order inside each stays what it was.
+  const items = highFirst(all);
   if (by === "none") return [{ key: "all", head: null, items }];
   const order: string[] = [];
   const buckets = new Map<string, Group>();
@@ -495,7 +498,13 @@ export function TaskRow({
                counts, not in the trailing slot. */
             <div className="task-line1">
               <span className="task-name">{title}</span>
+              {isHigh(item) && <PriorityFlag />}
               <StepCount {...steps} />
+            </div>
+          ) : isHigh(item) ? (
+            <div className="task-line1">
+              <span className="task-name">{title}</span>
+              <PriorityFlag />
             </div>
           ) : (
             <span className="task-name">{title}</span>
