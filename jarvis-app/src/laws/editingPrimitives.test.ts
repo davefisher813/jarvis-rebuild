@@ -100,6 +100,9 @@ describe("law: one swipe controller", () => {
       // its pan-y. The rest of the Today list now rides MoveHeadliner's SwipeShell (already listed above).
       // A project row is the task row in a goal card; its swipe is Close and Move.
       "bigger/ProjectRowRuled.tsx": "task-row",
+      // The goal row (swipe right: Achieved, swipe left: Delete) and the generic ruled row (a project's steps, a goal's milestones).
+      "bigger/GoalRowRuled.tsx": "task-row",
+      "shared/RuledSwipe.tsx": "task-row",
       // The Reminders page row moves the .rem-card inside .task-swipe, which .task-swipe > .rem-card gives pan-y.
       "tasks/screens/RemindersPage.tsx": "rem-card",
       // A bill, a receipt or an account row on Money: the money page's own .task-row (Mark Paid, Pay, Track).

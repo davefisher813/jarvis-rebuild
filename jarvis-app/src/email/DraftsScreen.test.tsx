@@ -4,7 +4,7 @@
 // two clocks it always looked newer than the server's row and the same draft was listed twice ("On This Device" beside it). A copy
 // is the same draft when the server lists its id with the same words; words the server does not have stay visible.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DraftsScreen from "./DraftsScreen";
 import { THIS_DEVICE } from "./copy";
@@ -73,5 +73,24 @@ describe("the Drafts list shows a draft once", () => {
     const server = [serverRow("d-1", "Same words", "2026-10-03T15:00:00.000Z"), serverRow("d-2", "Saved words", "2026-10-03T15:00:00.000Z")];
     expect(deviceOnly([keep, dup, edited], server).map((l) => l.key)).toEqual(["local:x", "d-2"]);
     expect(deviceOnly([keep, dup, edited], []).map((l) => l.key)).toEqual(["local:x", "d-1", "d-2"]);
+  });
+});
+
+describe("a draft swipes (Dave 2026-10-13: swipe is the standard)", () => {
+  it("swipe Delete discards a plain draft and the toast's Undo saves its words back as a draft", async () => {
+    const calls: string[] = [];
+    const row = serverRow("d-9", "Words to keep", "2026-10-03T15:00:00.000Z");
+    const rpc: RpcClient = { rpc: async (fn) => { calls.push(fn); return { data: fn === "draft_list" ? { drafts: [row], sent: [] } : fn === "draft_discard" ? { draft_id: "d-9", discarded: true, draft: row } : { draft_id: "d-10", revision: 1, saved_at: "2026-10-03T15:01:00.000Z", send_state: "draft" }, error: null }; } };
+    render(<DraftsScreen client={rpc} userId={USER} offline={false} onBack={() => {}} onCompose={() => {}} onOpenDraft={() => {}} onOpenLocal={() => {}} onOpenSent={() => {}} />);
+    expect(await screen.findByText("Quarterly note")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Quarterly note" }));
+    await waitFor(() => expect(calls).toContain("draft_discard"));
+    await waitFor(() => expect(screen.queryByText("Quarterly note")).toBeNull());
+  });
+  it("a sent or failed draft has a review to go through, so its row does not swipe", async () => {
+    const failed = { ...serverRow("d-8", "x", "2026-10-03T15:00:00.000Z"), send_state: "failed" as const };
+    show([failed]);
+    expect(await screen.findByText("Quarterly note")).toBeInTheDocument();
+    expect(document.querySelector(".task-swipe")).toBeNull();
   });
 });

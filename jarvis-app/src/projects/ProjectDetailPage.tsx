@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode, type KeyboardEvent as RKeyboardEvent } from "react";
+import RuledSwipe from "../shared/RuledSwipe";
 import { onPressKey } from "../shared/pressable";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
@@ -42,7 +43,7 @@ export interface ProjectStep {
 
 export default function ProjectDetailPage({
   project, onBack, onEdit, linkedNotes = [], onOpenNote, onOpenDecision, onChanged, onFinish,
-  steps = [], onToggleStep, onAddStep, onOpenStep, estimateFor, today, firstStep, onAddNote,
+  steps = [], onToggleStep, onDeleteStep, onAddStep, onOpenStep, estimateFor, today, firstStep, onAddNote,
   linkedThreads = [], onOpenThread,
 }: {
   project: Project;
@@ -61,6 +62,8 @@ export default function ProjectDetailPage({
   // sheet and then never see it from the project again.
   steps?: ProjectStep[];
   onToggleStep?: (id: string) => void;
+  /** Swipe left on a step: Delete (the flow owns the Undo). Swipe right on an open step is onToggleStep. */
+  onDeleteStep?: (id: string) => void;
   // Opens the task sheet for a new step (the flow owns the sheet).
   onAddStep?: () => void;
   onOpenStep?: (id: string) => void;
@@ -115,7 +118,6 @@ export default function ProjectDetailPage({
     role: "button" as const,
     tabIndex: 0,
     "aria-label": "Open " + titleCase(text),
-    onClick: () => onOpenStep(id),
     onKeyDown: (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(() => onOpenStep(id))(e); },
   } : {};
   // UP-CORE-18: N left, D days, is the pace real. Null without a due date or
@@ -285,7 +287,12 @@ export default function ProjectDetailPage({
             {openSteps.map((t) => {
               const dist = today && t.due ? distanceFor({ text: t.text, done: false, due: t.due, category: t.category ?? data.category ?? "" }, today) : null;
               return (
-                <div className="task-row p2 proj-step" key={t.id} {...stepDoor(t.id, t.text)}>
+                // SWIPE (Dave 2026-10-13: swipe is the standard): right completes the step, left deletes it, tap opens it.
+                /* row-tap: RuledSwipe's onOpen is the row's door, and its swipe is the check's second way */
+                <RuledSwipe key={t.id} label={titleCase(t.text)} className="task-row p2 proj-step" rowProps={stepDoor(t.id, t.text)}
+                  onOpen={onOpenStep ? () => onOpenStep(t.id) : undefined}
+                  onRight={onToggleStep ? () => { haptics.selection(); onToggleStep(t.id); } : undefined}
+                  onDelete={onDeleteStep ? () => onDeleteStep(t.id) : undefined}>
                   <div
                     className="task-check-tap"
                     role="checkbox"
@@ -311,7 +318,7 @@ export default function ProjectDetailPage({
                       </div>
                     )}
                   </div>
-                </div>
+                </RuledSwipe>
               );
             })}
             {/* DONE IS GREEN, AND IT IS TITLE CASE (2026-10-05, the catalog hard
@@ -327,13 +334,16 @@ export default function ProjectDetailPage({
               {doneOpen && (
                 <div className="card list-card-ruled">
                   {doneSteps.map((t) => (
-                    <div className="task-row p2 proj-step completed" key={t.id} {...stepDoor(t.id, t.text)}>
+                    /* row-tap: RuledSwipe's onOpen is the row's door, and its swipe is the check's second way */
+                    <RuledSwipe key={t.id} label={titleCase(t.text)} className="task-row p2 proj-step completed" rowProps={stepDoor(t.id, t.text)}
+                      onOpen={onOpenStep ? () => onOpenStep(t.id) : undefined}
+                      onDelete={onDeleteStep ? () => onDeleteStep(t.id) : undefined}>
                       <div className="task-check-tap" role="checkbox" aria-checked aria-label="Mark not done"
                         onClick={(e) => { e.stopPropagation(); haptics.selection(); onToggleStep?.(t.id); }}>
                         <div className="task-check done" />
                       </div>
                       <div className="task-title"><span className="task-name">{titleCase(t.text)}</span></div>
-                    </div>
+                    </RuledSwipe>
                   ))}
                 </div>
               )}

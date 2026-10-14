@@ -11,12 +11,14 @@ import PageHeader from "../shared/PageHeader";
 import ListFloor from "../shared/ListFloor";
 import SkeletonRows from "../shared/SkeletonRows";
 import { rowDoor } from "../shared/rowDoor";
+import SwipeDelete from "../shared/SwipeDelete";
+import { showToast } from "../shared/toast";
 import { lineFor, type CommandFailure, type RpcClient } from "../substrate/commands/errors";
-import { ACCOUNTS_TITLE, DRAFTS_TITLE, EMPTY_DRAFTS, FAILED_BADGE, NO_SUBJECT, RETRY, SENDING_BADGE, SENT_BADGE, SENT_FOLDER, THIS_DEVICE, UNKNOWN_BADGE } from "./copy";
+import { ACCOUNTS_TITLE, DRAFTS_TITLE, DRAFT_DISCARDED, DRAFT_KEPT, EMPTY_DRAFTS, FAILED_BADGE, NO_SUBJECT, UNDO, RETRY, SENDING_BADGE, SENT_BADGE, SENT_FOLDER, THIS_DEVICE, UNKNOWN_BADGE } from "./copy";
 import EmailFacts from "./EmailFacts";
 import { whenFacts, type EmailFact } from "./format";
 import EmptyState from "./EmptyState";
-import { deviceOnly, listDrafts, outcomeOf, unsavedLocal, type DraftRow, type LocalDraft } from "./drafts";
+import { deviceOnly, discardDraft, fieldsOf, listDrafts, outcomeOf, saveDraft, unsavedLocal, type DraftRow, type LocalDraft } from "./drafts";
 
 export default function DraftsScreen({ client, userId, offline, onBack, onCompose, onOpenDraft, onOpenLocal, onOpenSent, reloadKey = 0 }: {
   client: RpcClient;
@@ -42,6 +44,22 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
   };
   useEffect(() => { void load();
   }, [client, reloadKey]);
+
+  // SWIPE LEFT DISCARDS A DRAFT (Dave 2026-10-13: swipe is the standard). The same discard the compose screen has, with the same
+  // Undo: the words come back as a new draft. Only a plain draft swipes; one that is sending, sent or failed has a review to go
+  // through first, so its row opens instead.
+  const discardRow = async (d: DraftRow) => {
+    const r = await discardDraft(client, d.id);
+    if (!r.ok) { showToast({ message: lineFor(r) }); return; }
+    setLists((cur) => (cur ? { ...cur, drafts: cur.drafts.filter((x) => x.id !== d.id) } : cur));
+    const kept = fieldsOf(d);
+    showToast({ message: DRAFT_DISCARDED, actionLabel: UNDO, onAction: () => void (async () => {
+      const back = await saveDraft(client, null, d.account_id, kept, null);
+      if (!back.ok) { showToast({ message: lineFor(back) }); return; }
+      showToast({ message: DRAFT_KEPT });
+      void load();
+    })() });
+  };
 
   // 2026-10-05: ONE facts line per row, the state first and in its key colour, the time as small caps, the recipients
   // last (the free text, so it is the one that ellipsizes). It was three greys in two stacked lines, a time with a
@@ -81,14 +99,19 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
                 </div>
               </div>
             ))}
-            {drafts.map((d) => (
-              <div className="row" key={d.id} {...rowDoor(() => onOpenDraft(d))}>
-                <div className="row-grow">
-                  <div className="conn-name truncate">{d.subject.trim() || NO_SUBJECT}</div>
-                  <EmailFacts wrap facts={lineOf(stateFact(d), d.saved_at, d.to_addresses)} />
+            {drafts.map((d) => {
+              const row = (
+                <div className="row" key={d.id} {...rowDoor(() => onOpenDraft(d))}>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{d.subject.trim() || NO_SUBJECT}</div>
+                    <EmailFacts wrap facts={lineOf(stateFact(d), d.saved_at, d.to_addresses)} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+              return outcomeOf(d) === "draft" && !offline
+                ? <SwipeDelete key={d.id} label={d.subject.trim() || NO_SUBJECT} onDelete={() => void discardRow(d)}>{row}</SwipeDelete>
+                : row;
+            })}
           </div>
         </div>
       )}

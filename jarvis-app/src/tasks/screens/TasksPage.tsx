@@ -371,6 +371,8 @@ export function TaskRow({
     revealW: slots * 88,
     rightW: completable ? 88 : 0,
     ...(completable ? { onRightCommit: tapCheck } : {}),
+    // Selecting a row is a tap on it, not a gesture: the tray stays shut (and the right swipe with it, via `completable`).
+    enabled: !selecting,
     onLongPress: rowMenu.onLongPress,
   });
   const { dx, dragging, open: swipeOpen, closeThen } = swipe;

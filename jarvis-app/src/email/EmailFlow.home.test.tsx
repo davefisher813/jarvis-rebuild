@@ -203,7 +203,9 @@ describe("Same Content (spec 3.3, Dave's ruling 2026-10-12)", () => {
     expect(labelled.map((e) => /Subject (\w+)/.exec(e.getAttribute("aria-label")!)![1])).toEqual(["l1", "l2"]);
     // Select All Loaded is every row, the copies counted once each, never collapsed or added by the label.
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
-    fireEvent.click(labelled[0]!);
+    // Select mode takes the swipe off the rows, so they are drawn again: read them fresh.
+    const again = rowEls().filter((e) => e.textContent!.includes("Same Content"));
+    fireEvent.click(again[0]!);
     expect(document.querySelector(".email-selcount")).toHaveTextContent("1 Selected");
     fireEvent.click(screen.getByRole("button", { name: /^Read/ }));
     await waitFor(() => expect(batches(r).length).toBe(1));
@@ -329,5 +331,17 @@ describe("select mode (spec 11, V04)", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Unread/ }));
     expect(await screen.findByText(RECONNECT_FIRST)).toBeInTheDocument();
     expect(batches(r2)).toEqual([]);
+  });
+});
+
+describe("an inbox row swipes (Dave 2026-10-13: swipe is the standard)", () => {
+  it("each row carries Archive and Delete, and select mode takes them off", async () => {
+    const r = rig();
+    mount(r);
+    await waitFor(() => expect(rowEls().length).toBe(5));
+    expect(document.querySelectorAll(".task-swipe .mail-arch").length).toBe(5);
+    expect(document.querySelectorAll(".task-swipe .task-del").length).toBe(5);
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    expect(document.querySelectorAll(".task-swipe").length).toBe(0);
   });
 });
