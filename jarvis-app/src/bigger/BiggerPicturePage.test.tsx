@@ -303,3 +303,29 @@ describe("BiggerPicturePage: no foot adds, no pill on a row", () => {
     expect(onClose).toHaveBeenCalledWith("p1");
   });
 });
+
+// A DROPPED GOAL IS SOMEWHERE THE LISTS CAN REACH (Alfred's deep audit 2026-10-13: invisible in Active, Achieved and All, yet found by
+// search, and so impossible to open or delete). It has its own view, and All includes it.
+describe("BiggerPicturePage: dropped goals", () => {
+  const goals = [
+    { id: "live", data: { title: "Live Goal", state: "on_track" as const, tags: ["work"] } },
+    { id: "gone", data: { title: "Dropped Goal", state: "on_track" as const, tags: ["work"], dropped: { on: "2026-08-14" } } },
+  ];
+  const draw = () => render(
+    <BiggerPicturePage lens="goals" segments={<div />} goals={goals} reachOfGoal={reach} projectRows={[]}
+      sections={[{ id: "work", name: "Work", color: "blue" }]} onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} />,
+  );
+  const pick = (label: string) => { fireEvent.click(screen.getByLabelText("View")); fireEvent.click(screen.getByRole("menuitemradio", { name: new RegExp("^" + label) })); };
+
+  it("Active leaves it out, Dropped shows only it, and All shows everything", () => {
+    const { container } = draw();
+    expect(container.textContent).toContain("Live Goal");
+    expect(container.textContent).not.toContain("Dropped Goal");
+    pick("Dropped");
+    expect(container.textContent).toContain("Dropped Goal");
+    expect(container.textContent).not.toContain("Live Goal");
+    pick("All");
+    expect(container.textContent).toContain("Live Goal");
+    expect(container.textContent).toContain("Dropped Goal");
+  });
+});

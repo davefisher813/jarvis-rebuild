@@ -81,6 +81,12 @@ describe("a standalone proposed row holds its actions in the rail, the menu and 
     expect(document.querySelector(".task-done-rail")).toBeNull();
   });
 
+  it("the row's accessible name is one whole phrase: title, time, Proposed and the length", () => {
+    row({}, false);
+    const r = document.querySelector(".sched-proposed")!;
+    expect(r.getAttribute("aria-label")).toMatch(/^.+, \d{1,2}:\d{2} (AM|PM), Proposed, .+/);
+  });
+
   it("the title is Title Case", () => {
     row({}, false);
     expect(document.querySelector(".sched-t")!.textContent).toBe("Finish Jarvis on Mac");

@@ -15,6 +15,9 @@ import type { EventItem, EventData, EventRecurrence } from "../types";
 import type { ScheduleService } from "../ScheduleService";
 import { weekdayShortDate } from "../../shared/dateFormat";
 
+// How long a read may take before it is called failed. A schedule read normally answers in under ten seconds.
+const READ_DEADLINE_MS = 45_000;
+
 const CHEV = (
   <div className="chev" />
 );
@@ -75,6 +78,10 @@ export default function ScheduleUploadFlow({
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // WHY A READ FAILED, ON THE SHEET (Alfred's deep audit 2026-10-13: "Read the Pasted Text" sat on "Reading..." for 30+ seconds and never
+  // answered: no events, no error). A toast alone is missed, and a read that never returns never raises one. The failure is said on the
+  // sheet itself, beside the button that tries again.
+  const [failure, setFailure] = useState<string | null>(null);
   const [thumb, setThumb] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractedEvent[] | null>(null);
   const [needsYear, setNeedsYear] = useState(false);
@@ -93,23 +100,29 @@ export default function ScheduleUploadFlow({
     }
   };
 
-  const runExtract = async (message: Parameters<AIService["complete"]>[0][number]) => {
+  const runExtract = async (message: Parameters<AIService["complete"]>[0][number], source: "photo" | "text" = "photo") => {
     setBusy(true);
+    setFailure(null);
+    // THE READ HAS A DEADLINE. Without one, a request that never comes back leaves the sheet on "Reading..." for good.
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), READ_DEADLINE_MS);
+    const say = (m: string) => { setFailure(m); showToast({ message: m }); };
     try {
       // Same fix as the gym uploader (audit 2026-08-07): this call had no
       // system prompt at all, the one thing voice.ts says no AI surface may
       // skip. Titles stay the source's own words; the voice rules govern the
       // model's side of the exchange.
-      const out = await ai.complete([message], JARVIS_VOICE);
+      const out = await ai.complete([message], JARVIS_VOICE, { signal: ctl.signal });
       const found = parseScheduleExtract(out);
-      if (!found) {
-        showToast({ message: "Couldn't Read That · Try a Clearer Photo" });
+      if (!found || found.length === 0) {
+        say(source === "text" ? "Couldn't Find Any Events in That Text · Check It and Try Again" : "Couldn't Read That · Try a Clearer Photo");
         return;
       }
       afterExtract(found, year);
     } catch {
-      showToast({ message: "Couldn't Reach JARVIS · Try Again" });
+      say(ctl.signal.aborted ? "That Took Too Long · Try Again" : "Couldn't Reach JARVIS · Try Again");
     } finally {
+      clearTimeout(timer);
       setBusy(false);
     }
   };
@@ -404,9 +417,10 @@ export default function ScheduleUploadFlow({
             <textarea className="input input-multiline" rows={5} placeholder="Paste the Schedule · A Message or Email Works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
-            onClick={() => void runExtract({ role: "user", content: SCHEDULE_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>
-            {busy ? "Reading..." : "Read the Pasted Text"}
+            onClick={() => void runExtract({ role: "user", content: SCHEDULE_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) }, "text")}>
+            {busy ? "Reading..." : failure ? "Try Again" : "Read the Pasted Text"}
           </button>
+          {failure && <div className="input-error" role="alert">{failure}</div>}
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-tertiary btn-block" onClick={onCancel}>Cancel</button>

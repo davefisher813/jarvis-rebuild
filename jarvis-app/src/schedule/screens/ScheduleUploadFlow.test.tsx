@@ -282,3 +282,40 @@ describe("Schedule upload: the photo card follows the number rule (2026-10-05)",
     expect(one.querySelector(".upload-thumb")!.parentElement!.querySelector(".conn-name")!.textContent).toBe("1 Event Found");
   });
 });
+
+// "READ THE PASTED TEXT" NEVER HANGS SILENTLY (Alfred's deep audit 2026-10-13: 30+ seconds on "Reading...", no events, no error).
+describe("Schedule upload: a read that never answers fails visibly, with a way back", () => {
+  const hangingAI = () => ({
+    available: true,
+    complete: (_m: unknown, _s: unknown, o?: { signal?: AbortSignal }) =>
+      new Promise<string>((_res, rej) => { o?.signal?.addEventListener("abort", () => rej(new DOMException("aborted", "AbortError"))); }),
+  }) as unknown as AIService;
+
+  it("says it took too long on the sheet, frees the button as Try Again, and Cancel still works", async () => {
+    vi.useFakeTimers();
+    try {
+      const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-hang");
+      const onCancel = vi.fn();
+      render(<ScheduleUploadFlow ai={hangingAI()} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={onCancel} />);
+      fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "Practice Sat 9am" } });
+      fireEvent.click(screen.getByText("Read the Pasted Text"));
+      expect(screen.getAllByText("Reading...").length).toBeGreaterThan(0);
+      await vi.advanceTimersByTimeAsync(45_001);
+      expect(screen.getByRole("alert")).toHaveTextContent("That Took Too Long");
+      const again = screen.getByText("Try Again");
+      expect(again).toBeEnabled();
+      expect(screen.queryByText("Reading...")).toBeNull();
+      fireEvent.click(screen.getByText("Cancel"));
+      expect(onCancel).toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("an answer with no events says so instead of showing an empty review", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-none");
+    render(<ScheduleUploadFlow ai={fakeAI(reply([]))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "hello" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't Find Any Events in That Text");
+    expect(screen.getByText("Try Again")).toBeEnabled();
+  });
+});

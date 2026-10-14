@@ -137,6 +137,35 @@ describe("EventSheet move chips", () => {
     } finally { vi.useRealTimers(); }
   });
 
+  // THE QUICK-PICK MATCHES THE DATE (Alfred's deep audit 2026-10-13: "Tomorrow" looked selected over "Tue, Oct 13" while today WAS Oct 13).
+  it("Today and Tomorrow are a pair, and the one that matches the date is the one that says so", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-05-26T09:00:00"));
+    try {
+      const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
+      expect(screen.getByText("Today")).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText("Tomorrow")).toHaveAttribute("aria-pressed", "false");
+      fireEvent.click(screen.getByText("Tomorrow"));
+      expect(screen.getByText("Tomorrow")).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText("Today")).toHaveAttribute("aria-pressed", "false");
+      // Back to today is one tap, and tapping the one already selected changes nothing.
+      fireEvent.click(screen.getByText("Tomorrow"));
+      fireEvent.click(screen.getByText("Today"));
+      expect(screen.getByText("Today")).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(screen.getByText("Save"));
+      expect(onSave.mock.calls[0]![0]).toMatchObject({ date: "2026-05-26" });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("offers neither pick for a date that is neither today nor tomorrow", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-05-26T09:00:00"));
+    try {
+      openEdit({ date: "2026-05-30", start: "10:00", end: "11:00" });
+      expect(screen.queryByText("Today")).not.toBeInTheDocument();
+    } finally { vi.useRealTimers(); }
+  });
+
   // THE NUDGES ARE ONE STRIP OF FOUR EQUAL SEGMENTS, TITLE CASE, WITH A REAL MINUS (2026-10-05 review: "-30m" in lowercase
   // units, five chips wrapping 3 + 2).
   it("draws four equal segments in one strip, Title Case, with the real minus sign", () => {

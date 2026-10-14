@@ -386,12 +386,14 @@ describe("V6: a proposed task is a row of its own, not a button inside its block
     fireEvent.click(row);
     expect(p.onOpen).toHaveBeenCalledTimes(1);
     expect(p.onOpen).toHaveBeenCalledWith("n1");
-    fireEvent.click(container.querySelector(".sched-nested .sched-check")!);
-    expect(p.onComplete).toHaveBeenCalledWith("n1");
-    expect(p.onOpen, "the ring is not the row").toHaveBeenCalledTimes(1);
+    // No checkbox on the row (Dave 2026-10-13); it is finished by swipe right or the menu's Done.
+    expect(container.querySelector(".sched-nested .sched-check")).toBeNull();
     fireEvent.contextMenu(row);
     const labels = Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent);
     expect(labels).toEqual(["Book It", "Done", "Edit Task", "Change Length", "Move to Anytime", "Cancel"]);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(p.onComplete).toHaveBeenCalledWith("n1");
+    fireEvent.contextMenu(row);
     fireEvent.click(screen.getByRole("button", { name: "Book It" }));
     expect(p.onAccept).toHaveBeenCalledWith("n1");
   });
