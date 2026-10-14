@@ -100,10 +100,10 @@ function groupItems(all: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => stri
 // half its cases is not worth the line of code it saves.
 const EMPTY_TITLE: Record<TaskFilter, string> = {
   all: "No Tasks Yet",
-  daily: "No Dailies Yet",
   today: "Nothing Due Today",
   overdue: "Nothing Overdue",
-  upcoming: "Nothing Coming Up",
+  tomorrow: "Nothing Due Tomorrow",
+  nodate: "Every Task Has a Date",
   email: "Nothing from Email",
   done: "Nothing Completed Yet",
 };

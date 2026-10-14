@@ -73,8 +73,9 @@ describe("filter partitioning (chips)", () => {
   it("splits overdue out of today", () => {
     expect(filterOf(mk({ due: TODAY }), TODAY)).toBe("today");
     expect(filterOf(mk({ due: addDays(TODAY, -1) }), TODAY)).toBe("overdue");
-    expect(filterOf(mk({ due: addDays(TODAY, 5) }), TODAY)).toBe("upcoming");
-    expect(filterOf(mk({}), TODAY)).toBe("upcoming");
+    expect(filterOf(mk({ due: addDays(TODAY, 1) }), TODAY)).toBe("tomorrow");
+    expect(filterOf(mk({ due: addDays(TODAY, 5) }), TODAY)).toBe("all");   // later than tomorrow: in All and nowhere else
+    expect(filterOf(mk({}), TODAY)).toBe("nodate");
     expect(filterOf(mk({ done: true, due: TODAY }), TODAY)).toBe("done");
   });
   it("partition counts each chip", () => {
@@ -84,12 +85,27 @@ describe("filter partitioning (chips)", () => {
       { id: "3", data: mk({ due: addDays(TODAY, 3) }) },
       { id: "4", data: mk({}) },
       { id: "5", data: mk({ done: true }) },
+      { id: "6", data: mk({ due: addDays(TODAY, 1) }) },
     ];
     const p = partition(items, TODAY);
     expect(p.today.length).toBe(1);
     expect(p.overdue.length).toBe(1);
-    expect(p.upcoming.length).toBe(2);
+    expect(p.tomorrow.map((i) => i.id)).toEqual(["6"]);
+    expect(p.nodate.map((i) => i.id)).toEqual(["4"]);
     expect(p.done.length).toBe(1);
+    // All is every open task, soonest first, no-date last.
+    expect(p.all.map((i) => i.id)).toEqual(["2", "1", "6", "3", "4"]);
+  });
+  it("no two filters show the same set under different names", () => {
+    const items = [
+      { id: "1", data: mk({ due: TODAY }) },
+      { id: "2", data: mk({ due: addDays(TODAY, 1) }) },
+      { id: "3", data: mk({ due: addDays(TODAY, 4) }) },
+      { id: "4", data: mk({}) },
+    ];
+    const p = partition(items, TODAY);
+    const sets = (["all", "today", "tomorrow", "overdue", "nodate"] as const).filter((f) => p[f].length).map((f) => p[f].map((i) => i.id).sort().join());
+    expect(new Set(sets).size).toBe(sets.length);
   });
   it("byCategory narrows to one group, 'all' keeps everything", () => {
     const items = [

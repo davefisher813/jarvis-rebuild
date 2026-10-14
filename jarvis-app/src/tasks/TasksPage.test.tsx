@@ -31,7 +31,7 @@ setCategoryRegistry([
 
 
 const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, data: { text: id, category: cat, done: false, due } });
-const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, email: 0, done: 1 };
+const counts: Record<TaskFilter, number> = { all: 6, today: 2, tomorrow: 3, overdue: 1, nodate: 0, email: 0, done: 1 };
 
 describe("TasksPage", () => {
   // AMENDED 2026-09-18, after three passes in one day. The Unified Headers
@@ -59,15 +59,15 @@ describe("TasksPage", () => {
 
     fireEvent.click(screen.getByLabelText("View"));
     expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent))
-      .toEqual(["All6", "Daily", "Today2", "Overdue1", "Upcoming3", "From Email", "Done1"]);   // every view is offered; a count of zero is not drawn (unifiedHeader law)
+      .toEqual(["All6", "Today2", "Tomorrow3", "Overdue1", "No Date", "From Email", "Done1"]);   // every view is offered; a count of zero is not drawn (unifiedHeader law)
   });
 
   it("picking a view fires the filter, and the selected one is a no-op", () => {
     const onFilter = vi.fn();
     render(<TasksPage filter="today" counts={counts} items={[]} today="2026-05-20" onFilter={onFilter} />);
     fireEvent.click(screen.getByLabelText("View"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /Upcoming/ }));
-    expect(onFilter).toHaveBeenCalledWith("upcoming");
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Tomorrow/ }));
+    expect(onFilter).toHaveBeenCalledWith("tomorrow");
     fireEvent.click(screen.getByLabelText("View"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Today/ }));
     expect(onFilter).toHaveBeenCalledTimes(1);
@@ -305,7 +305,7 @@ describe("TasksPage", () => {
   });
 
   it("shows an empty state when the filter has no items", () => {
-    const { container } = render(<TasksPage filter="done" counts={{ all: 0, daily: 0, today: 0, overdue: 0, upcoming: 0, email: 0, done: 0 }} items={[]} today="2026-05-20" />);
+    const { container } = render(<TasksPage filter="done" counts={{ all: 0, today: 0, tomorrow: 0, overdue: 0, nodate: 0, email: 0, done: 0 }} items={[]} today="2026-05-20" />);
     expect(container.querySelector(".empty-state")).toBeTruthy();
   });
 

@@ -297,10 +297,13 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     twoSvc = null;
     render(<NotesProvider userId="start-per-view"><TwoViews /></NotesProvider>);
     await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
-    // Upcoming holds two, six and nine days out. The nearer one leads.
-    pickView(/Upcoming/);
-    await waitFor(() => expect(cardName()).toContain("Book the Bridge Venue"), { timeout: 4000 });
-    expect(cardName(), "the card is about the list it is sitting on").not.toContain("jarvis");
+    // All leads with what is due soonest; From Email, the next view over, leads with its own. (Upcoming, which this once used, is gone:
+    // it held what All holds.)
+    pickView(/^All/);
+    await waitFor(() => expect(cardName()).toContain("Set Up Everything on Jarvis"), { timeout: 4000 });
+    pickView(/From Email/);
+    await waitFor(() => expect(cardName()).toContain("Get Back to Google"), { timeout: 4000 });
+    expect(cardName(), "the card is about the list it is sitting on").not.toContain("Jarvis");
     void twoSvc;
   });
 
@@ -321,7 +324,7 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
   it("says nothing on a view with nothing startable in it", async () => {
     render(<NotesProvider userId="start-per-view-2"><TwoViews /></NotesProvider>);
     await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
-    pickView(/Upcoming/);
+    pickView(/^All/);
     await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
     pickView(/^Done/);
     await waitFor(() => expect(screen.queryByText("A Place to Begin")).toBeNull(), { timeout: 4000 });
