@@ -10,6 +10,7 @@ import {
 } from "./importMap";
 import Reimport from "./ReimportReview";
 import { U } from "./PageViews";
+import { templateDef } from "./templateDefs";
 
 // THE CONFIRM STEP (issue #115: confirm-first, uncertain values visibly
 // uncertain, nothing silently dropped). One screen for a first import and for
@@ -102,7 +103,8 @@ function FirstImport({ page, body, map, columns, reported, notes, onApply }: {
     return out;
   });
   const unsure = records.flatMap((r, index) => Object.entries(r.flags ?? {}).map(([key, why]) => ({ index, key, why, r })));
-  const word = page.kind === "outreach" ? "Contact" : "Player";
+  const word = templateDef(page.kind)?.noun ?? (page.kind === "outreach" ? "Contact" : "Player");
+  const words = templateDef(page.kind)?.plural ?? word + "s";
   const n = records.length;
   const current = fixing ? records[fixing.index] : null;
   return (
@@ -119,7 +121,7 @@ function FirstImport({ page, body, map, columns, reported, notes, onApply }: {
           </Card>
         </>
       )}
-      <Head label={n === 1 ? `1 ${word}` : `${n} ${word}s`} />
+      <Head label={n === 1 ? `1 ${word}` : `${n} ${words}`} />
       {n > 0 && (
         <Card>
           {records.slice(0, MAX_PREVIEW).map((r, i) => {
@@ -135,8 +137,8 @@ function FirstImport({ page, body, map, columns, reported, notes, onApply }: {
       {reported.map((l) => <Foot key={l}>{l}</Foot>)}
       <div className="pad-x exp-acts">
         <button type="button" className="btn btn-primary btn-block" disabled={n === 0}
-          onClick={() => onApply(applyImport(page, { ...plan, records }, Date.now()), n === 1 ? `1 ${word} Brought In` : `${n} ${word}s Brought In`)}>
-          {n === 0 ? "Nothing to Bring In" : n === 1 ? `Bring In 1 ${word}` : `Bring In ${n} ${word}s`}
+          onClick={() => onApply(applyImport(page, { ...plan, records }, Date.now()), n === 1 ? `1 ${word} Brought In` : `${n} ${words} Brought In`)}>
+          {n === 0 ? "Nothing to Bring In" : n === 1 ? `Bring In 1 ${word}` : `Bring In ${n} ${words}`}
         </button>
       </div>
       {fixing && current && (

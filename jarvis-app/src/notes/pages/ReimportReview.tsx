@@ -3,6 +3,7 @@ import { Head, Card, Row, Foot, Menu } from "../../settings/kit";
 import { type PageData, labelOf, recordName } from "./pageModel";
 import { type ColumnMap, type Changes, reconcile, applyReconcile, conflictKey, changeCount } from "./importMap";
 import { U } from "./PageViews";
+import { templateDef } from "./templateDefs";
 
 // A FILE THAT COMES BACK (issue #115: stable-id round trip with a changes
 // preview). Matched by the id column; what it would add, change and remove is
@@ -17,7 +18,8 @@ export default function Reimport({ page, body, map, columns, reported, notes, on
   const changes: Changes = useMemo(() => reconcile(page, body, map, notes), [page, body, map, notes]);
   const [choose, setChoose] = useState<Record<string, "local" | "incoming">>({});
   const n = changeCount(changes);
-  const word = page.kind === "outreach" ? "Contact" : "Player";
+  const word = templateDef(page.kind)?.noun ?? (page.kind === "outreach" ? "Contact" : "Player");
+  const words = templateDef(page.kind)?.plural ?? word + "s";
   const plural = (k: number, w: string) => (k === 1 ? `1 ${w}` : `${k} ${w}s`);
   return (
     <>
@@ -86,7 +88,7 @@ export default function Reimport({ page, body, map, columns, reported, notes, on
         </button>
       </div>
       {/* The count of records the file speaks for, so "no duplicates" is something he can check. */}
-      <Foot>{plural(page.records.length - changes.removed.length + changes.added.length, word)} After This</Foot>
+      <Foot>{(() => { const k = page.records.length - changes.removed.length + changes.added.length; return k === 1 ? `1 ${word}` : `${k} ${words}`; })()} After This</Foot>
     </>
   );
 }

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered, Target, User, Send } from "../../shared/icons";
+import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered, Target, User, Send, ListChecks, Dumbbell, Wallet, DollarSign, Home, Gauge, Timer, Flame, Lightbulb, Clock, Mail, Brain, FolderKanban, Zap, Sparkles, PersonStanding, Tag } from "../../shared/icons";
 import type { TemplateKey } from "../types";
 import type { PageKind } from "../pages/pageModel";
+import { TEMPLATES, TEMPLATE_KEYS, SHELVES, type IconKey, type Shelf } from "../pages/templateDefs";
 import { pressable } from "../../shared/pressable";
 
 // Matches locked frame #49 "Templates" (the New Note picker). Keys match the
@@ -21,23 +22,43 @@ const TEMPLATES_LIST: {
   { key: "journal", name: "Log / Journal", desc: "Date-Stamped Entries Over Time", cat: "teal", Icon: ListOrdered },
 ];
 
-// TEMPLATE PAGES (issue #115): a note with structure. Records with stable
-// ids, fields he can rename, export to Sheets and back.
-const PAGES_LIST: { key: PageKind; name: string; desc: string; cat: string; Icon: typeof AlignLeft }[] = [
-  { key: "scorecard", name: "Golf Scorecard", desc: "Holes, Players, Running Totals", cat: "green", Icon: Target },
-  { key: "team", name: "Team Sheet", desc: "A Roster: Name, Number, Position", cat: "blue", Icon: User },
-  { key: "lineup", name: "Lineup Card", desc: "An Order Picked from a Team Sheet", cat: "purple", Icon: ListOrdered },
-  { key: "outreach", name: "Outreach Tracker", desc: "Who, How, Status, Next Step", cat: "orange", Icon: Send },
+// TEMPLATE PAGES (issue #115): a note with structure. Records with stable ids, fields he can rename, export to Sheets and back.
+// They sit on shelves (Sports, Life, Finance, Professional, Entertainment). The four of slice 1 keep their own screens; every
+// template after them is a definition in pages/templateDefs.ts, listed here from it.
+const ICONS: Record<IconKey, typeof AlignLeft> = {
+  target: Target, user: User, list: ListOrdered, send: Send, table: Table, checks: ListChecks, dumbbell: Dumbbell, calendar: CalendarDays, file: FileText, wallet: Wallet,
+  dollar: DollarSign, home: Home, gauge: Gauge, timer: Timer, flame: Flame, bulb: Lightbulb, clock: Clock, mail: Mail, brain: Brain, kanban: FolderKanban, zap: Zap,
+  sparkles: Sparkles, person: PersonStanding, tag: Tag,
+};
+
+interface PageEntry { key: string; name: string; desc: string; cat: string; Icon: typeof AlignLeft; shelf: Shelf }
+
+const CORE: PageEntry[] = [
+  { key: "scorecard", name: "Golf Scorecard", desc: "Holes, Players, Running Totals", cat: "green", Icon: Target, shelf: "Sports" },
+  { key: "team", name: "Team Sheet", desc: "A Roster: Name, Number, Position", cat: "blue", Icon: User, shelf: "Sports" },
+  { key: "lineup", name: "Lineup Card", desc: "An Order Picked from a Team Sheet", cat: "purple", Icon: ListOrdered, shelf: "Sports" },
+  { key: "outreach", name: "Outreach Tracker", desc: "Who, How, Status, Next Step", cat: "orange", Icon: Send, shelf: "Sports" },
 ];
+
+const PAGES_LIST: PageEntry[] = [
+  ...CORE,
+  ...TEMPLATE_KEYS.map((k) => ({ key: k, name: TEMPLATES[k].name, desc: TEMPLATES[k].desc, cat: TEMPLATES[k].cat, Icon: ICONS[TEMPLATES[k].icon], shelf: TEMPLATES[k].shelf })),
+];
+
+/** A template the person kept from a page of their own (Save as My Template). */
+export interface MyTemplate { id: string; title: string; kindName: string }
 
 export default function Templates({
   onSelect,
   onPage,
+  mine = [],
   onBack,
   pending = null,
 }: {
   onSelect?: (key: TemplateKey) => unknown;
-  onPage?: (key: PageKind) => unknown;
+  onPage?: (key: PageKind | string) => unknown;
+  /** The person's own templates, started from the picker with their structure and none of their rows. */
+  mine?: MyTemplate[];
   onBack?: () => void;
   // The template whose note is being made and opened (issue 106, V3). While
   // one is, its row is the pressed one and carries the ring in place of the
@@ -51,6 +72,27 @@ export default function Templates({
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   const anyBusy = locked || pageBusy !== null;
+  const pageRow = (key: string, name: string, desc: string, cat: string, Icon: typeof AlignLeft) => {
+    const busy = pageBusy === key;
+    return (
+      <div className="lib-row" key={"page-" + key}
+        aria-busy={busy || undefined}
+        aria-disabled={anyBusy && !busy ? true : undefined}
+        {...pressable(() => {
+          setPageBusy(key);
+          void Promise.resolve(onPage?.(key)).finally(() => { if (alive.current) setPageBusy(null); });
+        }, { disabled: anyBusy })}>
+        <div className={"lib-ico cat-fg-" + cat}>
+          <Icon className="ic" />
+        </div>
+        <div className="lib-stack">
+          <div className="lib-name">{name}</div>
+          <div className="lib-sub">{desc}</div>
+        </div>
+        {busy ? <span className="spinner" role="status" aria-label="Opening" /> : <div className="chev"></div>}
+      </div>
+    );
+  };
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -84,31 +126,21 @@ export default function Templates({
           </div>
         );
       })}
-      {onPage && (
-        <>
-          <div className="sh2 sh2-quiet"><span className="t">Template Pages</span></div>
-          {PAGES_LIST.map(({ key, name, desc, cat, Icon }) => {
-            const busy = pageBusy === key;
-            return (
-              <div className="lib-row" key={"page-" + key}
-                aria-busy={busy || undefined}
-                aria-disabled={anyBusy && !busy ? true : undefined}
-                {...pressable(() => {
-                  setPageBusy(key);
-                  void Promise.resolve(onPage(key)).finally(() => { if (alive.current) setPageBusy(null); });
-                }, { disabled: anyBusy })}>
-                <div className={"lib-ico cat-fg-" + cat}>
-                  <Icon className="ic" />
-                </div>
-                <div className="lib-stack">
-                  <div className="lib-name">{name}</div>
-                  <div className="lib-sub">{desc}</div>
-                </div>
-                {busy ? <span className="spinner" role="status" aria-label="Opening" /> : <div className="chev"></div>}
-              </div>
-            );
-          })}
-        </>
+      {onPage && SHELVES.map((shelf) => {
+        const rows = PAGES_LIST.filter((p) => p.shelf === shelf);
+        if (!rows.length) return null;
+        return (
+          <div key={shelf}>
+            <div className="sh2 sh2-quiet"><span className="t">{shelf}</span></div>
+            {rows.map(({ key, name, desc, cat, Icon }) => pageRow(key, name, desc, cat, Icon))}
+          </div>
+        );
+      })}
+      {onPage && mine.length > 0 && (
+        <div>
+          <div className="sh2 sh2-quiet"><span className="t">My Templates</span></div>
+          {mine.map((m) => pageRow("mine:" + m.id, m.title, m.kindName, "graphite", FileText))}
+        </div>
       )}
     </div>
   );

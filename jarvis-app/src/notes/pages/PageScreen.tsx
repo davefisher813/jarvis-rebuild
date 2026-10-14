@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNotes, useFileStore, useTasks } from "../../data/NotesProvider";
+import { useNotes, useFileStore, useTasks, useOptionalGym, useStore } from "../../data/NotesProvider";
+import { flagOn } from "../../substrate/flags";
+import { heldText, savedToastText } from "../../shared/saved";
 import { attemptWrite } from "../../shared/guard";
 import { showToast } from "../../shared/toast";
 import { lineCase, titleCase } from "../../shared/casing";
@@ -19,7 +21,16 @@ import {
   rosterChanges, refreshFromRoster, newLineupPage, recordName, labelOf,
 } from "./pageModel";
 import { TeamView, LineupView, OutreachView, ScorecardView, HoleEntry, U } from "./PageViews";
-import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet } from "./PageSheets";
+import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet, SectionsSheet, GameSheet } from "./PageSheets";
+import { templateDef } from "./templateDefs";
+import {
+  SheetView, ProfileView, PitchingView, StandingsView, ScoreboardView, ScoreEntry, TrainingLogView, scoreStart, type WorkoutLine,
+} from "./TemplateViews";
+import {
+  addSection, renameSection, removeSection, moveSection, setSection, moveField, addSuggested, sectionImpact, sessionClock, gamesOfTeam,
+  addGame, removeGame, removeTeamAndGames, asMyTemplate, num,
+} from "./templateLogic";
+import { setCell, setPeriodScore, setSport, sportChangeImpact, addPeriod, sportName } from "./scoreboard";
 import { SnapshotsScreen, LineupBuilder } from "./PageExtras";
 import ImportReview from "./ImportReview";
 import { keepOriginal, readSource, readOriginal, markUsed, type TableSource } from "./pageImport";
@@ -37,7 +48,7 @@ import type { PageFormat } from "./exportPage";
 
 export interface PendingImport { originalAt: number; rows: string[][]; notes: string[]; name: string; mode: "import" | "reimport" }
 
-type View = "page" | "hole" | "snapshots" | "import" | "lineup";
+type View = "page" | "hole" | "snapshots" | "import" | "lineup" | "score";
 type Sheet =
   | { k: "record"; id: string | null }
   | { k: "fields" }
@@ -46,6 +57,11 @@ type Sheet =
   | { k: "rename" } | { k: "course" } | { k: "date" }
   | { k: "share" }
   | { k: "paste" }
+  | { k: "sections" } | { k: "removeSection"; id: string }
+  | { k: "game"; id: string | null }
+  | { k: "sport"; to: string }
+  | { k: "limit" } | { k: "start" }
+  | { k: "program" }
   | { k: "addFromRoster" }
   | { k: "original"; o: PageOriginal }
   | null;
@@ -67,6 +83,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   const svc = useNotes();
   const fileStore = useFileStore();
   const tasksSvc = useTasks();
+  const store = useStore();
   const [note, setNote] = useState<{ title: string; page: PageData } | null>(null);
   const noteRef = useRef<{ title: string; page: PageData } | null>(null);
   const history = useRef<PageData[]>([]);
@@ -77,6 +94,10 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   // Delete Page asks first, naming the page; nothing is written until its Delete is tapped.
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hole, setHole] = useState(1);
+  const [at, setAt] = useState(1);
+  const gym = useOptionalGym();
+  const [workouts, setWorkouts] = useState<WorkoutLine[] | null>(null);
+  const [programs, setPrograms] = useState<{ id: string; name: string; weeks: { label: string; days: { name: string; exercises: string[] }[] }[] }[]>([]);
   const [pending, setPending] = useState<PendingImport | null>(pendingImport ?? null);
   const [lineups, setLineups] = useState<{ id: string; title: string; date: string }[]>([]);
   const [team, setTeam] = useState<{ id: string; title: string; page: PageData } | null>(null);
@@ -108,6 +129,27 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     }
   }, [svc, noteId]);
   useEffect(() => { void load(); }, [load]);
+  const kindNow = note?.page.kind;
+  useEffect(() => {
+    if (!gym || (kindNow !== "traininglog" && kindNow !== "trainingplan")) return;
+    let live = true;
+    void (async () => {
+      try {
+        if (kindNow === "traininglog") {
+          const ws = await gym.listWorkouts();
+          if (!live) return;
+          setWorkouts(ws
+            .map((w) => ({ id: w.id, date: w.data.date, name: w.data.dayName || "Workout", minutes: w.data.endedAt && w.data.startedAt ? Math.max(1, Math.round((w.data.endedAt - w.data.startedAt - (w.data.pausedMs ?? 0)) / 60000)) : null, exercises: w.data.exercises.length }))
+            .sort((a, b) => (b.date > a.date ? 1 : -1)));
+        } else {
+          const ps = await gym.listPrograms();
+          if (!live) return;
+          setPrograms(ps.map((pr) => ({ id: pr.id, name: pr.data.name, weeks: pr.data.weeks.map((wk) => ({ label: wk.label, days: wk.days.map((d) => ({ name: d.name, exercises: d.exercises.map((e) => e.name) })) })) })));
+        }
+      } catch { if (live) setWorkouts([]); }
+    })();
+    return () => { live = false; };
+  }, [gym, kindNow]);
   useEffect(() => { if (pendingImport) { setPending(pendingImport); setView("import"); onPendingConsumed?.(); } }, [pendingImport, onPendingConsumed]);
 
   /** One edit: the page before it is kept for Undo, the screen moves at once, the write follows in the queue. */
@@ -213,13 +255,14 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   }
 
   const g = page.golf;
+  const def = templateDef(page.kind);
   const record = sheet?.k === "record" && sheet.id ? page.records.find((r) => r.id === sheet.id) ?? null : null;
   const changes: RosterChange[] | null = page.kind === "lineup" ? (team ? rosterChanges(page, team.page) : null) : null;
 
   const removeWithUndo = (id: string) => {
     const before = page;
     const r = page.records.find((x) => x.id === id);
-    void commit(removeRecord(page, id));
+    void commit(page.kind === "standings" ? removeTeamAndGames(page, id) : removeRecord(page, id));
     setSheet(null);
     showToast({ message: lineCase((recordName(page, r!) || "Row") + " removed"), actionLabel: "Undo", onAction: () => void commit(before, { undoable: false }) });
   };
@@ -254,13 +297,27 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     void commit(format === "pdf" ? snap : markBase(snap), { undoable: false });
   };
 
+  // An edited page kept as the person's own template: its fields, headings and settings, none of its rows. It starts new pages from the picker.
+  const saveAsTemplate = async () => {
+    const cur = noteRef.current;
+    if (!cur) return;
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => { id = await svc.createPage((cur.title.trim() || KIND_NAME[cur.page.kind]) + " Template", asMyTemplate(cur.page), ""); });
+    if (!ok || !id) return;
+    onChanged();
+    // Honest about where the row is: while the Store still holds the write on this phone alone, the toast says Will Sync (shared/saved.ts).
+    showToast({ message: savedToastText("Saved as Your Template", heldText("Your Templates"), flagOn("trust_v1") && (store?.pending() ?? false)) });
+  };
+
   const menu: { label: string; icon: JSX.Element; run: () => void; danger?: boolean }[] = [
     { label: "Rename Page", icon: <PenLine className="ic" />, run: () => setSheet({ k: "rename" }) },
-    ...(page.kind === "team" || page.kind === "outreach" ? [{ label: "Fields", icon: <Table className="ic" />, run: () => setSheet({ k: "fields" }) }] : []),
-    ...(page.kind === "team" ? [
+    ...(page.kind === "team" || page.kind === "outreach" || (def && def.view !== "scoreboard" && def.view !== "standings") ? [{ label: "Fields", icon: <Table className="ic" />, run: () => setSheet({ k: "fields" }) }] : []),
+    ...(def && ["sheet", "session", "trainingplan"].includes(def.view) ? [{ label: "Headings", icon: <ListOrdered className="ic" />, run: () => setSheet({ k: "sections" }) }] : []),
+    ...(page.kind === "team" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile" && def.view !== "traininglog") ? [
       { label: page.records.length ? "Bring Back from Sheets" : "Import Rows", icon: <Table className="ic" />, run: () => picker.open(PICK_TABLE) },
       { label: "Paste Rows", icon: <Copy className="ic" />, run: () => setSheet({ k: "paste" }) },
     ] : []),
+    ...(page.kind === "team" || page.kind === "outreach" || (def && def.view !== "scoreboard" && def.view !== "standings") ? [{ label: "Save as My Template", icon: <Copy className="ic" />, run: () => void saveAsTemplate() }] : []),
     { label: "Save Snapshot", icon: <Camera className="ic" />, run: () => { void commit(takeSnapshot(page, "manual", Date.now()), { undoable: false }); showToast({ message: "Snapshot Kept" }); } },
     { label: "Snapshots", icon: <Clock className="ic" />, run: () => setView("snapshots") },
     { label: "Duplicate Page", icon: <Copy className="ic" />, run: () => void (async () => {
@@ -272,6 +329,35 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     })() },
     { label: "Delete Page", icon: <Trash2 className="ic" />, danger: true, run: () => setConfirmDelete(true) },
   ];
+
+  // ---- the score screen of a scoreboard: one column at a time, the Golf Scorecard's hole screen for every other game
+  const sc = page.score;
+  if (view === "score" && sc) {
+    const last = sc.mode === "periods" ? sc.periods : sc.mode === "bowling" ? 10 : sc.mode === "countdown" ? at : 1;
+    const single = sc.mode === "target";
+    const title = single ? "Score" : `${sc.unit} ${at}`;
+    return (
+      <div className="screen ruled">
+        <div className="nav-bar">
+          <button className="nav-back" onClick={() => setView("page")}>{sportName(page)}</button>
+          <span className="nav-title"></span>
+          <div className="nav-actions">
+            <button className="nav-action" onClick={undo} disabled={!canUndo} aria-label="Undo"><Undo2 className="ic" /></button>
+          </div>
+        </div>
+        <div className="nav-large">{title}</div>
+        <ScoreEntry page={page} at={at} onSet={(id, key, v) => void commit(/^p\d+$/.test(key) ? setPeriodScore(noteRef.current!.page, id, Number(key.slice(1)), v) : setCell(noteRef.current!.page, id, key, v))} />
+        <div className="pad-x exp-acts">
+          {!single && (at < last || sc.mode === "countdown")
+            ? <button type="button" className="btn btn-primary btn-block" onClick={() => setAt(at + 1)}>{`Next: ${sc.unit} ${at + 1}`}</button>
+            : <button type="button" className="btn btn-primary btn-block" onClick={() => setView("page")}>{single ? "Done" : "Finish"}</button>}
+          {sc.mode === "periods" && at >= last && <button type="button" className="btn btn-secondary btn-block" onClick={() => { void commit(addPeriod(noteRef.current!.page)); setAt(at + 1); }}>{`Add Another ${sc.unit}`}</button>}
+          {at > 1 && !single && <button type="button" className="btn btn-secondary btn-block" onClick={() => setAt(at - 1)}>{`Back to ${sc.unit} ${at - 1}`}</button>}
+        </div>
+        <div className="screen-foot" />
+      </div>
+    );
+  }
 
   // ---- the hole screen, pushed over the scorecard
   if (view === "hole" && g) {
@@ -348,6 +434,40 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           onHoles={(h) => { if (h === g.holes) return; if (holesImpact(page, h) > 0) setSheet({ k: "holes", to: h }); else void commit(setHoles(page, h)); }} />
       )}
 
+      {def?.view === "sheet" && (
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
+          onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined} />
+      )}
+      {def?.view === "session" && (
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          timeOf={sessionClock(page)}
+          belowHead={<Card><Row label="Start Time" value={(page.meta?.start ?? "") ? (page.meta!.start!) : "Not Set"} onClick={() => setSheet({ k: "start" })} chev /></Card>} />
+      )}
+      {def?.view === "trainingplan" && (
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
+          belowHead={programs.length > 0 ? <Card><Row label="Start From a Program" onClick={() => setSheet({ k: "program" })} chev /></Card> : undefined} />
+      )}
+      {def?.view === "profile" && <ProfileView page={page} onEdit={(id) => setSheet({ k: "record", id })} />}
+      {def?.view === "pitching" && (
+        <PitchingView page={page} today={todayISO()} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onLimit={() => setSheet({ k: "limit" })} />
+      )}
+      {def?.view === "traininglog" && (
+        <TrainingLogView page={page} workouts={workouts} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} />
+      )}
+      {def?.view === "standings" && (
+        <StandingsView page={page} onTeam={(id) => setSheet({ k: "record", id })} onAddTeam={() => setSheet({ k: "record", id: null })}
+          onGame={(id) => setSheet({ k: "game", id })} onAddGame={() => setSheet({ k: "game", id: null })} />
+      )}
+      {def?.view === "scoreboard" && sc && (
+        <ScoreboardView page={page}
+          onScore={() => { setAt(scoreStart(page)); setView("score"); }}
+          onSide={(id) => setSheet({ k: "record", id })} onAddSide={() => setSheet({ k: "record", id: null })}
+          onSport={(key) => { if (key === sc.sport) return; if (sportChangeImpact(page, key) > 0) setSheet({ k: "sport", to: key }); else void commit(setSport(page, key)); }}
+          onDate={() => setSheet({ k: "date" })} onAddPeriod={() => void commit(addPeriod(page))} />
+      )}
+
       {(page.originals ?? []).length > 0 && (
         <>
           <Head label="Originals" count={page.originals!.length} />
@@ -356,7 +476,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
               const iso = new Date(o.at).toISOString().slice(0, 10);
               return (
                 <Row key={o.at} label={<U>{o.name}</U>} chev
-                  onClick={() => (!o.used && page.kind === "team" ? void bringIn(o) : setSheet({ k: "original", o }))}
+                  onClick={() => (!o.used && (page.kind === "team" || (def && def.view !== "scoreboard" && def.view !== "standings")) ? void bringIn(o) : setSheet({ k: "original", o }))}
                   meta={<><span className="fact date">{monthDay(iso)}</span>{!o.used && <span className="fact warn">Not Brought In Yet</span>}</>} />
               );
             })}
@@ -368,22 +488,30 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       {sheet?.k === "record" && (
         <RecordSheet page={page} record={record} isNew={!sheet.id}
           onCancel={() => setSheet(null)}
-          onSave={(values) => {
+          onSave={(values, section) => {
             if (!sheet.id) {
               const cur = noteRef.current!.page;
-              const values2 = page.kind === "scorecard" && !(values.name ?? "").trim() ? { ...values, name: `Player ${cur.records.length + 1}` } : values;
-              void commit(addRecord(cur, values2).page);
-            } else if (Object.keys(values).length) void commit(setValues(noteRef.current!.page, sheet.id, values));
+              const values2 = (page.kind === "scorecard" || page.kind === "scoreboard") && !(values.name ?? "").trim() ? { ...values, name: `${page.kind === "scoreboard" ? "Side" : "Player"} ${cur.records.length + 1}` } : values;
+              const made = addRecord(cur, values2);
+              void commit(section ? setSection(made.page, made.id, section) : made.page);
+            } else {
+              let next = noteRef.current!.page;
+              if (Object.keys(values).length) next = setValues(next, sheet.id, values);
+              if (section !== undefined) next = setSection(next, sheet.id, section);
+              if (next !== noteRef.current!.page) void commit(next);
+            }
             setSheet(null);
           }}
-          onRemove={sheet.id && !(page.kind === "scorecard" && page.records.length <= 1) ? () => removeWithUndo(sheet.id!) : undefined}
+          onRemove={sheet.id && !((page.kind === "scorecard" || page.kind === "scoreboard") && page.records.length <= 1) && def?.view !== "profile" ? () => removeWithUndo(sheet.id!) : undefined}
           onKeep={sheet.id ? (key) => { void commit(confirmValue(noteRef.current!.page, sheet.id!, key)); setSheet(null); } : undefined}
           onMakeTask={page.kind === "outreach" && sheet.id ? (text) => void makeTask(sheet.id!, text) : undefined}
           taskMade={!!record?.taskId}
-          onMove={page.kind === "lineup" && sheet.id ? (by) => void commit(moveRecord(noteRef.current!.page, sheet.id!, by)) : undefined} />
+          onMove={(page.kind === "lineup" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile")) && sheet.id ? (by) => void commit(moveRecord(noteRef.current!.page, sheet.id!, by)) : undefined} />
       )}
       {sheet?.k === "fields" && (
         <FieldsSheet page={page} onCancel={() => setSheet(null)} onRemove={(key) => setSheet({ k: "removeField", key })}
+          onMove={(key, by) => void commit(moveField(noteRef.current!.page, key, by))}
+          onSuggest={def ? (key) => { void commit(addSuggested(noteRef.current!.page, key)); } : undefined}
           onSave={(labels, added) => {
             let next = noteRef.current!.page;
             for (const [k, l] of Object.entries(labels)) if (l.trim() && l.trim() !== labelOf(next, k)) next = renameField(next, k, l);
@@ -411,12 +539,12 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           onSave={(v) => { setSheet(null); void commit({ ...noteRef.current!.page, golf: { ...g, course: v.trim() } }); }} />
       )}
       {sheet?.k === "date" && (
-        <OneFieldSheet title="Date" label="Date" type="date" value={g?.date ?? page.lineup?.date ?? todayISO()} onCancel={() => setSheet(null)}
+        <OneFieldSheet title="Date" label="Date" type="date" value={g?.date ?? page.score?.date ?? page.lineup?.date ?? todayISO()} onCancel={() => setSheet(null)}
           onSave={(v) => {
             setSheet(null);
             if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
             const cur = noteRef.current!.page;
-            void commit(cur.golf ? { ...cur, golf: { ...cur.golf, date: v } } : { ...cur, lineup: { ...cur.lineup!, date: v } });
+            void commit(cur.golf ? { ...cur, golf: { ...cur.golf, date: v } } : cur.score ? { ...cur, score: { ...cur.score, date: v } } : { ...cur, lineup: { ...cur.lineup!, date: v } });
           }} />
       )}
       {sheet?.k === "share" && (
@@ -440,6 +568,66 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           if (url) window.open(url, "_blank", "noopener");
           else showToast({ message: "Couldn't Open the Original" });
         }} />
+      )}
+      {sheet?.k === "sections" && (
+        <SectionsSheet page={page} onCancel={() => setSheet(null)}
+          onMove={(key, by) => void commit(moveSection(noteRef.current!.page, key, by))}
+          onRemove={(key) => setSheet({ k: "removeSection", id: key })}
+          onSave={(labels, added) => {
+            let next = noteRef.current!.page;
+            for (const [k, l] of Object.entries(labels)) if (l.trim() && l.trim() !== (next.sections ?? []).find((x) => x.key === k)?.label) next = renameSection(next, k, l);
+            if (added.trim()) next = addSection(next, added).page;
+            if (next !== noteRef.current!.page) void commit(next);
+            setSheet(null);
+          }} />
+      )}
+      {sheet?.k === "removeSection" && (
+        <ConfirmChange title={"Remove " + ((page.sections ?? []).find((x) => x.key === sheet.id)?.label ?? "Heading")} action="Remove"
+          lines={[sectionImpact(page, sheet.id) === 0 ? "No Rows Are Under This Heading" : `${sectionImpact(page, sheet.id)} ${sectionImpact(page, sheet.id) === 1 ? "Row Moves" : "Rows Move"} Above the Other Headings; None Are Deleted`]}
+          onCancel={() => setSheet({ k: "sections" })}
+          onApply={() => { void commit(removeSection(noteRef.current!.page, sheet.id)); setSheet(null); showToast({ message: "Heading Removed", actionLabel: "Undo", onAction: undo }); }} />
+      )}
+      {sheet?.k === "game" && (
+        <GameSheet page={page} game={sheet.id ? (page.games ?? []).find((x) => x.id === sheet.id) ?? null : null} onCancel={() => setSheet(null)}
+          onSave={(gm) => {
+            const cur = noteRef.current!.page;
+            void commit(addGame(sheet.id ? removeGame(cur, sheet.id) : cur, gm));
+            setSheet(null);
+          }}
+          onRemove={sheet.id ? () => { void commit(removeGame(noteRef.current!.page, sheet.id!)); setSheet(null); showToast({ message: "Game Removed", actionLabel: "Undo", onAction: undo }); } : undefined} />
+      )}
+      {sheet?.k === "sport" && sc && (
+        <ConfirmChange title="Change the Sport" action="Change"
+          lines={[`${sportChangeImpact(page, sheet.to)} ${sportChangeImpact(page, sheet.to) === 1 ? "Score Stops" : "Scores Stop"} Showing Here, Never Deleted`, "Switch Back and They All Return"]}
+          onCancel={() => setSheet(null)} onApply={() => { void commit(setSport(noteRef.current!.page, sheet.to)); setSheet(null); }} />
+      )}
+      {sheet?.k === "limit" && (
+        <OneFieldSheet title="Daily Limit" label="Pitches in a Day" value={page.meta?.limit ?? "85"} onCancel={() => setSheet(null)}
+          onSave={(v) => { setSheet(null); const n = num(v); if (n === null || n <= 0) return; void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), limit: String(Math.round(n)) } }); }} />
+      )}
+      {sheet?.k === "start" && (
+        <OneFieldSheet title="Start Time" label="Start Time" type="time" value={page.meta?.start ?? ""} onCancel={() => setSheet(null)}
+          onSave={(v) => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), start: v } }); }} />
+      )}
+      {sheet?.k === "program" && (
+        <RowActionSheet title="Start From Which Program" onCancel={() => setSheet(null)}
+          actions={programs.map((pr) => ({
+            label: titleCase(pr.name),
+            onPick: () => {
+              // A COPY, NEVER A LINK: the plan is this page's own, so editing it never touches the program, and the program never moves this page.
+              let next: PageData = { ...noteRef.current!.page, sections: [], records: [] };
+              for (const wk of pr.weeks) {
+                const made = addSection(next, wk.label || "Week");
+                next = made.page;
+                for (const d of wk.days) {
+                  const r = addRecord(next, { day: d.name, focus: d.exercises.length ? `${d.exercises.length} ${d.exercises.length === 1 ? "Exercise" : "Exercises"}` : "", detail: d.exercises.slice(0, 6).join(", ") });
+                  next = setSection(r.page, r.id, made.key);
+                }
+              }
+              void commit(next);
+              showToast({ message: "Plan Started From the Program", actionLabel: "Undo", onAction: undo });
+            },
+          }))} />
       )}
       {confirmDelete && (
         <RowActionSheet

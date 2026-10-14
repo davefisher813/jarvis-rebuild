@@ -10,13 +10,18 @@ import {
   type PageData, type PageRecord, type PageField,
   editableFields, fieldImpact, recordName, labelOf, KIND_NAME,
 } from "./pageModel";
+import { templateDef } from "./templateDefs";
+import { SPORTS, SPORT_GROUPS } from "./scoreboard";
+import { suggestedFor } from "./templateLogic";
+import { RowCheck } from "./TemplateViews";
+import RowActionSheet from "../../shared/RowActionSheet";
 import { PAGE_FORMATS, buildPageFile, shareText, type PageFormat } from "./exportPage";
 
 // THE SHEETS A TEMPLATE PAGE OPENS. Each is the app's FormSheet (the handle,
 // Cancel and Save in the bar, caps groups) or its export sheet; nothing here
 // is a new kind of sheet.
 
-const noun = (page: PageData) => page.kind === "outreach" ? "Contact" : "Player";
+const noun = (page: PageData) => templateDef(page.kind)?.noun ?? (page.kind === "outreach" ? "Contact" : "Player");
 
 /** One record, every field it has, typed in place. A value the import was not sure of is named under its group with
  *  the reason, and can be kept as it is in one tap. Nothing here makes a task, an event or a share: Outreach's Make a
@@ -25,7 +30,8 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   page: PageData;
   record: PageRecord | null;
   isNew: boolean;
-  onSave: (values: Record<string, string>) => void;
+  /** The values changed (all of them for a new row) and, when the page has headings, the heading it was put under (null: above every heading). */
+  onSave: (values: Record<string, string>, section?: string | null) => void;
   onCancel: () => void;
   onRemove?: () => void;
   onKeep?: (key: string) => void;
@@ -37,23 +43,38 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? ""])));
   const set = (k: string, v: string) => setDraft((d) => ({ ...d, [k]: v }));
   const changed = () => Object.fromEntries(Object.entries(draft).filter(([k, v]) => (record?.v[k] ?? "") !== v));
+  const sections = page.sections ?? [];
+  // A new row lands under the heading the last row went under (else the first), so adding a run of rows is a run of taps.
+  const [sec, setSec] = useState<string>(record ? record.sec ?? "" : [...page.records].reverse().find((r) => r.sec && sections.some((x) => x.key === r.sec))?.sec ?? sections[0]?.key ?? "");
+  const secChanged = isNew ? !!sec : sec !== (record?.sec ?? "");
   const flags = Object.entries(record?.flags ?? {});
   const title = page.kind === "lineup" ? "Lineup Spot" : (isNew ? "New " : "Edit ") + noun(page);
   const fieldRow = (f: PageField) => {
+    if (f.type === "check") {
+      // A done mark leads its row, at the left, like every checkbox in the app.
+      const on = draft[f.key] === "1";
+      return <Row key={f.key} lead={<RowCheck on={on} label={f.label} onToggle={() => set(f.key, on ? "" : "1")} />} label={f.label} onClick={() => set(f.key, on ? "" : "1")} />;
+    }
     if (f.type === "choice" && f.options?.length) {
       const opts = [...f.options, ...(draft[f.key] && !f.options.includes(draft[f.key]!) ? [draft[f.key]!] : [])];
       return <MenuRow key={f.key} tone="" glyph={null} label={f.label} value={draft[f.key] ?? ""} word={draft[f.key] ? undefined : "Choose"}
         options={[{ value: "", label: "None" }, ...opts.map((o) => ({ value: o, label: o }))]} onPick={(v) => set(f.key, v)} ariaLabel={f.label} />;
     }
     return <FieldRow key={f.key} label={f.label} ariaLabel={f.label} value={draft[f.key] ?? ""} onChange={(v) => set(f.key, v)}
-      type={f.type === "date" ? "date" : "text"} inputMode={f.type === "number" ? "numeric" : undefined} error={!!record?.flags?.[f.key] && (record?.v[f.key] ?? "") === (draft[f.key] ?? "")} />;
+      type={f.type === "date" ? "date" : "text"} inputMode={f.type === "number" ? "numeric" : f.type === "money" ? "decimal" : undefined} error={!!record?.flags?.[f.key] && (record?.v[f.key] ?? "") === (draft[f.key] ?? "")} />;
   };
   return (
-    <FormSheet title={title} saveLabel={isNew ? "Add" : "Save"} onCancel={onCancel} onSave={() => onSave(isNew ? draft : changed())}
+    <FormSheet title={title} saveLabel={isNew ? "Add" : "Save"} onCancel={onCancel} onSave={() => onSave(isNew ? draft : changed(), sections.length && (isNew || secChanged) ? (sec || null) : undefined)}
       saveDisabled={isNew && !Object.values(draft).some((v) => v.trim())}>
       <Group label={page.kind === "lineup" ? "Player" : noun(page)}>
         {(page.kind === "lineup" ? fields.filter((f) => f.key === "position") : fields).map(fieldRow)}
       </Group>
+      {sections.length > 0 && (
+        <Group label="Heading">
+          <MenuRow tone="" glyph={null} label="Under" value={sec} word={sec ? undefined : "Above Every Heading"}
+            options={[{ value: "", label: "Above Every Heading" }, ...sections.map((x) => ({ value: x.key, label: x.label }))]} onPick={setSec} ariaLabel="Heading" />
+        </Group>
+      )}
       {page.kind === "lineup" && record && <Note><span data-user-text="">{[record.v.name, record.v.number ? "#" + record.v.number : ""].filter(Boolean).join(", ")}</span></Note>}
       {flags.length > 0 && onKeep && (
         <Group label="Not Sure">
@@ -83,16 +104,23 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
 
 /** Labels are his to name, any time, with nothing else moving. Adding a field costs nothing; removing one says what it
  *  would cost before it runs. */
-export function FieldsSheet({ page, onSave, onCancel, onRemove }: {
+export function FieldsSheet({ page, onSave, onCancel, onRemove, onMove, onSuggest }: {
   page: PageData;
   onSave: (labels: Record<string, string>, added: string) => void;
   onCancel: () => void;
   onRemove: (key: string) => void;
+  /** Reorder a field (a column) in place. */
+  onMove?: (key: string, by: -1 | 1) => void;
+  /** Add one of the template's suggested fields. */
+  onSuggest?: (key: string) => void;
 }) {
+  const [orderFor, setOrderFor] = useState<string | null>(null);
+  const suggested = onSuggest ? suggestedFor(page) : [];
   const fields = editableFields(page);
   const [labels, setLabels] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, f.label])));
   const [added, setAdded] = useState("");
-  const removable = fields.filter((f) => f.key !== (page.kind === "outreach" ? "who" : "name"));
+  const headline = templateDef(page.kind)?.headline ?? (page.kind === "outreach" ? "who" : "name");
+  const removable = fields.filter((f) => f.key !== headline);
   return (
     <FormSheet title="Fields" onCancel={onCancel} onSave={() => onSave(labels, added)}>
       <Group label="Names">
@@ -102,6 +130,20 @@ export function FieldsSheet({ page, onSave, onCancel, onRemove }: {
       <Group label="Add a Field">
         <FieldRow ariaLabel="New field name" placeholder="Field Name" value={added} onChange={setAdded} />
       </Group>
+      {suggested.length > 0 && (
+        <Group label="Suggested">
+          {suggested.map((x) => <Row key={x.key} label={"Add " + x.label} onClick={() => onSuggest!(x.key)} />)}
+        </Group>
+      )}
+      {onMove && fields.length > 1 && (
+        <Group label="Order">
+          {fields.map((f) => <Row key={f.key} label={f.label} onClick={() => setOrderFor(f.key)} chev />)}
+        </Group>
+      )}
+      {orderFor && onMove && (
+        <RowActionSheet title={labelOf(page, orderFor)} onCancel={() => setOrderFor(null)}
+          actions={[{ label: "Move Up", onPick: () => onMove(orderFor, -1) }, { label: "Move Down", onPick: () => onMove(orderFor, 1) }]} />
+      )}
       {removable.length > 0 && (
         <Group label="Remove a Field">
           {removable.map((f) => <Row key={f.key} label={f.label} onClick={() => onRemove(f.key)} chev />)}
@@ -129,6 +171,24 @@ export function fieldRemovalLines(page: PageData, key: string): string[] {
     n === 0 ? "No Record Has a Value Here" : `${n} ${who} Have a Value Here`,
     "A Snapshot Keeps Them First; See Snapshots in the Page Menu",
   ];
+}
+
+/** WHICH GAME: every sport in one list, on the page's own shelves. Picking one is all the arranging there is: the columns, the way a total is worked out and
+ *  who is ahead all follow from it. */
+export function StartGameSheet({ onStart, onCancel }: { onStart: (sportKey: string) => void; onCancel: () => void }) {
+  const [pick, setPick] = useState("basketball");
+  return (
+    <FormSheet title="Pick the Game" saveLabel="Start" onCancel={onCancel} onSave={() => onStart(pick)}>
+      {SPORT_GROUPS.map((g) => (
+        <Group key={g} label={g}>
+          {SPORTS.filter((s) => s.group === g).map((s) => (
+            <Row key={s.key} label={s.name} onClick={() => setPick(s.key)}
+              lead={<RowCheck on={pick === s.key} label={s.name} onToggle={() => setPick(s.key)} />} />
+          ))}
+        </Group>
+      ))}
+    </FormSheet>
+  );
 }
 
 /** A NEW ROUND WITHOUT ARRANGING ANYTHING: a course if he wants one, 9 or 18, the players. Start goes straight to hole 1. */
@@ -161,7 +221,7 @@ export function StartRoundSheet({ onStart, onCancel }: { onStart: (o: { course: 
 
 /** One line typed, Save: rename a page, a course, a date. */
 export function OneFieldSheet({ title, label, value, type = "text", onSave, onCancel }: {
-  title: string; label: string; value: string; type?: "text" | "date"; onSave: (v: string) => void; onCancel: () => void;
+  title: string; label: string; value: string; type?: "text" | "date" | "time"; onSave: (v: string) => void; onCancel: () => void;
 }) {
   const [v, setV] = useState(value);
   return (
@@ -207,7 +267,7 @@ export function PageShareSheet({ title, page, onClose, onExported }: {
   }, [choice, title, page]);
   const info = PAGE_FORMATS.find((f) => f.key === choice);
   const filename = info ? safeFilename(title || KIND_NAME[page.kind], info.ext) : "";
-  const ready = choice === "person" ? pickRecords.length > 0 && (page.kind === "scorecard" || pickFields.length > 0) : !!file && file.format === choice;
+  const ready = choice === "person" ? pickRecords.length > 0 && (page.kind === "scorecard" || page.kind === "scoreboard" || page.kind === "standings" || pickFields.length > 0) : !!file && file.format === choice;
 
   const run = async () => {
     if (!ready || busy) return;
@@ -256,14 +316,14 @@ export function PageShareSheet({ title, page, onClose, onExported }: {
           </div>
           {choice === "person" && (
             <>
-              {page.kind !== "scorecard" && (
+              {page.kind !== "scorecard" && page.kind !== "scoreboard" && page.kind !== "standings" && (
                 <details className="exp-more" open>
                   <summary>Fields</summary>
                   {fields.map((f) => <SwitchRow key={f.key} tone="grey" glyph={<FileText className="ic" />} label={f.label} on={pickFields.includes(f.key)} onToggle={() => setPickFields((l) => toggle(l, f.key))} ariaLabel={"Include " + f.label} />)}
                 </details>
               )}
               <details className="exp-more" open={page.records.length <= 12}>
-                <summary>{page.kind === "outreach" ? "Contacts" : "Players"}</summary>
+                <summary>{templateDef(page.kind)?.plural ?? (page.kind === "outreach" ? "Contacts" : "Players")}</summary>
                 {page.records.map((r) => <SwitchRow key={r.id} tone="grey" glyph={<FileText className="ic" />} label={recordName(page, r) || "Unnamed"} on={pickRecords.includes(r.id)} onToggle={() => setPickRecords((l) => toggle(l, r.id))} ariaLabel={"Include " + (recordName(page, r) || "this row")} />)}
               </details>
             </>
@@ -277,5 +337,82 @@ export function PageShareSheet({ title, page, onClose, onExported }: {
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** THE HEADINGS A PAGE'S ROWS SIT UNDER, edited on the page: named, added, ordered and removed. A heading with no rows is not drawn. */
+export function SectionsSheet({ page, onSave, onCancel, onMove, onRemove }: {
+  page: PageData;
+  onSave: (labels: Record<string, string>, added: string) => void;
+  onCancel: () => void;
+  onMove: (key: string, by: -1 | 1) => void;
+  onRemove: (key: string) => void;
+}) {
+  const sections = page.sections ?? [];
+  const [labels, setLabels] = useState<Record<string, string>>(() => Object.fromEntries(sections.map((x) => [x.key, x.label])));
+  const [added, setAdded] = useState("");
+  const [orderFor, setOrderFor] = useState<string | null>(null);
+  return (
+    <FormSheet title="Headings" onCancel={onCancel} onSave={() => onSave(labels, added)}>
+      {sections.length > 0 && (
+        <Group label="Names">
+          {sections.map((x) => <FieldRow key={x.key} ariaLabel={"Name for " + x.label} value={labels[x.key] ?? ""} onChange={(v) => setLabels((l) => ({ ...l, [x.key]: v }))} />)}
+        </Group>
+      )}
+      <Group label="Add a Heading">
+        <FieldRow ariaLabel="New heading name" placeholder="Heading Name" value={added} onChange={setAdded} />
+      </Group>
+      {sections.length > 0 && (
+        <Group label="Order or Remove">
+          {sections.map((x) => <Row key={x.key} label={x.label} onClick={() => setOrderFor(x.key)} chev />)}
+        </Group>
+      )}
+      <Note>A Heading With No Rows Stays Off the Page; Removing One Keeps Its Rows</Note>
+      {orderFor && (
+        <RowActionSheet title={sections.find((x) => x.key === orderFor)?.label ?? "Heading"} onCancel={() => setOrderFor(null)}
+          actions={[
+            { label: "Move Up", onPick: () => onMove(orderFor, -1) },
+            { label: "Move Down", onPick: () => onMove(orderFor, 1) },
+            { label: "Remove Heading", destructive: true, onPick: () => onRemove(orderFor) },
+          ]} />
+      )}
+    </FormSheet>
+  );
+}
+
+/** One game on a standings page: who played, the score, the day. */
+export function GameSheet({ page, game, onSave, onCancel, onRemove }: {
+  page: PageData;
+  game: import("./pageModel").GameRow | null;
+  onSave: (g: { date: string; a: string; b: string; sa: number; sb: number }) => void;
+  onCancel: () => void;
+  onRemove?: () => void;
+}) {
+  const teams = page.records.map((r) => ({ id: r.id, name: (r.v.name ?? "").trim() || "Team" }));
+  const [a, setA] = useState(game?.a ?? teams[0]?.id ?? "");
+  const [b, setB] = useState(game?.b ?? teams[1]?.id ?? "");
+  const [sa, setSa] = useState(game ? String(game.sa) : "");
+  const [sb, setSb] = useState(game ? String(game.sb) : "");
+  const [date, setDate] = useState(game?.date ?? new Date().toISOString().slice(0, 10));
+  const na = Number(sa), nb = Number(sb);
+  const ok = !!a && !!b && a !== b && sa.trim() !== "" && sb.trim() !== "" && Number.isFinite(na) && Number.isFinite(nb) && na >= 0 && nb >= 0;
+  const opts = teams.map((t) => ({ value: t.id, label: t.name }));
+  return (
+    <FormSheet title={game ? "Edit Game" : "Record a Game"} saveLabel={game ? "Save" : "Add"} onCancel={onCancel} saveDisabled={!ok}
+      onSave={() => onSave({ date, a, b, sa: na, sb: nb })}>
+      <Group label="Teams">
+        <MenuRow tone="" glyph={null} label="First" value={a} options={opts} onPick={setA} ariaLabel="First team" />
+        <MenuRow tone="" glyph={null} label="Second" value={b} options={opts} onPick={setB} ariaLabel="Second team" />
+      </Group>
+      <Group label="Score">
+        <FieldRow label="First" ariaLabel="First team score" value={sa} onChange={setSa} inputMode="numeric" />
+        <FieldRow label="Second" ariaLabel="Second team score" value={sb} onChange={setSb} inputMode="numeric" />
+      </Group>
+      <Group label="Day">
+        <FieldRow label="Date" ariaLabel="Game date" type="date" value={date} onChange={setDate} />
+      </Group>
+      {a && a === b && <Note>Pick Two Different Teams</Note>}
+      {onRemove && <Group><DeleteRow label="Remove Game" onClick={onRemove} /></Group>}
+    </FormSheet>
   );
 }

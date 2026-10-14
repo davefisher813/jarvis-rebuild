@@ -16,8 +16,11 @@
 // object field set to null at every depth (core/patch.ts), so an empty value
 // is the empty string or an absent key, never null.
 
-export type PageKind = "scorecard" | "team" | "lineup" | "outreach";
-export type FieldType = "text" | "number" | "date" | "choice";
+import { TEMPLATE_NAMES, templateDef, type TemplateKey } from "./templateDefs";
+
+export type PageKind = "scorecard" | "team" | "lineup" | "outreach" | TemplateKey;
+/** check: a done mark the row leads with. money: a number drawn and totalled as dollars. */
+export type FieldType = "text" | "number" | "date" | "choice" | "check" | "money";
 
 export interface PageField {
   key: string;
@@ -37,6 +40,32 @@ export interface PageRecord {
   base?: Record<string, string>;
   /** A task made from this record on purpose (Outreach's Make a Task). Never made by accepting a field. */
   taskId?: string;
+  /** The section this row sits in (a key from the page's `sections`). Absent: it sits above every section. */
+  sec?: string;
+}
+
+/** A heading the page's rows are grouped under, named and ordered by the person. A section with no rows is not drawn. */
+export interface PageSection { key: string; label: string }
+
+/** One played game on a standings page: two teams (their record ids), the date and the score. Standings are worked out from these. */
+export interface GameRow { id: string; date: string; a: string; b: string; sa: number; sb: number }
+
+/** A scoreboard's game: which sport, how it is scored, and what its columns are called. */
+export interface ScoreInfo {
+  sport: string;
+  /** The sport's name as drawn ("Table Tennis"). */
+  label: string;
+  /** periods: columns added up. target: one running score to a target. bowling: ten frames. countdown: down from a start. */
+  mode: "periods" | "target" | "bowling" | "countdown";
+  /** Columns in periods mode (quarters, innings, rounds). Always as many as the sport's own count; extra ones can be added. */
+  periods: number;
+  /** What a column is called, singular: Quarter, Inning, Set, Round. */
+  unit: string;
+  /** Who wins a periods game: the highest total, or whoever took the most columns (sets). */
+  winBy: "total" | "periodsWon";
+  /** Target mode: the score that ends it. Countdown mode: the number it starts from. */
+  target?: number;
+  date: string;
 }
 
 export interface GolfInfo {
@@ -75,8 +104,12 @@ export interface PageSnapshot {
   why: SnapshotWhy;
   fields: PageField[];
   records: PageRecord[];
+  sections?: PageSection[];
   golf?: GolfInfo;
   lineup?: LineupInfo;
+  score?: ScoreInfo;
+  meta?: Record<string, string>;
+  games?: GameRow[];
 }
 
 export interface PageData {
@@ -86,6 +119,15 @@ export interface PageData {
   records: PageRecord[];
   golf?: GolfInfo;
   lineup?: LineupInfo;
+  score?: ScoreInfo;
+  /** Headings the rows group under. Empty sections hide. */
+  sections?: PageSection[];
+  /** Games played, on a standings page. */
+  games?: GameRow[];
+  /** A page's own small settings (a pitching limit, a session's start time), by key. Text, like a sheet cell. */
+  meta?: Record<string, string>;
+  /** True on a page kept as the person's own template: structure only, no rows. It starts new pages of its kind. */
+  mine?: boolean;
   originals?: PageOriginal[];
   snapshots?: PageSnapshot[];
 }
@@ -95,6 +137,7 @@ export const KIND_NAME: Record<PageKind, string> = {
   team: "Team Sheet",
   lineup: "Lineup Card",
   outreach: "Outreach Tracker",
+  ...TEMPLATE_NAMES,
 };
 
 export const OUTREACH_CHANNELS = ["Email", "Phone", "Text", "In Person", "LinkedIn", "Other"];
@@ -272,14 +315,15 @@ export function removeField(page: PageData, key: string, now: number): PageData 
 
 /** Fields the person sees and edits on a record (the scorecard's hole fields are scored on the hole screen). */
 export function editableFields(page: PageData): PageField[] {
-  if (page.kind === "scorecard") return page.fields.filter((f) => f.key === "name");
+  if (page.kind === "scorecard" || page.kind === "scoreboard" || page.kind === "standings") return page.fields.filter((f) => f.key === "name");
   if (page.kind === "lineup") return page.fields.filter((f) => f.key !== "player");
   return page.fields;
 }
 
 /** The record's name as drawn: its first text field with words in it. */
 export function recordName(page: PageData, r: PageRecord): string {
-  const key = page.kind === "outreach" ? (r.v.who?.trim() ? "who" : "org") : "name";
+  const def = templateDef(page.kind);
+  const key = def ? def.headline : page.kind === "outreach" ? (r.v.who?.trim() ? "who" : "org") : "name";
   return (r.v[key] ?? "").trim();
 }
 
@@ -399,6 +443,10 @@ export function takeSnapshot(page: PageData, why: SnapshotWhy, now: number): Pag
     records: clone(page.records).map(({ base: _b, ...r }) => { void _b; return r; }),
     ...(page.golf ? { golf: clone(page.golf) } : {}),
     ...(page.lineup ? { lineup: clone(page.lineup) } : {}),
+    ...(page.sections ? { sections: clone(page.sections) } : {}),
+    ...(page.score ? { score: clone(page.score) } : {}),
+    ...(page.meta ? { meta: clone(page.meta) } : {}),
+    ...(page.games ? { games: clone(page.games) } : {}),
   };
   return { ...page, snapshots: [...(page.snapshots ?? []), snap].slice(-SNAPSHOT_CAP) };
 }
@@ -408,7 +456,12 @@ export function restoreSnapshot(page: PageData, at: number, now: number): PageDa
   const s = page.snapshots?.find((x) => x.at === at);
   if (!s) return page;
   const kept = takeSnapshot(page, "restore", now);
-  return { ...kept, fields: clone(s.fields), records: clone(s.records), ...(s.golf ? { golf: clone(s.golf) } : {}), ...(s.lineup ? { lineup: clone(s.lineup) } : {}) };
+  return {
+    ...kept, fields: clone(s.fields), records: clone(s.records),
+    ...(s.golf ? { golf: clone(s.golf) } : {}), ...(s.lineup ? { lineup: clone(s.lineup) } : {}),
+    ...(s.sections ? { sections: clone(s.sections) } : {}), ...(s.score ? { score: clone(s.score) } : {}),
+    ...(s.meta ? { meta: clone(s.meta) } : {}), ...(s.games ? { games: clone(s.games) } : {}),
+  };
 }
 
 export const SNAPSHOT_WHY: Record<SnapshotWhy, string> = {
@@ -443,10 +496,18 @@ export function pageText(page: PageData | undefined): string[] {
 /** The row's second line: what the page holds, said once. */
 export function pageSummary(page: PageData): string {
   const n = page.records.length;
+  if (page.mine) return "Your Template";
   if (page.kind === "scorecard") {
     const g = page.golf!;
     const done = page.records.length > 0 && page.records.every((r) => golfTotals(page, r).played >= g.holes);
     return done ? `${g.holes} Holes Played` : `${g.holes} Holes, ${n === 1 ? "1 Player" : n + " Players"}`;
+  }
+  const def = templateDef(page.kind);
+  if (def) {
+    if (page.kind === "scoreboard") return `${page.score?.label ?? "Game"}, ${n === 1 ? "1 Side" : n + " Sides"}`;
+    if (page.kind === "standings") { const g = page.games?.length ?? 0; return `${n === 1 ? "1 Team" : n + " Teams"}, ${g === 1 ? "1 Game" : g + " Games"}`; }
+    if (page.kind === "profile") return "One-Pager";
+    return n === 1 ? `1 ${def.noun}` : `${n} ${def.plural}`;
   }
   if (page.kind === "team") return n === 1 ? "1 Player" : `${n} Players`;
   if (page.kind === "lineup") return n === 1 ? "1 Player" : `${n} Players`;

@@ -10,6 +10,8 @@
 
 import { type PageData, type PageRecord, golfTotals, scoreOf, toParLabel, editableFields, recordName, labelOf } from "./pageModel";
 import { ID_HEADER } from "./importMap";
+import { standingsOf } from "./templateLogic";
+import { bowlingFrames, dartTurns, dKey, periodScore, sideTotal } from "./scoreboard";
 import { toCsv, writeXlsx, XLSX_MIME } from "./tabular";
 
 export type PageFormat = "csv" | "xlsx" | "pdf";
@@ -24,12 +26,42 @@ export const PAGE_FORMATS: { key: PageFormat; label: string; desc: string; ext: 
 export function pageTable(page: PageData, opts: { withId?: boolean } = {}): string[][] {
   const withId = opts.withId !== false;
   if (page.kind === "scorecard") return golfTable(page, withId);
+  if (page.kind === "scoreboard" && page.score) return scoreTable(page, withId);
+  if (page.kind === "standings") return standingsTable(page, withId);
   const fields = editableFields(page);
   // A lineup's order is the point of it, so it is a column of its own.
   const order = page.kind === "lineup";
   const head = [...(withId ? [ID_HEADER] : []), ...(order ? ["Order"] : []), ...fields.map((f) => f.label)];
-  const rows = page.records.map((r, i) => [...(withId ? [r.id] : []), ...(order ? [String(i + 1)] : []), ...fields.map((f) => r.v[f.key] ?? "")]);
+  // A done mark reads Yes in a sheet; the import reads it back.
+  const cell = (r: PageRecord, f: { key: string; type: string }) => (f.type === "check" ? (r.v[f.key] === "1" ? "Yes" : "") : r.v[f.key] ?? "");
+  const rows = page.records.map((r, i) => [...(withId ? [r.id] : []), ...(order ? [String(i + 1)] : []), ...fields.map((f) => cell(r, f))]);
   return [head, ...rows];
+}
+
+/** A scoreboard: a column per period (or frame, or turn) and the total (or what is left). */
+function scoreTable(page: PageData, withId: boolean): string[][] {
+  const sc = page.score!;
+  const name = labelOf(page, "name");
+  const id = (r: PageRecord) => (withId ? [r.id] : []);
+  const idH = withId ? [ID_HEADER] : [];
+  if (sc.mode === "bowling") {
+    return [[...idH, name, ...Array.from({ length: 10 }, (_, i) => String(i + 1)), "Total"],
+      ...page.records.map((r) => [...id(r), r.v.name ?? "", ...bowlingFrames(r).map((f) => (f.total === null ? "" : String(f.total))), String(sideTotal(page, r))])];
+  }
+  if (sc.mode === "countdown") {
+    const turns = Math.max(1, ...page.records.map((r) => dartTurns(page, r).length));
+    return [[...idH, name, ...Array.from({ length: turns }, (_, i) => String(i + 1)), "Left"],
+      ...page.records.map((r) => [...id(r), r.v.name ?? "", ...Array.from({ length: turns }, (_, i) => r.v[dKey(i + 1)] ?? ""), String(sideTotal(page, r))])];
+  }
+  if (sc.mode === "target") return [[...idH, name, "Score"], ...page.records.map((r) => [...id(r), r.v.name ?? "", String(periodScore(r, 1) ?? 0)])];
+  return [[...idH, name, ...Array.from({ length: sc.periods }, (_, i) => String(i + 1)), "Total"],
+    ...page.records.map((r) => [...id(r), r.v.name ?? "", ...Array.from({ length: sc.periods }, (_, i) => { const v = periodScore(r, i + 1); return v === null ? "" : String(v); }), String(sideTotal(page, r))])];
+}
+
+/** League standings, worked out from the games. */
+function standingsTable(page: PageData, withId: boolean): string[][] {
+  return [[...(withId ? [ID_HEADER] : []), labelOf(page, "name"), "Played", "W", "L", "T", "PF", "PA", "Pts"],
+    ...standingsOf(page).map((t) => [...(withId ? [t.id] : []), t.name, String(t.gp), String(t.w), String(t.l), String(t.t), String(t.pf), String(t.pa), String(t.pts)])];
 }
 
 function golfTable(page: PageData, withId: boolean): string[][] {
@@ -51,6 +83,7 @@ function golfTable(page: PageData, withId: boolean): string[][] {
 /** Columns a spreadsheet should read as numbers (scores), by index in pageTable's rows. */
 function numericColumns(page: PageData, table: string[][]): Set<number> {
   const out = new Set<number>();
+  if (page.kind === "scoreboard" || page.kind === "standings") { (table[0] ?? []).forEach((h, i) => { if (/^\d+$/.test(h) || ["Total", "Score", "Left", "Played", "W", "L", "T", "PF", "PA", "Pts"].includes(h)) out.add(i); }); return out; }
   if (page.kind !== "scorecard") return out;
   const head = table[0] ?? [];
   head.forEach((h, i) => { if (/^\d+$/.test(h) || h === "Out" || h === "In" || h === "Total") out.add(i); });
@@ -68,7 +101,11 @@ export async function buildPageFile(format: PageFormat, title: string, page: Pag
 /** A printable grid. Wide tables (a full scorecard) go landscape; long ones flow onto more pages with the head again. */
 export async function buildPagePdf(title: string, page: PageData): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
-  const table = pageTable(page, { withId: false });
+  // A profile is one person: the one-pager reads down the page (field, then value), not across a one-row table.
+  const rec = page.records[0];
+  const table = page.kind === "profile" && rec
+    ? [["Field", "Value"], ...editableFields(page).filter((f) => (rec.v[f.key] ?? "").trim()).map((f) => [f.label, rec.v[f.key]!.trim()])]
+    : pageTable(page, { withId: false });
   const cols = table[0]?.length ?? 1;
   const landscape = cols > 6;
   const pdf = new jsPDF({ unit: "pt", format: "letter", orientation: landscape ? "landscape" : "portrait" });
@@ -110,6 +147,7 @@ export async function buildPagePdf(title: string, page: PageData): Promise<Blob>
 function pdfSubtitle(page: PageData): string {
   if (page.golf) return [page.golf.course, page.golf.date, `${page.golf.holes} Holes`].filter(Boolean).join("  ");
   if (page.lineup) return [page.lineup.teamTitle, page.lineup.date].filter(Boolean).join("  ");
+  if (page.score) return [page.score.label, page.score.date].filter(Boolean).join("  ");
   return "";
 }
 
@@ -123,6 +161,14 @@ export function shareText(title: string, page: PageData, fieldKeys: string[], re
       const t = golfTotals(page, r);
       lines.push(`${r.v.name ?? ""}: ${t.played ? `${t.total} (${toParLabel(t.toPar)}) through ${t.thru}` : "no scores yet"}`);
     }
+    return lines.join("\n");
+  }
+  if (page.score) {
+    for (const r of page.records.filter((x) => keep.has(x.id))) lines.push(`${r.v.name ?? ""}: ${sideTotal(page, r)}`);
+    return lines.join("\n");
+  }
+  if (page.kind === "standings") {
+    for (const t of standingsOf(page).filter((x) => keep.has(x.id))) lines.push(`${t.name}: ${t.w}-${t.l}${t.t ? "-" + t.t : ""}, ${t.pts} Pts`);
     return lines.join("\n");
   }
   page.records.filter((r) => keep.has(r.id)).forEach((r: PageRecord, i) => {
