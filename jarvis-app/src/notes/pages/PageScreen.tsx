@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNotes, useFileStore, useTasks, useOptionalGym, useStore } from "../../data/NotesProvider";
+import { useNotes, useFileStore, useTasks, useOptionalGym, useStore, useMoney, useLedger, usePeople, useGoals, useProjects } from "../../data/NotesProvider";
+import type { Account } from "../../money/types";
+import type { TrackerTx } from "../../money/tracker";
+import type { Receipt } from "../../money/ledger/types";
+import type { Person } from "../../people/types";
+import type { Goal } from "../../life/types";
+import type { Project } from "../../projects/types";
 import { flagOn } from "../../substrate/flags";
 import { heldText, savedToastText } from "../../shared/saved";
 import { attemptWrite } from "../../shared/guard";
@@ -18,17 +24,20 @@ import {
   type PageData, type PageOriginal, type RosterChange, KIND_NAME,
   addRecord, setValues, removeRecord, moveRecord, renameField, addField, removeField, confirmValue,
   setScore, setPar, setHoles, holesImpact, nextHole, scoreOf, takeSnapshot, restoreSnapshot, markBase,
-  rosterChanges, refreshFromRoster, newLineupPage, recordName, labelOf,
+  rosterChanges, refreshFromRoster, newLineupPage, recordName, labelOf, newId,
 } from "./pageModel";
 import { TeamView, LineupView, OutreachView, ScorecardView, HoleEntry, U } from "./PageViews";
-import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet, SectionsSheet, GameSheet } from "./PageSheets";
+import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet, SectionsSheet, GameSheet, LedgerFilterSheet } from "./PageSheets";
 import { templateDef } from "./templateDefs";
 import {
   SheetView, ProfileView, PitchingView, StandingsView, ScoreboardView, ScoreEntry, TrainingLogView, scoreStart, type WorkoutLine,
+  DebtView, BizLedgerView, SuggestCard, debtMethodWord,
 } from "./TemplateViews";
+import { businessRows, ledgerFilter, ledgerAsPage } from "./bizLedger";
+import { accomplishmentSuggestions, birthdaySuggestions } from "./appSuggest";
 import {
   addSection, renameSection, removeSection, moveSection, setSection, moveField, addSuggested, sectionImpact, sessionClock, gamesOfTeam,
-  addGame, removeGame, removeTeamAndGames, asMyTemplate, num,
+  addGame, removeGame, removeTeamAndGames, asMyTemplate, num, confirmRecord, confirmAll, secretIn, secretFieldName, debtsOf, payoffPlan, type DebtMethod,
 } from "./templateLogic";
 import { setCell, setPeriodScore, setSport, sportChangeImpact, addPeriod, sportName } from "./scoreboard";
 import { SnapshotsScreen, LineupBuilder } from "./PageExtras";
@@ -61,12 +70,20 @@ type Sheet =
   | { k: "game"; id: string | null }
   | { k: "sport"; to: string }
   | { k: "limit" } | { k: "start" }
+  | { k: "method" } | { k: "extra" } | { k: "fromMoney" } | { k: "ledgerFilter" }
   | { k: "program" }
   | { k: "addFromRoster" }
   | { k: "original"; o: PageOriginal }
   | null;
 
 const UNDO_DEPTH = 30;
+
+/** Suggestions for the two pages that offer them: People's birthdays, and goals and projects finished. Never added by being shown. */
+function suggestFor(view: string | undefined, page: PageData, people: Person[], goals: Goal[], projects: Project[]) {
+  return view === "occasions" ? birthdaySuggestions(page, people, new Date().getFullYear())
+    : view === "accomplish" ? accomplishmentSuggestions(page, goals, projects)
+      : [];
+}
 
 export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpenNote, onTrashed, onChanged, pendingImport, onPendingConsumed, startWith = null }: {
   noteId: string;
@@ -150,6 +167,31 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     })();
     return () => { live = false; };
   }, [gym, kindNow]);
+
+  // WHAT A PAGE READS FROM THE REST OF THE APP, only for the pages that read it, and read fresh when the page opens: Debt Payoff reads
+  // Money's accounts, Business Ledger reads Money's spending and receipts, and two pages offer suggestions from People, Goals and Projects.
+  const moneySvc = useMoney();
+  const ledgerSvc = useLedger();
+  const peopleSvc = usePeople();
+  const goalsSvc = useGoals();
+  const projectsSvc = useProjects();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [ledgerData, setLedgerData] = useState<{ txs: TrackerTx[]; receipts: Receipt[] } | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        if (kindNow === "debt") { const a = await moneySvc.list(); if (live) setAccounts(a); }
+        else if (kindNow === "bizledger") { const [txs, receipts] = await Promise.all([ledgerSvc.listTxs(), ledgerSvc.listReceipts()]); if (live) setLedgerData({ txs, receipts }); }
+        else if (kindNow === "occasions") { const p = await peopleSvc.list(); if (live) setPeople(p); }
+        else if (kindNow === "accomplish") { const [g, pr] = await Promise.all([goalsSvc.list(), projectsSvc.list()]); if (live) { setGoals(g); setProjects(pr); } }
+      } catch { /* what could not be read is simply not offered; the page itself is unaffected */ }
+    })();
+    return () => { live = false; };
+  }, [kindNow, moneySvc, ledgerSvc, peopleSvc, goalsSvc, projectsSvc]);
   useEffect(() => { if (pendingImport) { setPending(pendingImport); setView("import"); onPendingConsumed?.(); } }, [pendingImport, onPendingConsumed]);
 
   /** One edit: the page before it is kept for Undo, the screen moves at once, the write follows in the queue. */
@@ -256,6 +298,19 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
   const g = page.golf;
   const def = templateDef(page.kind);
+  // Debt Payoff: a linked row's balance is Money's, read now; the plan is worked out from those and the rate and minimum kept here.
+  const creditAccounts = accounts.filter((a) => a.data.kind === "credit");
+  const debts = def?.view === "debt" ? debtsOf(page, (id) => { const a = creditAccounts.find((x) => x.id === id); return a ? { balance: Math.abs(a.data.balance), name: a.data.name } : null; }) : [];
+  const debtMethod: DebtMethod = page.meta?.method === "snowball" ? "snowball" : "avalanche";
+  const plan = def?.view === "debt" ? payoffPlan(debts, num(page.meta?.extra) ?? 0, debtMethod) : null;
+  const linkedAsOf = new Map(page.records.flatMap((r) => { const a = r.link ? creditAccounts.find((x) => x.id === r.link) : null; return a?.data.asOf ? [[r.id, a.data.asOf] as const] : []; }));
+  const unlinkedCredit = creditAccounts.filter((a) => !page.records.some((r) => r.link === a.id));
+  // Business Ledger: the page's filter over what Money holds.
+  const lf = ledgerFilter(page);
+  const ledgerRows = def?.view === "bizledger" && ledgerData ? businessRows(ledgerData.txs, ledgerData.receipts, lf.category, lf.year) : [];
+  const sharePage = def?.view === "bizledger" ? ledgerAsPage(page, ledgerRows) : page;
+  // What the app can suggest, confirm first.
+  const offered = suggestFor(def?.view, page, people, goals, projects);
   const record = sheet?.k === "record" && sheet.id ? page.records.find((r) => r.id === sheet.id) ?? null : null;
   const changes: RosterChange[] | null = page.kind === "lineup" ? (team ? rosterChanges(page, team.page) : null) : null;
 
@@ -265,6 +320,13 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     void commit(page.kind === "standings" ? removeTeamAndGames(page, id) : removeRecord(page, id));
     setSheet(null);
     showToast({ message: lineCase((recordName(page, r!) || "Row") + " removed"), actionLabel: "Undo", onAction: () => void commit(before, { undoable: false }) });
+  };
+
+  // CONFIRM: the person says a sensitive row is still true, one row or all of them. Never automatic, and each says so with Undo.
+  const confirmEverything = () => {
+    const before = noteRef.current!.page;
+    void commit(confirmAll(before, todayISO()));
+    showToast({ message: "Confirmed Today", actionLabel: "Undo", onAction: () => void commit(before, { undoable: false }) });
   };
 
   const makeTask = async (recordId: string, text: string) => {
@@ -312,9 +374,9 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
   const menu: { label: string; icon: JSX.Element; run: () => void; danger?: boolean }[] = [
     { label: "Rename Page", icon: <PenLine className="ic" />, run: () => setSheet({ k: "rename" }) },
-    ...(page.kind === "team" || page.kind === "outreach" || (def && def.view !== "scoreboard" && def.view !== "standings") ? [{ label: "Fields", icon: <Table className="ic" />, run: () => setSheet({ k: "fields" }) }] : []),
-    ...(def && ["sheet", "session", "trainingplan"].includes(def.view) ? [{ label: "Headings", icon: <ListOrdered className="ic" />, run: () => setSheet({ k: "sections" }) }] : []),
-    ...(page.kind === "team" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile" && def.view !== "traininglog") ? [
+    ...(page.kind === "team" || page.kind === "outreach" || (def && def.view !== "scoreboard" && def.view !== "standings" && !def.derived) ? [{ label: "Fields", icon: <Table className="ic" />, run: () => setSheet({ k: "fields" }) }] : []),
+    ...(def && ["sheet", "session", "trainingplan", "occasions", "accomplish"].includes(def.view) ? [{ label: "Headings", icon: <ListOrdered className="ic" />, run: () => setSheet({ k: "sections" }) }] : []),
+    ...(page.kind === "team" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile" && def.view !== "traininglog" && !def.derived) ? [
       { label: page.records.length ? "Bring Back from Sheets" : "Import Rows", icon: <Table className="ic" />, run: () => picker.open(PICK_TABLE) },
       { label: "Paste Rows", icon: <Copy className="ic" />, run: () => setSheet({ k: "paste" }) },
     ] : []),
@@ -438,7 +500,32 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       {def?.view === "sheet" && (
         <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
+          onConfirmAll={def.confirm ? confirmEverything : undefined}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined} />
+      )}
+      {(def?.view === "occasions" || def?.view === "accomplish") && (
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
+          belowHead={offered.length > 0 ? (
+            <SuggestCard title={def.view === "occasions" ? "From People" : "Suggested From Your Goals and Projects"} items={offered}
+              labelOf={(x) => x.values.name ?? x.values.title ?? ""}
+              metaOf={(x) => <>{x.values.date && <span className="fact date">{monthDay(x.values.date)}</span>}{x.values.notes && <span className="fact">{x.values.notes}</span>}</>}
+              onAdd={(x) => {
+                void commit(addRecord(noteRef.current!.page, x.values).page);
+                // Honest about where the row is: while the Store still holds the write on this phone alone, the toast says Will Sync.
+                const pending = flagOn("trust_v1") && (store?.pending() ?? false);
+                showToast({ message: savedToastText("Added to the Page", heldText("Your Page"), pending), actionLabel: "Undo", onAction: undo });
+              }} />
+          ) : undefined}
+          onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined} />
+      )}
+      {def?.view === "debt" && plan && (
+        <DebtView page={page} debts={debts} plan={plan} linkedAsOf={linkedAsOf} canFromMoney={unlinkedCredit.length > 0}
+          onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          onFromMoney={() => setSheet({ k: "fromMoney" })} onMethod={() => setSheet({ k: "method" })} onExtra={() => setSheet({ k: "extra" })} />
+      )}
+      {def?.view === "bizledger" && (
+        <BizLedgerView page={page} rows={ledgerRows} filterWord={`${lf.category} · ${lf.year ?? "Every Year"}`} onFilter={() => setSheet({ k: "ledgerFilter" })} />
       )}
       {def?.view === "session" && (
         <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
@@ -490,6 +577,9 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <RecordSheet page={page} record={record} isNew={!sheet.id}
           onCancel={() => setSheet(null)}
           onSave={(values, section) => {
+            // POINTERS ONLY: a password, a PIN or a long number is refused before it is kept, and the page says which field.
+            const secret = secretIn(page, values);
+            if (secret) { showToast({ message: `${secret.label} Looks Like a Way In; Keep Where It Is, Not How to Open It` }); return; }
             if (!sheet.id) {
               const cur = noteRef.current!.page;
               const values2 = (page.kind === "scorecard" || page.kind === "scoreboard") && !(values.name ?? "").trim() ? { ...values, name: `${page.kind === "scoreboard" ? "Side" : "Player"} ${cur.records.length + 1}` } : values;
@@ -505,6 +595,8 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           }}
           onRemove={sheet.id && !((page.kind === "scorecard" || page.kind === "scoreboard") && page.records.length <= 1) && def?.view !== "profile" ? () => removeWithUndo(sheet.id!) : undefined}
           onKeep={sheet.id ? (key) => { void commit(confirmValue(noteRef.current!.page, sheet.id!, key)); setSheet(null); } : undefined}
+          onConfirm={def?.confirm && sheet.id ? () => { void commit(confirmRecord(noteRef.current!.page, sheet.id!, todayISO())); showToast({ message: "Confirmed Today" }); } : undefined}
+          confirmedWord={record?.confirmedOn ? "Confirmed " + monthDay(record.confirmedOn) : undefined}
           onMakeTask={page.kind === "outreach" && sheet.id ? (text) => void makeTask(sheet.id!, text) : undefined}
           taskMade={!!record?.taskId}
           onMove={(page.kind === "lineup" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile")) && sheet.id ? (by) => void commit(moveRecord(noteRef.current!.page, sheet.id!, by)) : undefined} />
@@ -516,6 +608,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           onSave={(labels, added) => {
             let next = noteRef.current!.page;
             for (const [k, l] of Object.entries(labels)) if (l.trim() && l.trim() !== labelOf(next, k)) next = renameField(next, k, l);
+            if (Object.values(labels).some((l) => secretFieldName(next, l)) || (added.trim() && secretFieldName(next, added))) { showToast({ message: "This Page Keeps Pointers Only; No Field for a Way In" }); return; }
             if (added.trim()) next = addField(next, added).page;
             if (next !== noteRef.current!.page) void commit(next);
             setSheet(null);
@@ -549,7 +642,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           }} />
       )}
       {sheet?.k === "share" && (
-        <PageShareSheet title={shownTitle} page={page} onClose={() => setSheet(null)} onExported={exported} />
+        <PageShareSheet title={shownTitle} page={sharePage} onClose={() => setSheet(null)} onExported={exported} />
       )}
       {sheet?.k === "paste" && <PasteSheet onCancel={() => setSheet(null)} onBringIn={(text) => { setSheet(null); void takeTable({ text, name: "Pasted Rows" }, page.records.length ? "reimport" : "import"); }} />}
       {sheet?.k === "addFromRoster" && team && (
@@ -609,6 +702,31 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       {sheet?.k === "start" && (
         <OneFieldSheet title="Start Time" label="Start Time" type="time" value={page.meta?.start ?? ""} onCancel={() => setSheet(null)}
           onSave={(v) => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), start: v } }); }} />
+      )}
+      {sheet?.k === "method" && (
+        <RowActionSheet title="Pay First" onCancel={() => setSheet(null)} actions={(["avalanche", "snowball"] as DebtMethod[]).map((m) => ({
+          label: debtMethodWord(m) + (m === debtMethod ? " · Current" : ""),
+          onPick: () => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), method: m } }); },
+        }))} />
+      )}
+      {sheet?.k === "extra" && (
+        <OneFieldSheet title="Extra Each Month" label="Dollars Over the Minimums" value={page.meta?.extra ?? "0"} onCancel={() => setSheet(null)}
+          onSave={(v) => { setSheet(null); const n = v.trim() === "" ? 0 : num(v); if (n === null || n < 0) return; void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), extra: String(n) } }); }} />
+      )}
+      {sheet?.k === "fromMoney" && (
+        <RowActionSheet title="Add From Money" onCancel={() => setSheet(null)} actions={unlinkedCredit.map((a) => ({
+          label: titleCase(a.data.name),
+          onPick: () => {
+            setSheet(null);
+            const cur = noteRef.current!.page;
+            // A pointer to the Money account, not a copy of it: the balance is read each time, so Money stays the one ledger.
+            void commit({ ...cur, records: [...cur.records, { id: newId("r"), v: { name: a.data.name }, link: a.id }] });
+          },
+        }))} />
+      )}
+      {sheet?.k === "ledgerFilter" && (
+        <LedgerFilterSheet category={lf.category} year={lf.year === null ? "" : String(lf.year)} onCancel={() => setSheet(null)}
+          onSave={(c, y) => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), category: c, year: y } }); }} />
       )}
       {sheet?.k === "program" && (
         <RowActionSheet title="Start From Which Program" onCancel={() => setSheet(null)}

@@ -26,7 +26,7 @@ const noun = (page: PageData) => templateDef(page.kind)?.noun ?? (page.kind === 
 /** One record, every field it has, typed in place. A value the import was not sure of is named under its group with
  *  the reason, and can be kept as it is in one tap. Nothing here makes a task, an event or a share: Outreach's Make a
  *  Task is its own row and runs only when tapped. */
-export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade }: {
+export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord }: {
   page: PageData;
   record: PageRecord | null;
   isNew: boolean;
@@ -38,6 +38,9 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   onMakeTask?: (text: string) => void;
   onMove?: (by: -1 | 1) => void;
   taskMade?: boolean;
+  /** A sensitive page: the person says this row is still true. Their tap alone sets it. */
+  onConfirm?: () => void;
+  confirmedWord?: string;
 }) {
   const fields = editableFields(page);
   const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? ""])));
@@ -81,6 +84,11 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
           {flags.map(([k, why]) => (
             <Row key={k} label={`Keep ${labelOf(page, k)} as It Is`} meta={<span className="fact warn">{why}</span>} onClick={() => onKeep(k)} />
           ))}
+        </Group>
+      )}
+      {onConfirm && (
+        <Group label="Last Confirmed">
+          <Row label="Confirm Still True" meta={confirmedWord ? <span className="fact">{confirmedWord}</span> : <span className="fact warn">Not Confirmed</span>} onClick={onConfirm} />
         </Group>
       )}
       {onMakeTask && (
@@ -311,7 +319,9 @@ export function PageShareSheet({ title, page, onClose, onExported }: {
               ))}
             </div>
             {choice === "csv" || choice === "xlsx"
-              ? <div className="input-hint">The First Column Is Each Row&rsquo;s ID; Keep It and the File Can Come Back</div>
+              ? templateDef(page.kind)?.derived
+                ? <div className="input-hint">Read From Money Each Time; Corrections Belong in Money</div>
+                : <div className="input-hint">The First Column Is Each Row&rsquo;s ID; Keep It and the File Can Come Back</div>
               : choice === "person" ? <div className="input-hint">Sends a Copy; Nobody Gets Access to the Page</div> : null}
           </div>
           {choice === "person" && (
@@ -413,6 +423,22 @@ export function GameSheet({ page, game, onSave, onCancel, onRemove }: {
       </Group>
       {a && a === b && <Note>Pick Two Different Teams</Note>}
       {onRemove && <Group><DeleteRow label="Remove Game" onClick={onRemove} /></Group>}
+    </FormSheet>
+  );
+}
+
+/** The Business Ledger's filter: which Money category to read, and which year ("" is every year). */
+export function LedgerFilterSheet({ category, year, onSave, onCancel }: { category: string; year: string; onSave: (category: string, year: string) => void; onCancel: () => void }) {
+  const [c, setC] = useState(category);
+  const [y, setY] = useState(year);
+  const yearOk = !y.trim() || /^\d{4}$/.test(y.trim());
+  return (
+    <FormSheet title="What to Show" onCancel={onCancel} onSave={() => { if (yearOk && c.trim()) onSave(c.trim(), y.trim()); }} saveDisabled={!yearOk || !c.trim()}>
+      <Group label="From Money">
+        <FieldRow label="Category" ariaLabel="Category" value={c} onChange={setC} />
+        <FieldRow label="Year" ariaLabel="Year" value={y} onChange={setY} inputMode="numeric" error={!yearOk} />
+      </Group>
+      <Note>Spending and Receipts Tagged With This Category Appear Here; Leave the Year Empty for Every Year</Note>
     </FormSheet>
   );
 }

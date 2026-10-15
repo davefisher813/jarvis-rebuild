@@ -11,6 +11,7 @@
 import { type PageData, type PageRecord, golfTotals, scoreOf, toParLabel, editableFields, recordName, labelOf } from "./pageModel";
 import { ID_HEADER } from "./importMap";
 import { standingsOf } from "./templateLogic";
+import { templateDef } from "./templateDefs";
 import { bowlingFrames, dartTurns, dKey, periodScore, sideTotal } from "./scoreboard";
 import { toCsv, writeXlsx, XLSX_MIME } from "./tabular";
 
@@ -92,7 +93,8 @@ function numericColumns(page: PageData, table: string[][]): Set<number> {
 
 export async function buildPageFile(format: PageFormat, title: string, page: PageData): Promise<Blob> {
   const info = PAGE_FORMATS.find((f) => f.key === format)!;
-  const table = pageTable(page);
+  // A page read from Money has no ids of its own to round-trip; its rows are made fresh from Money each time.
+  const table = pageTable(page, { withId: !templateDef(page.kind)?.derived });
   if (format === "csv") return new Blob([toCsv(table)], { type: info.mime });
   if (format === "xlsx") return new Blob([writeXlsx(table, { sheet: title, numeric: numericColumns(page, table) }) as BlobPart], { type: info.mime });
   return buildPagePdf(title, page);

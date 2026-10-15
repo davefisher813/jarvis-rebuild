@@ -11,7 +11,7 @@ export type Shelf = "Sports" | "Life" | "Entertainment" | "Finance" | "Professio
 export const SHELVES: Shelf[] = ["Sports", "Life", "Finance", "Professional", "Entertainment"];
 
 /** Which view draws a template's rows. "sheet" is the shared list of rows under headings. */
-export type TemplateView = "sheet" | "profile" | "standings" | "scoreboard" | "pitching" | "session" | "traininglog" | "trainingplan";
+export type TemplateView = "sheet" | "profile" | "standings" | "scoreboard" | "pitching" | "session" | "traininglog" | "trainingplan" | "debt" | "bizledger" | "occasions" | "accomplish";
 
 export type IconKey = "target" | "user" | "list" | "send" | "table" | "checks" | "dumbbell" | "calendar" | "file" | "wallet" | "dollar" | "home" | "gauge" | "timer" | "flame" | "bulb" | "clock" | "mail" | "brain" | "kanban" | "zap" | "sparkles" | "person" | "tag";
 
@@ -43,12 +43,34 @@ export interface TemplateDef {
   wave: 2 | 3 | 4;
   /** Starting values for the page's own small settings. */
   meta?: Record<string, string>;
+  /** A PRESET OR ENTRY POINT of another template (Home Inventory under Home & Vehicle Book, Meal Plan under Kitchen Page). It is not
+   *  a row in the picker; choosing its parent asks which one. `entry` is what the chooser calls it. */
+  parent?: string;
+  entry?: string;
+  /** The row's name in the picker when the template's own name is one entry of several ("Kitchen Page" for Recipes). */
+  shelfName?: string;
+  /** POINTERS ONLY (Money Map): where a thing is, never how to get into it. A password, a PIN or a long account number is refused. */
+  pointersOnly?: boolean;
+  /** A sensitive record: each row says when it was last confirmed, and the page can confirm them all (never automatically). */
+  confirm?: boolean;
+  /** A date field that says what is coming: "Due in 12 Days", "Overdue". `yearly` repeats it every year (a birthday). */
+  due?: { key: string; yearly?: boolean };
+  /** How the rows are ordered: newest first, or by the next time the date comes round. Absent: the order the person made. */
+  sort?: "dateDesc" | "next";
+  /** A grey line under the head, for a page that leaves something out on purpose. */
+  note?: string;
+  /** The rows are read from the app (Business Ledger over Money), never stored: no Add, no import. */
+  derived?: boolean;
 }
 
 const f = (key: string, label: string, type: PageField["type"] = "text", options?: string[]): PageField => ({ key, label, type, ...(options ? { options } : {}) });
 
 /** Every template the catalog has built so far. A key is added here as its wave lands. */
-export const TEMPLATE_KEYS = ["scoreboard", "pitching", "session", "eventday", "scouting", "profile", "traininglog", "trainingplan", "standings", "group"] as const;
+export const TEMPLATE_KEYS = [
+  "scoreboard", "pitching", "session", "eventday", "scouting", "profile", "traininglog", "trainingplan", "standings", "group",
+  "moneymap", "insurance", "debt", "giving", "homebook", "inventory", "healthcard", "petcard", "handover", "carerecord", "occasions", "trip", "expenses",
+  "recipes", "mealplan", "freezer", "accomplish", "oneonone", "projtracker", "bizledger",
+] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
 export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
@@ -108,6 +130,137 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Member", plural: "Members", headline: "name", show: ["role", "contact"],
     fields: [f("name", "Name"), f("role", "Role", "choice", ["Leader", "Member", "Guest"]), f("contact", "Contact"), f("dues", "Dues Paid", "check")],
     sections: ["Leaders", "Members"], suggested: [f("coming", "Coming", "check"), f("notes", "Notes")], view: "sheet", one: true, wave: 2,
+  },
+
+  // ---- Wave 3: Finance
+  moneymap: {
+    key: "moneymap", name: "Money Map", shelf: "Finance", desc: "Where Everything Is: Pointers Only, Never Passwords", cat: "yellow", icon: "wallet",
+    noun: "Pointer", plural: "Pointers", headline: "name", show: ["kind", "where", "contact"],
+    fields: [f("name", "Name"), f("kind", "Kind", "choice", ["Bank", "Card", "Loan", "Investment", "Retirement", "Bill", "Other"]), f("where", "Where to Find It"), f("contact", "Contact"), f("notes", "Notes")],
+    sections: ["Banking", "Cards and Loans", "Investing", "Other"], suggested: [f("opened", "Opened", "date"), f("who", "Whose")],
+    view: "sheet", one: true, wave: 3, pointersOnly: true, confirm: true,
+    note: "Names and Places Only; No Passwords, PINs or Full Account Numbers",
+  },
+  insurance: {
+    key: "insurance", name: "Insurance Page", shelf: "Finance", desc: "Policies, Carriers, Renewal Dates, Who to Call", cat: "sky", icon: "file",
+    noun: "Policy", plural: "Policies", headline: "name", show: ["kind", "carrier", "renews", "premium"],
+    fields: [f("name", "Policy"), f("kind", "Kind", "choice", ["Auto", "Home", "Renters", "Health", "Life", "Umbrella", "Pet", "Other"]), f("carrier", "Carrier"), f("number", "Policy Number"), f("premium", "Premium", "money"), f("renews", "Renews", "date"), f("agent", "Agent or Phone")],
+    sections: ["Home and Auto", "Health and Life", "Other"], suggested: [f("deductible", "Deductible", "money"), f("covers", "Covers")],
+    totals: [{ key: "premium", label: "Premium", money: true }], view: "sheet", one: true, wave: 3, confirm: true, due: { key: "renews" },
+  },
+  debt: {
+    key: "debt", name: "Debt Payoff", shelf: "Finance", desc: "What You Owe, Which to Pay First, Balances From Money", cat: "red", icon: "gauge",
+    noun: "Debt", plural: "Debts", headline: "name", show: ["apr", "min"],
+    fields: [f("name", "Debt"), f("apr", "APR %", "number"), f("min", "Minimum", "money"), f("balance", "Balance If Not in Money", "money")],
+    view: "debt", one: true, wave: 3, meta: { method: "avalanche", extra: "0" },
+  },
+  giving: {
+    key: "giving", name: "Giving Log", shelf: "Finance", desc: "Gifts of Money, Time and Goods, Totalled", cat: "pink", icon: "sparkles",
+    noun: "Gift", plural: "Gifts", headline: "to", show: ["date", "amount", "kind"],
+    fields: [f("date", "Date", "date"), f("to", "To"), f("amount", "Amount", "money"), f("kind", "Kind", "choice", ["Money", "Time", "Goods"]), f("notes", "Notes")],
+    suggested: [f("receipt", "Receipt", "check")], totals: [{ key: "amount", label: "Given", money: true }], view: "sheet", one: true, wave: 3, sort: "dateDesc",
+  },
+
+  // ---- Wave 3: Life
+  homebook: {
+    key: "homebook", name: "Home and Vehicle Book", shelf: "Life", desc: "Home, Vehicles, Appliances: Service Dates and What Is Due", cat: "orange", icon: "home",
+    noun: "Item", plural: "Items", headline: "item", show: ["model", "serviced", "due"], entry: "Home and Vehicle Book",
+    fields: [f("item", "Item"), f("model", "Make and Model"), f("serviced", "Last Serviced", "date"), f("due", "Next Due", "date"), f("notes", "Notes")],
+    sections: ["Home", "Vehicles", "Appliances"], suggested: [f("vin", "VIN or Serial"), f("vendor", "Who Services It")], view: "sheet", one: true, wave: 3, due: { key: "due" },
+  },
+  inventory: {
+    key: "inventory", name: "Home Inventory", shelf: "Life", desc: "Everything You Own: Room, Value, Serial", cat: "orange", icon: "list",
+    noun: "Item", plural: "Items", headline: "item", show: ["room", "value", "bought"], parent: "homebook", entry: "Home Inventory",
+    fields: [f("item", "Item"), f("room", "Room"), f("value", "Value", "money"), f("bought", "Bought", "date"), f("serial", "Serial Number"), f("notes", "Notes")],
+    sections: ["Living Room", "Kitchen", "Bedrooms", "Garage", "Other"], totals: [{ key: "value", label: "Value", money: true }], view: "sheet", one: true, wave: 3,
+  },
+  healthcard: {
+    key: "healthcard", name: "Health Card", shelf: "Life", desc: "Allergies, Conditions, Doctors, Emergency Contacts", cat: "red", icon: "person",
+    noun: "Entry", plural: "Entries", headline: "name", show: ["kind", "detail", "contact"], entry: "Person",
+    fields: [f("name", "Item"), f("kind", "Kind", "choice", ["Allergy", "Condition", "Doctor", "Contact", "Vaccine", "Other"]), f("detail", "Detail"), f("contact", "Phone")],
+    sections: ["Allergies", "Conditions", "Doctors", "Emergency Contacts"], suggested: [f("blood", "Blood Type"), f("insurer", "Insurance")],
+    view: "sheet", one: true, wave: 3, confirm: true, note: "Medications Live in Health; This Card Does Not Copy Them",
+  },
+  petcard: {
+    key: "petcard", name: "Pet Card", shelf: "Life", desc: "Vaccines, Medications, Vet, Feeding", cat: "red", icon: "person",
+    noun: "Entry", plural: "Entries", headline: "name", show: ["kind", "detail", "due"], parent: "healthcard", entry: "Pet",
+    fields: [f("name", "Item"), f("kind", "Kind", "choice", ["Vaccine", "Medication", "Vet", "Feeding", "Other"]), f("detail", "Detail"), f("due", "Due", "date")],
+    sections: ["Vaccines", "Medications", "Vet", "Feeding and Care"], view: "sheet", wave: 3, confirm: true, due: { key: "due" },
+  },
+  handover: {
+    key: "handover", name: "Handover Sheet", shelf: "Life", desc: "Everything Someone Needs to Cover for You", cat: "teal", icon: "checks",
+    noun: "Item", plural: "Items", headline: "topic", show: ["detail", "who"], entry: "Handover Sheet",
+    fields: [f("topic", "Topic"), f("detail", "What to Know"), f("who", "Who")],
+    sections: ["Right Now", "Every Day", "If Something Goes Wrong", "Contacts"], suggested: [f("where", "Where It Is"), f("when", "When")],
+    view: "sheet", wave: 3, confirm: true,
+  },
+  carerecord: {
+    key: "carerecord", name: "Care Record", shelf: "Life", desc: "Dated Entries of Who Cared for What", cat: "teal", icon: "clock",
+    noun: "Entry", plural: "Entries", headline: "what", show: ["date", "who"], parent: "handover", entry: "Care Record",
+    fields: [f("date", "Date", "date"), f("who", "Who"), f("what", "What Was Done"), f("notes", "Notes")], view: "sheet", wave: 3, sort: "dateDesc",
+  },
+  occasions: {
+    key: "occasions", name: "People and Occasions", shelf: "Life", desc: "Birthdays, Anniversaries, Gift Ideas and Budgets", cat: "pink", icon: "sparkles",
+    noun: "Occasion", plural: "Occasions", headline: "name", show: ["occasion", "date", "gift", "budget"],
+    fields: [f("name", "Person"), f("occasion", "Occasion", "choice", ["Birthday", "Anniversary", "Holiday", "Other"]), f("date", "Date", "date"), f("gift", "Gift Ideas"), f("budget", "Budget", "money"), f("done", "Handled This Year", "check")],
+    totals: [{ key: "budget", label: "Budget", money: true }], view: "occasions", one: true, wave: 3, sort: "next", due: { key: "date", yearly: true },
+  },
+  trip: {
+    key: "trip", name: "Trip Sheet", shelf: "Life", desc: "Getting There, Staying, Doing, Packing, What It Costs", cat: "sky", icon: "send",
+    noun: "Item", plural: "Items", headline: "item", show: ["when", "where", "confirmation", "cost"], entry: "Trip Sheet",
+    fields: [f("item", "Item"), f("done", "Done", "check"), f("when", "When", "date"), f("where", "Where"), f("confirmation", "Confirmation"), f("cost", "Cost", "money")],
+    sections: ["Getting There", "Staying", "Doing", "Packing"], totals: [{ key: "cost", label: "Cost", money: true }], view: "sheet", wave: 3,
+  },
+  expenses: {
+    key: "expenses", name: "Expenses to Submit", shelf: "Life", desc: "Receipts to Turn In, Totalled, Checked Off", cat: "sky", icon: "dollar",
+    noun: "Expense", plural: "Expenses", headline: "vendor", show: ["date", "amount", "for"], parent: "trip", entry: "Expenses to Submit",
+    fields: [f("vendor", "Vendor"), f("submitted", "Submitted", "check"), f("date", "Date", "date"), f("amount", "Amount", "money"), f("for", "For"), f("receipt", "Receipt", "check")],
+    sections: ["To Submit", "Submitted"], totals: [{ key: "amount", label: "Total", money: true }], view: "sheet", wave: 3, sort: "dateDesc",
+  },
+  recipes: {
+    key: "recipes", name: "Recipes", shelf: "Life", desc: "Recipes, Meal Plan, Freezer", cat: "green", icon: "list", shelfName: "Kitchen Page", entry: "Recipes",
+    noun: "Recipe", plural: "Recipes", headline: "name", show: ["serves", "time", "source"],
+    fields: [f("name", "Recipe"), f("serves", "Serves"), f("time", "Time"), f("ingredients", "Ingredients"), f("steps", "Directions"), f("source", "Source")],
+    sections: ["Mains", "Sides", "Desserts", "Other"], view: "sheet", wave: 3,
+  },
+  mealplan: {
+    key: "mealplan", name: "Meal Plan", shelf: "Life", desc: "A Week of Meals, Day by Day", cat: "green", icon: "calendar",
+    noun: "Meal", plural: "Meals", headline: "meal", show: ["type", "notes"], parent: "recipes", entry: "Meal Plan",
+    fields: [f("meal", "Meal"), f("type", "Type", "choice", ["Breakfast", "Lunch", "Dinner", "Snack"]), f("notes", "Notes")],
+    sections: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], view: "sheet", wave: 3,
+  },
+  freezer: {
+    key: "freezer", name: "Freezer", shelf: "Life", desc: "What Is in There, How Much, Use By", cat: "green", icon: "gauge",
+    noun: "Item", plural: "Items", headline: "item", show: ["qty", "frozen", "useby"], parent: "recipes", entry: "Freezer",
+    fields: [f("item", "Item"), f("qty", "Amount"), f("frozen", "Frozen", "date"), f("useby", "Use By", "date")],
+    view: "sheet", wave: 3, due: { key: "useby" },
+  },
+  accomplish: {
+    key: "accomplish", name: "Accomplishments and Milestones", shelf: "Life", desc: "What You Finished, Dated; the App Suggests, You Confirm", cat: "yellow", icon: "zap",
+    noun: "Entry", plural: "Entries", headline: "title", show: ["date", "area"],
+    fields: [f("title", "What"), f("date", "Date", "date"), f("area", "Area"), f("notes", "Notes")],
+    suggested: [f("who", "With"), f("proof", "Proof or Link")], view: "accomplish", one: true, wave: 3, sort: "dateDesc",
+  },
+
+  // ---- Wave 3: Professional
+  oneonone: {
+    key: "oneonone", name: "1:1 Log", shelf: "Professional", desc: "Meetings by Person: Topics, Decisions, Follow-Ups", cat: "blue", icon: "mail",
+    noun: "Meeting", plural: "Meetings", headline: "date", show: ["topics", "actions", "next"],
+    fields: [f("date", "Date", "date"), f("topics", "Topics"), f("notes", "Notes"), f("actions", "Follow-Ups"), f("next", "Next 1:1", "date")],
+    view: "sheet", one: true, wave: 3, sort: "dateDesc", due: { key: "next" },
+  },
+  projtracker: {
+    key: "projtracker", name: "Project Tracker", shelf: "Professional", desc: "Work Items by Status: Owner, Due, Blocked", cat: "purple", icon: "kanban",
+    noun: "Item", plural: "Items", headline: "item", show: ["owner", "due", "notes"],
+    fields: [f("item", "Item"), f("owner", "Owner"), f("due", "Due", "date"), f("notes", "Notes")],
+    sections: ["Not Started", "In Progress", "Blocked", "Done"], suggested: [f("link", "Link"), f("size", "Size")], view: "sheet", wave: 3, due: { key: "due" },
+  },
+  bizledger: {
+    key: "bizledger", name: "Business Ledger", shelf: "Professional", desc: "A View Over Your Money: Business Spending, Totalled", cat: "teal", icon: "table",
+    noun: "Entry", plural: "Entries", headline: "vendor", show: ["date", "amount"],
+    fields: [f("date", "Date", "date"), f("vendor", "Vendor"), f("category", "Category"), f("amount", "Amount", "money"), f("from", "From")],
+    view: "bizledger", wave: 3, derived: true, meta: { category: "Business", year: "" },
+    note: "Read From Money; Nothing Here Is a Second Ledger",
   },
 };
 

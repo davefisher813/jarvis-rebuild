@@ -5,7 +5,9 @@ import { monthDay } from "../../money/bills";
 import { formatMoney } from "../../money/types";
 import { type PageData, type PageRecord, type PageField, recordName, labelOf } from "./pageModel";
 import { templateDef } from "./templateDefs";
-import { groupedRecords, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, type PitcherStatus } from "./templateLogic";
+import { groupedRecords, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod } from "./templateLogic";
+import type { LedgerRow } from "./bizLedger";
+import type { Suggestion } from "./appSuggest";
 import {
   type Standing, SPORTS, SPORT_GROUPS, scoreStanding, sportName, nextPeriod, periodScore, bowlingFrames, bKey, pKey, dKey, dartTurns, dartsLeft, pinsLeft,
 } from "./scoreboard";
@@ -17,6 +19,11 @@ import { U } from "./PageViews";
 // A checkbox, where a template has one, leads its row, at the left, like every other checkbox in the app.
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+const todayLocalISO = (): string => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+};
 
 /** The checkbox that leads a row. It is its own tap: the row's tap opens the record. */
 export function RowCheck({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
@@ -42,14 +49,20 @@ export function rowFacts(page: PageData, r: PageRecord, extra?: ReactNode): Reac
   const facts = fields.map((f, i) => ((r.v[f.key] ?? "").trim() ? factFor(f, r.v[f.key]!.trim(), i) : null)).filter(Boolean);
   const flags = Object.keys(r.flags ?? {});
   const flag = flags.length ? <span className="fact warn">{flags.length === 1 ? "Check " + labelOf(page, flags[0]!) : `Check ${flags.length} Values`}</span> : null;
-  if (!facts.length && !extra && !flag) return undefined;
-  return <>{extra}{facts}{flag}</>;
+  // What is coming ("Due in 12 Days", "In 3 Days") and, on a sensitive page, whether the row was confirmed.
+  const t = todayLocalISO();
+  const due = d?.due ? dueFact(r.v[d.due.key], t, d.due.yearly) : null;
+  const dueEl = due ? <span className={"fact " + (due.tone === "red" ? "red" : due.tone === "warn" ? "warn" : "")}>{due.text}</span> : null;
+  const cs = d?.confirm ? confirmState(r, t) : null;
+  const confirmEl = cs === "fresh" ? <span className="fact date">Confirmed {monthDay(r.confirmedOn!)}</span> : cs === "stale" ? <span className="fact warn">Confirm Again</span> : cs === "never" ? <span className="fact warn">Not Confirmed</span> : null;
+  if (!facts.length && !extra && !flag && !dueEl && !confirmEl) return undefined;
+  return <>{extra}{facts}{dueEl}{confirmEl}{flag}</>;
 }
 
 // ---------------------------------------------------------------------------
 // The shared list.
 
-export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, belowHead }: {
+export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, belowHead, onConfirmAll }: {
   page: PageData;
   onOpen: (recordId: string) => void;
   onAdd: () => void;
@@ -58,6 +71,8 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, b
   /** A clock time per record (a session's), drawn as the row's first fact. */
   timeOf?: Map<string, string>;
   belowHead?: ReactNode;
+  /** A sensitive page: confirm every row still true, on the person's tap alone. */
+  onConfirmAll?: () => void;
 }) {
   const d = templateDef(page.kind);
   const noun = d?.noun ?? "Row";
@@ -79,6 +94,10 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, b
   return (
     <>
       <Head label={n === 1 ? `1 ${noun}` : `${n} ${d?.plural ?? "Rows"}`} count={total || undefined} action={{ label: "Add " + noun, onClick: onAdd }} />
+      {d?.note && <Foot>{d.note}</Foot>}
+      {onConfirmAll && n > 0 && unconfirmedCount(page, todayLocalISO()) > 0 && (
+        <Card><Row label="Confirm Everything Is Still True" meta={<span className="fact warn">{unconfirmedCount(page, todayLocalISO())} To Confirm</span>} onClick={onConfirmAll} chev /></Card>
+      )}
       {belowHead}
       {groups.map((g) => (
         <div key={g.section?.key ?? "loose"}>
@@ -362,3 +381,109 @@ export function TrainingLogView({ page, workouts, onOpen, onAdd }: { page: PageD
 }
 
 export { sumOf, sessionClock };
+
+// ---------------------------------------------------------------------------
+// What the app can suggest, confirm first: a row per suggestion, one tap to add it, nothing added by being shown.
+
+export function SuggestCard({ title, items, labelOf: label, metaOf, onAdd }: {
+  title: string;
+  items: Suggestion[];
+  labelOf: (s: Suggestion) => string;
+  metaOf?: (s: Suggestion) => ReactNode;
+  onAdd: (s: Suggestion) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <>
+      <Head label={title} count={items.length} />
+      <Card>{items.slice(0, 8).map((s) => <Row key={s.key} label={<U>{label(s)}</U>} meta={metaOf?.(s)} value="Add" onClick={() => onAdd(s)} />)}</Card>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Debt Payoff: the order to pay in and how long it takes, from the balances Money holds.
+
+const METHOD_WORD: Record<DebtMethod, string> = { avalanche: "Highest Rate First", snowball: "Smallest Balance First" };
+export const debtMethodWord = (m: string | undefined): string => METHOD_WORD[(m as DebtMethod) in METHOD_WORD ? (m as DebtMethod) : "avalanche"];
+
+export function DebtView({ page, debts, plan, linkedAsOf, canFromMoney, onOpen, onAdd, onFromMoney, onMethod, onExtra }: {
+  page: PageData;
+  debts: DebtIn[];
+  plan: DebtPlan;
+  /** The day a linked debt's balance was last entered in Money, by record id. */
+  linkedAsOf: Map<string, string>;
+  canFromMoney: boolean;
+  onOpen: (id: string) => void;
+  onAdd: () => void;
+  onFromMoney: () => void;
+  onMethod: () => void;
+  onExtra: () => void;
+}) {
+  const byId = new Map(debts.map((d) => [d.id, d]));
+  const extra = num(page.meta?.extra) ?? 0;
+  const n = page.records.length;
+  const owed = debts.reduce((s, d) => s + d.balance, 0);
+  const stepOf = new Map(plan.steps.map((x) => [x.id, x]));
+  const rows = plan.order.length ? plan.order : page.records.map((r) => r.id);
+  return (
+    <>
+      <Head label={n === 1 ? "1 Debt" : `${n} Debts`} count={owed > 0 ? formatMoney(owed, { cents: owed % 1 !== 0 }) : undefined} action={{ label: "Add Debt", onClick: onAdd }} />
+      <Foot>Balances Come From Money; Only the Rate and the Minimum Are Kept Here</Foot>
+      <Card>
+        {canFromMoney && <Row label="Add From Money" meta={<span className="fact">Cards and Debts You Already Track</span>} onClick={onFromMoney} chev />}
+        <Row label="Pay First" value={debtMethodWord(page.meta?.method)} onClick={onMethod} chev />
+        <Row label="Extra Each Month" value={extra > 0 ? formatMoney(extra, { cents: extra % 1 !== 0 }) : "None"} onClick={onExtra} chev />
+      </Card>
+      {rows.length > 0 && (
+        <>
+          <Head label="Pay in This Order" />
+          <Card>
+            {rows.map((id) => {
+              const r = page.records.find((x) => x.id === id);
+              const d = byId.get(id);
+              if (!r || !d) return null;
+              const st = stepOf.get(id);
+              const asOf = linkedAsOf.get(id);
+              return (
+                <Row key={id} label={<U>{d.name}</U>} onClick={() => onOpen(id)} chev
+                  meta={<>
+                    <span className="fact"><b>{formatMoney(d.balance, { cents: d.balance % 1 !== 0 })}</b></span>
+                    {d.apr > 0 && <span className="fact"><b>{d.apr}</b>% APR</span>}
+                    {st && <span className="fact good">Clear by Month {st.month}</span>}
+                    {d.balance > 0 && !st && <span className="fact warn">Not Cleared</span>}
+                    {asOf && ISO.test(asOf) && <span className="fact date">As of {monthDay(asOf)}</span>}
+                  </>} />
+              );
+            })}
+          </Card>
+          <Foot>{plan.total <= 0 ? "Nothing Owed" : plan.monthly <= 0 ? "Add Each Debt's Minimum Payment to See How Long It Takes" : plan.months === null ? "These Payments Never Clear the Debt; Raise the Extra or the Minimums" : `Debt-Free in ${monthsWords(plan.months)} · Paying ${formatMoney(plan.monthly, { cents: false })} a Month · Interest ${formatMoney(plan.interest, { cents: false })}`}</Foot>
+        </>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Business Ledger: read from Money, never stored.
+
+export function BizLedgerView({ page, rows, filterWord, onFilter }: { page: PageData; rows: LedgerRow[]; filterWord: string; onFilter: () => void }) {
+  const total = rows.reduce((s, r) => s + r.cents, 0) / 100;
+  const d = templateDef(page.kind);
+  return (
+    <>
+      <Head label={rows.length === 1 ? "1 Entry" : `${rows.length} Entries`} count={rows.length ? formatMoney(total, { cents: total % 1 !== 0 }) : undefined} />
+      {d?.note && <Foot>{d.note}</Foot>}
+      <Card><Row label="Showing" value={filterWord} onClick={onFilter} chev /></Card>
+      {rows.length > 0 ? (
+        <Card>
+          {rows.map((r) => (
+            // row-tap: a row read from Money opens nothing here; a correction is made in Money and shows here next time
+            <Row key={r.id} label={<U>{r.vendor || "Unnamed"}</U>}
+              meta={<><span className="fact date">{monthDay(r.date)}</span><span className="fact"><b>{formatMoney(r.cents / 100, { cents: r.cents % 100 !== 0 })}</b></span><span className="fact">{r.from}</span></>} />
+          ))}
+        </Card>
+      ) : <Foot>Nothing in This Category Yet; Tag Spending or Receipts in Money With It and They Appear Here</Foot>}
+    </>
+  );
+}
