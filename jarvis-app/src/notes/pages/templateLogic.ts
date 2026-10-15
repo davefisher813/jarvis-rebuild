@@ -449,3 +449,144 @@ export function debtsOf(page: PageData, balanceOf: (link: string) => { balance: 
     return { id: r.id, name: linked?.name || (r.v.name ?? "").trim() || "Debt", balance: linked ? linked.balance : num(r.v.balance) ?? 0, apr: num(r.v.apr) ?? 0, min: num(r.v.min) ?? 0 };
   });
 }
+
+// ---------------------------------------------------------------------------
+// WAVE 4. Brackets, the draft board and poker night: the pages that do arithmetic for the person.
+
+// ---- Brackets (single elimination). The entrants' order is the seeding; results are kept on the page as `w:<match>` = the winner's record id.
+
+export interface BracketMatch { id: string; round: number; index: number; a: string | null; b: string | null; bye: boolean; winner: string | null }
+
+/** Seed numbers in bracket order for a power-of-two size: 1 meets the last seed, 2 the one before, and the top two seeds can only meet in the final. */
+function seedOrder(size: number): number[] {
+  let order = [1, 2];
+  while (order.length < size) { const next: number[] = []; const n = order.length * 2; for (const s of order) next.push(s, n + 1 - s); order = next; }
+  return order;
+}
+
+export const WINNER_PREFIX = "w:";
+
+export function bracketOf(ids: string[], winners: Record<string, string>): { rounds: BracketMatch[][]; champion: string | null } {
+  if (ids.length === 0) return { rounds: [], champion: null };
+  if (ids.length === 1) return { rounds: [], champion: ids[0]! };
+  let size = 2;
+  while (size < ids.length) size *= 2;
+  const order = seedOrder(size);
+  const rounds: BracketMatch[][] = [];
+  let prev: BracketMatch[] = [];
+  for (let r = 0; size >> r >= 2; r++) {
+    const count = size >> (r + 1);
+    const cur: BracketMatch[] = [];
+    for (let i = 0; i < count; i++) {
+      const id = `m${r}-${i}`;
+      const a = r === 0 ? ids[order[2 * i]! - 1] ?? null : prev[2 * i]!.winner;
+      const b = r === 0 ? ids[order[2 * i + 1]! - 1] ?? null : prev[2 * i + 1]!.winner;
+      // A seed with no opponent (the field is not a power of two) goes through without playing.
+      const bye = r === 0 && ((a === null) !== (b === null));
+      const stored = winners[id];
+      const winner = bye ? a ?? b : stored && (stored === a || stored === b) ? stored : null;
+      cur.push({ id, round: r, index: i, a, b, bye, winner });
+    }
+    rounds.push(cur);
+    prev = cur;
+  }
+  return { rounds, champion: prev[0]?.winner ?? null };
+}
+
+/** The round's name by how many are left: Final, Semifinals, Quarterfinals, then Round N. */
+export function roundName(round: number, total: number): string {
+  const left = total - round;
+  return left === 1 ? "Final" : left === 2 ? "Semifinals" : left === 3 ? "Quarterfinals" : `Round ${round + 1}`;
+}
+
+export const resultsOf = (page: PageData): Record<string, string> =>
+  Object.fromEntries(Object.entries(page.meta ?? {}).filter(([k, v]) => k.startsWith(WINNER_PREFIX) && v).map(([k, v]) => [k.slice(WINNER_PREFIX.length), v]));
+
+/** Pick a winner (or clear one with null). A result that no longer fits, because an earlier one changed or an entrant left, is dropped with it. */
+export function setWinner(page: PageData, matchId: string, winnerId: string | null): PageData {
+  const meta = { ...(page.meta ?? {}) };
+  if (winnerId === null) delete meta[WINNER_PREFIX + matchId]; else meta[WINNER_PREFIX + matchId] = winnerId;
+  return pruneResults({ ...page, meta });
+}
+
+export function pruneResults(page: PageData): PageData {
+  let cur = page;
+  for (let guard = 0; guard < 12; guard++) {
+    const results = resultsOf(cur);
+    const { rounds } = bracketOf(cur.records.map((r) => r.id), results);
+    const valid = new Set(rounds.flat().filter((m) => m.winner && !m.bye).map((m) => m.id));
+    const stale = Object.keys(results).filter((id) => !valid.has(id));
+    if (!stale.length) return cur;
+    const meta = { ...(cur.meta ?? {}) };
+    for (const id of stale) delete meta[WINNER_PREFIX + id];
+    cur = { ...cur, meta };
+  }
+  return cur;
+}
+
+// ---- The draft board: a pick belongs to a team by its place in the order, straight or snaking back.
+
+export function managersOf(page: PageData): string[] {
+  return (page.meta?.teams ?? "").split(/[,\n]/).map((x) => x.trim().replace(/\s+/g, " ")).filter(Boolean);
+}
+
+export interface DraftSlot { overall: number; round: number; pick: number; team: number }
+
+/** Pick number `i` (from 0): its round, its place in the round (from 1) and the team that makes it. A snake reverses every second round. */
+export function draftSlot(i: number, teams: number, snake: boolean): DraftSlot {
+  const round = Math.floor(i / teams);
+  const pos = i % teams;
+  return { overall: i + 1, round: round + 1, pick: pos + 1, team: snake && round % 2 === 1 ? teams - 1 - pos : pos };
+}
+
+export function onTheClock(page: PageData): (DraftSlot & { manager: string }) | null {
+  const m = managersOf(page);
+  if (m.length < 2) return null;
+  const slot = draftSlot(page.records.length, m.length, page.meta?.snake !== "0");
+  return { ...slot, manager: m[slot.team]! };
+}
+
+export interface DraftRoster { manager: string; picks: { record: PageRecord; slot: DraftSlot }[] }
+
+export function draftRosters(page: PageData): DraftRoster[] {
+  const m = managersOf(page);
+  if (m.length < 2) return [];
+  const snake = page.meta?.snake !== "0";
+  const out: DraftRoster[] = m.map((manager) => ({ manager, picks: [] }));
+  page.records.forEach((record, i) => { const slot = draftSlot(i, m.length, snake); out[slot.team]!.picks.push({ record, slot }); });
+  return out;
+}
+
+// ---- Poker night: what each player is up or down, and the fewest payments that settle it.
+
+export interface PokerRow { id: string; name: string; inCents: number; outCents: number; netCents: number }
+export interface Payment { from: string; to: string; cents: number }
+
+const cents = (s: string | undefined): number => Math.round((num(s) ?? 0) * 100);
+
+export function pokerRows(page: PageData): PokerRow[] {
+  return page.records.map((r) => {
+    const inC = cents(r.v.buyin) + cents(r.v.rebuy);
+    const outC = cents(r.v.cashout);
+    return { id: r.id, name: (r.v.name ?? "").trim() || "Player", inCents: inC, outCents: outC, netCents: outC - inC };
+  });
+}
+
+/** What is left over when the cash-outs and the buy-ins do not match: positive means more was cashed out than went in. */
+export const potGap = (rows: PokerRow[]): number => rows.reduce((s, r) => s + r.netCents, 0);
+
+/** Each person who is down pays someone who is up, the largest to the largest, until everyone is square. Only worked out when the table balances. */
+export function settleUp(rows: PokerRow[]): Payment[] {
+  const up = rows.filter((r) => r.netCents > 0).map((r) => ({ name: r.name, left: r.netCents })).sort((a, b) => b.left - a.left);
+  const down = rows.filter((r) => r.netCents < 0).map((r) => ({ name: r.name, left: -r.netCents })).sort((a, b) => b.left - a.left);
+  const out: Payment[] = [];
+  let i = 0, j = 0;
+  while (i < down.length && j < up.length) {
+    const pay = Math.min(down[i]!.left, up[j]!.left);
+    if (pay > 0) out.push({ from: down[i]!.name, to: up[j]!.name, cents: pay });
+    down[i]!.left -= pay; up[j]!.left -= pay;
+    if (down[i]!.left === 0) i++;
+    if (up[j]!.left === 0) j++;
+  }
+  return out;
+}

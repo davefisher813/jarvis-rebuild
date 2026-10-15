@@ -5,7 +5,7 @@ import { monthDay } from "../../money/bills";
 import { formatMoney } from "../../money/types";
 import { type PageData, type PageRecord, type PageField, recordName, labelOf } from "./pageModel";
 import { templateDef } from "./templateDefs";
-import { groupedRecords, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod } from "./templateLogic";
+import { groupedRecords, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, roundName, managersOf, draftSlot, onTheClock, draftRosters, potGap, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod, type BracketMatch, type PokerRow, type Payment } from "./templateLogic";
 import type { LedgerRow } from "./bizLedger";
 import type { Suggestion } from "./appSuggest";
 import {
@@ -484,6 +484,137 @@ export function BizLedgerView({ page, rows, filterWord, onFilter }: { page: Page
           ))}
         </Card>
       ) : <Foot>Nothing in This Category Yet; Tag Spending or Receipts in Money With It and They Appear Here</Foot>}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Brackets and Pools: the draw, round by round. A tap on a match with both sides known picks the winner, who moves on by themselves.
+
+export function BracketView({ page, rounds, champion, format, onEntrant, onAddEntrant, onMatch, onFormat }: {
+  page: PageData;
+  rounds: BracketMatch[][];
+  champion: string | null;
+  format: "single" | "pool";
+  onEntrant: (id: string) => void;
+  onAddEntrant: () => void;
+  onMatch: (matchId: string) => void;
+  onFormat: () => void;
+}) {
+  const name = (id: string | null): string => (id ? (page.records.find((r) => r.id === id)?.v.name ?? "").trim() || "Entrant" : "");
+  const n = page.records.length;
+  return (
+    <>
+      <Head label={n === 1 ? "1 Entrant" : `${n} Entrants`} action={{ label: "Add Entrant", onClick: onAddEntrant }} />
+      <Card><Row label="Format" value={format === "pool" ? "Round Robin" : "Single Elimination"} onClick={onFormat} chev /></Card>
+      {champion && <Card><Row label={<U>{name(champion)}</U>} meta={<span className="fact good">Champion</span>} /></Card>}
+      {format === "single" && rounds.map((round, r) => (
+        <div key={r}>
+          <Head label={roundName(r, rounds.length)} count={round.filter((m) => m.winner).length + " of " + round.length} />
+          <Card>
+            {round.map((m) => {
+              const ready = !!m.a && !!m.b && !m.bye;
+              const label = m.bye ? <><U>{name(m.a ?? m.b)}</U> Has a Bye</> : <><U>{m.a ? name(m.a) : "To Be Decided"}</U> vs <U>{m.b ? name(m.b) : "To Be Decided"}</U></>;
+              return (
+                <Row key={m.id} label={label} onClick={ready ? () => onMatch(m.id) : undefined} chev={ready}
+                  meta={m.winner && !m.bye ? <span className="fact good">{name(m.winner)} Won</span> : ready ? <span className="fact warn">Pick a Winner</span> : undefined} />
+              );
+            })}
+          </Card>
+        </div>
+      ))}
+      {n > 0 && (
+        <>
+          <Head label="Seeds" />
+          <Card>
+            {page.records.map((r, i) => <Row key={r.id} lead={<div className="row-ico nav-tile-graphite"><b>{i + 1}</b></div>} label={<U>{(r.v.name ?? "").trim() || "Entrant"}</U>} onClick={() => onEntrant(r.id)} chev />)}
+          </Card>
+        </>
+      )}
+      {n < 2 && <Foot>Add Two or More Entrants and the Draw Makes Itself; the Order Below Is the Seeding</Foot>}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fantasy Draft Board.
+
+export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: PageData; onOpen: (id: string) => void; onAdd: () => void; onTeams: () => void; onOrder: () => void }) {
+  const teams = managersOf(page);
+  const snake = page.meta?.snake !== "0";
+  const clock = onTheClock(page);
+  const n = page.records.length;
+  const rounds = new Map<number, { record: PageRecord; i: number }[]>();
+  page.records.forEach((record, i) => { const r = teams.length >= 2 ? draftSlot(i, teams.length, snake).round : 1; rounds.set(r, [...(rounds.get(r) ?? []), { record, i }]); });
+  const rosters = draftRosters(page);
+  return (
+    <>
+      <Head label={n === 1 ? "1 Pick" : `${n} Picks`} action={{ label: "Add Pick", onClick: onAdd }} />
+      <Card>
+        <Row label="Teams" value={teams.length ? `${teams.length} Teams` : "Not Set"} onClick={onTeams} chev />
+        <Row label="Order" value={snake ? "Snake" : "Straight"} onClick={onOrder} chev />
+      </Card>
+      {clock && (
+        <Card><Row label={<><U>{clock.manager}</U> Is on the Clock</>} meta={<><span className="fact warn">Round {clock.round}</span><span className="fact">Pick {clock.pick}</span><span className="fact">Overall {clock.overall}</span></>} /></Card>
+      )}
+      {[...rounds.entries()].map(([r, picks]) => (
+        <div key={r}>
+          <Head label={`Round ${r}`} count={picks.length} />
+          <Card>
+            {picks.map(({ record, i }) => {
+              const slot = teams.length >= 2 ? draftSlot(i, teams.length, snake) : null;
+              const pos = (record.v.pos ?? "").trim();
+              return (
+                <Row key={record.id} lead={slot ? <div className="row-ico nav-tile-graphite"><b>{slot.overall}</b></div> : undefined} label={<U>{(record.v.player ?? "").trim() || "Pick"}</U>} onClick={() => onOpen(record.id)} chev
+                  meta={<>{slot && <span className="fact"><U>{teams[slot.team]!}</U></span>}{pos && <span className="fact"><U>{pos}</U></span>}</>} />
+              );
+            })}
+          </Card>
+        </div>
+      ))}
+      {rosters.some((x) => x.picks.length > 0) && rosters.filter((x) => x.picks.length > 0).map((x) => (
+        <div key={x.manager}>
+          <Head label={x.manager} count={x.picks.length} />
+          <Card>{x.picks.map(({ record, slot }) => <Row key={record.id} label={<U>{(record.v.player ?? "").trim() || "Pick"}</U>} onClick={() => onOpen(record.id)} chev meta={<><span className="fact">Round {slot.round}</span>{(record.v.pos ?? "").trim() && <span className="fact"><U>{record.v.pos!.trim()}</U></span>}</>} />)}</Card>
+        </div>
+      ))}
+      {teams.length < 2 && <Foot>Name the Teams, in Draft Order, Separated by Commas; the Board Works Out Who Picks Next</Foot>}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Poker Night: who is up, who is down, and the payments that settle it.
+
+const dollars = (c: number): string => formatMoney(Math.abs(c) / 100, { cents: c % 100 !== 0 });
+
+export function PokerView({ page, rows, payments, onOpen, onAdd }: { page: PageData; rows: PokerRow[]; payments: Payment[]; onOpen: (id: string) => void; onAdd: () => void }) {
+  const n = rows.length;
+  const pot = rows.reduce((s, r) => s + r.inCents, 0);
+  const gap = potGap(rows);
+  return (
+    <>
+      <Head label={n === 1 ? "1 Player" : `${n} Players`} count={pot > 0 ? `Pot ${dollars(pot)}` : undefined} action={{ label: "Add Player", onClick: onAdd }} />
+      {n > 0 && (
+        <Card>
+          {rows.map((r) => (
+            <Row key={r.id} label={<U>{r.name}</U>} onClick={() => onOpen(r.id)} chev
+              meta={<>
+                {r.inCents > 0 && <span className="fact">In <b>{dollars(r.inCents)}</b></span>}
+                {r.outCents > 0 && <span className="fact">Out <b>{dollars(r.outCents)}</b></span>}
+                {(r.inCents > 0 || r.outCents > 0) && <span className={"fact " + (r.netCents > 0 ? "good" : r.netCents < 0 ? "warn" : "")}>{r.netCents > 0 ? "Up " : r.netCents < 0 ? "Down " : "Even "}{r.netCents !== 0 && <b>{dollars(r.netCents)}</b>}</span>}
+              </>} />
+          ))}
+        </Card>
+      )}
+      {gap !== 0 && n > 0 && <Foot>{`Cash-Outs Are ${dollars(gap)} ${gap > 0 ? "Over" : "Short of"} the Pot; Check the Numbers and Settling Up Will Appear`}</Foot>}
+      {gap === 0 && payments.length > 0 && (
+        <>
+          <Head label="Settle Up" count={payments.length} />
+          <Card>{payments.map((p, i) => <Row key={i} label={<><U>{p.from}</U> Pays <U>{p.to}</U></>} value={dollars(p.cents)} />)}</Card>
+        </>
+      )}
+      {n < 2 && <Foot>Add the Players, Then Their Buy-Ins and Cash-Outs; Who Owes Whom Works Itself Out</Foot>}
     </>
   );
 }
