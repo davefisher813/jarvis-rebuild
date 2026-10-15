@@ -42,6 +42,10 @@ export interface PageRecord {
   taskId?: string;
   /** The section this row sits in (a key from the page's `sections`). Absent: it sits above every section. */
   sec?: string;
+  /** A sensitive record's last confirmation, as an ISO day. Only ever set by the person's own tap. */
+  confirmedOn?: string;
+  /** The app record this row points at, by id, when one does (a Debt Payoff row's Money account). A pointer, never a copy. */
+  link?: string;
 }
 
 /** A heading the page's rows are grouped under, named and ordered by the person. A section with no rows is not drawn. */
@@ -507,6 +511,7 @@ export function pageSummary(page: PageData): string {
     if (page.kind === "scoreboard") return `${page.score?.label ?? "Game"}, ${n === 1 ? "1 Side" : n + " Sides"}`;
     if (page.kind === "standings") { const g = page.games?.length ?? 0; return `${n === 1 ? "1 Team" : n + " Teams"}, ${g === 1 ? "1 Game" : g + " Games"}`; }
     if (page.kind === "profile") return "One-Pager";
+    if (def.derived) return "Read From Money";
     return n === 1 ? `1 ${def.noun}` : `${n} ${def.plural}`;
   }
   if (page.kind === "team") return n === 1 ? "1 Player" : `${n} Players`;

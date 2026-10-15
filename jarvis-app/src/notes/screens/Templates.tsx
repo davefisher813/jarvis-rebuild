@@ -4,6 +4,7 @@ import type { TemplateKey } from "../types";
 import type { PageKind } from "../pages/pageModel";
 import { TEMPLATES, TEMPLATE_KEYS, SHELVES, type IconKey, type Shelf } from "../pages/templateDefs";
 import { pressable } from "../../shared/pressable";
+import RowActionSheet from "../../shared/RowActionSheet";
 
 // Matches locked frame #49 "Templates" (the New Note picker). Keys match the
 // TEMPLATES map in types.ts so a tap seeds the right blocks.
@@ -40,10 +41,20 @@ const CORE: PageEntry[] = [
   { key: "outreach", name: "Outreach Tracker", desc: "Who, How, Status, Next Step", cat: "orange", Icon: Send, shelf: "Sports" },
 ];
 
+// A preset or entry point (Home Inventory under Home and Vehicle Book, Meal Plan under Kitchen Page) is not a row of its own: its parent's row
+// asks which one. So the picker lists the templates the library names, and each preset stays one tap further in.
 const PAGES_LIST: PageEntry[] = [
   ...CORE,
-  ...TEMPLATE_KEYS.map((k) => ({ key: k, name: TEMPLATES[k].name, desc: TEMPLATES[k].desc, cat: TEMPLATES[k].cat, Icon: ICONS[TEMPLATES[k].icon], shelf: TEMPLATES[k].shelf })),
+  ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).map((k) => ({ key: k, name: TEMPLATES[k].shelfName ?? TEMPLATES[k].name, desc: TEMPLATES[k].desc, cat: TEMPLATES[k].cat, Icon: ICONS[TEMPLATES[k].icon], shelf: TEMPLATES[k].shelf })),
 ];
+
+/** The entry points a template offers: itself first, then every preset under it. Empty when it has none. */
+export const entriesOf = (key: string): { key: string; label: string }[] => {
+  const kids = TEMPLATE_KEYS.filter((k) => TEMPLATES[k].parent === key);
+  if (!kids.length) return [];
+  const own = TEMPLATES[key as keyof typeof TEMPLATES];
+  return [{ key, label: own?.entry ?? own?.name ?? key }, ...kids.map((k) => ({ key: k as string, label: TEMPLATES[k].entry ?? TEMPLATES[k].name }))];
+};
 
 /** A template the person kept from a page of their own (Save as My Template). */
 export interface MyTemplate { id: string; title: string; kindName: string }
@@ -72,16 +83,18 @@ export default function Templates({
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   const anyBusy = locked || pageBusy !== null;
+  const [choosing, setChoosing] = useState<string | null>(null);
+  const go = (key: string) => {
+    setPageBusy(key);
+    void Promise.resolve(onPage?.(key)).finally(() => { if (alive.current) setPageBusy(null); });
+  };
   const pageRow = (key: string, name: string, desc: string, cat: string, Icon: typeof AlignLeft) => {
-    const busy = pageBusy === key;
+    const busy = pageBusy === key || (choosing === null && pageBusy !== null && entriesOf(key).some((e) => e.key === pageBusy));
     return (
       <div className="lib-row" key={"page-" + key}
         aria-busy={busy || undefined}
         aria-disabled={anyBusy && !busy ? true : undefined}
-        {...pressable(() => {
-          setPageBusy(key);
-          void Promise.resolve(onPage?.(key)).finally(() => { if (alive.current) setPageBusy(null); });
-        }, { disabled: anyBusy })}>
+        {...pressable(() => { if (entriesOf(key).length) setChoosing(key); else go(key); }, { disabled: anyBusy })}>
         <div className={"lib-ico cat-fg-" + cat}>
           <Icon className="ic" />
         </div>
@@ -136,6 +149,10 @@ export default function Templates({
           </div>
         );
       })}
+      {choosing && (
+        <RowActionSheet title={(PAGES_LIST.find((p) => p.key === choosing)?.name ?? "Which One") + ": Which One?"} onCancel={() => setChoosing(null)}
+          actions={entriesOf(choosing).map((e) => ({ label: e.label, onPick: () => { setChoosing(null); go(e.key); } }))} />
+      )}
       {onPage && mine.length > 0 && (
         <div>
           <div className="sh2 sh2-quiet"><span className="t">My Templates</span></div>

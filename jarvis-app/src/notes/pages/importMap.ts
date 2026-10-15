@@ -18,6 +18,7 @@
 //    on the page is that record.
 
 import { type PageData, type PageField, type PageRecord, newId, recordName, takeSnapshot } from "./pageModel";
+import { secretIn } from "./templateLogic";
 
 export const ID_HEADER = "JARVIS ID";
 
@@ -142,8 +143,13 @@ export function uncertainties(kind: PageData["kind"], v: Record<string, string>)
 }
 
 /** A number written as "#7" is the number 7: the import tidies what it is sure of and flags what it is not. */
-function tidy(page: PageData, v: Record<string, string>): Record<string, string> {
+function tidy(page: PageData, v: Record<string, string>, held?: { n: number }): Record<string, string> {
   const out = { ...v };
+  // A page of pointers keeps where a thing is, never a way in: a value that looks like a password or a long number is not kept, and the
+  // review says how many were left out (never silently).
+  for (const k of Object.keys(out)) {
+    if (secretIn(page, { [k]: out[k]! })) { delete out[k]; if (held) held.n++; }
+  }
   // A done mark comes back as Yes, true, x or a tick in a sheet; it is the page's own "1" once it is read.
   for (const f of page.fields) if (f.type === "check" && f.key in out) out[f.key] = /^(1|y|yes|true|x|done|paid|\u2713|\u2714)$/i.test((out[f.key] ?? "").trim()) ? "1" : "";
   if (page.kind !== "team") return out;
@@ -151,14 +157,17 @@ function tidy(page: PageData, v: Record<string, string>): Record<string, string>
   return out;
 }
 
+const secretNote = (n: number): string => `${n} ${n === 1 ? "Value Looked" : "Values Looked"} Like a Password or a Long Number and ${n === 1 ? "Was" : "Were"} Not Kept`;
+
 /** The records a first import would make, each flagged where it is unsure, plus what was left out. */
 export function planImport(page: PageData, rows: string[][], map: ColumnMap[], notes: string[] = []): ImportPlan {
   const { keys, newFields } = columnKeys(page, map);
   const idCol = map.find((m) => m.target === T_ID)?.col;
   const records: PageRecord[] = [];
   const seen = new Set(page.records.map((r) => r.id));
+  const held = { n: 0 };
   for (const row of rows) {
-    const v = tidy(page, rowValues(map, keys, row));
+    const v = tidy(page, rowValues(map, keys, row), held);
     if (!Object.values(v).some((x) => x.trim())) continue;
     const given = idCol !== undefined ? (row[idCol] ?? "").trim() : "";
     const id = given && /^r_[A-Za-z0-9]+$/.test(given) && !seen.has(given) ? given : newId("r");
@@ -167,7 +176,7 @@ export function planImport(page: PageData, rows: string[][], map: ColumnMap[], n
     records.push({ id, v, ...(Object.keys(flags).length ? { flags } : {}) });
   }
   const leftOut = map.filter((m) => m.target === T_SKIP && m.header.trim()).map((m) => m.header.trim());
-  return { newFields, records, leftOut, notes };
+  return { newFields, records, leftOut, notes: held.n ? [...notes, secretNote(held.n)] : notes };
 }
 
 /** Lays a confirmed plan onto the page. The page is snapshotted first; what came in becomes the base for a reimport. */
@@ -207,8 +216,9 @@ export function reconcile(page: PageData, rows: string[][], map: ColumnMap[], no
   const byId = new Map(page.records.map((r) => [r.id, r]));
   const out: Changes = { added: [], changed: [], removed: [], keptLocal: [], conflicts: [], newFields, leftOut: map.filter((m) => m.target === T_SKIP && m.header.trim()).map((m) => m.header.trim()), dupes: [], notes, fileValues: {} };
   const inFile = new Set<string>();
+  const held = { n: 0 };
   for (const row of rows) {
-    const v = tidy(page, rowValues(map, keys, row));
+    const v = tidy(page, rowValues(map, keys, row), held);
     if (!Object.values(v).some((x) => x.trim())) continue;
     const id = idCol !== undefined ? (row[idCol] ?? "").trim() : "";
     const rec = id ? byId.get(id) : undefined;
@@ -244,6 +254,7 @@ export function reconcile(page: PageData, rows: string[][], map: ColumnMap[], no
       else out.removed.push({ id: r.id, name: recordName(page, r) });
     }
   }
+  if (held.n) out.notes = [...out.notes, secretNote(held.n)];
   return out;
 }
 

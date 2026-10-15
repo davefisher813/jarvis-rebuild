@@ -67,10 +67,11 @@ export function groupedRecords(page: PageData): RowGroup[] {
   const sections = page.sections ?? [];
   const known = new Set(sections.map((s) => s.key));
   const out: RowGroup[] = [];
-  const loose = page.records.filter((r) => !r.sec || !known.has(r.sec));
+  const all = orderedRecords(page);
+  const loose = all.filter((r) => !r.sec || !known.has(r.sec));
   if (loose.length) out.push({ section: null, records: loose });
   for (const s of sections) {
-    const recs = page.records.filter((r) => r.sec === s.key);
+    const recs = all.filter((r) => r.sec === s.key);
     if (recs.length) out.push({ section: s, records: recs });
   }
   return out;
@@ -124,7 +125,8 @@ export function sumOf(records: PageRecord[], key: string): number {
 /** A page's totals as words for its head: "75 Min". Only the totals the template names and the page still has a field for. */
 export function totalsLine(page: PageData, fmtMoney: (n: number) => string = (n) => "$" + n.toLocaleString("en-US")): string {
   const d = templateDef(page.kind);
-  if (!d?.totals) return "";
+  // An empty page has nothing to total: no "$0" beside a head with no rows.
+  if (!d?.totals || page.records.length === 0) return "";
   return d.totals
     .filter((t) => page.fields.some((x) => x.key === t.key))
     .map((t) => (t.money ? fmtMoney(sumOf(page.records, t.key)) : `${sumOf(page.records, t.key)} ${t.label}`))
@@ -267,4 +269,183 @@ export function gamesOfTeam(page: PageData, teamId: string): number {
 
 export function removeTeamAndGames(page: PageData, teamId: string): PageData {
   return { ...page, records: page.records.filter((r) => r.id !== teamId), games: (page.games ?? []).filter((g) => g.a !== teamId && g.b !== teamId) };
+}
+
+// ---------------------------------------------------------------------------
+// WAVE 3. Pointers only, confirmation, what is coming up, and the order a page's rows are drawn in.
+
+const todayLocal = (): string => {
+  const n = new Date();
+  return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}`;
+};
+
+// ---- Pointers only (Money Map): where a thing is, never how to get into it.
+
+/** A label that asks for a way in. A page of pointers has no field for it. */
+export const SECRET_LABEL = /pass(word|code|phrase)|\bpin\b|\bcvv\b|\bcvc\b|security code|\blogin\b|username|\bsecret\b|routing|\bssn\b|social security|account number/i;
+const PHONE_LABEL = /phone|contact|call|number to/i;
+
+/** Text that is a way in: a password said out loud ("password: hunter2"), or a long number (a full account, card or social security number). */
+export function looksLikeSecret(value: string): boolean {
+  const t = value.trim();
+  if (!t) return false;
+  if (/\b(pass(word|code|phrase)|pwd|pin|cvv|cvc|security code|login|username)\b\s*(is|[:=])/i.test(t)) return true;
+  // The digits of a number a person could use: nine or more in a row, ignoring the spaces and dashes numbers are written with.
+  return /\d{9,}/.test(t.replace(/[\s-]/g, ""));
+}
+
+/** The first field on a pointers-only page whose new value is a way in, or null. A phone number is not one. */
+export function secretIn(page: PageData, values: Record<string, string>): { key: string; label: string } | null {
+  if (!templateDef(page.kind)?.pointersOnly) return null;
+  for (const [key, value] of Object.entries(values)) {
+    const label = page.fields.find((x) => x.key === key)?.label ?? key;
+    if (PHONE_LABEL.test(label) || key === "contact") { if (/\b(pass(word|code|phrase)|pwd|pin)\b\s*(is|[:=])/i.test(value)) return { key, label }; continue; }
+    if (looksLikeSecret(value)) return { key, label };
+  }
+  return null;
+}
+
+/** True when a new field's name asks for a way in, on a page of pointers. */
+export function secretFieldName(page: PageData, label: string): boolean {
+  return !!templateDef(page.kind)?.pointersOnly && SECRET_LABEL.test(label);
+}
+
+// ---- Confirmation: the person says a sensitive record is still true. Never automatic.
+
+export const CONFIRM_STALE_DAYS = 365;
+
+export function confirmRecord(page: PageData, recordId: string, iso: string): PageData {
+  return { ...page, records: page.records.map((r) => (r.id === recordId ? { ...r, confirmedOn: iso } : r)) };
+}
+
+export function confirmAll(page: PageData, iso: string): PageData {
+  return { ...page, records: page.records.map((r) => ({ ...r, confirmedOn: iso })) };
+}
+
+export type ConfirmState = "never" | "stale" | "fresh";
+
+export function confirmState(r: PageRecord, today: string): ConfirmState {
+  if (!r.confirmedOn) return "never";
+  return daysBetween(r.confirmedOn, today) > CONFIRM_STALE_DAYS ? "stale" : "fresh";
+}
+
+/** How many rows are not confirmed this year: the page's "Confirm All" counts them. */
+export function unconfirmedCount(page: PageData, today: string): number {
+  return page.records.filter((r) => confirmState(r, today) !== "fresh").length;
+}
+
+// ---- What is coming up.
+
+const isoOk = (s: string | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+const dayNum = (iso: string): number => { const [y, m, d] = iso.split("-").map(Number); return Math.round(Date.UTC(y!, m! - 1, d!) / 86400000); };
+
+/** Whole days from `a` to `b` (negative when b is before a). */
+export function daysBetween(a: string, b: string): number { return dayNum(b) - dayNum(a); }
+
+/** The next time a date's month and day come round, on or after `today`. Feb 29 is Feb 28 in a year with no 29th. */
+export function nextYearly(iso: string, today: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  const y = Number(today.slice(0, 4));
+  const at = (yy: number): string => {
+    const leap = (yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0;
+    const dd = m === 2 && d === 29 && !leap ? 28 : d!;
+    return `${yy}-${pad(m!)}-${pad(dd)}`;
+  };
+  const thisYear = at(y);
+  return thisYear >= today ? thisYear : at(y + 1);
+}
+
+export interface DueFact { text: string; tone: "warn" | "red" | "plain" }
+
+/** The words for a date that is coming: "Due in 12 Days", "3 Days Overdue", "Today", "In 9 Days". Null when it is far off. */
+export function dueFact(iso: string | undefined, today: string, yearly = false): DueFact | null {
+  if (!isoOk(iso)) return null;
+  const when = yearly ? nextYearly(iso.trim(), today) : iso.trim();
+  const n = daysBetween(today, when);
+  const days = (k: number) => (k === 1 ? "1 Day" : `${k} Days`);
+  if (yearly) {
+    if (n === 0) return { text: "Today", tone: "warn" };
+    if (n === 1) return { text: "Tomorrow", tone: "warn" };
+    return n <= 30 ? { text: `In ${days(n)}`, tone: n <= 7 ? "warn" : "plain" } : null;
+  }
+  if (n < 0) return { text: `${days(-n)} Overdue`, tone: "red" };
+  if (n === 0) return { text: "Due Today", tone: "warn" };
+  if (n === 1) return { text: "Due Tomorrow", tone: "warn" };
+  return n <= 30 ? { text: `Due in ${days(n)}`, tone: n <= 7 ? "warn" : "plain" } : null;
+}
+
+/** The field whose date orders a page's rows: the template's own due field, else its first date field. */
+function dateKeyOf(page: PageData): string | null {
+  const d = templateDef(page.kind);
+  if (d?.due) return d.due.key;
+  return page.fields.find((x) => x.type === "date")?.key ?? null;
+}
+
+/** The rows in the order the page draws them: as made, unless the template sorts (newest first, or by the next time the date comes round). */
+export function orderedRecords(page: PageData, today: string = todayLocal()): PageRecord[] {
+  const d = templateDef(page.kind);
+  const key = dateKeyOf(page);
+  if (!d?.sort || !key) return page.records;
+  const at = (r: PageRecord): string | null => { const v = (r.v[key] ?? "").trim(); return isoOk(v) ? v : null; };
+  const rank = (r: PageRecord): string | null => { const v = at(r); return v === null ? null : d.sort === "next" ? nextYearly(v, today) : v; };
+  const withIdx = page.records.map((r, i) => ({ r, i, k: rank(r) }));
+  withIdx.sort((a, b) => {
+    if (a.k === null && b.k === null) return a.i - b.i;
+    if (a.k === null) return 1;
+    if (b.k === null) return -1;
+    const c = d.sort === "dateDesc" ? (a.k < b.k ? 1 : a.k > b.k ? -1 : 0) : a.k < b.k ? -1 : a.k > b.k ? 1 : 0;
+    return c || a.i - b.i;
+  });
+  return withIdx.map((x) => x.r);
+}
+
+// ---------------------------------------------------------------------------
+// Debt Payoff: which to pay first, and how long it takes, from the balances Money holds. Nothing here is stored but each debt's APR
+// and minimum; the balance is read, never copied, so there is no second ledger to keep in step.
+
+export interface DebtIn { id: string; name: string; balance: number; apr: number; min: number }
+export interface DebtStep { id: string; name: string; /** The month (1 is the first) this debt reaches zero. */ month: number; interest: number }
+export interface DebtPlan { order: string[]; steps: DebtStep[]; months: number | null; interest: number; total: number; monthly: number }
+export type DebtMethod = "avalanche" | "snowball";
+
+const MAX_MONTHS = 1200;
+
+/** Pay every minimum, put everything else (the extra, and every minimum a cleared debt frees up) on one debt at a time: the highest
+ *  rate first (avalanche) or the smallest balance first (snowball). `months` is null when the payments never clear the debt. */
+export function payoffPlan(debts: DebtIn[], extra: number, method: DebtMethod): DebtPlan {
+  const live = debts.filter((d) => d.balance > 0.005).map((d) => ({ ...d, bal: d.balance, paid: 0 }));
+  const priority = (a: { bal: number; apr: number; name: string }, b: { bal: number; apr: number; name: string }) =>
+    (method === "avalanche" ? b.apr - a.apr || a.bal - b.bal : a.bal - b.bal || b.apr - a.apr) || a.name.localeCompare(b.name);
+  const order = [...live].sort(priority).map((d) => d.id);
+  const budget = live.reduce((s, d) => s + d.min, 0) + Math.max(0, extra);
+  const steps: DebtStep[] = [];
+  let interest = 0;
+  let month = 0;
+  const open = () => live.filter((d) => d.bal > 0.005);
+  while (open().length && month < MAX_MONTHS) {
+    month++;
+    for (const d of open()) { const i = (d.bal * d.apr) / 1200; d.bal += i; d.paid += i; interest += i; }
+    let left = budget;
+    for (const d of open()) { const pay = Math.min(d.min, d.bal, left); d.bal -= pay; left -= pay; }
+    for (const d of [...open()].sort(priority)) { if (left <= 0) break; const pay = Math.min(left, d.bal); d.bal -= pay; left -= pay; }
+    for (const d of live) if (d.bal <= 0.005 && !steps.some((s) => s.id === d.id)) steps.push({ id: d.id, name: d.name, month, interest: d.paid });
+  }
+  const cleared = open().length === 0;
+  return { order, steps, months: cleared ? month : null, interest: Math.round(interest * 100) / 100, total: live.reduce((s, d) => s + d.balance, 0), monthly: budget };
+}
+
+/** "3 Years 2 Months" for a number of months. */
+export function monthsWords(m: number): string {
+  const y = Math.floor(m / 12), r = m % 12;
+  const ys = y === 1 ? "1 Year" : `${y} Years`;
+  const rs = r === 1 ? "1 Month" : `${r} Months`;
+  return y === 0 ? rs : r === 0 ? ys : `${ys} ${rs}`;
+}
+
+/** The debts on a page as the plan reads them: a linked row takes its balance from the Money account, an unlinked one from its own field. */
+export function debtsOf(page: PageData, balanceOf: (link: string) => { balance: number; name: string } | null): DebtIn[] {
+  return page.records.map((r) => {
+    const linked = r.link ? balanceOf(r.link) : null;
+    return { id: r.id, name: linked?.name || (r.v.name ?? "").trim() || "Debt", balance: linked ? linked.balance : num(r.v.balance) ?? 0, apr: num(r.v.apr) ?? 0, min: num(r.v.min) ?? 0 };
+  });
 }
