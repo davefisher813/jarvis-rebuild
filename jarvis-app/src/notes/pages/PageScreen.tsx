@@ -31,13 +31,13 @@ import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldShe
 import { templateDef } from "./templateDefs";
 import {
   SheetView, ProfileView, PitchingView, StandingsView, ScoreboardView, ScoreEntry, TrainingLogView, scoreStart, type WorkoutLine,
-  DebtView, BizLedgerView, SuggestCard, debtMethodWord,
+  DebtView, BizLedgerView, SuggestCard, debtMethodWord, BracketView, DraftView, PokerView,
 } from "./TemplateViews";
 import { businessRows, ledgerFilter, ledgerAsPage } from "./bizLedger";
 import { accomplishmentSuggestions, birthdaySuggestions } from "./appSuggest";
 import {
   addSection, renameSection, removeSection, moveSection, setSection, moveField, addSuggested, sectionImpact, sessionClock, gamesOfTeam,
-  addGame, removeGame, removeTeamAndGames, asMyTemplate, num, confirmRecord, confirmAll, secretIn, secretFieldName, debtsOf, payoffPlan, type DebtMethod,
+  addGame, removeGame, removeTeamAndGames, asMyTemplate, num, confirmRecord, confirmAll, secretIn, secretFieldName, debtsOf, payoffPlan, type DebtMethod, bracketOf, resultsOf, setWinner, pruneResults, managersOf, pokerRows, settleUp,
 } from "./templateLogic";
 import { setCell, setPeriodScore, setSport, sportChangeImpact, addPeriod, sportName } from "./scoreboard";
 import { SnapshotsScreen, LineupBuilder } from "./PageExtras";
@@ -71,6 +71,7 @@ type Sheet =
   | { k: "sport"; to: string }
   | { k: "limit" } | { k: "start" }
   | { k: "method" } | { k: "extra" } | { k: "fromMoney" } | { k: "ledgerFilter" }
+  | { k: "winner"; id: string } | { k: "format" } | { k: "teams" } | { k: "order" }
   | { k: "program" }
   | { k: "addFromRoster" }
   | { k: "original"; o: PageOriginal }
@@ -309,6 +310,14 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   const lf = ledgerFilter(page);
   const ledgerRows = def?.view === "bizledger" && ledgerData ? businessRows(ledgerData.txs, ledgerData.receipts, lf.category, lf.year) : [];
   const sharePage = def?.view === "bizledger" ? ledgerAsPage(page, ledgerRows) : page;
+  // Brackets and Pools: the draw worked out from the entrants' order and the results kept on the page.
+  const bracket = def?.view === "bracket" ? bracketOf(page.records.map((r) => r.id), resultsOf(page)) : null;
+  const bracketFormat: "single" | "pool" = page.meta?.format === "pool" ? "pool" : "single";
+  const winnerMatch = sheet?.k === "winner" && bracket ? bracket.rounds.flat().find((m) => m.id === sheet.id) ?? null : null;
+  const entrantName = (id: string | null) => (id ? (page.records.find((r) => r.id === id)?.v.name ?? "").trim() || "Entrant" : "");
+  // Poker Night: what each player is up or down, and who pays whom.
+  const poker = def?.view === "poker" ? pokerRows(page) : [];
+  const pokerGap = poker.reduce((t, r) => t + r.netCents, 0);
   // What the app can suggest, confirm first.
   const offered = suggestFor(def?.view, page, people, goals, projects);
   const record = sheet?.k === "record" && sheet.id ? page.records.find((r) => r.id === sheet.id) ?? null : null;
@@ -317,7 +326,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   const removeWithUndo = (id: string) => {
     const before = page;
     const r = page.records.find((x) => x.id === id);
-    void commit(page.kind === "standings" ? removeTeamAndGames(page, id) : removeRecord(page, id));
+    void commit(page.kind === "standings" || page.kind === "bracket" ? pruneResults(removeTeamAndGames(page, id)) : removeRecord(page, id));
     setSheet(null);
     showToast({ message: lineCase((recordName(page, r!) || "Row") + " removed"), actionLabel: "Undo", onAction: () => void commit(before, { undoable: false }) });
   };
@@ -524,6 +533,23 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
           onFromMoney={() => setSheet({ k: "fromMoney" })} onMethod={() => setSheet({ k: "method" })} onExtra={() => setSheet({ k: "extra" })} />
       )}
+      {def?.view === "bracket" && bracket && (
+        <>
+          <BracketView page={page} rounds={bracket.rounds} champion={bracket.champion} format={bracketFormat}
+            onEntrant={(id) => setSheet({ k: "record", id })} onAddEntrant={() => setSheet({ k: "record", id: null })}
+            onMatch={(id) => setSheet({ k: "winner", id })} onFormat={() => setSheet({ k: "format" })} />
+          {bracketFormat === "pool" && (
+            <StandingsView page={page} onTeam={(id) => setSheet({ k: "record", id })} onAddTeam={() => setSheet({ k: "record", id: null })}
+              onGame={(id) => setSheet({ k: "game", id })} onAddGame={() => setSheet({ k: "game", id: null })} />
+          )}
+        </>
+      )}
+      {def?.view === "draft" && (
+        <DraftView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onTeams={() => setSheet({ k: "teams" })} onOrder={() => setSheet({ k: "order" })} />
+      )}
+      {def?.view === "poker" && (
+        <PokerView page={page} rows={poker} payments={pokerGap === 0 ? settleUp(poker) : []} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} />
+      )}
       {def?.view === "bizledger" && (
         <BizLedgerView page={page} rows={ledgerRows} filterWord={`${lf.category} · ${lf.year ?? "Every Year"}`} onFilter={() => setSheet({ k: "ledgerFilter" })} />
       )}
@@ -599,7 +625,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           confirmedWord={record?.confirmedOn ? "Confirmed " + monthDay(record.confirmedOn) : undefined}
           onMakeTask={page.kind === "outreach" && sheet.id ? (text) => void makeTask(sheet.id!, text) : undefined}
           taskMade={!!record?.taskId}
-          onMove={(page.kind === "lineup" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile")) && sheet.id ? (by) => void commit(moveRecord(noteRef.current!.page, sheet.id!, by)) : undefined} />
+          onMove={(page.kind === "lineup" || (def && def.view !== "scoreboard" && def.view !== "standings" && def.view !== "profile")) && sheet.id ? (by) => void commit(pruneResults(moveRecord(noteRef.current!.page, sheet.id!, by))) : undefined} />
       )}
       {sheet?.k === "fields" && (
         <FieldsSheet page={page} onCancel={() => setSheet(null)} onRemove={(key) => setSheet({ k: "removeField", key })}
@@ -727,6 +753,28 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       {sheet?.k === "ledgerFilter" && (
         <LedgerFilterSheet category={lf.category} year={lf.year === null ? "" : String(lf.year)} onCancel={() => setSheet(null)}
           onSave={(c, y) => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), category: c, year: y } }); }} />
+      )}
+      {sheet?.k === "winner" && winnerMatch && winnerMatch.a && winnerMatch.b && (
+        <RowActionSheet title="Who Won?" onCancel={() => setSheet(null)} actions={[
+          ...[winnerMatch.a, winnerMatch.b].map((id) => ({ label: entrantName(id) + (winnerMatch.winner === id ? " · Current" : ""), onPick: () => { setSheet(null); void commit(setWinner(noteRef.current!.page, winnerMatch.id, id)); } })),
+          ...(winnerMatch.winner ? [{ label: "Clear the Result", destructive: true, onPick: () => { setSheet(null); void commit(setWinner(noteRef.current!.page, winnerMatch.id, null)); } }] : []),
+        ]} />
+      )}
+      {sheet?.k === "format" && (
+        <RowActionSheet title="Format" onCancel={() => setSheet(null)} actions={([["single", "Single Elimination"], ["pool", "Round Robin"]] as const).map(([k, label]) => ({
+          label: label + (k === bracketFormat ? " · Current" : ""),
+          onPick: () => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), format: k } }); },
+        }))} />
+      )}
+      {sheet?.k === "teams" && (
+        <OneFieldSheet title="Teams in Draft Order" label="Sam, Dana, Lee" value={managersOf(page).join(", ")} onCancel={() => setSheet(null)}
+          onSave={(v) => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), teams: v.split(/[,\n]/).map((x) => x.trim()).filter(Boolean).join(", ") } }); }} />
+      )}
+      {sheet?.k === "order" && (
+        <RowActionSheet title="Draft Order" onCancel={() => setSheet(null)} actions={([["1", "Snake"], ["0", "Straight"]] as const).map(([k, label]) => ({
+          label: label + ((page.meta?.snake !== "0") === (k === "1") ? " · Current" : ""),
+          onPick: () => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), snake: k } }); },
+        }))} />
       )}
       {sheet?.k === "program" && (
         <RowActionSheet title="Start From Which Program" onCancel={() => setSheet(null)}

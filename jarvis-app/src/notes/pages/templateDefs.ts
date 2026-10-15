@@ -11,7 +11,7 @@ export type Shelf = "Sports" | "Life" | "Entertainment" | "Finance" | "Professio
 export const SHELVES: Shelf[] = ["Sports", "Life", "Finance", "Professional", "Entertainment"];
 
 /** Which view draws a template's rows. "sheet" is the shared list of rows under headings. */
-export type TemplateView = "sheet" | "profile" | "standings" | "scoreboard" | "pitching" | "session" | "traininglog" | "trainingplan" | "debt" | "bizledger" | "occasions" | "accomplish";
+export type TemplateView = "sheet" | "profile" | "standings" | "scoreboard" | "pitching" | "session" | "traininglog" | "trainingplan" | "debt" | "bizledger" | "occasions" | "accomplish" | "bracket" | "draft" | "poker";
 
 export type IconKey = "target" | "user" | "list" | "send" | "table" | "checks" | "dumbbell" | "calendar" | "file" | "wallet" | "dollar" | "home" | "gauge" | "timer" | "flame" | "bulb" | "clock" | "mail" | "brain" | "kanban" | "zap" | "sparkles" | "person" | "tag";
 
@@ -70,6 +70,7 @@ export const TEMPLATE_KEYS = [
   "scoreboard", "pitching", "session", "eventday", "scouting", "profile", "traininglog", "trainingplan", "standings", "group",
   "moneymap", "insurance", "debt", "giving", "homebook", "inventory", "healthcard", "petcard", "handover", "carerecord", "occasions", "trip", "expenses",
   "recipes", "mealplan", "freezer", "accomplish", "oneonone", "projtracker", "bizledger",
+  "bracket", "draft", "watchlist", "party", "runorder", "poker",
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
@@ -261,6 +262,43 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     fields: [f("date", "Date", "date"), f("vendor", "Vendor"), f("category", "Category"), f("amount", "Amount", "money"), f("from", "From")],
     view: "bizledger", wave: 3, derived: true, meta: { category: "Business", year: "" },
     note: "Read From Money; Nothing Here Is a Second Ledger",
+  },
+
+  // ---- Wave 4: Entertainment
+  bracket: {
+    key: "bracket", name: "Brackets and Pools", shelf: "Entertainment", desc: "Single Elimination or Round Robin: Pick Winners, Watch Them Advance", cat: "orange", icon: "kanban",
+    noun: "Entrant", plural: "Entrants", headline: "name", show: ["notes"], fields: [f("name", "Name"), f("notes", "Notes")],
+    suggested: [f("seed", "Seed"), f("contact", "Contact")], view: "bracket", wave: 4, meta: { format: "single" },
+  },
+  draft: {
+    key: "draft", name: "Fantasy Draft Board", shelf: "Entertainment", desc: "Teams, Snake or Straight, Who Is on the Clock", cat: "green", icon: "list",
+    noun: "Pick", plural: "Picks", headline: "player", show: ["pos", "club"],
+    fields: [f("player", "Player"), f("pos", "Position", "choice", ["QB", "RB", "WR", "TE", "K", "DEF", "G", "F", "C", "SP", "RP", "Other"]), f("club", "Team")],
+    suggested: [f("notes", "Notes"), f("adp", "Projected Pick", "number")], view: "draft", wave: 4, meta: { teams: "", snake: "1" },
+  },
+  watchlist: {
+    key: "watchlist", name: "Watch List", shelf: "Entertainment", desc: "Movies and Shows: Up Next, Watching, Watched, Who Liked What", cat: "purple", icon: "clock",
+    noun: "Title", plural: "Titles", headline: "title", show: ["kind", "where", "rating"],
+    fields: [f("title", "Title"), f("kind", "Kind", "choice", ["Movie", "Show", "Documentary", "Other"]), f("where", "Where to Watch"), f("rating", "How It Was", "choice", ["Loved It", "Liked It", "It Was Fine", "Skip It"]), f("who", "Recommended By")],
+    sections: ["Up Next", "Watching", "Watched"], suggested: [f("length", "Length"), f("notes", "Notes")], view: "sheet", wave: 4,
+  },
+  party: {
+    key: "party", name: "Party Planner", shelf: "Entertainment", desc: "Guests, Food, Supplies, Schedule, What It Costs", cat: "pink", icon: "sparkles",
+    noun: "Item", plural: "Items", headline: "item", show: ["rsvp", "who", "cost"],
+    fields: [f("item", "Item or Guest"), f("done", "Done", "check"), f("rsvp", "RSVP", "choice", ["Yes", "No", "Maybe"]), f("who", "Who"), f("cost", "Cost", "money")],
+    sections: ["Guests", "Food and Drink", "Supplies", "Schedule", "To Do"], totals: [{ key: "cost", label: "Cost", money: true }], suggested: [f("notes", "Notes"), f("when", "When")], view: "sheet", wave: 4,
+  },
+  runorder: {
+    key: "runorder", name: "Running Order", shelf: "Entertainment", desc: "A Show or Event, Item by Item, Clock Times From the Start", cat: "blue", icon: "timer",
+    noun: "Item", plural: "Items", headline: "item", show: ["min", "who"],
+    fields: [f("item", "Item"), f("min", "Minutes", "number"), f("who", "Who"), f("notes", "Notes")],
+    sections: ["Before", "Show", "After"], totals: [{ key: "min", label: "Min" }], suggested: [f("cue", "Cue"), f("where", "Where")], view: "session", wave: 4, meta: { start: "" },
+  },
+  poker: {
+    key: "poker", name: "Poker Night", shelf: "Entertainment", desc: "Buy-Ins, Cash-Outs, Who Owes Whom", cat: "red", icon: "dollar",
+    noun: "Player", plural: "Players", headline: "name", show: ["buyin", "cashout"],
+    fields: [f("name", "Player"), f("buyin", "Buy-In", "money"), f("rebuy", "Rebuys", "money"), f("cashout", "Cash-Out", "money")],
+    suggested: [f("notes", "Notes")], view: "poker", wave: 4,
   },
 };
 
