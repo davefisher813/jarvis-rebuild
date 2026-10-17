@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { nowDraftStore, readNowDraft, writeNowDraft, receiptDraftStore, clearSessionDrafts } from "./sessionDrafts";
+import { nowDraftStore, readNowDraft, writeNowDraft, receiptDraftStore, voiceDraftStore, clearSessionDrafts } from "./sessionDrafts";
 import { clearLive, writeLive } from "./liveSession";
 
 // NOTHING TYPED IS LOST (Logging Standard rule 8, 2026-10-17). The gym's
@@ -39,6 +39,7 @@ describe("the session drafts", () => {
   it("clearSessionDrafts on its own leaves nothing of the gym's behind", () => {
     writeNowDraft(nowDraftStore(5, "x"), { w: "1", r: "1" });
     receiptDraftStore(5).write("note");
+    voiceDraftStore(5, "x").write("Log 225 for 5");
     clearSessionDrafts();
     expect(Object.keys(localStorage).filter((k) => k.startsWith("jarvis.gym."))).toEqual([]);
   });
