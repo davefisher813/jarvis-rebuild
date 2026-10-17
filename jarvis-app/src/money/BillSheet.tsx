@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { draftStore } from "../shared/draftStore";
 import type { Recurrence, BillInfo } from "../notes/types";
 import { FormSheet, Group, FieldRow, TextRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Note, Row } from "../shared/FormSheet";
 import { Calendar, Link2 } from "../shared/icons";
@@ -27,6 +28,11 @@ export interface BillDraft {
 // and the pay link are typed at the right of their labels; Repeats opens
 // the dropdown; Autopay is a switch, with the truthful frame under it (it
 // changes what JARVIS SAYS about the bill, never what happens).
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new bill's name is written on every keystroke and spent by the save that
+// used it or by an explicit Cancel; the scrim keeps it.
+const BILL_DRAFT = draftStore("jarvis.bill.draft.v1");
+
 export default function BillSheet({ mode, initial, paidOn, ledger = false, onSave, onMarkPaid, onDelete, onCancel }: {
   // UP-CORE-13 (2026-09-05): "paid" is a new bill that already happened, the
   // shape a read receipt produces. Same form, same fields; what changes is
@@ -48,7 +54,10 @@ export default function BillSheet({ mode, initial, paidOn, ledger = false, onSav
   onDelete?: () => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState(initial?.text ?? "");
+  // A new sheet reopens on the draft the last one was killed with; a name the
+  // caller hands in wins only when there is no draft (the typing is his).
+  const [text, setTextState] = useState(() => (mode === "new" ? BILL_DRAFT.read() : "") || initial?.text || "");
+  const setText = (v: string) => { setTextState(v); if (mode === "new") BILL_DRAFT.write(v); };
   const [amount, setAmount] = useState(initial ? String(initial.bill.amount) : "");
   const [due, setDue] = useState(initial?.due ?? "");
   // HMN-F-04 (2026-09-05): a once bill stores recurrence null, and `??`
@@ -92,11 +101,16 @@ export default function BillSheet({ mode, initial, paidOn, ledger = false, onSav
         ...(url ? { payUrl: /^https?:\/\//i.test(url) ? url : "https://" + url } : {}),
       },
     });
-    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
+    void Promise.resolve(r).then((ok) => {
+      if (ok === false) { setSaving(false); return; }
+      if (mode === "new") BILL_DRAFT.clear();
+    }, () => setSaving(false));
   };
+  // Cancel is the explicit discard, so it spends the draft; the scrim keeps it.
+  const cancel = () => { if (mode === "new") BILL_DRAFT.clear(); onCancel(); };
 
   return (
-    <FormSheet title={mode === "paid" ? "From a Receipt" : mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
+    <FormSheet title={mode === "paid" ? "From a Receipt" : mode === "new" ? "New Bill" : "Edit Bill"} onCancel={cancel} onDismiss={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Bill">
         {/* A NEW BILL OPENS ON ITS NAME, KEYBOARD UP; RETURN ON THE AMOUNT SAVES (the Logging Standard, rules 1 and 4,
             2026-10-17). An edit opens quiet. */}

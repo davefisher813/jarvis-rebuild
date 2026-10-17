@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { draftStore } from "../../shared/draftStore";
 import { FormSheet, Group, FieldRow, MenuRow, Row, ErrorLine } from "../../shared/FormSheet";
 import { Calendar, Camera, FolderKanban, Paperclip, Sparkles, Tag } from "../../shared/icons";
 import { DollarGlyph } from "../../shared/glyphs";
@@ -33,6 +34,12 @@ const nameOf = (a: Attachment): string => (a.kind === "new" ? a.file.name : a.na
 const mimeOf = (a: Attachment): string => (a.kind === "new" ? a.file.type : a.mime);
 const bytesOf = (a: Attachment): number => (a.kind === "new" ? a.file.size : a.bytes);
 
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17):
+// this sheet only ever makes a NEW receipt, so its vendor is written on every
+// keystroke and spent by the save that used it or by an explicit Cancel; the
+// scrim keeps it. A vendor a scan handed in wins only when there is no draft.
+const RECEIPT_DRAFT = draftStore("jarvis.receipt.draft.v1");
+
 export default function ReceiptSheet({ title = "New Receipt", initial, attachment: first, categories, categoryFor, canAttach, canRead, onRead, onSave, onCancel }: {
   title?: string;
   initial: ReceiptDraft;
@@ -50,7 +57,8 @@ export default function ReceiptSheet({ title = "New Receipt", initial, attachmen
   onSave: (d: ReceiptDraft, a: Attachment | null) => Promise<boolean>;
   onCancel: () => void;
 }) {
-  const [vendor, setVendor] = useState(initial.vendor);
+  const [vendor, setVendorState] = useState(() => RECEIPT_DRAFT.read() || initial.vendor);
+  const setVendor = (v: string) => { setVendorState(v); RECEIPT_DRAFT.write(v); };
   const [amount, setAmount] = useState(initial.amount);
   const [date, setDate] = useState(initial.date);
   const [currency, setCurrency] = useState(initial.currency);
@@ -70,8 +78,10 @@ export default function ReceiptSheet({ title = "New Receipt", initial, attachmen
     if (saving) return;
     setSaving(true);
     void onSave({ vendor, amount, date, category, currency }, attachment)
-      .then((ok) => { if (!ok) setSaving(false); }, () => setSaving(false));
+      .then((ok) => { if (!ok) { setSaving(false); return; } RECEIPT_DRAFT.clear(); }, () => setSaving(false));
   };
+  // Cancel is the explicit discard, so it spends the draft; the scrim keeps it.
+  const cancel = () => { RECEIPT_DRAFT.clear(); onCancel(); };
 
   const read = async () => {
     if (!attachment || reading) return;
@@ -93,7 +103,7 @@ export default function ReceiptSheet({ title = "New Receipt", initial, attachmen
   const readable = canRead && attachment !== null && mimeOf(attachment).startsWith("image/");
 
   return (
-    <FormSheet title={title} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}
+    <FormSheet title={title} onCancel={cancel} onDismiss={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}
       dirty={attachment !== null && attachment !== first}>
       <Group label="Receipt">
         {/* A NEW RECEIPT OPENS ON ITS VENDOR, KEYBOARD UP; RETURN ON THE AMOUNT SAVES (the Logging Standard, rules 1 and 4,

@@ -88,6 +88,20 @@ describe("HealthService: Ate Before", () => {
     const list = await s.listAteBefore(store);
     expect(list[0]!.data).toEqual({ category: "fuel", eventId: "ev1", eventTitle: "Practice", date: "2026-08-20", ate: true, at: 500, clientId: expect.any(String) });
   });
+
+  // The Logging Standard, rule 5 (2026-10-17): the receipt's Undo takes the one answer back.
+  it("removeAteBefore takes back the one answer at that moment, and says false for a moment with nothing at it", async () => {
+    const s = svc();
+    const store = mem();
+    s.logAteBefore({ eventId: "ev1", eventTitle: "Practice", date: "2026-08-20", ate: true }, 500, store);
+    s.logAteBefore({ eventId: "ev2", eventTitle: "Game", date: "2026-08-21", ate: false }, 600, store);
+    await tick();
+    expect(await s.removeAteBefore(500, store)).toBe(true);
+    await tick();
+    const left = await s.listAteBefore(store);
+    expect(left.map((e) => e.data.at)).toEqual([600]);
+    expect(await s.removeAteBefore(42, store)).toBe(false);
+  });
 });
 
 describe("HealthService: Took It", () => {

@@ -13,6 +13,12 @@ import { pressable } from "../../shared/pressable";
 import { actionLabelFor } from "../reminderHistory";
 import { titleCase } from "../../shared/casing";
 import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
+import { draftStore } from "../../shared/draftStore";
+
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new reminder's words are written on every keystroke and spent by the save
+// that used them or by an explicit Cancel; the scrim keeps them.
+const REMINDER_DRAFT = draftStore("jarvis.reminder.draft.v1");
 
 // THE REMINDER FORM (the reminders rebuild, push E to Dave's interactive
 // preview, on the app's own rows). What would you like to remember; when
@@ -118,7 +124,10 @@ export default function ReminderSheet({
     ? (init.contextTrigger?.targetId && scheduleKindOf(init) === "unscheduled" ? (init.contextTrigger.kind === "onOpenArea" ? "area" : "task") : scheduleKindOf(init) === "unscheduled" ? "none" : "time")
     : "time";
   // Shown in Title Case, saved in Title Case (Dave 2026-10-05): an old title typed any way reads right here.
-  const [text, setText] = useState(initial?.text ? titleCase(initial.text) : "");
+  // A new sheet reopens on the draft the last one was killed with; words the
+  // caller hands in win only when there is no draft (the typing is his).
+  const [text, setTextState] = useState(() => (mode === "new" ? REMINDER_DRAFT.read() : "") || (initial?.text ? titleCase(initial.text) : ""));
+  const setText = (v: string) => { setTextState(v); if (mode === "new") REMINDER_DRAFT.write(v); };
   const [when, setWhen] = useState<WhenKey>(initWhen);
   const [time, setTime] = useState<string>(init?.time && scheduleKindOf(init) === "timed" ? init.time : "");
   const [due, setDue] = useState(initial?.due ?? init?.startDate ?? (mode === "new" ? today : ""));
@@ -206,7 +215,12 @@ export default function ReminderSheet({
           : "Reminder Saved · Unscheduled";
     // The write door casing (Dave 2026-10-05): the title is saved in Title Case.
     onSave(titleCase(name), r, { due: when === "time" && effRepeat.kind === "once" ? (effDay || today) : null, category, receipt });
+    // onSave answers nothing, so the save that was handed the words is the
+    // one that spends them.
+    if (mode === "new") REMINDER_DRAFT.clear();
   };
+  // Cancel is the explicit discard, so it spends the draft; the scrim keeps it.
+  const cancel = () => { if (mode === "new") REMINDER_DRAFT.clear(); onCancel(); };
 
   const pickDay = (day: string) => { setDue(day); if (day && !repeatTouched) setRepeat({ kind: "once" }); };
   const pick = (day: string, hhmm: string) => { setWhen("time"); pickDay(day); setTime(hhmm); setErrTime(false); if (readActive) setReadOff(true); };
@@ -228,7 +242,7 @@ export default function ReminderSheet({
         : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An In-App Prompt That Never Blocks You" };
 
   return (
-    <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} saveDisabled={incomplete}>
+    <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={cancel} onDismiss={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} saveDisabled={incomplete}>
       <Group label="What Would You Like to Remember?">
         <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErrName(false); setReadOff(false); }} placeholder="e.g. Call Alberto"
           ariaLabel="Reminder" error={errName} right={false} onEnter={save} autoFocus={mode === "new"} />

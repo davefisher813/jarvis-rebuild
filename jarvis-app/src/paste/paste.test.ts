@@ -939,3 +939,55 @@ describe("a bill in a paste goes to Money, never to the task pipeline", () => {
     expect(await (deps.ledger as LedgerService).listBills()).toEqual([]);
   });
 });
+
+// THE LOGGING STANDARD, rule 3 (2026-10-17): one line carries its length and
+// its area, read by the same two functions the task sheet's one line uses
+// (tasks/quickWords.ts). A task keeps the length as its estimate; an event
+// keeps it as its end. The area is the id of the one a #tag named; an unknown
+// tag stays in the title and nothing is guessed. A day plus a time is still an
+// event, length or not.
+describe("classifyLine reads a length and an #Area", () => {
+  const ctx = { categories: [{ id: "c-work", name: "Work" }] };
+
+  it("a day, a time, a length and an area make an event that long, in that area", () => {
+    const e = classifyLine("Call Nadia tomorrow 3pm 30 min #Work", TODAY, ctx);
+    expect(e).toMatchObject({ kind: "event", title: "Call Nadia", date: "2026-08-16", start: "15:00", end: "15:30", category: "c-work", confident: true });
+    expect(e.estimateMin).toBeUndefined();
+    // Typed, not guessed.
+    expect(e.inferred).not.toContain("category");
+  });
+
+  it("a length and an area with no day make a task with an estimate, in that area", () => {
+    const e = classifyLine("Call Nadia 30 min #Work", TODAY, ctx);
+    expect(e).toMatchObject({ kind: "task", title: "Call Nadia", estimateMin: 30, category: "c-work", confident: true });
+    expect(e.date).toBeUndefined();
+    expect(e.end).toBeUndefined();
+  });
+
+  it("the tag is case and space insensitive, an unknown tag stays in the title, and every duration spelling reads", () => {
+    const two = { categories: [{ id: "c-side", name: "Side Projects" }] };
+    expect(classifyLine("Fix the deck 1.5 hours #sideprojects", TODAY, two)).toMatchObject({ kind: "task", title: "Fix the Deck", estimateMin: 90, category: "c-side" });
+    const unknown = classifyLine("Fix the deck 45m #Garage", TODAY, two);
+    expect(unknown.title).toMatch(/#Garage/);
+    expect(unknown.estimateMin).toBe(45);
+    expect(unknown.category).toBeUndefined();
+    expect(classifyLine("Fix the deck 1h30", TODAY)).toMatchObject({ estimateMin: 90 });
+    // No categories handed in: the tag is left exactly as typed and nothing is read for it.
+    expect(classifyLine("Call Nadia #Work", TODAY).title).toMatch(/#Work/);
+    // A line that is only a length and a tag keeps its words rather than going titleless.
+    const bare = classifyLine("30 min #Work", TODAY, ctx);
+    expect(bare.title.length).toBeGreaterThan(0);
+    expect(bare.estimateMin).toBeUndefined();
+  });
+
+  it("saved through Smart Paste, the event ends when its length says and the task keeps its estimate", async () => {
+    const work = { id: "c-work", data: { name: "Work", color: "blue", order: 0 } } as unknown as PasteDeps["categories"][number];
+    const deps = { ...rig({ n: 0 }), categories: [work] };
+    await smartPasteSave("Call Nadia tomorrow 3pm 30 min #Work", deps);
+    const ev = (await deps.schedule.listEvents())[0]!;
+    expect(ev.data).toMatchObject({ title: "Call Nadia", date: "2026-08-16", start: "15:00", end: "15:30", category: "c-work" });
+    await smartPasteSave("Call Nadia 30 min #Work", deps);
+    const task = (await deps.tasks.listTasks())[0]!;
+    expect(task.data).toMatchObject({ text: "Call Nadia", estimateMin: 30, category: "c-work" });
+  });
+});

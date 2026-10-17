@@ -16,6 +16,12 @@
 
 import { readQuick } from "./quickReminder";
 import type { RepeatRule } from "../notes/types";
+import { readDuration, readAreaTag, cutWords } from "./quickWords";
+
+// The length and area readers are shared with Smart Paste's classifier
+// (paste/deterministic.ts); they live in quickWords.ts so the import runs one
+// way, and are re-exported here so this stays the door for a task's words.
+export { readDuration, readAreaTag, cutWords } from "./quickWords";
 
 export interface QuickTaskRead {
   title: string;
@@ -29,40 +35,6 @@ export interface QuickTaskRead {
   matched: string[];
 }
 
-// "1h", "1 hr", "1.5 hours", "1h30", "1h 30m", "1 hour 15 min", "30 min",
-// "30 mins", "45 minutes", "45m". The minutes after an hour need their own
-// unit unless they are glued to it ("1h30"), so "1h 2 people" reads one hour
-// and leaves the two people alone.
-const HOURS_RE = /\b(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b(?:(\d{1,2})\b|\s+(\d{1,2})\s*(?:m|min|mins|minute|minutes)\b)?/i;
-const HOURS_GLUED_RE = /\b(\d+)h(\d{2})\b/i;
-const MINUTES_RE = /\b(\d+)\s*(?:m|min|mins|minute|minutes)\b/i;
-const TAG_RE = /(?:^|\s)#([a-z0-9][a-z0-9_-]*)/i;
-
-function readDuration(title: string): { minutes: number; text: string } | null {
-  const glued = title.match(HOURS_GLUED_RE);
-  if (glued) {
-    const minutes = parseInt(glued[1]!, 10) * 60 + parseInt(glued[2]!, 10);
-    return minutes > 0 ? { minutes, text: glued[0] } : null;
-  }
-  const h = title.match(HOURS_RE);
-  if (h) {
-    const minutes = Math.round(parseFloat(h[1]!) * 60) + parseInt(h[2] ?? h[3] ?? "0", 10);
-    return minutes > 0 ? { minutes, text: h[0] } : null;
-  }
-  const m = title.match(MINUTES_RE);
-  if (m) {
-    const minutes = parseInt(m[1]!, 10);
-    return minutes > 0 ? { minutes, text: m[0] } : null;
-  }
-  return null;
-}
-
-const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-function cut(title: string, text: string): string {
-  return title.replace(text, " ").replace(/\s+/g, " ").replace(/\s+([,.!?])/g, "$1").trim().replace(/^[,.\s]+|[,.\s]+$/g, "");
-}
-
 /** `opts.time` false leaves a clock time in the title: the caller has nowhere
  *  to put a reminder, and a read that is then dropped on Save is worse than
  *  the words staying where he typed them. */
@@ -72,18 +44,14 @@ export function readQuickTask(text: string, today: string, categories: { id: str
   const matched = [...base.matched];
 
   const dur = readDuration(title);
-  if (dur) { matched.push(dur.text.trim()); title = cut(title, dur.text); }
+  if (dur) { matched.push(dur.text.trim()); title = cutWords(title, dur.text); }
 
   let categoryId: string | null = null;
-  const tag = title.match(TAG_RE);
-  if (tag) {
-    const want = squash(tag[1]!);
-    const hits = categories.filter((c) => squash(c.name) === want);
-    if (hits.length === 1) {
-      categoryId = hits[0]!.id;
-      matched.push("#" + tag[1]!);
-      title = cut(title, tag[0]);
-    }
+  const area = readAreaTag(title, categories);
+  if (area) {
+    categoryId = area.id;
+    matched.push(area.text.trim());
+    title = cutWords(title, area.text);
   }
 
   return {

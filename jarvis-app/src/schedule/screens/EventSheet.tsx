@@ -23,6 +23,7 @@ import { Tile, tapField } from "../../shared/FormSheet";
 import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban, Brain, ArrowUp } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph } from "../../shared/glyphs";
 import { spanLabel } from "../../shared/duration";
+import { draftStore } from "../../shared/draftStore";
 
 export type { SheetCategory };
 
@@ -120,6 +121,11 @@ export interface AttachableTask {
 
 // Bottom sheet to create or edit an event. Save calls existing ScheduleService
 // methods; presentational + local form state only.
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new event's title is written on every keystroke and spent by the save that
+// used it or by an explicit Cancel; the scrim keeps it (shared/draftStore.ts).
+const EVENT_DRAFT = draftStore("jarvis.event.draft.v1");
+
 export default function EventSheet({
   mode,
   initial,
@@ -204,7 +210,10 @@ export default function EventSheet({
   // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
   useEffect(() => { nudgeViewport(); }, []);
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
-  const [title, setTitle] = useState(initial?.title ?? "");
+  // A new sheet reopens on the draft the last one was killed with; a title the
+  // caller hands in wins only when there is no draft (the typing is his).
+  const [title, setTitleState] = useState(() => (mode === "new" ? EVENT_DRAFT.read() : "") || initial?.title || "");
+  const setTitle = (v: string) => { setTitleState(v); if (mode === "new") EVENT_DRAFT.write(v); };
   const [date, setDate] = useState(initial?.date ?? "");
   const [start, setStart] = useState(initial?.start ?? "09:00");
   const [end, setEnd] = useState(initial?.end ?? addMinutes(initial?.start ?? "09:00", 60));
@@ -304,8 +313,13 @@ export default function EventSheet({
       ...(projects.length > 0 ? { projectId } : {}),
     };
     const done = recurringEdit ? onSave(draft, scope) : onSave(draft);
-    void Promise.resolve(done).then((v) => { if (v === false) setSaving(false); });
+    void Promise.resolve(done).then((v) => {
+      if (v === false) { setSaving(false); return; }
+      if (mode === "new") EVENT_DRAFT.clear();
+    });
   };
+  // Cancel is the explicit discard, so it spends the draft; the scrim keeps it.
+  const cancel = () => { if (mode === "new") EVENT_DRAFT.clear(); onCancel(); };
 
   // Attachments: only non-recurring events hold tasks (links live on the event
   // and die with it; a whole series sharing one link list is a footgun).
@@ -394,7 +408,7 @@ export default function EventSheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card xs form-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <SheetBar title={mode === "new" ? "New Event" : "Edit Event"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} />
+        <SheetBar title={mode === "new" ? "New Event" : "Edit Event"} onCancel={cancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} />
         <div className="sheet-form">
           <Provenance source={source} {...(source && openSourceFor ? { onOpen: openSourceFor(source) } : {})} />
           <div className="grp xs-grp"><div className="eyebrow">Event</div></div>

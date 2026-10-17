@@ -46,6 +46,15 @@ export interface ParsedEntity {
   // picks, which is the whole reason this is a list and not a best match.
   personChoices?: string[];
   projectId?: string;
+  // THE LOGGING STANDARD, rule 3 (2026-10-17): how long, and which area, read
+  // from the same words the task sheet's one line reads (tasks/quickWords.ts).
+  // A task carries the length as its estimate; an event carries it as its end
+  // (start plus the length). `category` is the id of the area a #tag named,
+  // when exactly one area in ctx.categories answers to it; an unknown tag
+  // stays in the title and nothing is guessed. Stated, never inferred.
+  estimateMin?: number;
+  end?: string; // HH:MM 24h
+  category?: string;
   // Phase 0 D3 (PHASE0-DESIGN.md, 2026-10-10): THE FIELDS A RULE FILLED. The
   // rule: a field is inferred when nothing the person typed names its value
   // and a rule chose it. That is the id behind a name (personId: a first
@@ -76,6 +85,8 @@ import { personLine, type PersonLine } from "./personLine";
 import type { StrandCategory } from "../brain/strands/types";
 import type { Recurrence } from "../notes/types";
 import { mentions } from "../people/mentions";
+import { readDuration, readAreaTag, cutWords } from "../tasks/quickWords";
+import { addMinutes } from "../schedule/calendar";
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 // Title Case is one implementation for the whole app; the number rule lives
@@ -200,6 +211,9 @@ export interface CaptureContext {
   // Phase 0 D11. Passed by smartPaste behind memory_v1; absent, the anchored
   // openers alone decide, byte for byte as before.
   followUp?: boolean;
+  // The Logging Standard, rule 3 (2026-10-17): the areas a #tag can name.
+  // Absent, no tag is read and "#Work" stays in the title as typed.
+  categories?: { id: string; name: string }[];
 }
 
 const REPEAT_RE = new RegExp(
@@ -332,10 +346,27 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
     inferred: [...(peopleHits.length === 1 ? ["personId"] : []), ...(projectId ? ["projectId"] : [])],
   };
 
+  // HOW LONG, AND WHICH AREA (the Logging Standard, rule 3, 2026-10-17): the
+  // same two reads the task sheet's one line makes, on what is left once the
+  // day and time words are out. A task carries the length as its estimate, an
+  // event as its end; the area is the id of the one it named. A line that is
+  // nothing but a length and a tag keeps its words and reads nothing, so no
+  // title goes empty. Neither read moves a line between lanes: a day plus a
+  // time is an event with or without them.
+  const dated = stripDateWords(t, spans);
+  let dur = readDuration(dated);
+  let rest = dur ? cutWords(dated, dur.text) : dated;
+  let area = readAreaTag(rest, ctx.categories ?? []);
+  if (area) rest = cutWords(rest, area.text);
+  if (!rest) { dur = null; area = null; rest = dated; }
+  const words = rest;
+  const taskExtra = { ...(dur ? { estimateMin: dur.minutes } : {}), ...(area ? { category: area.id } : {}) };
+  const eventExtra = (start: string) => ({ ...(dur ? { end: addMinutes(start, dur.minutes) } : {}), ...(area ? { category: area.id } : {}) });
+
   // A time plus a day (or just a time with "tonight"-style words caught by
   // resolveDay) is an event, confidently.
   if (time && date) {
-    return { kind: "event", title: titleCase(stripDateWords(t, spans)), date, start: time, ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
+    return { kind: "event", title: titleCase(words), date, start: time, ...eventExtra(time), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
   }
   // QUICK ADD (handoff 5.0): a standing fact about the user, before the
   // to-do reads. It sits here and not lower because "I never work out on
@@ -384,8 +415,9 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
     const days = repeat?.recurrence === "weekdays" ? [1, 2, 3, 4, 5] : repeat?.days;
     return {
       kind: "task",
-      title: titleCase(stripDateWords(t, spans)),
+      title: titleCase(words),
       reminder: { time, ...(days ? { days } : {}) },
+      ...taskExtra,
       confident: true,
       raw: t,
       ...who,
@@ -421,7 +453,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // what the AI-less fallback in ai/capture.ts has always assumed. It sits
   // below the fact read so "I don't do anything before 7am" is still a fact.
   if (time) {
-    return { kind: "event", title: titleCase(stripDateWords(t, spans)), date: today, start: time, ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who, inferred: [...who.inferred, "date"] };
+    return { kind: "event", title: titleCase(words), date: today, start: time, ...eventExtra(time), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who, inferred: [...who.inferred, "date"] };
   }
   // Long prose, URLs, confirmation codes: kept verbatim as a note (below).
   const prose = t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2;
@@ -430,18 +462,18 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // copied text, kept verbatim), a question (the model may know better), or
   // someone else's doing (followUpOpener above).
   if (TASK_OPENERS.test(t) || (ctx.followUp && !prose && !/\?\s*$/.test(t) && followUpOpener(t, spans))) {
-    return { kind: "task", title: titleCase(stripDateWords(t, spans)), ...(date ? { date } : {}), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
+    return { kind: "task", title: titleCase(words), ...(date ? { date } : {}), ...(repeat ? { recurrence: repeat.recurrence } : {}), ...taskExtra, confident: true, raw: t, ...who };
   }
   // A REPEAT WITH NO CLOCK ("water the plants every week"): the repeat is the
   // whole signal, and a repeating thing is a task the app already knows how
   // to roll forward. Confident, because he wrote the word "every".
   if (repeat) {
-    return { kind: "task", title: titleCase(stripDateWords(t, spans)), ...(date ? { date } : {}), recurrence: repeat.recurrence, confident: true, raw: t, ...who };
+    return { kind: "task", title: titleCase(words), ...(date ? { date } : {}), recurrence: repeat.recurrence, ...taskExtra, confident: true, raw: t, ...who };
   }
   // A date, no time, not imperative: an all-day-ish event is a guess; a task
   // due that day is the safe, reversible read.
   if (date) {
-    return { kind: "task", title: titleCase(stripDateWords(t, spans)), date, confident: false, raw: t, ...who };
+    return { kind: "task", title: titleCase(words), date, ...taskExtra, confident: false, raw: t, ...who };
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
   if (prose) {
@@ -449,7 +481,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   }
   // Short, no signal: a task is the cheapest honest read, but the AI
   // fallback may know better.
-  return { kind: "task", title: titleCase(t), confident: false, raw: t, ...who };
+  return { kind: "task", title: titleCase(words), ...taskExtra, confident: false, raw: t, ...who };
 }
 
 // Remove the date/time words from a created TITLE only (the receipt shows the

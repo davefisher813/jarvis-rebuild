@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useEffect, useState } from "react";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useLedger, useTracker } from "../../data/NotesProvider";
 import type { LedgerService } from "../ledger/LedgerService";
@@ -420,5 +420,59 @@ describe("Tracker: a new transaction is one tap from the last one, and Return sa
     fireEvent.click(await screen.findByText("Bodega"));
     await screen.findByText("Edit Transaction");
     expect(screen.queryByText("Same as Last Time")).toBeNull();
+  });
+});
+
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new transaction's merchant is kept per keystroke, restored on the next open,
+// spent by the save that used it and by an explicit Cancel, and kept on a
+// scrim tap. An edit of a stored row never reads or writes it.
+describe("Tracker: a new transaction's merchant survives a remount", () => {
+  const openNew = async () => {
+    await tab("Activity");
+    fireEvent.click(await screen.findByText("Add Manually"));
+    await screen.findByText("New Transaction");
+    return screen.getByLabelText("Merchant") as HTMLInputElement;
+  };
+
+  it("a half-typed merchant comes back after a remount, and the save spends it", async () => {
+    mount("tr-draft-1", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    fireEvent.change(await openNew(), { target: { value: "Bodega" } });
+    cleanup();
+    const h = mount("tr-draft-2", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    const merchant = await openNew();
+    expect(merchant.value).toBe("Bodega");
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "4.25" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(2));
+    expect(localStorage.getItem("jarvis.tracker.tx.draft.v1")).toBeNull();
+    cleanup();
+    mount("tr-draft-3", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    expect((await openNew()).value).toBe("");
+  });
+
+  it("Cancel is the discard, the scrim keeps it, and an edit leaves it alone", async () => {
+    mount("tr-draft-4", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    fireEvent.change(await openNew(), { target: { value: "Bodega" } });
+    cleanup();
+    mount("tr-draft-5", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    expect((await openNew()).value).toBe("Bodega");
+    fireEvent.click(document.querySelector(".sheet-scrim") as HTMLElement);
+    await waitFor(() => expect(screen.queryByText("New Transaction")).toBeNull());
+    expect(localStorage.getItem("jarvis.tracker.tx.draft.v1")).toBe("Bodega");
+    // An edit of the stored row shows that row, and typing there writes no draft.
+    fireEvent.click(await screen.findByText("Stop & Shop"));
+    await screen.findByText("Edit Transaction");
+    expect(screen.getByLabelText("Merchant")).toHaveValue("Stop & Shop");
+    fireEvent.change(screen.getByLabelText("Merchant"), { target: { value: "Stop & Shop Deli" } });
+    expect(localStorage.getItem("jarvis.tracker.tx.draft.v1")).toBe("Bodega");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByText("Edit Transaction")).toBeNull());
+    fireEvent.click(await screen.findByText("Add Manually"));
+    await screen.findByText("New Transaction");
+    expect(screen.getByLabelText("Merchant")).toHaveValue("Bodega");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByText("New Transaction")).toBeNull());
+    expect(localStorage.getItem("jarvis.tracker.tx.draft.v1")).toBeNull();
   });
 });

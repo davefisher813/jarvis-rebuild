@@ -34,6 +34,11 @@ export interface CaptureResult {
   bill?: { amount: number };
   personId?: string;
   projectId?: string;
+  // The Logging Standard, rule 3 (2026-10-17): a length read from the words.
+  // A task keeps it as its estimate; an event keeps it as its end. Filled by
+  // the deterministic layer only (toCaptureResult); the model is not asked.
+  estimateMin?: number;
+  end?: string; // HH:MM 24h
 }
 
 // Structured-output schema (item 12): sent with the capture call so the proxy
@@ -262,7 +267,7 @@ export async function applyCapture(
     // repeat. EventRecurrence has no "weekdays", so that one stays a task's
     // word and is not translated into something the calendar would misread.
     const evRepeat = r.recurrence && r.recurrence !== "weekdays" ? r.recurrence : undefined;
-    id = await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId, source, recurrence: evRepeat });
+    id = await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId, source, recurrence: evRepeat, ...(r.end ? { end: r.end } : {}) });
   } else if (r.kind === "note") {
     // UP-CORE-05 (2026-09-05): a captured note carries the same provenance
     // stamp a captured task and event have carried since item 8.
@@ -285,6 +290,7 @@ export async function applyCapture(
       ...(r.personId ? { personId: r.personId } : {}),
       ...(r.projectId ? { projectId: r.projectId } : {}),
       ...(extra?.taskNotes ? { notes: extra.taskNotes } : {}),
+      ...(r.estimateMin ? { estimateMin: r.estimateMin } : {}),
     });
   }
   return { id, kind: r.kind };

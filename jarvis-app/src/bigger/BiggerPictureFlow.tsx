@@ -825,6 +825,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
               events={sheetEvents(allEvents, today)}
               goals={sheetGoals(goals)}
               initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId, goalId: proj?.data.goalId ?? "" }}
+              /* This door writes d.reminder below, so a clock time in the words is read here (rule 3, 2026-10-17), as TasksFlow does. */
+              readsReminder
               onSave={async (d: TaskDraft) => {
                 await attemptWrite(() => tasksSvc.createTask(d.text, {
                   projectId: d.projectId || sheet.projectId,
@@ -841,6 +843,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   // 2026-09-11: the sheet's Length row, kept as TasksFlow keeps it.
                   estimateMin: d.estimateMin,
                   priority: d.priority,
+                  reminder: d.reminder,
                 }));
                 setSheet({ kind: "closed" });
                 await reload();

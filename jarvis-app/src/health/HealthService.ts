@@ -155,6 +155,12 @@ export class HealthService {
     return data;
   }
 
+  /** The Logging Standard, rule 5 (2026-10-17): the receipt's Undo. The same
+   *  one-moment remove Lights Out, Took It and Call It have. */
+  removeAteBefore(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_ATE_BEFORE, at, storage);
+  }
+
   async listAteBefore(storage?: Storage2): Promise<AteBeforeEntry[]> {
     return this.listMerged<AteBeforeData>(ENTITY_ATE_BEFORE, storage, (a, b) => a.date.localeCompare(b.date));
   }

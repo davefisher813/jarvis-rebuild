@@ -647,6 +647,24 @@ describe("HealthFlow: every one-tap log has an Undo on its receipt", () => {
     off();
   });
 
+  it("Ate Before: Yes logs, the receipt says Undo, and Undo removes the answer", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u1");
+    const off = subscribeToast((t) => { if (t) toasts.push(t); });
+    const today = new Date().toISOString().slice(0, 10);
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="ateBefore" onExit={() => {}}
+      candidates={[{ eventId: "ev1", eventTitle: "Practice", date: today }]} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Yes" }));
+    await waitFor(async () => expect(await svc.listAteBefore()).toHaveLength(1));
+    const receipt = toasts.find((t) => t.actionLabel === "Undo");
+    expect(receipt, "the receipt carries Undo").toBeDefined();
+    expect(receipt!.message).toBe("Ate Before Logged");
+    expect(screen.queryByText(/are you sure/i)).toBeNull();
+    receipt!.onAction!();
+    await waitFor(async () => expect(await svc.listAteBefore()).toHaveLength(0));
+    off();
+  });
+
   it("Where It Hurts: a region row logs, the receipt says Undo, and Undo removes the entry", async () => {
     const store = new Store(new InMemoryAdapter());
     const svc = new HealthService(store, "u1");

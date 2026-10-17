@@ -340,10 +340,12 @@ export default function HealthFlow({
           candidates={candidates}
           answered={answeredFor}
           marks={ateBeforeMarks(ateBefore)}
+          // The answer is final and its receipt carries Undo (the Logging Standard, rule 5, 2026-10-17), the same
+          // receipt every other logger here raises; the comeback line rides on it when there is one.
           onMark={(c, ate) => {
             const cheer = ate ? celebrateOnLog(ateBefore.filter((e) => e.data.ate).map((e) => ({ at: e.data.at }))) : null;
-            svc.logAteBefore({ eventId: c.eventId, eventTitle: c.eventTitle, date: c.date, ate });
-            if (cheer) showToast({ message: cheer });
+            const d = svc.logAteBefore({ eventId: c.eventId, eventTitle: c.eventTitle, date: c.date, ate });
+            receipt(cheer, "Ate Before Logged", () => { healthWrite(() => svc.removeAteBefore(d.at)); });
             void reload();
           }}
           onBack={onExit}

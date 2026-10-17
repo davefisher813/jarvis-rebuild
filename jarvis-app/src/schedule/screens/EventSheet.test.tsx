@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EventSheet, { type SheetCategory } from "./EventSheet";
 
@@ -432,5 +432,60 @@ describe("EventSheet: Return in the title saves", () => {
     fireEvent.keyDown(title, { key: "Enter" });
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0]![0]).toMatchObject({ title: "Standup", date: "2026-05-24", start: "09:00" });
+  });
+});
+
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new event's title is kept per keystroke, restored on the next open, spent by
+// the save that used it and by an explicit Cancel, and kept on a scrim tap.
+describe("EventSheet: a new event's title survives a remount", () => {
+  const draw = (over: { title?: string } = {}, onCancel = () => {}) =>
+    render(<EventSheet mode="new" initial={{ date: "2026-05-24", ...over }} categories={CATS} onSave={() => {}} onCancel={onCancel} />);
+  const title = () => screen.getByLabelText("Event title") as HTMLInputElement;
+
+  it("a half-typed title comes back after a remount, and the save spends it", async () => {
+    localStorage.clear();
+    const first = draw();
+    fireEvent.change(title(), { target: { value: "Dentist" } });
+    first.unmount();
+    const second = draw();
+    expect(title().value).toBe("Dentist");
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(localStorage.getItem("jarvis.event.draft.v1")).toBeNull());
+    second.unmount();
+    const third = draw();
+    expect(title().value).toBe("");
+    third.unmount();
+  });
+
+  it("Cancel is the discard, the scrim keeps it, and a caller's title loses only to a draft", () => {
+    localStorage.clear();
+    const onCancel = vi.fn();
+    const first = draw({}, onCancel);
+    fireEvent.change(title(), { target: { value: "Dentist" } });
+    fireEvent.click(document.querySelector(".sheet-scrim") as HTMLElement);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    first.unmount();
+    // The scrim kept it, and it beats the title the caller handed in.
+    const second = draw({ title: "Standup" }, onCancel);
+    expect(title().value).toBe("Dentist");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(2);
+    second.unmount();
+    // Cancel spent it, so the caller's title stands.
+    const third = draw({ title: "Standup" });
+    expect(title().value).toBe("Standup");
+    third.unmount();
+  });
+
+  it("an edit neither reads nor writes the draft", () => {
+    localStorage.clear();
+    localStorage.setItem("jarvis.event.draft.v1", "Dentist");
+    const r = render(<EventSheet mode="edit" initial={{ date: "2026-05-24", title: "Standup" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(title().value).toBe("Standup");
+    fireEvent.change(title(), { target: { value: "Standup Moved" } });
+    expect(localStorage.getItem("jarvis.event.draft.v1")).toBe("Dentist");
+    r.unmount();
+    localStorage.clear();
   });
 });

@@ -1151,3 +1151,82 @@ describe("CategoryDetail people section: Open Contacts is in the head", () => {
     expect(onOpenContacts).toHaveBeenCalled();
   });
 });
+
+// THE LOGGING STANDARD, rule 3 (2026-10-17): the area page's Add Task reads a
+// clock time out of the words AND writes it (readsReminder plus
+// draft.reminder in saveTask). Before this the door passed no readsReminder,
+// so "3pm" stayed in the title here while TasksFlow read it.
+describe("CategoryDetail: Add Task's words carry their reminder through to the task", () => {
+  it("\"Call Nadia tomorrow 3pm\" lands as Call Nadia with a 3:00 PM reminder", async () => {
+    localStorage.clear();
+    render(<NotesProvider userId="cd-reminder-1"><SeededForSave /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Add"));
+    fireEvent.click(await screen.findByText("Add Task"));
+    fireEvent.change(await screen.findByPlaceholderText("What needs doing?"), { target: { value: "Call Nadia tomorrow 3pm" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      const made = (await tasksRef!.listTasks()).find((t) => t.data.text === "Call Nadia");
+      expect(made, "the title lost the words that were read").toBeDefined();
+      expect(made!.data.reminder?.time).toBe("15:00");
+    });
+  });
+});
+
+// THE LOGGING STANDARD, rule 5 (2026-10-17): a log is never confirmed, and its
+// receipt carries Undo. On this page Session Effort logged with a bare cheer or
+// nothing, and Discomfort logged in silence; both now raise the same receipt
+// HealthFlow raises for the same screens, and Undo removes the entry.
+import { useHealth } from "../data/NotesProvider";
+import type { HealthService } from "../health/HealthService";
+
+let healthRef: HealthService | null = null;
+function SeededHealthSvc() {
+  const cats = useCategories();
+  const health = useHealth();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => { healthRef = health; setCid((await cats.create("Health", "blue"))!); })();
+  }, [cats, health]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail health loggers: every one-tap log has an Undo on its receipt", () => {
+  const toasts: { message: string; actionLabel?: string; onAction?: () => void }[] = [];
+  beforeEach(() => { toasts.length = 0; });
+
+  it("Session Effort: the tap logs, the receipt says Effort Logged with Undo, and Undo removes the entry", async () => {
+    const off = subscribeToast((t) => { if (t) toasts.push(t); });
+    try {
+      render(<NotesProvider userId="hl-effort-undo"><SeededHealthSvc /></NotesProvider>);
+      await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
+      fireEvent.click(screen.getByText("Log Something"));
+      fireEvent.click(screen.getByText("Session Effort"));
+      fireEvent.click(await screen.findByRole("button", { name: "Effort 7 of 10" }));
+      await waitFor(async () => expect(await healthRef!.listCallIt()).toHaveLength(1));
+      const receipt = toasts.find((t) => t.actionLabel === "Undo");
+      expect(receipt, "the receipt carries Undo").toBeDefined();
+      expect(receipt!.message).toBe("Effort Logged");
+      expect(screen.queryByText(/are you sure/i)).toBeNull();
+      receipt!.onAction!();
+      await waitFor(async () => expect(await healthRef!.listCallIt()).toHaveLength(0));
+    } finally { off(); }
+  });
+
+  it("Discomfort: a region row logs, the receipt says Spot Logged with Undo, and Undo removes the entry", async () => {
+    const off = subscribeToast((t) => { if (t) toasts.push(t); });
+    try {
+      render(<NotesProvider userId="hl-spot-undo"><SeededHealthSvc /></NotesProvider>);
+      await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
+      fireEvent.click(screen.getByText("Log Something"));
+      fireEvent.click(screen.getByText("Discomfort"));
+      fireEvent.click(await screen.findByRole("button", { name: "List" }));
+      fireEvent.click(screen.getByText("Neck").closest(".row")!);
+      await waitFor(async () => expect(await healthRef!.listPointAtIt()).toHaveLength(1));
+      const receipt = toasts.find((t) => t.actionLabel === "Undo");
+      expect(receipt, "the receipt carries Undo").toBeDefined();
+      expect(receipt!.message).toBe("Spot Logged");
+      receipt!.onAction!();
+      await waitFor(async () => expect(await healthRef!.listPointAtIt()).toHaveLength(0));
+    } finally { off(); }
+  });
+});
