@@ -1,5 +1,7 @@
-import { useEffect, useState, type ReactNode, type KeyboardEvent as RKeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type KeyboardEvent as RKeyboardEvent } from "react";
 import RuledSwipe from "../shared/RuledSwipe";
+import RowCtxAction from "../shared/RowCtxAction";
+import { draftStore } from "../shared/draftStore";
 import { onPressKey } from "../shared/pressable";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
@@ -22,6 +24,9 @@ import { haptics } from "../shared/haptics";
 import { ForkGlyph } from "../shared/glyphs";
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
+
+// One draft per project; the project's id follows the versioned stem.
+const NOTE_DRAFT_KEY = "jarvis.project.note.draft.v1:";
 
 // The Decision Record payoff (Screen 04): the whole feature exists for this
 // moment. You reopen the project six weeks later and the reason is sitting
@@ -75,8 +80,10 @@ export default function ProjectDetailPage({
   // PICK 21: the offer on an empty project. The flow owns the AI call; this
   // page owns where it sits and what it looks like.
   firstStep?: ReactNode;
-  // Pick 27: makes a note already connected to this project and opens it.
-  onAddNote?: () => void;
+  // Pick 27: makes a note already connected to this project, titled by the
+  // words typed into the field on this page (Dave 2026-10-17). The flow
+  // creates it and refreshes `linkedNotes`; this page stays where it is.
+  onAddNote?: (text: string) => void | Promise<void>;
   // EMAIL-F-19 (2026-09-05): "Project link chips are write-only: nothing ever
   // reads a thread's project." Email has let him file a conversation under a
   // project since N7 and this page never showed one. Passed in, like every
@@ -135,6 +142,27 @@ export default function ProjectDetailPage({
   // Area, because he would find it later and not know who put it there.
   const guessedArea = hasCat ? null : areaFromTasks(steps);
   const tag = hasCat ? catName(data.category!) : "";
+
+  // THE NOTE FIELD (Dave 2026-10-17: "one normal-size note field with the Add
+  // Note action on the detail surface, matching the app's standard entry
+  // treatment"). Return or Add makes the note and the field empties with the
+  // keyboard still up for the next one (the Logging Standard, rule 4); the
+  // words are kept per keystroke and survive a remount (rule 8), spent only
+  // by the save; a blur or a dismiss writes nothing.
+  const noteDraft = useMemo(() => draftStore(NOTE_DRAFT_KEY + project.id), [project.id]);
+  const [noteText, setNoteTextState] = useState(() => noteDraft.read());
+  useEffect(() => { setNoteTextState(noteDraft.read()); }, [noteDraft]);
+  const noteRef = useRef<HTMLInputElement>(null);
+  const setNoteText = (v: string) => { setNoteTextState(v); noteDraft.write(v); };
+  const addNote = () => {
+    const t = noteText.trim();
+    if (!t || !onAddNote) return;
+    haptics.confirm();
+    setNoteTextState("");
+    noteDraft.clear();
+    noteRef.current?.focus();
+    void onAddNote(t);
+  };
 
   // Optional on purpose: outside NotesProvider (bench, component tests) the
   // banner simply does not exist.
@@ -361,14 +389,35 @@ export default function ProjectDetailPage({
           after you have already solved the problem solves nothing. */}
       {(linkedNotes.length > 0 || onAddNote) && (
         <>
-          {/* THE ADD IS ON THE HEAD (Dave 2026-10-05), and with no linked notes
-              there is no card: the head and its capsule are the section. */}
+          {/* THE FIELD IS ON THE SURFACE (Dave 2026-10-17: "one normal-size note
+              field with the Add Note action on the detail surface, matching the
+              app's standard entry treatment"). By his word this supersedes, for
+              this section only, the 2026-10-05 lock that put the Add a Note
+              capsule on the head: the head keeps its name and its count and
+              carries no capsule, and the first row of the card is the field,
+              the same row Plan My Day's add and the Brain's line field are (the
+              standard field, and Add as the row's one quiet verb once there is
+              something to add; Return adds too). The note is born connected and
+              appears as the next row; this page never leaves. */}
           <div className="sh2 sh2-quiet">
             <span className="t">Linked Notes</span>{linkedNotes.length > 0 && <span className="n">{linkedNotes.length}</span>}
-            {onAddNote && <button className="see-all pill-action" onClick={onAddNote}>Add a Note</button>}
           </div>
-          {linkedNotes.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
+            {onAddNote && (
+              <div className="row hard-add-field" onClick={() => noteRef.current?.focus()}>
+                <input
+                  ref={noteRef}
+                  className="input"
+                  placeholder="Add a Note"
+                  aria-label="Note"
+                  enterKeyHint="done"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNote(); } }}
+                />
+                <RowCtxAction when={!!noteText.trim()} label="Add" ariaLabel="Add Note" onAct={addNote} />
+              </div>
+            )}
             {linkedNotes.map((n) => (
               <div className="task-row p2 note-row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
                 <div className="task-check-tap gm-slot"><span className={"cat-dot cat-bg-" + (n.category ? catColor(n.category) : "graphite")} /></div>
@@ -377,7 +426,6 @@ export default function ProjectDetailPage({
               </div>
             ))}
           </div></div>
-          )}
         </>
       )}
       {/* EMAIL-F-19 (2026-09-05): the other half of N7's chip. He files a

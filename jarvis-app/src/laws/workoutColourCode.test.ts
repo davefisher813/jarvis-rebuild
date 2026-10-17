@@ -206,6 +206,9 @@ describe("LAW: the workout colour code, on Health Insights", () => {
     expect(page, "no big value on the gain card is lime").not.toMatch(/ins-big lime">\{lineCase\(`\$\{headline/);
     expect(page, "the trend line is teal").toMatch(/<path d=\{path\} fill="none" stroke="var\(--hl-cyan\)"/);
     expect(page, "the trend line is never lime").not.toMatch(/stroke="var\(--hl-lime\)"/);
+    // Its points too (the second pass): a dot on the line wears the line's teal, never the done green.
+    expect(page, "the points wear the line's teal").toMatch(/<circle cx=\{p\.x\} cy=\{p\.y\} r=\{4\} fill="var\(--hl-cyan\)" \/>/);
+    expect(page, "no point is lime").not.toMatch(/<circle[^>]*fill="var\(--hl-lime\)"/);
     expect(colour(RULED, ".ruled.health-ruled .ins-big.best")).toBe("var(--hl-best)");
     expect(colour(RULED, '[data-theme="light"] .ruled.health-ruled .ins-big.best')).toBe("var(--hl-best-ink)");
   });

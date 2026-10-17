@@ -200,7 +200,8 @@ export default function InsightsPage({
         <path d={path} fill="none" stroke="var(--hl-cyan)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         {xy.map((p, i) => (
           <g key={pts[i]!.workoutId}>
-            <circle cx={p.x} cy={p.y} r={4} fill="var(--hl-lime)" />
+            {/* A point wears the line's teal: lime is done, and a session on a trend is not a thing done (Alfred's second pass, 2026-10-17). */}
+            <circle cx={p.x} cy={p.y} r={4} fill="var(--hl-cyan)" />
             <circle cx={p.x} cy={p.y} r={11} fill="transparent" role="button" tabIndex={0} aria-label={`${monthDay(pts[i]!.date)}, ${pts[i]!.w} ${unit}, open the workout`}
               onClick={() => onOpenWorkout(pts[i]!.workoutId)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout(pts[i]!.workoutId); } }} />
             {ticks.has(i) && (

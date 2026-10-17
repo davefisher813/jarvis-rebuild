@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ProjectDetailPage, { type ProjectStep } from "./ProjectDetailPage";
 import { setCategoryRegistry } from "../shared/categories";
@@ -70,18 +70,95 @@ describe("ProjectDetailPage: the catalog", () => {
     expect(withTasks.container.querySelectorAll(".row-act")).toHaveLength(0);
   });
 
-  it("Add a Note is the capsule on the Linked Notes head, with or without notes", () => {
-    const { container, unmount } = draw([], { onAddNote: () => {} });
-    const add = [...container.querySelectorAll("button")].find((b) => b.textContent === "Add a Note")!;
-    expect(add.closest(".sh2")!.querySelector(".t")!.textContent).toBe("Linked Notes");
-    expect([...container.querySelectorAll(".card, .list-card-ruled")].filter((c) => c.textContent?.trim() === "Add a Note")).toHaveLength(0);
-    unmount();
-    const withNote = draw([], { onAddNote: () => {}, linkedNotes: [{ id: "n1", title: "Tile quote", category: "" }] });
-    const add2 = [...withNote.container.querySelectorAll("button")].find((b) => b.textContent === "Add a Note")!;
-    expect(add2.closest(".sh2")).not.toBeNull();
-    expect(add2.closest(".list-card-ruled")).toBeNull();
-    // His note's title is shown in Title Case.
-    expect(withNote.container.textContent).toContain("Tile Quote");
+  // THE NOTE FIELD IS ON THE SURFACE (Dave 2026-10-17: "one normal-size note field with the Add Note action on the
+  // detail surface, matching the app's standard entry treatment"). By his word it supersedes, here, the 2026-10-05
+  // head capsule: the head carries the name and the count and no capsule; the card's first row is the standard field
+  // with Add as its one quiet verb once there is something to add; Return adds too.
+  const noteHead = (c: HTMLElement) => [...c.querySelectorAll(".sh2")].find((h) => h.querySelector(".t")?.textContent === "Linked Notes")!;
+  const noteField = (c: HTMLElement) => c.querySelector<HTMLInputElement>("input[placeholder=\"Add a Note\"]")!;
+  const addVerb = (c: HTMLElement) => c.querySelector<HTMLButtonElement>(".row-ctx[aria-label=\"Add Note\"]");
+
+  it("the Linked Notes head carries no capsule, and the card's first row is one standard note field", () => {
+    const { container } = draw([], { onAddNote: () => {} });
+    const head = noteHead(container);
+    expect(head.querySelector("button, .pill-action, .pill-act, .row-act")).toBeNull();
+    expect([...container.querySelectorAll("button")].filter((b) => b.textContent === "Add a Note")).toHaveLength(0);
+    const field = noteField(container);
+    expect(field).not.toBeNull();
+    expect(field).toHaveClass("input");
+    expect(field.getAttribute("enterkeyhint")).toBe("done");
+    expect(container.querySelectorAll("input[placeholder=\"Add a Note\"]")).toHaveLength(1);
+    // The field row is a row of the list card under the head, and no capsule rides on it.
+    const row = field.closest(".row")!;
+    expect(row.closest(".list-card-ruled")).not.toBeNull();
+    expect(row.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    // Nothing typed: no Add yet (the row's verb appears when its moment has come).
+    expect(addVerb(container)).toBeNull();
+  });
+
+  it("Return saves the typed words, empties the field and keeps the keyboard on it", () => {
+    const onAddNote = vi.fn();
+    const { container } = draw([], { onAddNote });
+    const field = noteField(container);
+    field.focus();
+    fireEvent.change(field, { target: { value: "Call the plumber" } });
+    const add = addVerb(container)!;
+    expect(add).not.toBeNull();
+    expect(add.textContent).toBe("Add");
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onAddNote).toHaveBeenCalledTimes(1);
+    expect(onAddNote).toHaveBeenCalledWith("Call the plumber");
+    expect(field.value).toBe("");
+    expect(document.activeElement).toBe(field);
+    expect(addVerb(container)).toBeNull();
+  });
+
+  it("Add saves too; blank or whitespace saves nothing and shows no Add", () => {
+    const onAddNote = vi.fn();
+    const { container } = draw([], { onAddNote });
+    const field = noteField(container);
+    fireEvent.change(field, { target: { value: "   " } });
+    expect(addVerb(container)).toBeNull();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onAddNote).not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: "Tile quote" } });
+    fireEvent.click(addVerb(container)!);
+    expect(onAddNote).toHaveBeenCalledWith("Tile quote");
+    expect(field.value).toBe("");
+  });
+
+  it("with notes, the field is the first row and the notes follow it in Title Case; the row opens the note", () => {
+    const onOpenNote = vi.fn();
+    const { container } = draw([], { onAddNote: () => {}, onOpenNote, linkedNotes: [{ id: "n1", title: "Tile quote", category: "" }] });
+    expect(noteHead(container).querySelector(".n")!.textContent).toBe("1");
+    expect(noteHead(container).querySelector("button")).toBeNull();
+    const card = noteField(container).closest(".list-card-ruled")!;
+    expect(card.firstElementChild).toBe(noteField(container).closest(".row"));
+    expect(card.children[1]!.textContent).toContain("Tile Quote");
+    fireEvent.click(card.children[1]!);
+    expect(onOpenNote).toHaveBeenCalledWith("n1");
+  });
+
+  it("the words survive a remount (rule 8) and are spent by the save, never by a blur", () => {
+    localStorage.clear();
+    const first = draw([], { onAddNote: () => {} });
+    const field = noteField(first.container);
+    fireEvent.change(field, { target: { value: "Ask about grout" } });
+    fireEvent.blur(field);
+    first.unmount();
+    expect(localStorage.getItem("jarvis.project.note.draft.v1:p1")).toBe("Ask about grout");
+    const second = draw([], { onAddNote: () => {} });
+    expect(noteField(second.container).value).toBe("Ask about grout");
+    fireEvent.keyDown(noteField(second.container), { key: "Enter" });
+    expect(localStorage.getItem("jarvis.project.note.draft.v1:p1")).toBeNull();
+    second.unmount();
+    expect(noteField(draw([], { onAddNote: () => {} }).container).value).toBe("");
+  });
+
+  it("without a way to add, notes still list under the head with no field", () => {
+    const { container } = draw([], { linkedNotes: [{ id: "n1", title: "Tile quote", category: "" }] });
+    expect(container.querySelector("input[placeholder=\"Add a Note\"]")).toBeNull();
+    expect(container.textContent).toContain("Tile Quote");
   });
 
   it("no sub line on the page is a sentence (no trailing period, no lowercase lead)", () => {
