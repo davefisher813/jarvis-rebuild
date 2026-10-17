@@ -29,3 +29,7 @@ dist/
 qa/reports/
 # Local only: names that must never appear in a published artifact.
 qa/publish-deny.txt
+
+# Subagent git worktrees (Claude Code, isolation: worktree): temporary
+# checkouts of this repo, never source.
+.claude/worktrees/
