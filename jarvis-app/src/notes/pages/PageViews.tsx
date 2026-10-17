@@ -4,9 +4,11 @@ import Stepper from "../../shared/Stepper";
 import { monthDay } from "../../money/bills";
 import {
   type PageData, type PageRecord, type RosterChange,
-  golfTotals, holeWord, scoreOf, toParLabel, recordName, labelOf, OUTREACH_STATUS,
+  golfTotals, holeWord, scoreOf, toParLabel, recordName, labelOf,
 } from "./pageModel";
 import { suggestedFor } from "./templateLogic";
+import { TEAM_SPORTS, teamSportOf } from "./teamSports";
+import { OUTREACH_KINDS, outreachKindOf, KNOWN_STATUS, STATUS_TONE } from "./outreachKinds";
 
 // THE FOUR TEMPLATE PAGES, DRAWN (issue #115, slice 1). Phone first: a
 // readable page with clear actions, never a grid to arrange. Every record is
@@ -54,7 +56,7 @@ export function StarterCard({ page, onFields, onSuggest }: { page: PageData; onF
 // ---------------------------------------------------------------------------
 // Team Sheet
 
-export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLineup, onFields }: {
+export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLineup, onFields, onSport }: {
   page: PageData;
   lineups: { id: string; title: string; date: string }[];
   onOpen: (recordId: string) => void;
@@ -62,8 +64,11 @@ export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLin
   onMakeLineup?: () => void;
   onOpenLineup: (noteId: string) => void;
   onFields?: () => void;
+  /** The sheet's sport: Position offers that sport's spots (the 2026-10-13 spec's flagship adjustment). */
+  onSport?: (key: string) => void;
 }) {
   const n = page.records.length;
+  const sport = teamSportOf(page.meta?.sport);
   return (
     <>
       <Head label={n === 0 ? "Players" : n === 1 ? "1 Player" : `${n} Players`} action={{ label: "Add Player", onClick: onAdd }} />
@@ -84,6 +89,16 @@ export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLin
             );
           })}
         </Card>
+      )}
+      {onSport && (
+        <>
+          <Head label="Team" />
+          <Card>
+            <Menu label="Sport" value={sport?.key ?? ""} word={sport?.name ?? "Any Sport"}
+              options={[{ value: "", label: "Any Sport" }, ...TEAM_SPORTS.map((s) => ({ value: s.key, label: s.name }))]} onPick={onSport} />
+          </Card>
+          <Foot>Pick the Sport and Position Offers Its Spots; a Position Already Typed Stays</Foot>
+        </>
       )}
       {onMakeLineup && n > 0 && (
         <>
@@ -156,16 +171,13 @@ export function LineupView({ page, changes, onOpen, onAdd, onRefresh, onOpenTeam
 // ---------------------------------------------------------------------------
 // Outreach Tracker
 
-const STATUS_TONE: Record<string, string> = {
-  "To Contact": "warn",
-  "Reached Out": "warn",
-  Replied: "good",
-  "Meeting Set": "good",
-  Closed: "good",
-};
-
-export function OutreachView({ page, onOpen, onAdd, onFields }: { page: PageData; onOpen: (recordId: string) => void; onAdd: () => void; onFields?: () => void }) {
+export function OutreachView({ page, onOpen, onAdd, onFields, onKind }: {
+  page: PageData; onOpen: (recordId: string) => void; onAdd: () => void; onFields?: () => void;
+  /** The tracker's kind: outreach, grants and sponsors, or networking (the 2026-10-13 spec: "configurations"). */
+  onKind?: (key: string) => void;
+}) {
   const n = page.records.length;
+  const kind = outreachKindOf(page.meta?.kind);
   return (
     <>
       <Head label={n === 0 ? "Contacts" : n === 1 ? "1 Contact" : `${n} Contacts`} action={{ label: "Add Contact", onClick: onAdd }} />
@@ -177,18 +189,29 @@ export function OutreachView({ page, onOpen, onAdd, onFields }: { page: PageData
             const org = (r.v.org ?? "").trim();
             const status = (r.v.status ?? "").trim();
             const last = (r.v.last ?? "").trim();
-            const tone = STATUS_TONE[status] ?? "";
+            const known = KNOWN_STATUS.has(status);
+            const tone = known ? STATUS_TONE[status] ?? "" : "";
             const hasMeta = (who && org) || status || /^\d{4}-\d{2}-\d{2}$/.test(last);
             return (
               <Row key={r.id} label={<U>{who || org || "Unnamed Contact"}</U>} onClick={() => onOpen(r.id)} chev
                 meta={hasMeta ? <>
                   {who && org && <span className="fact"><U>{org}</U></span>}
-                  {status && (tone ? <span className={"fact " + tone}>{OUTREACH_STATUS.includes(status) ? status : <U>{status}</U>}</span> : <span className="fact"><b><U>{status}</U></b></span>)}
+                  {/* An app status word wears its meaning's colour (a close with nothing left to do is plain); a typed one is drawn as typed. */}
+                  {status && (known ? <span className={"fact" + (tone ? " " + tone : "")}>{status}</span> : <span className="fact"><b><U>{status}</U></b></span>)}
                   {/^\d{4}-\d{2}-\d{2}$/.test(last) && <span className="fact date">{monthDay(last)}</span>}
                 </> : undefined} />
             );
           })}
         </Card>
+      )}
+      {onKind && (
+        <>
+          <Head label="Tracker" />
+          <Card>
+            <Menu label="Kind" value={kind.key} word={kind.name} options={OUTREACH_KINDS.map((k) => ({ value: k.key, label: k.name }))} onPick={onKind} />
+          </Card>
+          <Foot>A Kind Renames the Fields and the Status Words; Every Value Stays</Foot>
+        </>
       )}
     </>
   );

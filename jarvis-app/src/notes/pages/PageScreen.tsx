@@ -27,7 +27,9 @@ import {
   rosterChanges, refreshFromRoster, newLineupPage, recordName, labelOf, newId,
 } from "./pageModel";
 import { TeamView, LineupView, OutreachView, ScorecardView, HoleEntry, U } from "./PageViews";
-import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet, SectionsSheet, GameSheet, LedgerFilterSheet } from "./PageSheets";
+import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet, SectionsSheet, GameSheet, LedgerFilterSheet, BlindsSheet } from "./PageSheets";
+import { setTeamSport } from "./teamSports";
+import { setOutreachKind } from "./outreachKinds";
 import { templateDef } from "./templateDefs";
 import {
   SheetView, ProfileView, PitchingView, StandingsView, ScoreboardView, ScoreEntry, TrainingLogView, scoreStart, type WorkoutLine,
@@ -38,8 +40,9 @@ import { accomplishmentSuggestions, birthdaySuggestions } from "./appSuggest";
 import {
   addSection, renameSection, removeSection, moveSection, setSection, moveField, addSuggested, sectionImpact, sessionClock, gamesOfTeam,
   addGame, removeGame, removeTeamAndGames, asMyTemplate, num, confirmRecord, confirmAll, secretIn, secretFieldName, debtsOf, payoffPlan, type DebtMethod, bracketOf, resultsOf, setWinner, pruneResults, managersOf, pokerRows, settleUp,
+  blindSchedule, carriedForward,
 } from "./templateLogic";
-import { setCell, setPeriodScore, setSport, sportChangeImpact, addPeriod, sportName } from "./scoreboard";
+import { setCell, setPeriodScore, setSport, sportChangeImpact, addPeriod, sportName, columnName, DICE_BOXES } from "./scoreboard";
 import { SnapshotsScreen, LineupBuilder } from "./PageExtras";
 import ImportReview from "./ImportReview";
 import { keepOriginal, readSource, readOriginal, markUsed, type TableSource } from "./pageImport";
@@ -73,6 +76,7 @@ type Sheet =
   | { k: "method" } | { k: "extra" } | { k: "fromMoney" } | { k: "ledgerFilter" }
   | { k: "winner"; id: string } | { k: "format" } | { k: "teams" } | { k: "order" }
   | { k: "program" }
+  | { k: "blinds" }
   | { k: "addFromRoster" }
   | { k: "original"; o: PageOriginal }
   | null;
@@ -321,6 +325,8 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   // What the app can suggest, confirm first.
   const offered = suggestFor(def?.view, page, people, goals, projects);
   const record = sheet?.k === "record" && sheet.id ? page.records.find((r) => r.id === sheet.id) ?? null : null;
+  // 1:1 Log: a new meeting starts with the last one's follow-ups (open promises carry forward); the person clears the done ones.
+  const carried = sheet?.k === "record" && !sheet.id ? carriedForward(page) : null;
   const changes: RosterChange[] | null = page.kind === "lineup" ? (team ? rosterChanges(page, team.page) : null) : null;
 
   const removeWithUndo = (id: string) => {
@@ -416,9 +422,9 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   // ---- the score screen of a scoreboard: one column at a time, the Golf Scorecard's hole screen for every other game
   const sc = page.score;
   if (view === "score" && sc) {
-    const last = sc.mode === "periods" ? sc.periods : sc.mode === "bowling" ? 10 : sc.mode === "countdown" ? at : 1;
+    const last = sc.mode === "periods" ? sc.periods : sc.mode === "bowling" ? 10 : sc.mode === "countdown" ? at : sc.mode === "dice" ? DICE_BOXES.length : 1;
     const single = sc.mode === "target";
-    const title = single ? "Score" : `${sc.unit} ${at}`;
+    const title = single ? "Score" : columnName(sc, at);
     return (
       <div className="screen ruled">
         <div className="nav-bar">
@@ -432,10 +438,10 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <ScoreEntry page={page} at={at} onSet={(id, key, v) => void commit(/^p\d+$/.test(key) ? setPeriodScore(noteRef.current!.page, id, Number(key.slice(1)), v) : setCell(noteRef.current!.page, id, key, v))} />
         <div className="pad-x exp-acts">
           {!single && (at < last || sc.mode === "countdown")
-            ? <button type="button" className="btn btn-primary btn-block" onClick={() => setAt(at + 1)}>{`Next: ${sc.unit} ${at + 1}`}</button>
+            ? <button type="button" className="btn btn-primary btn-block" onClick={() => setAt(at + 1)}>{`Next: ${columnName(sc, at + 1)}`}</button>
             : <button type="button" className="btn btn-primary btn-block" onClick={() => setView("page")}>{single ? "Done" : "Finish"}</button>}
           {sc.mode === "periods" && at >= last && <button type="button" className="btn btn-secondary btn-block" onClick={() => { void commit(addPeriod(noteRef.current!.page)); setAt(at + 1); }}>{`Add Another ${sc.unit}`}</button>}
-          {at > 1 && !single && <button type="button" className="btn btn-secondary btn-block" onClick={() => setAt(at - 1)}>{`Back to ${sc.unit} ${at - 1}`}</button>}
+          {at > 1 && !single && <button type="button" className="btn btn-secondary btn-block" onClick={() => setAt(at - 1)}>{`Back to ${columnName(sc, at - 1)}`}</button>}
         </div>
         <div className="screen-foot" />
       </div>
@@ -499,9 +505,13 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
       {page.kind === "team" && (
         <TeamView page={page} lineups={lineups} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
-          onMakeLineup={() => setView("lineup")} onOpenLineup={onOpenNote} onFields={() => setSheet({ k: "fields" })} />
+          onMakeLineup={() => setView("lineup")} onOpenLineup={onOpenNote} onFields={() => setSheet({ k: "fields" })}
+          onSport={(k) => void commit(setTeamSport(noteRef.current!.page, k))} />
       )}
-      {page.kind === "outreach" && <OutreachView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onFields={() => setSheet({ k: "fields" })} />}
+      {page.kind === "outreach" && (
+        <OutreachView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onFields={() => setSheet({ k: "fields" })}
+          onKind={(k) => void commit(setOutreachKind(noteRef.current!.page, k))} />
+      )}
       {page.kind === "lineup" && (
         <LineupView page={page} changes={changes} onOpen={(id) => setSheet({ k: "record", id })}
           onAdd={team ? () => setSheet({ k: "addFromRoster" }) : undefined}
@@ -560,8 +570,8 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <DraftView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onTeams={() => setSheet({ k: "teams" })} onOrder={() => setSheet({ k: "order" })} />
       )}
       {def?.view === "poker" && (
-        <PokerView page={page} rows={poker} payments={pokerGap === 0 ? settleUp(poker) : []} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
-          onFields={openFields} onSuggest={suggestField} />
+        <PokerView page={page} rows={poker} payments={pokerGap === 0 ? settleUp(poker) : []} blinds={blindSchedule(page)} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          onFields={openFields} onSuggest={suggestField} onBlinds={() => setSheet({ k: "blinds" })} />
       )}
       {def?.view === "bizledger" && (
         <BizLedgerView page={page} rows={ledgerRows} category={lf.category} year={lf.year} onFilter={() => setSheet({ k: "ledgerFilter" })} />
@@ -616,6 +626,8 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
       {sheet?.k === "record" && (
         <RecordSheet page={page} record={record} isNew={!sheet.id} defaultSection={sheet.sec}
+          initial={carried?.values}
+          carried={carried ? (carried.from ? `Follow-Ups Carried From ${monthDay(carried.from)}; Clear the Ones That Are Done` : "Follow-Ups Carried From the Last Meeting; Clear the Ones That Are Done") : undefined}
           onCancel={() => setSheet(null)}
           onSave={(values, section) => {
             // POINTERS ONLY: a password, a PIN or a long number is refused before it is kept, and the page says which field.
@@ -790,6 +802,10 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           label: label + ((page.meta?.snake !== "0") === (k === "1") ? " · Current" : ""),
           onPick: () => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), snake: k } }); },
         }))} />
+      )}
+      {sheet?.k === "blinds" && (
+        <BlindsSheet start={page.meta?.blindStart ?? ""} minutes={page.meta?.blindMin ?? ""} levels={page.meta?.blindLevels ?? ""} onCancel={() => setSheet(null)}
+          onSave={(s, m, l) => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), blindStart: s, blindMin: m, blindLevels: l } }); }} />
       )}
       {sheet?.k === "program" && (
         <RowActionSheet title="Start From Which Program" onCancel={() => setSheet(null)}

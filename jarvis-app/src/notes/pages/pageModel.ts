@@ -60,8 +60,9 @@ export interface ScoreInfo {
   sport: string;
   /** The sport's name as drawn ("Table Tennis"). */
   label: string;
-  /** periods: columns added up. target: one running score to a target. bowling: ten frames. countdown: down from a start. */
-  mode: "periods" | "target" | "bowling" | "countdown";
+  /** periods: columns added up. target: one running score to a target. bowling: ten frames. countdown: down from a start.
+   *  dice: the thirteen boxes of the dice sheet, each with its own way of scoring, and the upper bonus. */
+  mode: "periods" | "target" | "bowling" | "countdown" | "dice";
   /** Columns in periods mode (quarters, innings, rounds). Always as many as the sport's own count; extra ones can be added. */
   periods: number;
   /** What a column is called, singular: Quarter, Inning, Set, Round. */
@@ -70,6 +71,17 @@ export interface ScoreInfo {
   winBy: "total" | "periodsWon";
   /** Target mode: the score that ends it. Countdown mode: the number it starts from. */
   target?: number;
+  // THE GAME NIGHT RULES (the 2026-10-13 spec: Hearts, Spades, Euchre, Rummy, Phase 10 and the dice sheet, each scored its real way).
+  /** The lowest total wins (Hearts, Phase 10). */
+  lowWins?: boolean;
+  /** Periods mode: the game is over the hand a side's total reaches this (Hearts 100, Spades and Rummy 500). */
+  endAt?: number;
+  /** What a score moves by on the entry screen, and its floor and ceiling. A Spades hand can go below zero. */
+  step?: number;
+  min?: number;
+  max?: number;
+  /** Phase 10: each side also carries the phase it has completed; the first to finish the tenth ends the game, lowest points among them wins. */
+  phase?: boolean;
   date: string;
 }
 

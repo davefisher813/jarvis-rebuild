@@ -5,11 +5,12 @@ import { monthDay } from "../../money/bills";
 import { formatMoney } from "../../money/types";
 import { type PageData, type PageRecord, type PageField, recordName, labelOf } from "./pageModel";
 import { templateDef } from "./templateDefs";
-import { sectionGroups, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, roundName, managersOf, draftSlot, onTheClock, draftRosters, potGap, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod, type BracketMatch, type PokerRow, type Payment } from "./templateLogic";
+import { sectionGroups, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, roundName, managersOf, draftSlot, onTheClock, draftRosters, potGap, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod, type BracketMatch, type PokerRow, type Payment, type BlindLevel } from "./templateLogic";
 import type { LedgerRow } from "./bizLedger";
 import type { Suggestion } from "./appSuggest";
 import {
   type Standing, SPORTS, SPORT_GROUPS, scoreStanding, sportName, nextPeriod, periodScore, bowlingFrames, bKey, pKey, dKey, dartTurns, dartsLeft, pinsLeft,
+  sideScored, diceTotals, phaseOf, DICE_BOXES, PHASE_KEY, PHASES, UPPER_BONUS, UPPER_BONUS_AT,
 } from "./scoreboard";
 import { U, StarterCard } from "./PageViews";
 
@@ -255,18 +256,36 @@ function sideLine(page: PageData, s: Standing, id: string): ReactNode {
   const parts: ReactNode[] = [];
   if (sc.mode === "periods") {
     const cols = Array.from({ length: sc.periods }, (_, i) => periodScore(r, i + 1));
-    if (cols.some((c) => c !== null)) parts.push(<span key="cols" className="fact">{cols.map((c) => (c === null ? "-" : c)).join(" · ")}</span>);
+    // Each column is a fact of its own, so the dots between them are the facts line's (the catalog: never a dot typed into a string).
+    if (cols.some((c) => c !== null)) parts.push(...cols.map((c, i) => <span key={"c" + i} className="fact">{c === null ? "-" : c}</span>));
     if (s.secondary !== null) parts.push(<span key="tot" className="fact"><b>{s.secondary}</b> Total</span>);
+    if (s.phase !== null && s.phase > 0) parts.push(<span key="ph" className="fact">{s.phase >= PHASES ? "All 10 Phases" : `${s.phase} ${s.phase === 1 ? "Phase" : "Phases"} Done`}</span>);
   } else if (sc.mode === "countdown") {
     const t = dartTurns(page, r);
     if (t.length) parts.push(<span key="t" className="fact">{t.length} {t.length === 1 ? "Turn" : "Turns"}</span>);
   } else if (sc.mode === "bowling") {
     const fr = bowlingFrames(r).filter((f) => f.rolls.length);
     if (fr.length) parts.push(<span key="f" className="fact">Frame {fr.length}</span>);
+  } else if (sc.mode === "dice") {
+    const t = diceTotals(r);
+    if (t.filled) parts.push(<span key="b" className="fact">{t.filled} of {DICE_BOXES.length - 1} Boxes</span>);
+    if (t.bonus) parts.push(<span key="u" className="fact good">Upper Bonus</span>);
   }
-  if (s.done) parts.push(<span key="d" className="fact good">{sc.mode === "countdown" ? "Checked Out" : sc.mode === "target" ? "Reached " + sc.target : "Finished"}</span>);
+  if (s.won) parts.push(<span key="w" className="fact good">Won</span>);
+  else if (s.done) parts.push(<span key="d" className="fact good">{sc.mode === "countdown" ? "Checked Out" : sc.mode === "target" ? "Reached " + sc.target : "Finished"}</span>);
   else if (s.leading) parts.push(<span key="l" className="fact good">Leading</span>);
   return parts.length ? <>{parts}</> : undefined;
+}
+
+/** The one line that says how this game is won, for the sheets whose rule is not the obvious one. */
+function rulesLine(sc: PageData["score"]): string {
+  if (!sc) return "";
+  if (sc.phase) return "First to Finish Phase 10 Ends It; Fewest Points Among Them Wins";
+  if (sc.mode === "dice") return `The Upper Six Earn ${UPPER_BONUS} at ${UPPER_BONUS_AT}; Every Yahtzee After the First Is 100`;
+  if (sc.lowWins && sc.endAt !== undefined) return `Lowest Total Wins; the Game Ends When a Side Reaches ${sc.endAt}`;
+  if (sc.endAt !== undefined) return `First to ${sc.endAt} Wins`;
+  if (sc.mode === "target" && (sc.step ?? 1) > 1) return `First to ${(sc.target ?? 0).toLocaleString("en-US")} Wins`;
+  return "";
 }
 
 export function ScoreboardView({ page, onScore, onSide, onAddSide, onSport, onDate, onAddPeriod }: {
@@ -274,10 +293,11 @@ export function ScoreboardView({ page, onScore, onSide, onAddSide, onSport, onDa
 }) {
   const sc = page.score!;
   const standing = scoreStanding(page);
-  const anyScored = standing.some((s) => (sc.mode === "countdown" ? s.value < (sc.target ?? 501) : s.value > 0 || (s.secondary ?? 0) > 0));
-  const cta = sc.mode === "target" ? "Keep Score" : anyScored ? "Keep Scoring" : "Start " + sc.unit + " 1";
-  const big = (s: Standing) => (sc.mode === "countdown" ? String(s.value) : String(s.value));
-  const bigLabel = sc.mode === "countdown" ? "Left" : sc.winBy === "periodsWon" ? "Sets" : sc.mode === "target" ? "" : "Pts";
+  const anyScored = page.records.some((r) => sideScored(page, r));
+  const cta = sc.mode === "target" ? "Keep Score" : anyScored ? "Keep Scoring" : sc.mode === "dice" ? "Start Scoring" : "Start " + sc.unit + " 1";
+  const big = (s: Standing) => String(s.value);
+  const bigLabel = sc.mode === "countdown" ? "Left" : sc.winBy === "periodsWon" ? "Sets" : sc.mode === "target" || sc.mode === "dice" ? "" : "Pts";
+  const rules = rulesLine(sc);
   return (
     <>
       <Head label="Score" action={{ label: cta, onClick: onScore }} />
@@ -296,9 +316,16 @@ export function ScoreboardView({ page, onScore, onSide, onAddSide, onSport, onDa
         <Row label="Date" value={sc.date ? monthDay(sc.date) : ""} onClick={onDate} chev />
         {sc.mode === "periods" && <Row label={"Add a " + sc.unit} value={String(sc.periods)} onClick={onAddPeriod} chev />}
       </Card>
+      {rules && <Foot>{rules}</Foot>}
     </>
   );
 }
+
+/** Facts for a row, or nothing at all when there are none (a row with nothing to say shows nothing). */
+const facts = (...parts: (ReactNode | false | null | undefined)[]): ReactNode => {
+  const kept = parts.filter((p) => p !== false && p !== null && p !== undefined);
+  return kept.length ? <>{kept}</> : undefined;
+};
 
 /** ONE COLUMN AT A TIME, BIG ENOUGH FOR A THUMB: the Golf Scorecard's hole screen for every other game. */
 export function ScoreEntry({ page, at, onSet }: { page: PageData; at: number; onSet: (recordId: string, key: string, score: number | null) => void }) {
@@ -351,16 +378,66 @@ export function ScoreEntry({ page, at, onSet }: { page: PageData; at: number; on
       </Card>
     );
   }
+  if (sc.mode === "dice") {
+    // THE DICE SHEET, one box at a time: each box moves by its own step (Twos by two, a Full House is 25 or nothing), so an impossible
+    // score cannot be entered. Less on an empty box scratches it.
+    const box = DICE_BOXES[at - 1]!;
+    return (
+      <Card>
+        {page.records.map((r) => {
+          const t = diceTotals(r);
+          const v = num(r.v[box.key]);
+          return (
+            <Row key={r.id} plain label={<U>{sideName(r)}</U>}
+              meta={facts(
+                t.filled > 0 && <span key="t" className="fact"><b>{t.total}</b> Total</span>,
+                v === 0 && <span key="s" className="fact">Scratched</span>,
+                box.upper && t.bonus > 0 && <span key="u" className="fact good">Upper Bonus</span>,
+              )}>
+              <Stepper value={v ?? 0} step={box.step} min={0} max={box.max} label={`${box.name} for ${sideName(r)}`} onChange={(x) => onSet(r.id, box.key, x)} />
+            </Row>
+          );
+        })}
+      </Card>
+    );
+  }
   const key = pKey(sc.mode === "target" ? 1 : at);
   const tgt = sc.target;
+  const step = sc.step ?? 1;
+  const min = sc.min ?? 0;
+  const max = sc.max ?? (sc.mode === "target" ? 99 : 999);
+  if (sc.phase) {
+    // PHASE 10: a round's points and the phase a player has completed, side by side, since both decide the game.
+    return (
+      <>
+        {page.records.map((r) => {
+          const total = standing(page, r);
+          const ph = phaseOf(r);
+          return (
+            <div key={r.id}>
+              <Head label={sideName(r)} count={total === null ? undefined : `${total} Pts`} />
+              <Card>
+                <Row plain label="Points This Round">
+                  <Stepper value={num(r.v[key]) ?? 0} step={step} min={min} max={max} label={`${sc.unit} ${at} Points for ${sideName(r)}`} onChange={(x) => onSet(r.id, key, x)} />
+                </Row>
+                <Row plain label="Phases Done" meta={ph >= PHASES ? <span className="fact good">All 10 Phases</span> : undefined}>
+                  <Stepper value={ph} step={1} min={0} max={PHASES} label={`Phases Done for ${sideName(r)}`} onChange={(x) => onSet(r.id, PHASE_KEY, x)} />
+                </Row>
+              </Card>
+            </div>
+          );
+        })}
+      </>
+    );
+  }
   return (
     <Card>
       {page.records.map((r) => {
         const total = standing(page, r);
         return (
           <Row key={r.id} plain label={<U>{sideName(r)}</U>}
-            meta={sc.mode === "periods" && total !== null ? <span className="fact"><b>{total}</b> Total</span> : tgt && (num(r.v[key]) ?? 0) >= tgt ? <span className="fact good">Reached {tgt}</span> : undefined}>
-            <Stepper value={num(r.v[key]) ?? 0} step={1} min={0} max={sc.mode === "target" ? 99 : 999} label={`${sc.unit} ${sc.mode === "target" ? "" : at} for ${sideName(r)}`.replace("  ", " ")} onChange={(x) => onSet(r.id, key, x)} />
+            meta={sc.mode === "periods" && total !== null ? <span className="fact"><b>{total}</b> Total</span> : tgt && (num(r.v[key]) ?? 0) >= tgt ? <span className="fact good">Reached {tgt.toLocaleString("en-US")}</span> : undefined}>
+            <Stepper value={num(r.v[key]) ?? 0} step={step} min={min} max={max} label={`${sc.unit} ${sc.mode === "target" ? "" : at} for ${sideName(r)}`.replace("  ", " ")} onChange={(x) => onSet(r.id, key, x)} />
           </Row>
         );
       })}
@@ -620,8 +697,11 @@ export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: Pag
 
 const dollars = (c: number): string => formatMoney(Math.abs(c) / 100, { cents: c % 100 !== 0 });
 
-export function PokerView({ page, rows, payments, onOpen, onAdd, onFields, onSuggest }: {
-  page: PageData; rows: PokerRow[]; payments: Payment[]; onOpen: (id: string) => void; onAdd: () => void; onFields?: () => void; onSuggest?: (key: string) => void;
+export function PokerView({ page, rows, payments, blinds, onOpen, onAdd, onFields, onSuggest, onBlinds }: {
+  page: PageData; rows: PokerRow[]; payments: Payment[];
+  /** The blind schedule the page's three numbers make; empty until a starting blind is set. */
+  blinds: BlindLevel[];
+  onOpen: (id: string) => void; onAdd: () => void; onFields?: () => void; onSuggest?: (key: string) => void; onBlinds: () => void;
 }) {
   const n = rows.length;
   const pot = rows.reduce((s, r) => s + r.inCents, 0);
@@ -630,13 +710,7 @@ export function PokerView({ page, rows, payments, onOpen, onAdd, onFields, onSug
     <>
       <Head label={n === 0 ? "Players" : n === 1 ? "1 Player" : `${n} Players`} count={pot > 0 ? `Pot ${dollars(pot)}` : undefined} action={{ label: "Add Player", onClick: onAdd }} />
       {/* No players yet: the buy-in structure stands where the table will, and the settlement says what it waits on. */}
-      {n === 0 && (
-        <>
-          <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />
-          <Head label="Settle Up" />
-          <Foot>Add Players, Their Buy-Ins and Cash-Outs to See Who Owes Whom</Foot>
-        </>
-      )}
+      {n === 0 && <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />}
       {n > 0 && (
         <Card>
           {rows.map((r) => (
@@ -648,6 +722,23 @@ export function PokerView({ page, rows, payments, onOpen, onAdd, onFields, onSug
               </>} />
           ))}
         </Card>
+      )}
+      {/* THE BLIND SCHEDULE (the 2026-10-13 spec): set from three numbers, drawn level by level. With none set, the head's action is
+          the whole section; a card is never drawn around an action alone. */}
+      <Head label="Blinds" action={{ label: blinds.length ? "Edit Blinds" : "Set Blinds", onClick: onBlinds }} />
+      {blinds.length > 0 && (
+        <Card>
+          {blinds.map((b) => (
+            <Row key={b.level} label={`Level ${b.level}`} value={`${b.small.toLocaleString("en-US")} / ${b.big.toLocaleString("en-US")}`}
+              meta={b.minutes > 0 ? <span className="fact">{b.minutes} Min</span> : undefined} />
+          ))}
+        </Card>
+      )}
+      {n === 0 && (
+        <>
+          <Head label="Settle Up" />
+          <Foot>Add Players, Their Buy-Ins and Cash-Outs to See Who Owes Whom</Foot>
+        </>
       )}
       {gap !== 0 && n > 0 && <Foot>{`Cash-Outs Are ${dollars(gap)} ${gap > 0 ? "Over" : "Short of"} the Pot; Check the Numbers and Settling Up Will Appear`}</Foot>}
       {gap === 0 && payments.length > 0 && (

@@ -580,6 +580,34 @@ export function draftRosters(page: PageData): DraftRoster[] {
   return out;
 }
 
+// ---- Poker night's blind schedule (the 2026-10-13 spec, auto-adjust rule 3: "poker blind schedule" is a flagship adjustment). Three
+// numbers on the page (the starting small blind, the minutes a level runs, how many levels) and the schedule writes itself up the
+// ladder every home game climbs: 25/50, 50/100, 75/150, 100/200, 150/300, 200/400 and on. Nothing is kept but the three numbers.
+
+export interface BlindLevel { level: number; small: number; big: number; minutes: number }
+
+const BLIND_LADDER = [1, 2, 3, 4, 6, 8, 12, 16, 20, 24, 32, 40, 60, 80, 100, 120];
+export const MAX_BLIND_LEVELS = BLIND_LADDER.length;
+
+export function blindSchedule(page: PageData): BlindLevel[] {
+  const start = num(page.meta?.blindStart);
+  if (start === null || start <= 0) return [];
+  const minutes = Math.max(0, Math.round(num(page.meta?.blindMin) ?? 0));
+  const levels = Math.min(MAX_BLIND_LEVELS, Math.max(1, Math.round(num(page.meta?.blindLevels) ?? 8)));
+  return BLIND_LADDER.slice(0, levels).map((m, i) => ({ level: i + 1, small: start * m, big: start * m * 2, minutes }));
+}
+
+// ---- 1:1 Log: open promises carry forward (the 2026-10-13 spec). A new meeting starts with the last meeting's follow-ups already in
+// its own, so nothing promised is retyped or lost; the ones that are done are cleared by hand. The last meeting is the newest by date.
+
+export function carriedForward(page: PageData): { from: string; values: Record<string, string> } | null {
+  if (page.kind !== "oneonone" || !page.records.length) return null;
+  const dated = page.records.filter((r) => isoOk(r.v.date)).sort((a, b) => (a.v.date! < b.v.date! ? 1 : a.v.date! > b.v.date! ? -1 : 0));
+  const last = dated[0] ?? page.records[page.records.length - 1]!;
+  const actions = (last.v.actions ?? "").trim();
+  return actions ? { from: isoOk(last.v.date) ? last.v.date!.trim() : "", values: { actions } } : null;
+}
+
 // ---- Poker night: what each player is up or down, and the fewest payments that settle it.
 
 export interface PokerRow { id: string; name: string; inCents: number; outCents: number; netCents: number }
