@@ -235,9 +235,11 @@ describe("the suggestion belongs to the work", () => {
     expect(screen.queryByText(/Step to/)).toBeNull();
     expect(screen.getByText("Suggested 45 Lb × 10")).toBeInTheDocument();
     fireEvent.click(pill("Work"));
-    // Work opens at last week's 225 x 5; the plan's single target of 5 is a range
-    // of 3 to 5, every set was at the top, so the step is 230 x 3 (section 10).
-    expect(screen.getByText("Suggested 230 Lb × 3", { selector: ".fact" })).toBeInTheDocument();
+    // The plan's single target of 5 is a range of 3 to 5, every set was at the
+    // top, so the step is 230 x 3 (section 10), and Work opens ON it (prefill,
+    // Dave 2026-10-17), the line saying why.
+    expect(screen.getByRole("button", { name: /^Log 230 Lb × 3/ })).toBeInTheDocument();
+    expect(screen.getByText("All at the Top of 3 to 5", { selector: ".se-nowline .fact" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Why" }));
     expect(screen.getByText("Step to 230 × 3", { selector: ".fact" })).toBeInTheDocument();
     expect(screen.getByText("Last Time 225 × 5, 5", { selector: ".fact" })).toBeInTheDocument();

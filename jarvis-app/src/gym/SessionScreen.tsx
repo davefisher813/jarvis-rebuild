@@ -16,7 +16,7 @@ import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from ".
 import { isSessionPR, lastHeader, lastSessionFor, lastWarmupsFor } from "./prs";
 import { readGymSettings, rackFrom, overloadApplyOf, overloadTargetsOf, type CreatedLift } from "./settings";
 import { readHealthSettings } from "../health/settings";
-import { rackIn, rampFor, startsInWarmUp, warmupSeed } from "./ramp";
+import { rackIn, rampFor, scaleWarmups, startsInWarmUp, warmupSeed } from "./ramp";
 import { readClassStore, type Classification } from "./classify";
 import { exerciseFromEntry } from "./fromLibrary";
 import { suggestFor, inSessionAdjust, type Suggestion, type SuggestOptions } from "./progression";
@@ -325,7 +325,6 @@ export default function SessionScreen({
   // card opens with: the next step above the heaviest warm-up logged, until
   // the first working set lands or the ramp runs out (ramp.ts).
   const gymSettings = readGymSettings();
-  const ramp = exercise.ramp ? rampFor(exercise, rackFrom(gymSettings)) : [];
   /** THE RACK IN THIS LIFT'S UNIT (2026-10-17, defect G): what the weight
    *  field steps by on anything plates go on. */
   const exRack = rackIn(rackFrom(gymSettings), exercise.unit);
@@ -389,22 +388,38 @@ export default function SessionScreen({
   // survives typing and goes with the next write. Each side has its own
   // starting numbers, and `seed` is the one for the side it is on.
   //
-  // SUGGEST OR PREFILL (2026-10-17, gym/settings.ts overloadApply). Under
-  // "suggest" the first set opens where it always has, on last session's set
-  // at this position (or the plan), and the step rides the card as Suggested
-  // with Use. Under "prefill" the first set opens ON the step. The default,
-  // "suggest", mirrors today's behaviour until Dave rules; it is NOT a product
-  // decision, and both paths are exercised.
+  // PREFILL (Dave, 2026-10-17: "Fill it in for me, the next weight and reps
+  // are already there, I just log it"; gym/settings.ts overloadApply). The
+  // first set opens ON the step, and the set after set one opens on the
+  // in-session adjustment when set one called for one. Logged untouched, the
+  // first is the accept and moves the plan (log() below). Two never fill in:
+  // a scheme change, which is a question and not a number, and a step he
+  // changed last session (Suggestion.declined), which is offered with Use
+  // instead, because the app never argues twice. "suggest", a stored value
+  // only, opens where the screen did before: last session's set at this
+  // position (or the plan), with the step beside it as Suggested and Use.
   const seededWork = nextSetEntry({ plan: planEx, logged, lastSession: seedHit?.sets ?? null });
-  const prefillStep = overloadApplyOf(gymSettings) === "prefill" && workLogged === 0 && suggestion && suggestion.kind !== "scheme";
+  const prefillOn = overloadApplyOf(gymSettings) === "prefill";
+  const prefillStep = prefillOn && (workLogged === 0 || workLogged === 1) && !!suggestion && suggestion.kind !== "scheme" && !suggestion.declined;
   const workSeed = prefillStep ? { ...(seededWork ?? blankEntry()), ...suggestion.next } : seededWork;
+  // THE WARM-UPS CLIMB TO THE STEP (2026-10-17, item 5 behind Dave's prefill
+  // answer). The computed ramp is built under the weight the first set opens
+  // at; his own warm-ups from last time stay his, and only one that would sit
+  // at or over a lighter top moves under it (ramp.ts scaleWarmups).
+  const stepTop = prefillStep && workLogged === 0 && exercise.kind === "weight_reps" ? workSeed?.w ?? null : null;
+  const ramp = !exercise.ramp ? [] : stepTop
+    ? rampFor({ ...exercise, sets: [{ id: "step", w: stepTop }] }, rackFrom(gymSettings))
+    : rampFor(exercise, rackFrom(gymSettings));
   // HIS OWN WARM-UPS FROM LAST TIME (Dave 2026-10-15; defect I): the same
   // session the Last line reads, its warm-ups in order, so the Warm-Up side
   // opens on what he actually did, and only falls back to the computed ramp
   // when there is no history at all.
-  const priorWarmups = exercise.kind === "weight_reps" ? lastWarmupsFor(history, exercise, exercise.kind, lastOpts) : [];
-  const warm = draft?.warm ?? startsInWarmUp(ramp, logged, priorWarmups);
   const warmFields = fieldsFor(exercise.kind, { ...style, unit: exercise.unit, rack: exRack });
+  const ownWarmups = exercise.kind === "weight_reps" ? lastWarmupsFor(history, exercise, exercise.kind, lastOpts) : [];
+  const priorWarmups = stepTop && suggestion?.from.w
+    ? scaleWarmups(ownWarmups, { from: suggestion.from.w, to: stepTop, hasBar: !style.equipment || plateMath(style).hasBar, rack: rackFrom(gymSettings), unit: exercise.unit, step: warmFields.find((f) => f.key === "w")?.step ?? 0.5 })
+    : ownWarmups;
+  const warm = draft?.warm ?? startsInWarmUp(ramp, logged, priorWarmups);
   const warmGuess = exercise.kind === "weight_reps"
     ? warmupSeed({
       ramp, logged, work: workSeed?.w ?? null,
@@ -790,11 +805,21 @@ export default function SessionScreen({
     if (!loggable) return;
     // THE PILL DECIDES THE FLAG (2026-09-29): what the button names is what is
     // written, warm-up or work.
-    // Logged by his hand, so reported (Logging Standard addendum 1).
-    const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId(), ...(warm ? { warmup: true } : {}), state: "reported" };
+    // Logged by his hand, so reported (Logging Standard addendum 1), and that
+    // holds for a prefill logged untouched: on screen it was suggested; once
+    // he logs it, it is his (Dave, 2026-10-17).
+    // A CHANGED STEP IS HIS BASELINE (never argues twice): the first working
+    // set carries the step the app filled in, or offered again after he
+    // changed it once, whenever he logs a different weight, so the next
+    // session offers that step instead of filling it in.
+    const stepHere = !warm && workLogged === 0 && prefillOn && !!suggestion && suggestion.kind !== "scheme" && suggestion.next.w !== undefined;
+    const turnedDown = stepHere && (pending?.w ?? 0) > 0 && Math.abs((pending?.w ?? 0) - suggestion.next.w!) >= 0.05;
+    const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId(), ...(warm ? { warmup: true } : {}), state: "reported", ...(turnedDown ? { declined: { ...suggestion.next } } : {}) };
     // D6-A, the accept (2026-09-26): the program's plan moves only when the
-    // first working set is logged AT the suggested numbers. Use puts them in
-    // the fields; this is the one explicit accept, and nothing else writes.
+    // first working set is logged AT the suggested numbers. Under prefill
+    // (Dave, 2026-10-17) that is the step logged as it was filled in: an
+    // untouched prefill counts as accepting it and updates the plan going
+    // forward. Use puts them back after an edit; nothing else writes.
     // What comes back is the way to put the plan back, for the receipt's Undo.
     const undoAccept = !warm && suggestion && workLogged === 0 && e.w === suggestion.next.w && e.r === suggestion.next.r
       ? onAcceptSuggestion?.(suggestion) ?? null
@@ -904,9 +929,29 @@ export default function SessionScreen({
   // hides once they already say it; under "prefill" they already do.
   const showSugg = !warm && !!suggestion && showNow;
   const suggests = showSugg && !((suggestion.next.w ?? 0) === (pending?.w ?? 0) && (suggestion.next.r ?? 0) === (pending?.r ?? 0));
+  // FILLED IN, THE LINE SAYS WHY (2026-10-17, item 6 behind Dave's prefill
+  // answer). With the step already in the fields, "Suggested 280 Lb × 6"
+  // would say the fields twice. The line carries the because-clause and the
+  // reps to expect instead, after Last and its Use Last, which is the one-tap
+  // way back to what he did last time. Change the numbers and the line goes
+  // back to Suggested with Use. Behind Why: his own last sets and the step.
+  const filledIn = showSugg && prefillStep && !suggests;
+  const because = filledIn ? suggestion.reason[1] : undefined;
+  // WITH NO LAST LINE, THE WAY BACK IS STILL ONE TAP (Show Last off): Use and
+  // the numbers the set would have opened at without the step.
+  const revertTo = filledIn && !lastHit && seededWork && ((seededWork.w ?? 0) !== (suggestion.next.w ?? 0) || (seededWork.r ?? 0) !== (suggestion.next.r ?? 0)) ? seededWork : null;
   const nowExtra = suggestion && showSugg ? (
     <>
-      <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, suggestion.next))}`}</span>
+      {filledIn
+        ? <>
+            {because && <span className="fact est">{because}</span>}
+            {suggestion.expect && <span className="fact est">{suggestion.expect}</span>}
+            {revertTo && (
+              <button type="button" className="set-last-act se-sugg-act" aria-label={`Use ${lineCase(formatSet(exercise, revertTo))}, without the step`}
+                onClick={(e) => { e.stopPropagation(); putDraft({ ...fieldsOf(revertTo), warm: false }); }}><span className="act">{`Use ${lineCase(formatSet(exercise, revertTo))}`}</span></button>
+            )}
+          </>
+        : <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, suggestion.next))}`}</span>}
       {suggests && (
         <button type="button" className="set-last-act se-sugg-act" aria-label={`Use ${lineCase(formatSet(exercise, suggestion.next))}, the suggested set`}
           onClick={(e) => { e.stopPropagation(); putDraft({ ...fieldsOf({ id: "", ...suggestion.next }), warm: false }); }}><span className="act">Use</span></button>
@@ -917,8 +962,8 @@ export default function SessionScreen({
         // meant against the range, the step, and the reps to expect.
         <div className="ins-rows ins-ev se-sugg-why">
           <div className="facts">
-            {suggestion.reason.map((part) => <span className="fact est" key={part}>{part}</span>)}
-            {suggestion.expect && <span className="fact est">{suggestion.expect}</span>}
+            {suggestion.reason.filter((part) => part !== because).map((part) => <span className="fact est" key={part}>{part}</span>)}
+            {suggestion.expect && !filledIn && <span className="fact est">{suggestion.expect}</span>}
             {suggestion.sets !== undefined && <span className="fact est">{lineCase(`${suggestion.sets} ${suggestion.sets === 1 ? "set" : "sets"}`)}</span>}
             {suggestion.addSet && <span className="fact est">Room for One More Set This Week</span>}
             {suggestion.addSet && suggestion.addSetWhy?.map((part) => <span className="fact est" key={part}>{part}</span>)}
@@ -940,6 +985,14 @@ export default function SessionScreen({
     // open on, the ramp's step is a suggestion, in the suggestion's own ink.
     <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, warmSeed))}`}</span>
   ) : null;
+  // THE CURSOR IN THE NOW CARD (Dave, 2026-10-17, answers 1 and 6): focused
+  // and ready to type on every new set, lift and side, the number selected
+  // while it is still the app's, so changing it is type and Return; numbers
+  // he was already typing (a draft brought back after a kill) keep the
+  // cursor without being selected. Not while any sheet of this screen is up.
+  const untouched = !draft || (["w", "r", "v", "t"] as const).every((k) => (draft[k] ?? "") === (fieldsOf(seed)[k] ?? ""));
+  const sheetUp = openSetId !== null || openPlanId !== null || restPickOpen || addPickOpen || addName !== null || pickOpen || scopeAsk !== null || breakAsk || cancelAsk || swapOpen || platesOpen || clockOpen || howOpen || moreOpen || loadAt !== null || muscleRole !== null;
+  const nowFocus = showNow && !sheetUp ? { key: `${exercise.id}:${logged.length}:${warm ? "warm" : "work"}`, select: untouched } : undefined;
   /** Match hides once the fields already say what last time did. */
   const nowLast = lastHit && !warm ? lastAt(logged.length) : undefined;
   const nowMatchesLast = !!nowLast && (nowLast.w ?? 0) === (pending?.w ?? 0) && (nowLast.r ?? 0) === (pending?.r ?? 0);
@@ -1120,6 +1173,7 @@ export default function SessionScreen({
             onNowDraft={(d) => putDraft({ ...d, warm })}
             // Return in a field is the Log button (Logging Standard rule 4).
             onNowLog={log}
+            nowFocus={nowFocus}
             nowWarm={warm}
             onNowMode={flipMode}
             nowNo={count.nowNo}

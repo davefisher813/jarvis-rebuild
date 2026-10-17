@@ -96,14 +96,16 @@ export interface GymSettings {
    *  with "|" (ProgramSuggestion.signature), so the same workout is not
    *  offered again. Absent reads as none. */
   declinedPatterns?: string[];
-  /** PROGRESSIVE OVERLOAD, SUGGEST OR PREFILL (2026-10-17, section 10; DAVE'S
-   *  OPEN CHOICE). "suggest": the first set's fields open on last session's
-   *  set at that position (or the plan), and the computed step rides the Now
-   *  card as "Suggested ... Use", which is what the screen has done since
-   *  2026-09-26. "prefill": the fields open ON the computed step, and the
-   *  Use line is not needed. No UI sets this yet. THE DEFAULT IS NOT A
-   *  PRODUCT DECISION: absent reads as "suggest" only because that mirrors
-   *  today's behaviour until Dave rules; both paths work. */
+  /** PROGRESSIVE OVERLOAD, SUGGEST OR PREFILL (2026-10-17, section 10).
+   *  "prefill": the first set's fields open ON the computed step, focused
+   *  with the cursor in them, and logging them untouched accepts the step
+   *  and moves the plan. "suggest": the fields open on last session's set at
+   *  that position (or the plan), and the step rides the Now card as
+   *  "Suggested ... Use", which is what the screen did from 2026-09-26.
+   *  DAVE CHOSE PREFILL (2026-10-17, his decisions page: "Fill it in for me,
+   *  the next weight and reps are already there, I just log it"), so absent
+   *  reads as "prefill". No settings row draws this: he asked for prefill,
+   *  not for a switch, and "suggest" stays only as a stored value. */
   overloadApply?: OverloadApply;
   /** WHAT HAS TO REACH THE TOP OF THE RANGE BEFORE THE LOAD STEPS (2026-10-17,
    *  section 10, brief section 1). "all": every working set at the top, which
@@ -118,9 +120,9 @@ export interface GymSettings {
 export type OverloadApply = "suggest" | "prefill";
 export type OverloadTargets = "all" | "perSet";
 
-/** The switch above, read with its interim default. */
+/** The switch above, read with Dave's default. */
 export function overloadApplyOf(s: Pick<GymSettings, "overloadApply">): OverloadApply {
-  return s.overloadApply === "prefill" ? "prefill" : "suggest";
+  return s.overloadApply === "suggest" ? "suggest" : "prefill";
 }
 
 /** Which sets have to top the range before a step, read with its default. */

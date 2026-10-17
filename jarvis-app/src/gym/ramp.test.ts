@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rampFor, nextRampStep, startsInWarmUp, warmupSeed, DEFAULT_PLATES, DEFAULT_BAR } from "./ramp";
+import { rampFor, nextRampStep, scaleWarmups, startsInWarmUp, warmupSeed, DEFAULT_PLATES, DEFAULT_BAR } from "./ramp";
 import type { Exercise } from "./types";
 
 const ex = (over: Partial<Exercise> = {}): Exercise => ({
@@ -212,5 +212,22 @@ describe("warmupSeed", () => {
     const kg = { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25], unit: "kg" };
     expect(warmupSeed({ ...base, rack: kg, unit: "kg", work: 100 }).w).toBe(50);
     expect(warmupSeed({ ...base, rack: kg, unit: "kg", work: 30 }).w).toBe(20);
+  });
+});
+
+// HIS OWN WARM-UPS UNDER THE STEP (2026-10-17): his stay his; only one at or
+// over a lighter top moves under it.
+describe("scaleWarmups", () => {
+  const rack = { bar: DEFAULT_BAR, plates: DEFAULT_PLATES };
+  it("a step up leaves every warm-up exactly as he did it", () => {
+    const prior = [{ w: 135, r: 8 }, { w: 225, r: 3 }];
+    expect(scaleWarmups(prior, { from: 275, to: 280, hasBar: true, rack, step: 5 })).toEqual(prior);
+  });
+  it("a cut moves only the warm-ups at or over the new top, by the same ratio, rounded down to the rack", () => {
+    const out = scaleWarmups([{ w: 135, r: 8 }, { w: 245, r: 3 }, { w: 255, r: 2 }], { from: 275, to: 245, hasBar: true, rack, step: 5 });
+    expect(out).toEqual([{ w: 135, r: 8 }, { w: 215, r: 3 }, { w: 225, r: 2 }]);
+  });
+  it("off a bar it rounds to the field's step and never reaches the top", () => {
+    expect(scaleWarmups([{ w: 50, r: 5 }], { from: 50, to: 45, hasBar: false, rack, step: 5 })).toEqual([{ w: 40, r: 5 }]);
   });
 });

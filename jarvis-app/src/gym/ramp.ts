@@ -141,6 +141,29 @@ export function startsInWarmUp(ramp: SetEntry[], logged: Pick<SetEntry, "w" | "w
   return nextRampStep(ramp, logged) !== null;
 }
 
+/** HIS OWN WARM-UPS UNDER THE STEP (2026-10-17, behind Dave's prefill
+ *  answer). Last session's warm-ups stay exactly his (Dave 2026-10-15: the
+ *  warm-up opens on what he actually did), so a step up is approached from
+ *  the same places he always uses. Only a warm-up that would now sit at or
+ *  over the top the first set opens on (a cut, a lighter week) moves: by the
+ *  same ratio as the top, rounded DOWN to what the rack builds (or to the
+ *  field's step off a bar), never under the bar, never at the top. His reps
+ *  stay his. */
+export function scaleWarmups(prior: Pick<SetEntry, "w" | "r">[], opts: {
+  from: number; to: number; hasBar: boolean; rack: RackConfig; unit?: string; step: number;
+}): Pick<SetEntry, "w" | "r">[] {
+  if (!(opts.from > 0) || !(opts.to > 0)) return prior;
+  const r = rackIn(opts.rack, opts.unit);
+  const inc = opts.step > 0 ? opts.step : 1;
+  const down = (x: number) => (opts.hasBar ? Math.max(r.bar, floorToRack(x, r)) : Math.max(inc, Math.floor(x / inc + 1e-9) * inc));
+  return prior.map((x) => {
+    if (!((x.w ?? 0) > 0) || x.w! < opts.to) return x;
+    let w = down((x.w! * opts.to) / opts.from);
+    if (w >= opts.to) w = down(opts.to - (opts.hasBar ? step(r) : inc));
+    return { ...x, w: Math.round(w * 100) / 100 };
+  });
+}
+
 /** What the Warm-Up side of the toggle opens at, in the order that is least
  *  surprising: the next ramp step; else what the last warm-up was (a repeat is
  *  one tap to change); else half the working weight on a rack the bar can

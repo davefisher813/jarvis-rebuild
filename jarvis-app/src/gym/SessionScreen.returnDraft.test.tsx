@@ -63,7 +63,7 @@ describe("addendum 1: the Log button stamps reported", () => {
 });
 
 describe("rule 8: nothing typed is lost", () => {
-  it("writes the draft per keystroke, restores it on remount, unselected, and the log spends it", () => {
+  it("writes the draft per keystroke, restores it on remount with the cursor in it but not selected, and the log spends it", () => {
     const store = nowDraftStore(1000, "e1");
     const first = renderScreen();
     fireEvent.change(screen.getByLabelText("Set 2 Weight"), { target: { value: "23" } });
@@ -73,10 +73,15 @@ describe("rule 8: nothing typed is lost", () => {
     // The app is killed mid-typing.
     first.unmount();
     const onLog = vi.fn();
+    const select = vi.spyOn(HTMLInputElement.prototype, "select");
     renderScreen({ onLog });
     const weight = screen.getByLabelText("Set 2 Weight");
     expect(weight).toHaveValue(235);
-    expect(weight, "mid-typing, so not pre-selected and not focused").not.toHaveFocus();
+    // The cursor is there (Dave 2026-10-17), but his own half-typed number is
+    // not selected, so one key does not wipe it.
+    expect(weight).toHaveFocus();
+    expect(select, "mid-typing, so not pre-selected").not.toHaveBeenCalled();
+    select.mockRestore();
     expect(screen.getByRole("button", { name: "Log 235 Lb × 5" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Log 235 Lb × 5" }));
     expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 235, r: 5 });
