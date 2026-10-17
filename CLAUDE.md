@@ -176,3 +176,34 @@ are a guide; three confirmation buckets and never a second inbox; the capture
 box is a front door and every section keeps its own fast surface; voice set
 logging is built as a test with a command phrase, read-back and undo; one
 event, one record). Read it before touching any capture surface.
+
+## Open on Dave's word, 2026-10-17 (do not guess these)
+
+- **Progressive overload: prefill the next step or suggest only.** Both
+  paths exist behind `overloadApply` in `src/gym/settings.ts`, default
+  "suggest", and the default is NOT his decision. No settings row draws it.
+  Seven items wait on the answer and are built on nothing: the default and
+  its control; prefill's one-tap revert; what logging an untouched prefill
+  means (today it counts as accepting and rewrites the plan); how an
+  override is detected so the app never argues twice; warm-up scaling off
+  the suggested top; where the because-clause and expected-rep line sit on
+  the card; which state the set entry records for an untouched prefill.
+- **A logged set entry's `state`** (`src/gym/types.ts`) is "reported" from
+  every hand-logging door and "observed" from the Apple Health import.
+  Absent means unknown, never reported. Nothing writes "suggested" or
+  "planned" until the answer above says what an untouched prefill is.
+- **Every picker adopts a starter through the flow's one door**
+  (`onAdopt`, required). A picker that writes GymSettings itself loses the
+  adoption on the flow's next classification save; that is why the prop
+  cannot be omitted.
+- **A program exercise keeps its rep range explicitly** (`Exercise.repRange`)
+  while every planned rep sits inside it; deriving the range from the reps
+  made it creep down after each accepted step.
+- **Money's overdraft fees are six distinct bank transactions** (Alfred's
+  Plaid evidence, 2026-10-17), each labelled with its purchase and carrying
+  a `ref` that enters the transaction fingerprint. Never dedupe or delete a
+  fee by vendor, amount and date; the Aug 26 fee for the Ally payment has
+  no posted day because the bank gave none.
+- **The stage 1 to 4 questions** (templates, library, overload spec gaps,
+  session logging, the voice test) are listed in the 2026-10-17 session
+  reports; each unblocks its items the hour it is answered.
