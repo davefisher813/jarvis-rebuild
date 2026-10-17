@@ -18,7 +18,12 @@ afterEach(() => { vi.unstubAllGlobals(); });
 describe("the cipher around a refresh token", () => {
   it("what goes in comes back out", async () => {
     const packed = await encrypt("1//abc-refresh", KEY);
-    expect(packed).not.toContain("1//");
+    // The body of the token must never be readable in what is stored. The
+    // three-character prefix is not the check: random base64 contains "1//"
+    // by chance about once in every few thousand runs (CI on 60a4f60,
+    // 2026-10-17: "SA1//ALVZ..."), so the assertion reads the token's body.
+    expect(packed).not.toContain("abc-refresh");
+    expect(packed).not.toBe("1//abc-refresh");
     expect(await decrypt(packed, KEY)).toBe("1//abc-refresh");
   });
   it("encrypts the same token to a different string every time", async () => {
