@@ -781,7 +781,15 @@ export default function CategoryDetail({
     return (
       <CallItScreen
         history={callIt.map((e) => ({ at: e.data.at, rpe: e.data.rpe, durationMin: e.data.durationMin }))}
-        onLog={(rpe) => { const cheer = celebrateHealthLog(callIt.map((e) => ({ at: e.data.at }))); healthSvc.logCallIt({ rpe }); if (cheer) showToast({ message: cheer }); }}
+        // ZERO CONFIRMATIONS, UNDO INSTEAD (the Logging Standard, rule 5, 2026-10-17): the one tap is final and the
+        // receipt is the way back, the same receipt HealthFlow raises for this screen. The screen is a page, not a
+        // sheet, so the toast dock is in view when it fires.
+        onLog={(rpe) => {
+          const cheer = celebrateHealthLog(callIt.map((e) => ({ at: e.data.at })));
+          const d = healthSvc.logCallIt({ rpe });
+          healthReceipt(cheer, "Effort Logged", () => { healthWrite(() => healthSvc.removeCallIt(d.at)); });
+          bumpHealth();
+        }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -797,7 +805,13 @@ export default function CategoryDetail({
         // link, so the one action on the screen placed a call with no summary
         // in it. The dates are on the screen, and they travel with the tap.
         summaries={summaries}
-        onLog={(x, y, side, region) => { lastDiscomfortAt.current = healthSvc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }).at; }}
+        // The tap is final and its receipt carries Undo (rule 5), the same receipt every other logger here raises.
+        onLog={(x, y, side, region) => {
+          const d = healthSvc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) });
+          lastDiscomfortAt.current = d.at;
+          healthReceipt(null, "Spot Logged", () => { healthWrite(() => healthSvc.removePointAtIt(d.at)); });
+          bumpHealth();
+        }}
         onDetail={(detail) => { const at = lastDiscomfortAt.current; if (at != null) healthWrite(() => healthSvc.updatePointAtIt(at, detail)); }}
         onHandToSomeone={() => {
           setHandOff(stillThereMessage(patterns, summaries));
@@ -1430,7 +1444,7 @@ export default function CategoryDetail({
   // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, personId: draft.personId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, priority: draft.priority }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, personId: draft.personId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, priority: draft.priority, reminder: draft.reminder }));
     if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
@@ -2428,6 +2442,8 @@ export default function CategoryDetail({
           projects={sheetProjects(projects, goals)}
           people={sheetPeople(allPeople)}
           goals={sheetGoals(goals)}
+          /* saveTask writes draft.reminder, so a clock time in the words is read here (rule 3, 2026-10-17), as TasksFlow does. */
+          readsReminder
           initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {sheet.kind === "project" && (

@@ -159,3 +159,13 @@ a link written any other way would not survive the offline queue or a restore.
 - **A toast under an open sheet is invisible.** The toast dock is z-index 2 and `.sheet-scrim` is 200
   (`chromeParity.test.ts` pins 2), so a toast raised while a sheet is open is painted behind it and its Undo
   cannot be tapped. Close the sheet first, as Archive does. An app-wide fix is Dave's call.
+
+## The Logging Standard lives in the repo (2026-10-17)
+
+`docs/jarvis-unified/LOGGING-STANDARD.md`: the 2026-10-16 standard plus Dave's
+2026-10-17 addendum (planned is never done; four states planned, suggested,
+reported, observed; time to a correct saved entry is the score and tap budgets
+are a guide; three confirmation buckets and never a second inbox; the capture
+box is a front door and every section keeps its own fast surface; voice set
+logging is built as a test with a command phrase, read-back and undo; one
+event, one record). Read it before touching any capture surface.

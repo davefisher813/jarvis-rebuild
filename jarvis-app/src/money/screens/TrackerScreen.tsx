@@ -10,6 +10,7 @@ import NoticeCard from "../../today/NoticeCard";
 import { lineCase, titleCase } from "../../shared/casing";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
+import { draftStore } from "../../shared/draftStore";
 import {
   EMPTY_TRACKER, accountParts, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth,
   incomeCents, knownCategories, monthLabel, monthlySubTotal, monthOf, shiftMonth,
@@ -551,6 +552,11 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
   );
 }
 
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new transaction's merchant is written on every keystroke and spent by the
+// save that used it or by an explicit Cancel; the scrim keeps it.
+const TX_DRAFT = draftStore("jarvis.tracker.tx.draft.v1");
+
 function TxSheet({ initial, accounts, categories, categoryFor, last, links, onUnmatch, onSave, onDelete, onCancel }: {
   /** REPEAT-LAST IS ONE TAP (the Logging Standard, rule 7, 2026-10-17): the most recent transaction, offered on a new
       sheet as Same as Last Time, which fills every field so Save is the next tap. Absent on an edit, or with nothing yet. */
@@ -568,7 +574,10 @@ function TxSheet({ initial, accounts, categories, categoryFor, last, links, onUn
   onCancel: () => void;
 }) {
   const isNew = !initial.merchant;
-  const [merchant, setMerchant] = useState(initial.merchant);
+  // A new sheet reopens on the draft the last one was killed with (a new row
+  // arrives with no merchant, so there is nothing for the draft to beat).
+  const [merchant, setMerchantState] = useState(() => (isNew ? TX_DRAFT.read() : "") || initial.merchant);
+  const setMerchant = (v: string) => { setMerchantState(v); if (isNew) TX_DRAFT.write(v); };
   const [amount, setAmount] = useState(initial.amountCents ? (Math.abs(initial.amountCents) / 100).toFixed(2) : "");
   const [date, setDate] = useState(initial.date);
   // A new row opens on the category this merchant usually gets, until the
@@ -597,11 +606,16 @@ function TxSheet({ initial, accounts, categories, categoryFor, last, links, onUn
       category: incoming ? "Income" : category,
       account,
     });
+    // onSave answers nothing, so the save that was handed the merchant is the
+    // one that spends it.
+    if (isNew) TX_DRAFT.clear();
   };
+  // Cancel is the explicit discard, so it spends the draft; the scrim keeps it.
+  const cancel = () => { if (isNew) TX_DRAFT.clear(); onCancel(); };
 
   return (
     <FormSheet title={initial.merchant ? "Edit Transaction" : "New Transaction"}
-      onCancel={onCancel} onSave={submit} saveDisabled={!valid}>
+      onCancel={cancel} onDismiss={onCancel} onSave={submit} saveDisabled={!valid}>
       {/* Same as Last Time (rule 7): one tap fills the merchant, the amount, the direction, the category and the account
           from the most recent transaction; Save is the next tap. The row's one grey is who was paid. */}
       {isNew && last && (

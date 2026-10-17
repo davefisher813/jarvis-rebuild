@@ -32,3 +32,50 @@ describe("ReceiptSheet: opens on the vendor, and Return saves", () => {
     expect(document.activeElement).not.toBe(screen.getByLabelText("Vendor"));
   });
 });
+
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new receipt's vendor is kept per keystroke, restored on the next open, spent
+// by the save that used it and by an explicit Cancel, and kept on a scrim tap.
+describe("ReceiptSheet: a new receipt's vendor survives a remount", () => {
+  const vendor = () => screen.getByLabelText("Vendor") as HTMLInputElement;
+
+  it("a half-typed vendor comes back after a remount, and the save spends it", async () => {
+    localStorage.clear();
+    const first = render(<ReceiptSheet {...props} initial={blank} onSave={async () => true} />);
+    fireEvent.change(vendor(), { target: { value: "Costco" } });
+    first.unmount();
+    const second = render(<ReceiptSheet {...props} initial={blank} onSave={async () => true} />);
+    expect(vendor().value).toBe("Costco");
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "47.12" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(localStorage.getItem("jarvis.receipt.draft.v1")).toBeNull());
+    second.unmount();
+    const third = render(<ReceiptSheet {...props} initial={blank} onSave={async () => true} />);
+    expect(vendor().value).toBe("");
+    third.unmount();
+  });
+
+  it("Cancel is the discard, the scrim keeps it, and a scanned vendor loses only to a draft", () => {
+    localStorage.clear();
+    const onCancel = vi.fn();
+    const first = render(<ReceiptSheet {...props} initial={blank} onSave={async () => true} onCancel={onCancel} />);
+    fireEvent.change(vendor(), { target: { value: "Costco" } });
+    first.unmount();
+    const second = render(<ReceiptSheet {...props} initial={blank} onSave={async () => true} onCancel={onCancel} />);
+    expect(vendor().value).toBe("Costco");
+    fireEvent.click(document.querySelector(".sheet-scrim") as HTMLElement);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("jarvis.receipt.draft.v1")).toBe("Costco");
+    second.unmount();
+    const scanned = { ...blank, vendor: "Stop & Shop" };
+    const third = render(<ReceiptSheet {...props} initial={scanned} onSave={async () => true} onCancel={onCancel} />);
+    expect(vendor().value).toBe("Costco");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(2);
+    third.unmount();
+    const fourth = render(<ReceiptSheet {...props} initial={scanned} onSave={async () => true} onCancel={onCancel} />);
+    expect(vendor().value).toBe("Stop & Shop");
+    fourth.unmount();
+    localStorage.clear();
+  });
+});

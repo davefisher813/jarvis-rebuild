@@ -186,6 +186,11 @@ function toCaptureResult(e: ParsedEntity, kind: CaptureResult["kind"]): CaptureR
     ...(e.bill ? { bill: e.bill } : {}),
     ...(e.personId ? { personId: e.personId } : {}),
     ...(e.projectId ? { projectId: e.projectId } : {}),
+    // The Logging Standard, rule 3 (2026-10-17): the length and the area the
+    // words named ride through to the writer (applyCapture).
+    ...(e.estimateMin ? { estimateMin: e.estimateMin } : {}),
+    ...(e.end ? { end: e.end } : {}),
+    ...(e.category ? { category: e.category } : {}),
   };
 }
 
@@ -334,7 +339,12 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
     }
   }
   const loop = flagOn("memory_v1");
-  const { entities } = parsePaste(text, deps.today, { people: deps.people, projects: deps.projects, ...(loop ? { followUp: true } : {}) });
+  const { entities } = parsePaste(text, deps.today, {
+    people: deps.people, projects: deps.projects,
+    // The areas a #tag can name (rule 3, 2026-10-17).
+    categories: deps.categories.map((c) => ({ id: c.id, name: c.data.name })),
+    ...(loop ? { followUp: true } : {}),
+  });
   for (const e of entities) {
     // QUICK ADD (handoff 5.0). A standing fact about the user goes straight
     // into the genome as a told-rank strand: no AI call (a model never gets
@@ -457,7 +467,10 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
         result = toCaptureResult(e, e.kind);
       }
     }
-    result = await categoryFromRule(result, e.raw, deps);
+    // An area he TYPED (#Work) is stated, so it stands over a learned rule
+    // and over whatever the model answered (rule 3, 2026-10-17).
+    if (e.category) result = { ...result, category: e.category };
+    else result = await categoryFromRule(result, e.raw, deps);
     const billFor = [
       deps.people?.find((p) => p.id === result.personId)?.name,
       deps.projects?.find((p) => p.id === result.projectId)?.title,

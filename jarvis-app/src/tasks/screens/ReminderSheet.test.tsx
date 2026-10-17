@@ -203,3 +203,63 @@ describe("ReminderSheet", () => {
     expect(screen.queryByText("Delete Reminder")).toBeNull();
   });
 });
+
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new reminder's words are kept per keystroke, restored on the next open, spent
+// by the save that used them and by an explicit Cancel, and kept on a scrim tap.
+describe("ReminderSheet: a new reminder's words survive a remount", () => {
+  const TUE = "2026-09-15";
+  const base = { today: TUE, nowHHMM: "09:00", now: new Date(`${TUE}T09:00:00`).getTime() };
+  const words = () => screen.getByLabelText("Reminder") as HTMLInputElement;
+
+  it("half-typed words come back after a remount, and the save spends them", () => {
+    localStorage.clear();
+    const first = render(<ReminderSheet {...base} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.change(words(), { target: { value: "Call Alberto" } });
+    first.unmount();
+    const second = render(<ReminderSheet {...base} onSave={() => {}} onCancel={() => {}} />);
+    expect(words().value).toBe("Call Alberto");
+    fireEvent.change(screen.getByLabelText("Time"), { target: { value: "10:30" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(localStorage.getItem("jarvis.reminder.draft.v1")).toBeNull();
+    second.unmount();
+    const third = render(<ReminderSheet {...base} onSave={() => {}} onCancel={() => {}} />);
+    expect(words().value).toBe("");
+    third.unmount();
+  });
+
+  it("Cancel is the discard, the scrim keeps them, and a caller's words lose only to a draft", () => {
+    localStorage.clear();
+    const onCancel = vi.fn();
+    const first = render(<ReminderSheet {...base} onSave={() => {}} onCancel={onCancel} />);
+    fireEvent.change(words(), { target: { value: "Call Alberto" } });
+    first.unmount();
+    const second = render(<ReminderSheet {...base} onSave={() => {}} onCancel={onCancel} />);
+    expect(words().value).toBe("Call Alberto");
+    // Nothing typed since it opened, so the scrim dismisses, and the draft stays.
+    fireEvent.click(document.querySelector(".sheet-scrim") as HTMLElement);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("jarvis.reminder.draft.v1")).toBe("Call Alberto");
+    second.unmount();
+    const third = render(<ReminderSheet {...base} initial={{ text: "take the meds", reminder: { time: "08:00" } }} onSave={() => {}} onCancel={onCancel} />);
+    expect(words().value).toBe("Call Alberto");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem("jarvis.reminder.draft.v1")).toBeNull();
+    third.unmount();
+    const fourth = render(<ReminderSheet {...base} initial={{ text: "take the meds", reminder: { time: "08:00" } }} onSave={() => {}} onCancel={onCancel} />);
+    expect(words().value).toBe("Take the Meds");
+    fourth.unmount();
+  });
+
+  it("an edit neither reads nor writes the draft", () => {
+    localStorage.clear();
+    localStorage.setItem("jarvis.reminder.draft.v1", "Call Alberto");
+    const r = render(<ReminderSheet {...base} mode="edit" initial={{ text: "Take the Meds", reminder: { time: "08:00" } }} onSave={() => {}} onCancel={() => {}} />);
+    expect(words().value).toBe("Take the Meds");
+    fireEvent.change(words(), { target: { value: "Take the Vitamins" } });
+    expect(localStorage.getItem("jarvis.reminder.draft.v1")).toBe("Call Alberto");
+    r.unmount();
+    localStorage.clear();
+  });
+});

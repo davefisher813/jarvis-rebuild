@@ -65,3 +65,23 @@ describe("BiggerPictureFlow: Mark Done from a step's Edit Task sheet (issue 102)
     stop();
   });
 });
+
+// THE LOGGING STANDARD, rule 3 (2026-10-17): the new-step door reads a clock
+// time out of the words AND writes it. Before this the door passed no
+// readsReminder, so "3pm" stayed in the title here while TasksFlow read it.
+describe("BiggerPictureFlow: a new step's words carry their reminder through to the task", () => {
+  it("\"Call Nadia tomorrow 3pm\" lands as Call Nadia with a 3:00 PM reminder", async () => {
+    resetToasts();
+    localStorage.clear();
+    render(<NotesProvider userId="bigger-newstep-reminder"><Seed /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Add a Task"));
+    const field = await screen.findByLabelText("Task");
+    fireEvent.change(field, { target: { value: "Call Nadia tomorrow 3pm" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(async () => {
+      const made = (await ref!.tasks.listTasks()).find((t) => t.data.text === "Call Nadia");
+      expect(made, "the title lost the words that were read").toBeDefined();
+      expect(made!.data.reminder?.time).toBe("15:00");
+    });
+  });
+});

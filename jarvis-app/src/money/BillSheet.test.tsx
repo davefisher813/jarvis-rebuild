@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import BillSheet, { type BillDraft } from "./BillSheet";
 
@@ -121,5 +121,62 @@ describe("BillSheet: opens on the name, and Return saves", () => {
   it("an edit opens quiet", () => {
     render(<BillSheet mode="edit" initial={{ text: "Car Registration", due: "2026-10-01", recurrence: null, bill: { amount: 85 } }} onSave={() => undefined} onCancel={() => undefined} />);
     expect(document.activeElement).not.toBe(screen.getByLabelText("Bill name"));
+  });
+});
+
+// A DRAFT THAT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17): a
+// new bill's name is kept per keystroke, restored on the next open, spent by
+// the save that used it and by an explicit Cancel, and kept on a scrim tap.
+describe("BillSheet: a new bill's name survives a remount", () => {
+  const name = () => screen.getByLabelText("Bill name") as HTMLInputElement;
+
+  it("a half-typed name comes back after a remount, and the save spends it", async () => {
+    localStorage.clear();
+    const first = render(<BillSheet mode="new" onSave={() => undefined} onCancel={() => undefined} />);
+    fireEvent.change(name(), { target: { value: "Rent" } });
+    first.unmount();
+    const second = render(<BillSheet mode="new" onSave={() => undefined} onCancel={() => undefined} />);
+    expect(name().value).toBe("Rent");
+    fireEvent.change(screen.getByLabelText("Amount in dollars"), { target: { value: "1200" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(localStorage.getItem("jarvis.bill.draft.v1")).toBeNull());
+    second.unmount();
+    const third = render(<BillSheet mode="new" onSave={() => undefined} onCancel={() => undefined} />);
+    expect(name().value).toBe("");
+    third.unmount();
+  });
+
+  it("Cancel is the discard, the scrim keeps it, and a caller's name loses only to a draft", () => {
+    localStorage.clear();
+    const onCancel = vi.fn();
+    const first = render(<BillSheet mode="new" onSave={() => undefined} onCancel={onCancel} />);
+    fireEvent.change(name(), { target: { value: "Rent" } });
+    first.unmount();
+    const second = render(<BillSheet mode="new" onSave={() => undefined} onCancel={onCancel} />);
+    expect(name().value).toBe("Rent");
+    fireEvent.click(document.querySelector(".sheet-scrim") as HTMLElement);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("jarvis.bill.draft.v1")).toBe("Rent");
+    second.unmount();
+    const prefilled = { text: "Car Registration", due: "2026-10-01", recurrence: null, bill: { amount: 85 } };
+    const third = render(<BillSheet mode="new" initial={prefilled} onSave={() => undefined} onCancel={onCancel} />);
+    expect(name().value).toBe("Rent");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(2);
+    third.unmount();
+    const fourth = render(<BillSheet mode="new" initial={prefilled} onSave={() => undefined} onCancel={onCancel} />);
+    expect(name().value).toBe("Car Registration");
+    fourth.unmount();
+  });
+
+  it("an edit neither reads nor writes the draft", () => {
+    localStorage.clear();
+    localStorage.setItem("jarvis.bill.draft.v1", "Rent");
+    const r = render(<BillSheet mode="edit" initial={{ text: "Car Registration", due: "2026-10-01", recurrence: null, bill: { amount: 85 } }} onSave={() => undefined} onCancel={() => undefined} />);
+    expect(name().value).toBe("Car Registration");
+    fireEvent.change(name(), { target: { value: "Car Tags" } });
+    expect(localStorage.getItem("jarvis.bill.draft.v1")).toBe("Rent");
+    r.unmount();
+    localStorage.clear();
   });
 });

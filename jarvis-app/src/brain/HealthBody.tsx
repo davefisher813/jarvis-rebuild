@@ -198,30 +198,50 @@ export default function HealthBody({
           </>
         ) : (
           <>
-            {/* THE CARD AS THE BOARD DRAWS IT (Dave's approved board 2026-10-16,
-                screen 6): the eyebrow, the big line, ONE grey line naming the
-                program's next day with its count and its length, and the red
-                Start Workout last, the only red on the page. The grey line is
-                still the next day's door: it opens the sheet with Start, Adjust
-                Time and Change Workout (the next-workout row, 2026-10-10). */}
-            <div className="h-hero h-hero-static">
-              <div className="h-hero-b"><div className="h-hero-t">Log It as You Go</div></div>
-            </div>
-            {next && (
-              <div {...pressable(() => setNextOpen(true))} className="h-hero h-hero-next">
-                <div className="facts h-hero-facts">
-                  <span className="fact">{`Next in Your Program: ${workoutTitle(next.day.name)}`}</span>
-                  {when && <span className={"fact " + whenTone}>{when}</span>}
-                  <span className="fact">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
-                  {est > 0 && <span className="fact">{spanLabel(est)}</span>}
+            {/* THE START SURFACE IS ONE ACTION (Dave 2026-10-17: "Log It as You
+                Go" and "Up Next" are the same thing; the card, heading plus the
+                Next in Your Program line, IS the one action and must be
+                advertised: full, prominent button treatment, not a quiet
+                subtext line under a heading. People will either do that or
+                log a new one; everything else gets the standard small
+                treatment). With a program, the next day is the red button
+                itself: "Start Leg Day" over its facts in the button's own
+                white, one tap to the day (the same start the next-day sheet's
+                Start calls; the Logging Standard). The heading is not repeated
+                above it: the button says it. Under it, the day page's own
+                small capsules: Log a New Workout (the empty session) and
+                Change Workout (the next-day sheet, which keeps Adjust Time
+                and Change Workout). The board (2026-10-16, screen 6) drew a
+                heading, a grey line and a red Start; Dave's words override the
+                board here. With no program the card is as it was: the heading
+                and Start Workout, which starts an empty workout. */}
+            {next ? (
+              <div className="h-hero-cta">
+                <button type="button" className="btn btn-primary btn-launch btn-lg btn-block h-hero-go" onClick={() => onStart(next.day.id)}>
+                  <span className="h-hero-go-t">{`Start ${workoutTitle(next.day.name)}`}</span>
+                  <span className="facts">
+                    <span className="fact">Next in Your Program</span>
+                    {when && <span className="fact">{when}</span>}
+                    <span className="fact">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
+                    {est > 0 && <span className="fact">{spanLabel(est)}</span>}
+                  </span>
+                </button>
+                <div className="day-acts h-hero-acts">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => onStart(SCRATCH_DAY_ID)}>Log a New Workout</button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNextOpen(true)}>Change Workout</button>
                 </div>
-                {CHEV}
               </div>
+            ) : (
+              <>
+                <div className="h-hero h-hero-static">
+                  <div className="h-hero-b"><div className="h-hero-t">Log It as You Go</div></div>
+                </div>
+                <div className="h-hero-cta">
+                  {/* No glyph: the session's Log button carries none, and the two are one weight. */}
+                  <button type="button" className="btn btn-primary btn-launch btn-lg btn-block" onClick={() => onStart(SCRATCH_DAY_ID)}>Start Workout</button>
+                </div>
+              </>
             )}
-            <div className="h-hero-cta">
-              {/* No glyph: the session's Log button carries none, and the two are one weight. */}
-              <button type="button" className="btn btn-primary btn-launch btn-lg btn-block" onClick={() => onStart(SCRATCH_DAY_ID)}>Start Workout</button>
-            </div>
           </>
         )}
       </div></div>

@@ -135,7 +135,7 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
   }, [workouts]);
 
   return (
-    <div className="screen ruled health-ruled wo-screen">
+    <div className="screen ruled health-ruled wo-screen screen-history">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">History</div>

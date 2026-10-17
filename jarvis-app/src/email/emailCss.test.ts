@@ -168,3 +168,44 @@ describe("the connection banner is amber (Banner color: Dave ruled AMBER, 2026-1
     expect(body(".conn-banner-act.primary")).toMatch(/background:\s*var\(--on-fill-dark\)/);
   });
 });
+
+// THE ROW'S TEXT ENDS INSIDE THE CARD, AND STARTS AT THE CARD'S EDGE (Dave 2026-10-17, from two inbox screenshots:
+// "Re: [davefisher813/bridge-app] Remove f" cut at the screen edge, and the avatar "way way too indented"). Both were
+// the swipe shell's doing. MailSwipe wraps each row in .task-row.swipe-shell; .task-row is display: flex, so the
+// shell was a flex container and sized the .row it carried to that row's own text (1078px in a 348px shell), past
+// every ellipsis; and ruled.css's `.ruled .task-row` re-stated the padding the shell's own rule zeroed, at the same
+// specificity and later, so the row paid 20px twice. The sheet reads here are the whole chain.
+describe("mail-rows.css and the swipe shell: a row's text ends inside the card", () => {
+  const ROWS = strip(read("styles/mail-rows.css"));
+  const COMP = strip(read("styles/components.css"));
+  const bodyOf = (css: string, sel: string) => rules(css).filter((r) => r.sel === sel).map((r) => r.body).join(";");
+
+  it(".ms is the shrinkable column, and the subject and first words ellipsize on one line", () => {
+    expect(bodyOf(ROWS, ".ms")).toMatch(/flex:\s*1/);
+    expect(bodyOf(ROWS, ".ms"), "without min-width: 0 a flex child never shrinks under its text").toMatch(/min-width:\s*0/);
+    for (const sel of [".msubj", ".msnip"]) {
+      const b = bodyOf(ROWS, sel);
+      expect(b, sel).toMatch(/white-space:\s*nowrap/);
+      expect(b, sel).toMatch(/overflow:\s*hidden/);
+      expect(b, sel).toMatch(/text-overflow:\s*ellipsis/);
+    }
+  });
+
+  it("the swipe shell is a block with no padding, inside a ruled card too", () => {
+    const shell = rules(COMP).filter((r) => r.sel.split(",").map((s) => s.trim()).includes(".ruled .task-row.swipe-shell"));
+    expect(shell, "the .ruled twin is what beats ruled.css's `.ruled .task-row` padding").toHaveLength(1);
+    expect(shell[0]!.body, "a flex shell sizes the row to its text").toMatch(/display:\s*block/);
+    expect(shell[0]!.body).toMatch(/padding:\s*0/);
+    expect(shell[0]!.body).toMatch(/min-height:\s*0/);
+  });
+
+  it("the row's own padding is the section head's inset, and no mail row rule adds a horizontal padding of its own", () => {
+    const DS = strip(read("styles/jarvis-design-system.css"));
+    expect(DS, "the row's inset is --s-4").toMatch(/\.row,[^{]*\{[^}]*padding:\s*var\(--s-3h\)\s+var\(--s-4\)/);
+    expect(bodyOf(COMP, ".sh2"), "the head's inset is --s-4").toMatch(/padding:\s*var\(--s-4h, 18px\)\s+var\(--s-4\)\s+var\(--s-1h\)/);
+    for (const r of rules(ROWS)) {
+      if (!/\.(mrow|erow)\b/.test(r.sel)) continue;
+      expect(r.body, r.sel + " sets its own horizontal padding").not.toMatch(/padding-left|padding-inline|padding:\s*[^;]+\s[^;]+;/);
+    }
+  });
+});

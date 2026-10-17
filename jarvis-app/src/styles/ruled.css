@@ -2956,7 +2956,10 @@
    the chevron at the right; Health leads with five icon chips. No shading
    on any tile. */
 .ruled .area-cards { display: flex; flex-direction: column; gap: var(--s-2h); }
-.ruled .area-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); cursor: pointer; }
+/* ONE LEFT EDGE (Dave 2026-10-17, "we need left alignment"): the tile sits at the card's content edge, --s-4, the
+   inset the section head and every other row use, and the one the Health card beside it already had (measured
+   35px against its 41px at 390). The vertical rhythm is unchanged. */
+.ruled .area-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); cursor: pointer; }
 .ruled .area-card:active { opacity: 0.85; }
 /* PLAIN LIKE THE OTHER AREA CARDS (Dave's pick, 2026-09-26). The card lost its green wash and green border: Health's colour
    lives on its tile, as every area's does. Since 2026-10-05 it is the same card in every respect (the five section capsules
@@ -3727,6 +3730,7 @@
   --r-field: 12px;                            /* the board's button, field and set row corner */
   --t-name: calc(15px * var(--type-scale));   /* the board's row name: 15 / 700 */
   --t-sub: calc(12.5px * var(--type-scale));  /* the board's plan line and meta: 12.5 grey */
+  --r-xs: 5px;                                /* the board's PR tag and week bar corner (the app's 4), re-bound like --r-card */
 }
 /* 16, 11 and 5 below are the board's own measured steps (its screen padding, its row padding, its dot gap), off the
    spacing scale on purpose and named in laws.test.ts's MEASURED set with this reason. */
@@ -3749,8 +3753,14 @@
 .ruled.health-ruled.wo-screen .list-card-ruled > .row, .ruled.health-ruled.wo-screen .card .row,
 .sheet-scrim > .card.wo-sheet .row { padding: 11px var(--s-3h); min-height: 0; gap: var(--s-3); }
 .ruled.health-ruled.wo-screen .row + .row::before, .sheet-scrim > .card.wo-sheet .row + .row::before { left: var(--s-3h); }
-.ruled.health-ruled.wo-screen .list-card-ruled > .row:first-child { padding-top: var(--s-3h); }
-.ruled.health-ruled.wo-screen .list-card-ruled > .row:last-child { padding-bottom: var(--s-3h); }
+/* A card of plain rows wears the board's 4 above and below its rows (its "padding-top:4px;padding-bottom:4px" on the
+   exercise list, the levers, the goals), so the first row's text sits 16 from the card's edge: 1 border, 4 card, 11
+   row. The 2026-10-17 pass had folded the 4 into a 14 first row, which measured the row's start 1 from the edge against
+   the board's 5. A card headed by an eyebrow row or a .grp (the warm-up, the cool-down, What Changed) carries its 14 on
+   that head and is not padded. The day page's rows sit in a nested .reorder-list card, so that card's rows count too. */
+.ruled.health-ruled.wo-screen .list-card-ruled:has(> .row):not(:has(> .grp)):not(:has(> .row > .row-grow > .eyebrow)),
+.ruled.health-ruled.wo-screen .list-card-ruled:has(> .reorder-list > .row):not(:has(> .grp)):not(:has(> .row > .row-grow > .eyebrow)),
+.sheet-scrim > .card.wo-sheet .list-card-ruled:has(> .row) { padding: var(--s-1) 0; }
 /* The eyebrow: 11 / 700 / .08em. */
 .ruled.health-ruled.wo-screen .eyebrow, .ruled.health-ruled.wo-screen .h-eyebrow, .sheet-scrim > .card.wo-sheet .eyebrow {
   font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.08em; }
@@ -3818,13 +3828,14 @@
 /* The door's chevron sits in the chip's top corner rather than as a third line under the value. */
 .ruled.health-ruled.wo-screen .se-facts .se-chip-door { padding-right: var(--s-2); }
 .ruled.health-ruled.wo-screen .se-facts .se-chip-door::before { position: absolute; right: var(--s-2); top: var(--s-2h); margin: 0; }
-/* The warm-up and cool-down cards, on the day and in the session: the eyebrow row, then the items 8 and 3 apart at 700,
-   14 inside, no rows of their own and no hairlines. */
+/* The warm-up and cool-down cards, on the day and in the session: the eyebrow row, then the items at 700, 14 inside, no
+   rows of their own and no hairlines. The board spaces the items 8 and 3 apart on the day (screen 2) and 10 and 4 apart
+   in the session, under the Skip capsule (screen 1); each card follows its own screen. */
 .ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) { padding: var(--s-3h) var(--s-3h) 0; min-height: 0; }
-.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row,
 .ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row { padding: var(--s-2) var(--s-3h) 0; min-height: 0; }
-.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row ~ .row,
 .ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row ~ .row { padding-top: 3px; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row { padding: var(--s-2h) var(--s-3h) 0; min-height: 0; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row ~ .row { padding-top: var(--s-1); }
 .ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row:last-child,
 .ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row:last-child { padding-bottom: var(--s-3h); }
 .ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row::before,
@@ -3896,8 +3907,6 @@
    action a 44px box, a field a 44px floor, and the sheet's inner card no corners. */
 .ruled.health-ruled.wo-screen .row:has(> .row-press) { padding: 0; }
 .ruled.health-ruled.wo-screen .row > .row-press { padding: 11px var(--s-3h); }
-.ruled.health-ruled.wo-screen .list-card-ruled > .row:first-child > .row-press { padding-top: var(--s-3h); }
-.ruled.health-ruled.wo-screen .list-card-ruled > .row:last-child > .row-press { padding-bottom: var(--s-3h); }
 .ruled.health-ruled.wo-screen .logbar-row .pill-act { line-height: 1.2; }
 .ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) > .see-all { min-height: 0; padding: 0;
   line-height: 1.2; position: relative; }
@@ -3905,10 +3914,62 @@
 .ruled.health-ruled.wo-screen .se-field .set-field { min-height: 0; padding: 0; height: calc(26px * var(--type-scale)); flex: 0 0 auto; }
 .ruled.health-ruled.wo-screen .se-field .se-grid-u { line-height: 1.5; }
 .sheet-scrim > .card.wo-sheet .sheet-form .card { border-radius: var(--r-card); }
-.sheet-scrim > .card.wo-sheet .list-card-ruled > .row:first-child { padding-top: var(--s-3h); }
-.sheet-scrim > .card.wo-sheet .list-card-ruled > .row:last-child { padding-bottom: var(--s-3h); }
 /* The field's number keeps the box at the number's own height: Chromium's spin button would hold the input at 31px
    under a 26px number (the board's box is 70 tall; with the spinner it measured 77). A phone draws no spinner anyway. */
 .ruled.health-ruled.wo-screen .se-field .set-field { -webkit-appearance: none; appearance: textfield; }
 .ruled.health-ruled.wo-screen .se-field .set-field::-webkit-inner-spin-button,
 .ruled.health-ruled.wo-screen .se-field .set-field::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* ---- The second measure (2026-10-17, the eleven rows left after the first pass) ----
+   THE BOARD'S SETTING ROW (.rowline: the levers on Doing Today, the goal and milestones on the exercise page): a 14 / 700
+   name over a 12 grey line with nothing between them, 11 above and below, so the row stands 55 where an exercise row
+   (15 over 12.5, 2 apart) stands 59. The lever rows and the goals card wear it through the two type tokens, re-bound on
+   the row as the scope re-binds them (the type law draws every name and every line through those tokens and no other
+   number); the hub's doors keep their 44 tap floor. */
+.sheet-scrim > .card.wo-sheet .fit-lever, .ruled.health-ruled.wo-screen .lift-goals .row {
+  --t-name: calc(14px * var(--type-scale)); --t-sub: calc(12px * var(--type-scale)); }
+.sheet-scrim > .card.wo-sheet .fit-lever .conn-meta, .ruled.health-ruled.wo-screen .lift-goals .row .conn-meta,
+.ruled.health-ruled.wo-screen .lift-goals .row .facts { margin-top: 0; }
+/* The board's toggle: 46 by 27 with a 21 knob 3 in from the edge (the shared primitive is iOS's 51 by 31). Scoped to the
+   sheet alone; the whole lever row flips it, and that row stands 55, so the tap keeps its 44. */
+.sheet-scrim > .card.wo-sheet .switch { width: 46px; height: 27px; }
+.sheet-scrim > .card.wo-sheet .switch::after { width: 21px; height: 21px; top: 3px; left: 3px; }
+.sheet-scrim > .card.wo-sheet .switch:not(.off)::after { transform: translateX(19px); }
+/* History: the board pads its card 2 and its rows 12 (hist-row), and draws the done mark as a 13px glyph 11.5 wide; the
+   check icon is 12 here. */
+.ruled.health-ruled.wo-screen.screen-history .list-card-ruled:has(> .row) { padding: var(--s-0h) 0; }
+.ruled.health-ruled.wo-screen.screen-history .list-card-ruled > .row { padding: var(--s-3) var(--s-3h); }
+.ruled.health-ruled.wo-screen .hist-done { width: 12px; height: 12px; }
+/* The weekly bars: the board's .bars is a 64 box, 8 of it padding above a 56 track that the eyebrow sits straight on.
+   The svg keeps its 56-unit viewBox and stretches to the box (preserveAspectRatio none, set on the element), so the track
+   is 56 tall at any card width instead of scaling with it (61.2 at 328 wide). */
+.ruled.health-ruled.wo-screen .card.pad > .eyebrow:has(+ .lift-bars) { margin-bottom: 0; }
+.ruled.health-ruled.wo-screen .lift-bars { height: 64px; padding-top: var(--s-2); margin-top: 0; }
+/* ---- THE ALL DATA ROWS SHARE ONE ANCHOR (Dave's screenshot, 2026-10-17): on an exercise row carrying The Sets
+   expander, the dot and the chevron were centred on the whole taller block and floated under the name line, so the rows
+   had no rhythm beside the Push Day row above them. The row is a grid now: three columns (the dot, the words, the chevron
+   or the menu) by three rows (the name, the facts, the expander). The dot and the chevron span the name and the facts and
+   centre on them; the expander takes the third row under the words alone and pulls nothing down; a row without one is the
+   same grid two rows deep, so both wear the same padding and the same rhythm. Nothing else about the row moves: the words,
+   the expander, its colour, the dot's hue and the chevron are as they were. ---- */
+.ruled.health-ruled.wo-screen .row.h-log-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto auto;
+  align-items: center; row-gap: 0; column-gap: var(--s-2h); } /* .row.h-log-row: outranks the row rule's 12 gap, which a grid would read as 24 of empty track gap */
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow { display: contents; }
+.ruled.health-ruled.wo-screen .h-log-row > .h-log-ico { grid-column: 1; grid-row: 1 / 3; align-self: center; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow > .conn-name { grid-column: 2; grid-row: 1; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow > .facts { grid-column: 2; grid-row: 2; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow > .ad-sets { grid-column: 2; grid-row: 3; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow ~ * { grid-column: 3; grid-row: 1 / 3; align-self: center; }
+/* ---- THE START SURFACE IS ONE ACTION (Dave, 2026-10-17: "Log It as You Go" and "Up Next" are the same thing; the card,
+   heading plus the next-day line, IS the action and must be advertised, full prominent button treatment, not a quiet
+   subtext line under a heading). The next program day is the red button itself: two lines in the button's own white, the
+   day as the verb ("Start Leg Day") over the facts at the small size, the dots drawn by the CSS as on any facts line.
+   Under it the standard small capsules, the day page's own .day-acts pills. The board (screen 6) drew a heading, a grey
+   line and a red Start; Dave's words override the board here. With no program the card keeps its Start Workout. ---- */
+.ruled.health-ruled.wo-screen .h-hero-cta .h-hero-go { flex-direction: column; gap: var(--s-0h); line-height: 1.2; }
+.ruled.health-ruled.wo-screen .h-hero-go-t { display: block; }
+.ruled.health-ruled.wo-screen .h-hero-acts { justify-content: flex-start; }
+.ruled.health-ruled.wo-screen .h-hero-go > .facts { color: inherit; font-size: var(--t-sub); line-height: 1.3; justify-content: center;
+  flex-wrap: wrap; white-space: normal; overflow: visible; max-width: 100%; margin: 0; }
+.ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact, .ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact + .fact::before {
+  color: inherit; white-space: normal; overflow: visible; }
+.ruled.health-ruled.wo-screen .h-hero-cta .day-acts { margin-top: 0; }

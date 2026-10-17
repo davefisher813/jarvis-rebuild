@@ -38,9 +38,15 @@ const fieldsOf = (el: HTMLElement | null): string =>
   [...(el?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea") ?? [])]
     .map((f) => f.value).join("\u0000");
 
-export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveLabel, children, className = "", dirty }: {
+export function FormSheet({ title, onCancel, onDismiss, onSave, saveDisabled = false, saveLabel, children, className = "", dirty }: {
   title: string;
   onCancel: () => void;
+  /** The scrim's dismiss, when it is not the same thing as Cancel (the Logging
+      Standard, rule 8, 2026-10-17): a composer that keeps a per-keystroke
+      draft spends it on the explicit Cancel and keeps it on a stray scrim tap,
+      so the two doors out are handed in separately. Absent, the scrim is
+      Cancel, as it always was. */
+  onDismiss?: () => void;
   onSave: () => void;
   saveDisabled?: boolean;
   saveLabel?: string;
@@ -58,7 +64,7 @@ export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveL
   const onScrim = () => {
     if (dirty === true) return;
     if (opened.current !== null && fieldsOf(card.current) !== opened.current) return;
-    onCancel();
+    (onDismiss ?? onCancel)();
   };
   return createPortal(
     <div className="sheet-scrim" onClick={onScrim}>

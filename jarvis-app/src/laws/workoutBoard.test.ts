@@ -51,7 +51,7 @@ describe("LAW: the workout board's geometry", () => {
   it("the six screens carry the scope: the session, the day, History, the exercise page, the hub, Doing Today", () => {
     expect(read("gym/SessionScreen.tsx")).toContain('className="screen ruled health-ruled screen-session wo-screen"');
     expect(read("gym/GymFlow.tsx")).toContain('<div className="screen ruled health-ruled wo-screen">');
-    expect(read("gym/HistoryScreen.tsx")).toContain('className="screen ruled health-ruled wo-screen"');
+    expect(read("gym/HistoryScreen.tsx")).toContain('className="screen ruled health-ruled wo-screen screen-history"');
     expect(read("gym/LiftDetailScreen.tsx")).toContain('className="screen ruled health-ruled wo-screen"');
     expect(read("brain/CategoryDetail.tsx")).toContain('kind === "health" ? " health-ruled wo-screen" : " area-ruled"');
     expect(read("gym/FitSheet.tsx")).toContain('className="card wo-sheet"');
@@ -72,6 +72,61 @@ describe("LAW: the workout board's geometry", () => {
     expect(scope).toMatch(/--t-name:\s*calc\(15px \* var\(--type-scale\)\)/);
     expect(scope).toMatch(/--t-sub:\s*calc\(12\.5px \* var\(--type-scale\)\)/);
     expect(token("w-name"), "the name's weight is the app's own 700").toBe("var(--w-semi)");
+  });
+
+  // THE SECOND MEASURE (2026-10-17): the eleven rows the first pass left were closed where the six screens allow it.
+  it("a card of plain rows is padded 4 above and below them, so the first row starts 16 from the card's edge, not 15", () => {
+    expect(token("s-1")).toBe("4px");
+    const plain = `${SCOPE} .list-card-ruled:has(> .row):not(:has(> .grp)):not(:has(> .row > .row-grow > .eyebrow))`;
+    expect(body(RULED, plain)).toMatch(/padding:\s*var\(--s-1\) 0/);
+    // The day page's rows sit in a nested .reorder-list card, so that card's rows count too.
+    expect(body(RULED, `${SCOPE} .list-card-ruled:has(> .reorder-list > .row):not(:has(> .grp)):not(:has(> .row > .row-grow > .eyebrow))`)).toMatch(/padding:\s*var\(--s-1\) 0/);
+    expect(body(RULED, `${SHEET} .list-card-ruled:has(> .row)`)).toMatch(/padding:\s*var\(--s-1\) 0/);
+    // The 14 first row that stood in for it is gone from both scopes.
+    expect(RULED).not.toMatch(/\.list-card-ruled > \.row:first-child(?: > \.row-press)? \{ padding-top: var\(--s-3h\); \}/);
+  });
+
+  it("the board's setting row (a lever, a goal, a milestone): 14 / 700 over 12 with nothing between, and the toggle 46 by 27", () => {
+    expect(read("gym/FitSheet.tsx")).toContain('className="row fit-lever"');
+    // Through the two type tokens, re-bound on the row (the type law), never a size written on the name or the line.
+    const row = body(RULED, `${SHEET} .fit-lever`);
+    expect(row).toMatch(/--t-name:\s*calc\(14px \* var\(--type-scale\)\)/);
+    expect(row).toMatch(/--t-sub:\s*calc\(12px \* var\(--type-scale\)\)/);
+    expect(body(RULED, `${SCOPE} .lift-goals .row`)).toMatch(/--t-name:\s*calc\(14px \* var\(--type-scale\)\)/);
+    expect(body(RULED, `${SHEET} .fit-lever .conn-meta`)).toMatch(/margin-top:\s*0/);
+    expect(bodies(RULED, `${SCOPE} .lift-goals .row .facts`)).toMatch(/margin-top:\s*0/);
+    const toggle = body(RULED, `${SHEET} .switch`);
+    expect(toggle).toMatch(/width:\s*46px/);
+    expect(toggle).toMatch(/height:\s*27px/);
+    expect(body(RULED, `${SHEET} .switch::after`)).toMatch(/width:\s*21px; height:\s*21px; top:\s*3px; left:\s*3px/);
+    expect(body(RULED, `${SHEET} .switch:not(.off)::after`)).toMatch(/translateX\(19px\)/);
+    // The whole lever row flips the switch, so the row is the tap and stands over 44 (FitSheet: onClick on the row).
+    expect(read("gym/FitSheet.tsx")).toMatch(/className="row fit-lever" key=\{o\.key\} onClick=\{\(\) => toggle\(o\.key\)\}/);
+  });
+
+  it("History: the card padded 2, its rows 12, the done mark 12 wide", () => {
+    expect(token("s-0h")).toBe("2px");
+    expect(body(RULED, `${SCOPE}.screen-history .list-card-ruled:has(> .row)`)).toMatch(/padding:\s*var\(--s-0h\) 0/);
+    expect(body(RULED, `${SCOPE}.screen-history .list-card-ruled > .row`)).toMatch(/padding:\s*var\(--s-3\) var\(--s-3h\)/);
+    expect(body(RULED, `${SCOPE} .hist-done`)).toMatch(/width:\s*12px; height:\s*12px/);
+  });
+
+  it("the session's warm-up items sit 10 and 4 apart under the Skip capsule; the day's 8 and 3", () => {
+    expect(body(RULED, `${SCOPE} .list-card-ruled > .grp ~ .row`)).toMatch(/padding:\s*var\(--s-2h\) var\(--s-3h\) 0/);
+    expect(body(RULED, `${SCOPE} .list-card-ruled > .grp ~ .row ~ .row`)).toMatch(/padding-top:\s*var\(--s-1\)/);
+    expect(body(RULED, `${SCOPE} .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row`)).toMatch(/padding:\s*var\(--s-2\) var\(--s-3h\) 0/);
+    expect(body(RULED, `${SCOPE} .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row ~ .row`)).toMatch(/padding-top:\s*3px/);
+  });
+
+  it("the weekly bars are a 64 box with 8 above a 56 track that stretches to the card, and the small corner is the board's 5", () => {
+    const bars = body(RULED, `${SCOPE} .lift-bars`);
+    expect(bars).toMatch(/height:\s*64px/);
+    expect(bars).toMatch(/padding-top:\s*var\(--s-2\)/);
+    expect(body(RULED, `${SCOPE} .card.pad > .eyebrow:has(+ .lift-bars)`)).toMatch(/margin-bottom:\s*0/);
+    expect(read("gym/LiftDetailScreen.tsx")).toMatch(/<svg className="lift-bars" viewBox=\{`0 0 \$\{CHART_W\} \$\{H\}`\} preserveAspectRatio="none"/);
+    expect(body(RULED, SCOPE), "the PR tag's and the week bar's corner, re-bound like --r-card").toMatch(/--r-xs:\s*5px/);
+    expect(body(RULED, `${SCOPE} .se-pr`)).toMatch(/border-radius:\s*var\(--r-xs\)/);
+    expect(body(RULED, `${SCOPE} .h-bar i`)).toMatch(/border-radius:\s*var\(--r-xs\)/);
   });
 
   it("the eyebrow: 11 / 700 / .08em", () => {
@@ -145,6 +200,42 @@ describe("LAW: the workout board's geometry", () => {
     expect(body(RULED, `${SCOPE} .lift-title`)).toMatch(/font-size:\s*calc\(24px \* var\(--type-scale\)\)/);
     expect(body(RULED, `${SCOPE} .row-value > .fact > b`)).toMatch(/font-size:\s*calc\(14px \* var\(--type-scale\)\)/);
     expect(body(RULED, `${SCOPE} .se-pr`)).toMatch(/font-size:\s*calc\(10\.5px \* var\(--type-scale\)\)/);
+  });
+
+  // THE ALL DATA ROWS SHARE ONE ANCHOR (Dave's screenshot, 2026-10-17: on an exercise row carrying The Sets expander the
+  // dot and the chevron floated under the name line). CSS only: the row is a grid, the dot and the chevron span the name
+  // and the facts and centre on them, the expander takes its own row under the words.
+  it("an All Data row anchors its dot and its chevron on the name-plus-facts block, the expander on its own row beneath", () => {
+    const row = body(RULED, `${SCOPE} .row.h-log-row`);
+    expect(row).toMatch(/display:\s*grid/);
+    expect(row).toMatch(/grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
+    expect(row).toMatch(/grid-template-rows:\s*auto auto auto/);
+    expect(row).toMatch(/row-gap:\s*0/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .row-grow`)).toMatch(/display:\s*contents/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .h-log-ico`)).toMatch(/grid-row:\s*1 \/ 3; align-self:\s*center/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .row-grow ~ *`)).toMatch(/grid-row:\s*1 \/ 3; align-self:\s*center/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .row-grow > .ad-sets`)).toMatch(/grid-row:\s*3/);
+    // The row's markup is as it was: the dot, the words with the expander inside them, the chevron or the menu.
+    const page = read("insights/AllDataPage.tsx");
+    expect(page).toContain('className="row h-log-row"');
+    expect(page).toContain('<span className="h-log-ico ad-dot" data-hue={r.hue} aria-hidden="true"><i /></span>');
+    expect(page).toMatch(/<details className="exp-more ad-sets"/);
+  });
+
+  // THE START SURFACE IS ONE ACTION (Dave 2026-10-17; overrides the board's heading, grey line and red Start on screen 6).
+  it("the hub's next day is the red button itself: two lines, the facts in the button's own white at the small size, the small capsules under it", () => {
+    const hub = read("brain/HealthBody.tsx");
+    expect(hub).toContain('className="btn btn-primary btn-launch btn-lg btn-block h-hero-go" onClick={() => onStart(next.day.id)}');
+    expect(hub).toContain('<span className="h-hero-go-t">{`Start ${workoutTitle(next.day.name)}`}</span>');
+    expect(hub).toContain('<div className="day-acts h-hero-acts">');
+    expect(body(RULED, `${SCOPE} .h-hero-cta .h-hero-go`)).toMatch(/flex-direction:\s*column/);
+    const facts = body(RULED, `${SCOPE} .h-hero-go > .facts`);
+    expect(facts).toMatch(/color:\s*inherit/);
+    expect(facts).toMatch(/font-size:\s*var\(--t-sub\)/);
+    expect(facts, "weight is the facts' own (the type law)").not.toMatch(/font-weight/);
+    expect(body(RULED, `${SCOPE} .h-hero-go > .facts > .fact`)).toMatch(/color:\s*inherit/);
+    // The capsules are the day page's: 12 / 600 at 7 by 11 with the 44 reach by ::after (pinned above).
+    expect(body(RULED, `${SCOPE} .h-hero-cta .day-acts`)).toMatch(/margin-top:\s*0/);
   });
 
   it("and nothing in the block names a colour of its own", () => {

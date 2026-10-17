@@ -70,11 +70,12 @@ const EXEMPT: { key: string; files: RegExp; check: Check; why: string }[] = [
   // every other door saves and closes as it always did. `reminder` is the
   // clock time read out of a new task's words; nothing loads it (an edit never
   // reads the words), and the sheet produces it ONLY where the caller passes
-  // readsReminder, which TasksFlow does and saves. The two doors below do not,
-  // so there "3pm" stays in the title and nothing is read then dropped.
+  // readsReminder. Every new-mode door (TasksFlow, BiggerPictureFlow's new
+  // step, CategoryDetail's Add Task) now passes it AND saves it, so the save
+  // check below holds with no exemption: a door that reads "3pm" out of the
+  // words and then drops it on Save is exactly the bug this law exists for.
   { key: "TaskSheet another", files: /.*/, check: "both", why: "an action, not a stored value" },
   { key: "TaskSheet reminder", files: /.*/, check: "load", why: "read from a new task's words, never stored on the draft" },
-  { key: "TaskSheet reminder", files: /BiggerPictureFlow|CategoryDetail/, check: "save", why: "no readsReminder at these doors, so the time is never read out of the title" },
   // THE HIDDEN-ROW RULE. A row that renders only when the call site passes
   // its list must not be saved where the list is not passed: saving a field
   // whose control is not on screen writes its empty default over a real
