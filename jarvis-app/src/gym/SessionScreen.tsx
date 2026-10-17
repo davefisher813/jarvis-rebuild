@@ -21,6 +21,7 @@ import { readClassStore, type Classification } from "./classify";
 import { exerciseFromEntry } from "./fromLibrary";
 import { suggestFor, inSessionAdjust, type Suggestion, type SuggestOptions } from "./progression";
 import HowSuggestionsSheet from "./HowSuggestionsSheet";
+import VoiceSetSheet from "./VoiceSetSheet";
 import { groupLabels, fillerFor, nextInGroup, nextTurnInGroup, groupOf, roundRestFor } from "./groups";
 import { isLiveGroup, sessionExercises } from "./liveGroups";
 import { useBarClearance } from "../shared/useBarClearance";
@@ -469,6 +470,9 @@ export default function SessionScreen({
    *  (WorkoutExercise.plan, through the live-session writer); the program is
    *  never touched from here. */
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  /** LOG BY VOICE, AS A TEST (2026-10-17, Alfred's ruling on Dave's "Whatever
+   *  is standard"): the More sheet's door to VoiceSetSheet. */
+  const [voiceOpen, setVoiceOpen] = useState(false);
   /** START REST BY HAND (2026-10-17, defect J): the More sheet's picks. */
   const [restPickOpen, setRestPickOpen] = useState(false);
   /** ADD EXERCISE, FROM THE LIBRARY FIRST (2026-10-17, defect K): the picker,
@@ -874,6 +878,10 @@ export default function SessionScreen({
     // ever started a timer. One line, four picks, the same deadline the
     // automatic rest writes.
     ...(!cond && restEndsAt == null ? [{ label: "Start Rest", onClick: () => setRestPickOpen(true) }] : []),
+    // LOG BY VOICE (the Logging Standard, addendum 5): a deliberate "Log"
+    // phrase, the set read back, his confirm, then the same receipt and Undo
+    // as the big button. A test beside the button, never in its place.
+    ...(showNow && !cond ? [{ label: "Log by Voice", onClick: () => setVoiceOpen(true) }] : []),
     ...(onAdjustTime ? [{ label: "Adjust Time", onClick: onAdjustTime }] : []),
     ...(onOpenHistory ? [{ label: "Exercise History", onClick: onOpenHistory }] : []),
     { label: "Swap Exercise", onClick: () => setSwapOpen(true) },
@@ -991,7 +999,7 @@ export default function SessionScreen({
   // he was already typing (a draft brought back after a kill) keep the
   // cursor without being selected. Not while any sheet of this screen is up.
   const untouched = !draft || (["w", "r", "v", "t"] as const).every((k) => (draft[k] ?? "") === (fieldsOf(seed)[k] ?? ""));
-  const sheetUp = openSetId !== null || openPlanId !== null || restPickOpen || addPickOpen || addName !== null || pickOpen || scopeAsk !== null || breakAsk || cancelAsk || swapOpen || platesOpen || clockOpen || howOpen || moreOpen || loadAt !== null || muscleRole !== null;
+  const sheetUp = openSetId !== null || openPlanId !== null || restPickOpen || addPickOpen || addName !== null || pickOpen || scopeAsk !== null || breakAsk || cancelAsk || swapOpen || platesOpen || clockOpen || howOpen || voiceOpen || moreOpen || loadAt !== null || muscleRole !== null;
   const nowFocus = showNow && !sheetUp ? { key: `${exercise.id}:${logged.length}:${warm ? "warm" : "work"}`, select: untouched } : undefined;
   /** Match hides once the fields already say what last time did. */
   const nowLast = lastHit && !warm ? lastAt(logged.length) : undefined;
@@ -1509,6 +1517,16 @@ export default function SessionScreen({
       )}
 
       {howOpen && <HowSuggestionsSheet onClose={() => setHowOpen(false)} />}
+      {voiceOpen && (
+        // The sheet closes before it hands the set over, so the receipt's
+        // Undo is never painted behind its scrim. The write is the big
+        // button's: the set, the rest, the one receipt with Undo.
+        <VoiceSetSheet name={liftTitle(exercise.name)} kind={exercise.kind} unit={exercise.unit} timeUnit={exercise.timeUnit} sided={style.sided}
+          lastSet={[...logged].reverse().find((x) => !x.warmup)}
+          draftScope={{ startedAt: live.startedAt, exerciseId: exercise.id }}
+          onClose={() => setVoiceOpen(false)}
+          onLog={(e) => { onLog(e); putDraft(null); if (!e.warmup && !e.drop) startRest(); receiptForLog(e); }} />
+      )}
       {moreOpen && (
         <ActionSheet title={liftTitle(exercise.name)} actions={moreActions} onClose={() => setMoreOpen(false)} />
       )}

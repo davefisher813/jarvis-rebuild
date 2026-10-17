@@ -352,7 +352,7 @@ describe("section 10: progressive overload on the Now card", () => {
 
   it("an untouched prefill logged is the accept: reported, the plan moves, nothing declined", () => {
     const onLog = vi.fn();
-    const onAcceptSuggestion = vi.fn(() => null);
+    const onAcceptSuggestion = vi.fn((_s: unknown) => null);
     renderScreen({ history: [allTop], onLog, onAcceptSuggestion }, plan);
     fireEvent.click(cta());
     expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 280, r: 6, state: "reported" });
@@ -396,7 +396,7 @@ describe("section 10: progressive overload on the Now card", () => {
   it("never argues twice, the other way: taking the offered step with Use is the accept", () => {
     const turnedDown = session("2026-10-10", [{ id: "h1", w: 275, r: 8, declined: { w: 280, r: 6 } }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 8 }]);
     const onLog = vi.fn();
-    const onAcceptSuggestion = vi.fn(() => null);
+    const onAcceptSuggestion = vi.fn((_s: unknown) => null);
     renderScreen({ history: [turnedDown], onLog, onAcceptSuggestion }, plan);
     fireEvent.click(screen.getByRole("button", { name: /^Use 280 Lb × 6/ }));
     fireEvent.click(cta());
@@ -456,5 +456,31 @@ describe("the cursor is already there (Dave 2026-10-17, answers 1 and 6)", () =>
     screen.getByLabelText("Set 1 Weight").blur();
     fireEvent.click(screen.getByRole("button", { name: "Cancel Workout" }));
     expect(screen.getByLabelText("Set 1 Weight")).not.toHaveFocus();
+  });
+});
+
+describe("log by voice, as a test (the Logging Standard, addendum 5; Alfred's ruling 2026-10-17)", () => {
+  it("More opens it; the phrase is read back; his confirm writes a reported set with the big button's receipt and Undo", () => {
+    const onLog = vi.fn();
+    const onSetLogged = vi.fn();
+    renderScreen({ onLog, onSetLogged });
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log by Voice" }));
+    const field = screen.getByLabelText("Say or Type the Set");
+    expect(field, "the cursor is in it, so the keyboard's mic is one tap").toHaveFocus();
+    fireEvent.change(field, { target: { value: "yes" } });
+    expect(screen.getByRole("button", { name: "Log Set" }), "a bare yes logs nothing").toBeDisabled();
+    fireEvent.change(field, { target: { value: "Log 230 for 5" } });
+    expect(screen.getByRole("status")).toHaveTextContent("Log 230 Lb × 5 on Bench Press");
+    expect(onLog).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Log Set" }));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 230, r: 5, state: "reported" });
+    expect(screen.queryByLabelText("Say or Type the Set"), "closed before the receipt").toBeNull();
+    const receipt = vi.mocked(showToast).mock.calls.at(-1)![0];
+    expect(receipt.message).toBe("Logged 230 Lb × 5");
+    expect(receipt.actionLabel).toBe("Undo");
+    receipt.onAction!();
+    expect(onSetLogged).toHaveBeenCalledWith([], 0);
   });
 });
