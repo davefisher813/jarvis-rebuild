@@ -232,7 +232,8 @@ describe("removing a field a calculation needs says what stops working first (th
     // What stops working comes first, then what the field holds (the two starter rows' minutes) and the snapshot.
     expect(notes).toHaveLength(4);
     expect(notes.slice(0, 2)).toEqual(["Clock Times From the Start Stop Working", "The Minutes Total Stops Adding Up"]);
-    expect(notes[2]).toMatch(/^2 .* Have a Value Here$/);
+    // The definition's own plural, never a bolted-on "s".
+    expect(notes[2]).toBe("2 Activities Have a Value Here");
     expect((await pageOf("session"))!.page.fields.some((f) => f.key === "min")).toBe(true);
     fireEvent.click(within(sheetOf()).getByText("Remove"));
     await waitFor(async () => expect((await pageOf("session"))!.page.fields.some((f) => f.key === "min")).toBe(false), { timeout: 4000 });
