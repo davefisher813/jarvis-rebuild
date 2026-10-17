@@ -3072,6 +3072,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         musclesOf={musclesOf}
         onSetMuscles={(next) => setMuscles(exercise, next)}
         onOpenHistory={() => setLiftDetailFor({ name: exercise.name, kind: exercise.kind, ...(exercise.exerciseKey ? { exerciseKey: exercise.exerciseKey } : {}), ...(exercise.unit ? { unit: exercise.unit } : {}), ...(exercise.timeUnit ? { timeUnit: exercise.timeUnit } : {}) })}
+        // THE WEEK'S WORD REACHES THE ENGINE (2026-10-17, section 10): the
+        // program week that holds this session's day, marked Back-Off, makes
+        // every suggestion in the session a lighter one (progression rule 4).
+        // Still a label everywhere else: no target or set is rewritten by it.
+        backOffWeek={!!program?.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId))?.backOff}
         {...(() => {
           // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
           // a superset as I'm logging"; 2026-09-26: "Superset linking between

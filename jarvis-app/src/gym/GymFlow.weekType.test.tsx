@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 //
 // A BACK-OFF WEEK IS A LABEL, AND THE SHEET SAYS SO (2026-10-04). The flag on
-// a program week is stored and shown back as the Back-Off fact; no session,
-// target or progression reads it to change a weight or a set. The chips sat
-// under a heading of "Load", which promised exactly that, so they now sit under
-// "Week Type". Driven through the real flow: Manage, Add a Week.
+// a program week is stored and shown back as the Back-Off fact; no target or
+// set is rewritten by it. The chips sat under a heading of "Load", which
+// promised exactly that, so they now sit under "Week Type". Driven through the
+// real flow: Manage, Add a Week.
+//
+// AMENDED 2026-10-17 (section 10, progressive overload): the flag now reaches
+// the progression engine as its backOffWeek option (GymFlow hands it to
+// SessionScreen), so a session in a Back-Off week is OFFERED a lighter week
+// (progression rule 4) with "Back-Off Week" as its reason. Still an offer: the
+// program's own numbers move only when he logs it (SessionScreen.rules.test).
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";

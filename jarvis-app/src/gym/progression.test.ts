@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestFor, applySuggestion } from "./progression";
+import { suggestFor, applySuggestion, inSessionAdjust, weekPicture, weekTrigger } from "./progression";
 import type { Workout, WorkoutExercise, SetEntry, Exercise } from "./types";
 
 const wk = (date: string, exs: WorkoutExercise[], dayId = "d"): Workout =>
@@ -73,7 +73,10 @@ describe("rule 2: step when every set is at the top", () => {
     expect(s.next).toEqual({ w: 30, r: 15 });
     expect(s.range).toEqual({ low: 10, high: 15 });
     expect(s.reason[2]).toBe("A 5 Jump Is Over 7% of 30, Range Now 10 to 15");
-    expect(s.addSet, "no load step this week, so a set may be added").toBe(true);
+    expect(s.addSet, "no load step, but no week before it to show no misses (rule 5)").toBeUndefined();
+    const lastWeekClean = wk("2026-10-03", [wex("Curl", [{ w: 30, r: 11 }, { w: 30, r: 10 }])]);
+    const withWeek = suggestFor([lastWeekClean, curl], plan({ name: "Curl", sets: [{ id: "p1", w: 30, r: 10 }, { id: "p2", w: 30, r: 12 }] }), { smallestJump: 5 })!;
+    expect(withWeek.addSet, "no load step this week and a clean week before it, so a set may be added").toBe(true);
   });
 
   it("a rep-only lift adds a rep at the top, never a phantom weight", () => {
@@ -144,7 +147,7 @@ describe("rule 6: his marks, when he made them", () => {
     const easy = suggestFor([bench("2026-10-10", 275, [8, 7, 7], ["clean", "clean", "clean"])], plan(), { smallestJump: 5 })!;
     expect(easy.kind).toBe("bump");
     expect(easy.reason[1]).toBe("Marked Easy");
-    const hard = suggestFor([bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])], plan())!;
+    const hard = suggestFor([bench("2026-10-03", 275, [8, 8, 7]), bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])], plan())!;
     expect(hard.kind).toBe("hold");
     expect(hard.reason[1]).toBe("Marked Hard");
     expect(hard.addSet).toBe(true);
@@ -217,5 +220,208 @@ describe("applySuggestion", () => {
     expect(out.sets).toHaveLength(2);
     expect(out.sets[1]!.skipped).toBe(true);
     expect(out.sets[1]!.w).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE BRIEF'S REMAINING RULES (2026-10-17, Progressive Overload Design v2,
+// sections 1, 3, 4 and 5), each a pure rule here and a fact on the Why row.
+// Weeks are Monday to Sunday: 2026-10-10 is a Saturday, so 10-05 to 10-11 is
+// "this week" when today is 10-10, 09-28 to 10-04 "last week", 09-21 to 09-27
+// "the week before".
+// ---------------------------------------------------------------------------
+
+/** A whole workout on `date`: several lifts, each as [name, load, reps[], marks?]. */
+const day = (date: string, lifts: [string, number, number[], ("clean" | "grind" | "missed" | undefined)[]?][]) =>
+  wk(date, lifts.map(([name, w, reps, marks]) => wex(name, reps.map((r, i) => ({ w, r, ...(marks?.[i] ? { moved: marks[i] } : {}) })))), "full");
+/** A seasoned lifter: twelve Bench sessions in May and June, all inside the range, then a lighter one on 10-03 so the
+ *  accumulation count (rule 4) starts over. */
+const seasonedBench = () => [
+  ...Array.from({ length: 12 }, (_, i) => bench(`2026-0${i < 9 ? 5 : 6}-${String(i < 9 ? i * 3 + 1 : (i - 9) * 3 + 2).padStart(2, "0")}`, 255, [8, 8, 8])),
+  bench("2026-10-03", 225, [8, 8]),
+];
+
+describe("rule 5: sets are a block-level variable", () => {
+  it("one more set is offered only after a week of this lift with no misses, and the reason says recovery is his call", () => {
+    const h = [bench("2026-10-03", 275, [8, 8, 7]), bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])];
+    const s = suggestFor(h, plan())!;
+    expect(s.addSet).toBe(true);
+    expect(s.addSetWhy).toEqual(["No Misses Last Week", "Only If You Feel Recovered"]);
+  });
+
+  it("a miss last week, by reps or by his mark, withholds it", () => {
+    const byReps = [bench("2026-10-03", 275, [8, 5, 5]), bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])];
+    expect(suggestFor(byReps, plan())!.addSet).toBeUndefined();
+    const byMark = [bench("2026-10-03", 275, [8, 8, 7], [undefined, undefined, "missed"]), bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])];
+    expect(suggestFor(byMark, plan())!.addSet).toBeUndefined();
+  });
+
+  it("at most one set a week: a session this week already up a set takes the offer with it", () => {
+    const h = [bench("2026-10-03", 275, [8, 8, 7]), bench("2026-10-08", 275, [8, 8, 8, 8]), bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])];
+    const s = suggestFor(h, plan({ sets: [{ id: "p1", w: 275, r: 6 }, { id: "p2", w: 275, r: 8 }, { id: "p3", w: 275, r: 8 }, { id: "p4", w: 275, r: 8 }] }))!;
+    expect(s.kind).toBe("hold");
+    expect(s.addSet).toBeUndefined();
+  });
+
+  it("never beside a load step", () => {
+    const h = [bench("2026-10-03", 275, [8, 8, 8]), bench("2026-10-10", 275, [8, 8, 8])];
+    const s = suggestFor(h, plan(), { smallestJump: 5 })!;
+    expect(s.kind).toBe("bump");
+    expect(s.addSet).toBeUndefined();
+  });
+
+  it("counts weeks from the session's own date when it is given", () => {
+    const h = [bench("2026-10-03", 275, [8, 8, 7]), bench("2026-10-10", 275, [8, 8, 8], [undefined, undefined, "missed"])];
+    // Read on 10-13: last week is 10-05 to 10-11, whose one session carries his missed mark.
+    expect(suggestFor(h, plan(), { today: "2026-10-13" })!.addSet).toBeUndefined();
+    expect(suggestFor(h, plan(), { today: "2026-10-10" })!.addSet).toBe(true);
+  });
+});
+
+describe("rule 4: last week's own picture asks for a lighter week early", () => {
+  const p = plan();
+  const full = (date: string) => day(date, [["Bench", 275, [8, 8, 8]], ["Squat", 315, [8, 8, 8]], ["Row", 185, [10, 10, 10]], ["Press", 135, [8, 8, 8]], ["Curl", 30, [12, 12]]]);
+
+  it("two in five of last week's lifts missed: every suggestion this week is a lighter one, and says so", () => {
+    // Last week (09-28 to 10-04): Squat and Row lost two or more reps at the same load as the week before; Bench lost one, a flat day.
+    const h = [full("2026-09-26"), day("2026-10-03", [["Bench", 275, [8, 8, 7]], ["Squat", 315, [8, 6, 5]], ["Row", 185, [10, 8, 7]], ["Press", 135, [8, 8, 8]], ["Curl", 30, [12, 12]]])];
+    const s = suggestFor(h, p, { smallestJump: 5, today: "2026-10-06" })!;
+    expect(s.kind).toBe("lighter");
+    expect(s.reason).toEqual(["Last Time 275 × 8, 8, 7", "2 of 5 Lifts Missed Last Week", "Lighter Week 245 × 6, 2 Sets, Nothing to Failure"]);
+    expect(s.sets).toBe(2);
+    // Another lift read the same week carries the same trigger, and so does a later day of the week.
+    const squat = suggestFor(h, plan({ name: "Squat", sets: [{ id: "q1", w: 315, r: 6 }, { id: "q2", w: 315, r: 8 }, { id: "q3", w: 315, r: 8 }] }), { smallestJump: 5, today: "2026-10-09" })!;
+    expect(squat.kind).toBe("lighter");
+    expect(squat.reason[1]).toBe("2 of 5 Lifts Missed Last Week");
+    // Without today, the latest workout's own week is "this week", so the picture is of the week before it.
+    expect(suggestFor(h, p, { smallestJump: 5 })!.kind).toBe("hold");
+  });
+
+  it("a mark of missed counts as a miss for a lift the plan is not read for", () => {
+    const three = (date: string, marks: ("missed" | undefined)[][] = []) => day(date, [["Bench", 275, [8, 8, 8]], ["Squat", 315, [8, 8, 8], marks[0]], ["Row", 185, [10, 10, 10], marks[1]]]);
+    const one = [three("2026-09-26"), three("2026-10-03", [[undefined, undefined, "missed"]])];
+    expect(suggestFor(one, p, { smallestJump: 5, today: "2026-10-06" })!.kind, "one of three is under two in five").toBe("bump");
+    const two = [three("2026-09-26"), three("2026-10-03", [[undefined, undefined, "missed"], ["missed"]])];
+    expect(suggestFor(two, p, { smallestJump: 5, today: "2026-10-06" })!.reason[1]).toBe("2 of 3 Lifts Missed Last Week");
+  });
+
+  it("tonnage down a tenth on the week before, with as many sessions, is the other trigger", () => {
+    const h = [full("2026-09-26"), day("2026-10-03", [["Bench", 275, [8, 8, 8]], ["Squat", 205, [8, 8, 8]], ["Row", 185, [10, 10, 10]], ["Press", 135, [8, 8, 8]], ["Curl", 30, [12, 12]]])];
+    const s = suggestFor(h, p, { smallestJump: 5, today: "2026-10-06" })!;
+    expect(s.kind).toBe("lighter");
+    expect(s.reason[1]).toBe("Tonnage Down 11% Last Week");
+  });
+
+  it("fewer workouts is not a lighter week, and a drop after a drop does not ask twice", () => {
+    const lighter = (date: string) => day(date, [["Bench", 245, [6, 6]], ["Squat", 285, [6, 6]], ["Row", 165, [8, 8]], ["Press", 120, [6, 6]], ["Curl", 25, [10]]]);
+    // The week before had two workouts, last week one: the comparison is of training done, not fatigue.
+    const fewer = [full("2026-09-22"), full("2026-09-25"), full("2026-10-02")];
+    expect(suggestFor(fewer, p, { smallestJump: 5, today: "2026-10-06" })!.kind).toBe("bump");
+    // A lighter week after a drop: the drop asked for it, so it is not asked for again.
+    const twice = [full("2026-09-19"), day("2026-09-26", [["Bench", 275, [8, 8, 8]], ["Squat", 205, [8, 8, 8]], ["Row", 185, [10, 10, 10]], ["Press", 135, [8, 8, 8]], ["Curl", 30, [12, 12]]]), lighter("2026-10-03")];
+    expect(suggestFor(twice, p, { smallestJump: 5, today: "2026-10-06" })!.kind).not.toBe("lighter");
+  });
+
+  it("a week of one or two lifts is those lifts' own story: rules 1 to 3 speak, the week does not", () => {
+    const h = [bench("2026-09-26", 275, [8, 8, 8]), bench("2026-10-03", 275, [6, 5, 4])];
+    const s = suggestFor(h, p, { today: "2026-10-06" })!;
+    expect(s.kind).toBe("hold");
+    expect(s.reason[1]).toBe("Under 6 Once");
+  });
+
+  it("the program's back-off flag outranks the week's picture in the reason", () => {
+    const h = [full("2026-09-26"), day("2026-10-03", [["Bench", 275, [8, 8, 8]], ["Squat", 205, [8, 8, 8]], ["Row", 185, [10, 10, 10]], ["Press", 135, [8, 8, 8]], ["Curl", 30, [12, 12]]])];
+    expect(suggestFor(h, p, { smallestJump: 5, backOffWeek: true, today: "2026-10-06" })!.reason[1]).toBe("Back-Off Week");
+  });
+
+  it("weekPicture and weekTrigger are pure and read every workout", () => {
+    expect(weekPicture([])).toBeNull();
+    expect(weekTrigger(null)).toBeNull();
+    const h = [full("2026-09-26"), day("2026-10-03", [["Bench", 275, [8, 8, 8]], ["Squat", 205, [8, 8, 8]], ["Row", 185, [10, 10, 10]], ["Press", 135, [8, 8, 8]], ["Curl", 30, [12, 12]]])];
+    const pic = weekPicture(h, undefined, "2026-10-06")!;
+    expect(pic).toMatchObject({ lifts: 5, missed: 0, sessions: 1, sessionsPrior: 1, tonnagePrior2: 0 });
+    expect(pic.tonnage).toBe(275 * 24 + 205 * 24 + 185 * 30 + 135 * 24 + 30 * 24);
+    expect(pic.tonnagePrior).toBe(275 * 24 + 315 * 24 + 185 * 30 + 135 * 24 + 30 * 24);
+  });
+});
+
+describe("rule 2, Each Set on Its Own (overloadTargets)", () => {
+  const p = plan();
+  it("a position at the top steps for that position only; the rest hold and add reps", () => {
+    const h = [...seasonedBench(), bench("2026-10-10", 275, [8, 8, 6])];
+    const s = suggestFor(h, p, { smallestJump: 5, targets: "perSet" })!;
+    expect(s.kind).toBe("bump");
+    expect(s.perSet).toEqual([{ w: 280, r: 6 }, { w: 280, r: 6 }, { w: 275, r: 8 }]);
+    expect(s.next).toEqual({ w: 280, r: 6 });
+    expect(s.reason).toEqual(["Last Time 275 × 8, 8, 6", "Sets 1 and 2 at the Top of 6 to 8", "Step Sets 1 and 2 to 280 × 6, Hold the Rest at 275"]);
+    expect(s.expect).toBe("Expect 6 to 7");
+    // applySuggestion writes each working position its own target.
+    const out = applySuggestion(p, s);
+    expect(out.sets.map((x) => [x.w, x.r])).toEqual([[280, 6], [280, 6], [275, 8]]);
+  });
+
+  it("the default, every set at the top, is unchanged: the same log holds", () => {
+    const h = [...seasonedBench(), bench("2026-10-10", 275, [8, 8, 6])];
+    const s = suggestFor(h, p, { smallestJump: 5 })!;
+    expect(s.kind).toBe("hold");
+    expect(s.perSet).toBeUndefined();
+  });
+
+  it("a beginner is read all-sets whatever the setting says", () => {
+    const s = suggestFor([bench("2026-10-10", 275, [8, 8, 6])], p, { smallestJump: 5, targets: "perSet" })!;
+    expect(s.kind).toBe("hold");
+    expect(s.perSet).toBeUndefined();
+  });
+
+  it("all at the top is still the ordinary step, and a miss is still a strike", () => {
+    const h = [...seasonedBench(), bench("2026-10-10", 275, [8, 8, 8])];
+    expect(suggestFor(h, p, { smallestJump: 5, targets: "perSet" })!.perSet).toBeUndefined();
+    const m = [...seasonedBench(), bench("2026-10-10", 275, [8, 5, 5])];
+    expect(suggestFor(m, p, { smallestJump: 5, targets: "perSet" })!.reason[1]).toBe("Under 6 Once");
+  });
+});
+
+describe("rule 7: inside a session, set one decides the rest", () => {
+  const p = plan({ sets: [{ id: "p1", w: 275, r: 8 }, { id: "p2", w: 275, r: 8 }, { id: "p3", w: 275, r: 8 }] });
+  const set = (over: Partial<SetEntry>): SetEntry => ({ id: "l1", w: 275, r: 8, ...over });
+
+  it("two or more reps short of the target drops the rest 5 percent, to the jump, at least one jump", () => {
+    const s = inSessionAdjust([], p, [set({ r: 6 })], { smallestJump: 5 })!;
+    expect(s.kind).toBe("drop");
+    expect(s.next).toEqual({ w: 260, r: 8 });
+    expect(s.reason).toEqual(["Set 1 275 × 6", "2 Reps Short of 8", "Drop to 260 × 8 for the Rest"]);
+    expect(s.basis!.source).toBe("Set 1 of Today");
+    expect(inSessionAdjust([], p, [set({ w: 100, r: 6 })], { smallestJump: 5 })!.next.w).toBe(95);
+  });
+
+  it("a set marked hard drops the rest too, whatever the reps", () => {
+    const s = inSessionAdjust([], p, [set({ r: 8, moved: "missed" })], { smallestJump: 5 })!;
+    expect(s.kind).toBe("drop");
+    expect(s.reason[1]).toBe("Marked Hard");
+  });
+
+  it("one rep short, or on target, is nothing: no adjustment", () => {
+    expect(inSessionAdjust([], p, [set({ r: 7 })])).toBeNull();
+    expect(inSessionAdjust([], p, [set({ r: 8 })])).toBeNull();
+    expect(inSessionAdjust([], p, [set({ r: 8, moved: "grind" })])).toBeNull();
+  });
+
+  it("set one at the top and marked easy offers 2.5 percent more for the rest, never under twelve sessions", () => {
+    const easy = [set({ r: 8, moved: "clean" })];
+    expect(inSessionAdjust([], p, easy, { smallestJump: 5 }), "a beginner never sees the upward offer").toBeNull();
+    const s = inSessionAdjust(seasonedBench(), p, easy, { smallestJump: 5 })!;
+    expect(s.kind).toBe("up");
+    expect(s.next).toEqual({ w: 280, r: 8 });
+    expect(s.reason).toEqual(["Set 1 275 × 8", "Top of 6 to 8, Marked Easy", "Try 280 × 8 for the Rest"]);
+    // Easy but under the top: nothing.
+    expect(inSessionAdjust(seasonedBench(), p, [set({ r: 7, moved: "clean" })], { smallestJump: 5 })).toBeNull();
+  });
+
+  it("reads the first WORKING set, never a warm-up, and is silent in Manual, on a timed lift, or before set one", () => {
+    expect(inSessionAdjust([], p, [set({ w: 135, r: 10, warmup: true }), set({ r: 5 })], { smallestJump: 5 })!.reason[0]).toBe("Set 1 275 × 5");
+    expect(inSessionAdjust([], p, [set({ r: 5 })], { mode: "manual" })).toBeNull();
+    expect(inSessionAdjust([], p, [])).toBeNull();
+    const timed = plan({ kind: "time_longer", unit: "sec", sets: [{ id: "t1", v: 60 }] });
+    expect(inSessionAdjust([], timed, [{ id: "l1", v: 40 }])).toBeNull();
   });
 });

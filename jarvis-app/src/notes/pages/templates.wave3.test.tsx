@@ -53,9 +53,14 @@ async function openPicked(user: string, name: string) {
 describe("the picker", () => {
   it("lists Finance, the rest of Life and Professional, with presets one tap further in", async () => {
     await openTemplates("u-w3-picker");
-    for (const n of ["Money Map", "Insurance Page", "Debt Payoff", "Giving Log", "Home and Vehicle Book", "Health Card", "Handover Sheet", "People and Occasions", "Trip Sheet", "Kitchen Page", "Accomplishments and Milestones", "1:1 Log", "Project Tracker", "Business Ledger"]) {
+    for (const n of ["Money Map", "Insurance Page", "Debt Payoff", "Giving Log", "Home and Vehicle Book", "Health Card", "Handover Sheet", "People and Occasions", "Trip Sheet", "Kitchen Page", "1:1 Log", "Project Tracker", "Business Ledger"]) {
       expect(screen.getByText(n), n).toBeInTheDocument();
     }
+    // Accomplishments and Milestones is listed under Life AND Professional (the 2026-10-13 spec): two rows, one template, one page.
+    const both = screen.getAllByText("Accomplishments and Milestones");
+    expect(both).toHaveLength(2);
+    const shelfOf = (el: HTMLElement) => el.closest(".lib-row")!.parentElement!.querySelector(".sh2 .t")!.textContent;
+    expect(both.map((el) => shelfOf(el)).sort()).toEqual(["Life", "Professional"]);
     for (const n of ["Home Inventory", "Pet Card", "Care Record", "Expenses to Submit", "Meal Plan", "Freezer", "Recipes"]) expect(screen.queryByText(n), n + " is not a row of its own").toBeNull();
     for (const shelf of ["Finance", "Professional"]) expect(screen.getByText(shelf)).toBeInTheDocument();
   });

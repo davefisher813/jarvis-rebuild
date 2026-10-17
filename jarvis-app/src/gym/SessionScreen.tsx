@@ -13,12 +13,13 @@ import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from "./strip";
 import { isSessionPR, lastHeader, lastSessionFor, lastWarmupsFor } from "./prs";
-import { readGymSettings, rackFrom, overloadApplyOf } from "./settings";
+import { readGymSettings, rackFrom, overloadApplyOf, overloadTargetsOf } from "./settings";
 import { readHealthSettings } from "../health/settings";
 import { rackIn, rampFor, startsInWarmUp, warmupSeed } from "./ramp";
 import { readClassStore } from "./classify";
 import { exerciseFromEntry } from "./fromLibrary";
-import { suggestFor, type Suggestion } from "./progression";
+import { suggestFor, inSessionAdjust, type Suggestion, type SuggestOptions } from "./progression";
+import HowSuggestionsSheet from "./HowSuggestionsSheet";
 import { groupLabels, fillerFor, nextInGroup, nextTurnInGroup, groupOf, roundRestFor } from "./groups";
 import { isLiveGroup, sessionExercises } from "./liveGroups";
 import { useBarClearance } from "../shared/useBarClearance";
@@ -119,6 +120,10 @@ export default function SessionScreen({
   // the header, stated once. Never a prescription: nothing in this app is
   // allowed to tell somebody to back off before a game.
   gameLine,
+  // THE PROGRAM WEEK'S OWN WORD (2026-10-17, section 10): this session's week
+  // is marked Back-Off in the program, so rule 4 applies whatever the log
+  // says. GymFlow reads it off the week that holds the live day.
+  backOffWeek = false,
 }: {
   live: LiveSession;
   exercise: Exercise;
@@ -183,6 +188,9 @@ export default function SessionScreen({
    *  this exercise moves. The only writer; a suggestion left alone changes
    *  nothing. */
   onAcceptSuggestion?: (s: Suggestion) => void;
+  /** The live day's program week is a back-off week (ProgramWeek.backOff),
+   *  handed to the progression engine as its backOffWeek option. */
+  backOffWeek?: boolean;
   /** The program day this session runs, whole -- warm-up and cool-down
    *  blocks, pairs, every lift's rest target -- for the D5 projection.
    *  Null when the day was deleted mid-session. */
@@ -314,19 +322,31 @@ export default function SessionScreen({
   // 2026-09-26: it rides INSIDE the Now row as one line, so it never moves the
   // row when it goes; it goes with the first working set, and the program
   // moves only if that set is logged at the suggested numbers.
+  //
+  // ONCE SET ONE IS LOGGED (rule 7, 2026-10-17), the same line reads set one
+  // against its target and offers the rest of the sets a drop or, for a
+  // seasoned lifter whose top set was easy, a little more (inSessionAdjust).
+  // It fills the fields through Use like the first; the program never moves
+  // on it (the accept below is gated to the first working set).
+  const suggestOpts: SuggestOptions = {
+    mode: readHealthSettings().progression,
+    // The session the Last header names, this workout day's own first
+    // (2026-09-29), so "Last" and "Suggested" are built on the same lift.
+    preferDayId: live.dayId,
+    // The smallest real jump: a PAIR of the smallest plates on anything you
+    // load plates onto (2026-09-14), the stack's own step on a machine, and
+    // the engine's 2.5 default for anything that named no equipment.
+    ...(plateMath(style).offer ? { smallestJump: Math.min(...exRack.plates) * 2 } : style.equipment ? { smallestJump: weightStep(style, exercise.unit) } : {}),
+    ...(style.equipment ? { equipmentLabel: styleSummary(style) } : {}),
+    // The program week's word, the sets setting, and the day the week is
+    // counted from (section 10, 2026-10-17).
+    ...(backOffWeek ? { backOffWeek: true } : {}),
+    targets: overloadTargetsOf(gymSettings),
+    today: live.date,
+  };
   const suggestion = workLogged === 0
-    ? suggestFor(history, exercise, {
-      mode: readHealthSettings().progression,
-      // The session the Last header names, this workout day's own first
-      // (2026-09-29), so "Last" and "Suggested" are built on the same lift.
-      preferDayId: live.dayId,
-      // The smallest real jump: a PAIR of the smallest plates on anything you
-      // load plates onto (2026-09-14), the stack's own step on a machine, and
-      // the engine's 2.5 default for anything that named no equipment.
-      ...(plateMath(style).offer ? { smallestJump: Math.min(...exRack.plates) * 2 } : style.equipment ? { smallestJump: weightStep(style, exercise.unit) } : {}),
-      ...(style.equipment ? { equipmentLabel: styleSummary(style) } : {}),
-    })
-    : null;
+    ? suggestFor(history, exercise, suggestOpts)
+    : inSessionAdjust(history, exercise, logged, suggestOpts);
   // THE NOW CARD SHOWS WHAT WILL ACTUALLY BE LOGGED (2026-09-21). It used to
   // show planEx.sets[workLogged] -- the template -- while the big red button
   // named plannedEntryAt() merged with a draft that every write cleared. Two
@@ -831,6 +851,8 @@ export default function SessionScreen({
   };
   /** The suggestion, folded into the Now row (2026-09-26). */
   const [whyOpen, setWhyOpen] = useState(false);
+  /** The published rule (brief section 7), one tap from Why. */
+  const [howOpen, setHowOpen] = useState(false);
   // THE OFFER AND ITS REASON (section 10, 2026-10-17). The reason is the line,
   // as facts: what he did last time, what that meant against the range, and
   // the step, plus the reps to expect after a jump. Use fills the fields and
@@ -854,6 +876,7 @@ export default function SessionScreen({
             {suggestion.expect && <span className="fact est">{suggestion.expect}</span>}
             {suggestion.sets !== undefined && <span className="fact est">{lineCase(`${suggestion.sets} ${suggestion.sets === 1 ? "set" : "sets"}`)}</span>}
             {suggestion.addSet && <span className="fact est">Room for One More Set This Week</span>}
+            {suggestion.addSet && suggestion.addSetWhy?.map((part) => <span className="fact est" key={part}>{part}</span>)}
           </div>
           <div className="ins-row"><span className="ins-k">Why</span><span className="ins-sub">{suggestion.why}</span></div>
           <div className="ins-row"><span className="ins-k">Exercise</span><span className="ins-sub">{suggestion.basis.variant}</span></div>
@@ -862,6 +885,8 @@ export default function SessionScreen({
           <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{suggestion.basis.range}</span></div>
           <div className="ins-row"><span className="ins-k">Increment</span><span className="ins-sub">{suggestion.basis.increment}</span></div>
           <div className="ins-row"><span className="ins-k">Marks</span><span className="ins-sub">{suggestion.basis.marks}</span></div>
+          {/* THE RULE ITSELF (brief section 7): the same words every session, one tap away from the reason. */}
+          <button type="button" className="set-last-act se-sugg-act" aria-haspopup="dialog" onClick={(e) => { e.stopPropagation(); setHowOpen(true); }}><span className="act">How Suggestions Work</span></button>
         </div>
       )}
     </>
@@ -1378,6 +1403,7 @@ export default function SessionScreen({
         </div>
       )}
 
+      {howOpen && <HowSuggestionsSheet onClose={() => setHowOpen(false)} />}
       {moreOpen && (
         <ActionSheet title={liftTitle(exercise.name)} actions={moreActions} onClose={() => setMoreOpen(false)} />
       )}
