@@ -104,6 +104,19 @@ describe("fingerprints: one purchase, one record (rule 4)", () => {
     expect(fingerprintOf(base)).not.toBe(fingerprintOf({ ...base, date: "2026-09-09" }));
     expect(fingerprintOf(base)).not.toBe(fingerprintOf({ ...base, kind: "bill" }));
   });
+  it("a transaction's bank reference tells two fees on one day apart; a row without one keeps its old fingerprint (2026-10-17)", () => {
+    // Wells Fargo through Plaid: four distinct $35 overdraft fees dated Sep 1 on one account, each for its own purchase.
+    const fee = { kind: "tx" as const, vendor: "Overdraft Fee", amountCents: 3500, date: "2026-09-01", source: "import" as const };
+    expect(fingerprintOf(fee)).toBe("tx|overdraft fee|3500|2026-09-01|import");
+    const a = fingerprintOf({ ...fee, ref: "wf-3305-2026-09-01-od-mta-1900" });
+    const b = fingerprintOf({ ...fee, ref: "wf-3305-2026-09-01-od-mta-1025" });
+    expect(a).not.toBe(b);
+    expect(a).toBe("tx|overdraft fee|3500|2026-09-01|import|wf-3305-2026-09-01-od-mta-1900");
+    // the same reference is the same fee
+    expect(a).toBe(fingerprintOf({ ...fee, ref: "wf-3305-2026-09-01-od-mta-1900" }));
+    // a reference means nothing on a bill or a receipt
+    expect(fingerprintOf({ ...fee, kind: "receipt", source: "manual", ref: "x" })).toBe("receipt|overdraft fee|3500|2026-09-01|local");
+  });
   it("findDuplicate returns the existing record", () => {
     expect(findDuplicate([{ data: { fingerprint: "a" } }, { data: { fingerprint: "b" } }], "b")).toEqual({ data: { fingerprint: "b" } });
     expect(findDuplicate([{ data: { fingerprint: "a" } }], "z")).toBeUndefined();
