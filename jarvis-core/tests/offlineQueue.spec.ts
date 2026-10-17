@@ -848,11 +848,13 @@ describe("Phase 0 D1 change 2: a replay carries the moment it was made", () => {
     expect((await store.read("U", id))?.createdAt).toBe(held!.createdAt);
   });
 
-  it("a live create carries no time: the server's clock is the capture moment", async () => {
+  it("a live create carries no time: the server's clock is the capture moment; its id is minted here, once", async () => {
     const { adapter, creates } = recording();
     const store = new Store(adapter);
     const id = await store.create("U", "note", { title: "Live" });
-    expect(creates).toEqual([{ id: undefined, createdAt: undefined }]);
+    // 2026-10-17: the id travels with the write (see "one record" below), the time still does not.
+    expect(creates).toEqual([{ id, createdAt: undefined }]);
+    expect(id).toMatch(UUID_RE);
   });
 
   it("a patch to a row this drain created carries its queued time", async () => {
@@ -901,5 +903,54 @@ describe("Phase 0 D1 change 2: a replay carries the moment it was made", () => {
     await store.reconnect();
     expect(dels).toEqual([{ id, clientAt: undefined }]);
     expect(await real.read("U", id)).toBeNull();
+  });
+});
+
+// ONE REAL EVENT, ONE RECORD (2026-10-17). The duplicate rows Alfred found in
+// Notes, Money, Health and Insights had one shared door: a create whose answer
+// was lost AFTER the server had committed it was retried under a fresh id.
+describe("a create that landed but whose answer was lost", () => {
+  function landsThenDrops(inner: DataAdapter): DataAdapter {
+    let dropped = false;
+    return {
+      create: async (o: string, t: string, d: ItemData, id?: string, at?: number) => {
+        const out = await inner.create(o, t, d, id, at);
+        if (!dropped) { dropped = true; throw new TypeError("Load failed"); }
+        return out;
+      },
+      createMany: (o, t, d) => inner.createMany(o, t, d),
+      read: (o, id) => inner.read(o, id),
+      apply: (o, id, p, st) => inner.apply(o, id, p, st),
+      del: (o, id) => inner.del(o, id),
+      listForUser: (o, t) => inner.listForUser(o, t),
+      getSubscriptionTier: () => inner.getSubscriptionTier(),
+    };
+  }
+
+  it("replays under the SAME id, so the server holds one row, and the held copy is not listed beside it", async () => {
+    const real = new InMemoryAdapter();
+    const store = new Store(landsThenDrops(real));
+    const id = await store.create("U", "note", { title: "Once" });
+    // The signal "dropped": the store went offline and holds the create under the id the server already has.
+    expect(store.queueLen()).toBe(1);
+    const listed = await store.listForUser("U", "note");
+    expect(listed.map((i) => i.id)).toEqual([id]);
+    await store.reconnect();
+    expect(store.queueLen()).toBe(0);
+    expect((await real.listForUser("U", "note")).map((i) => i.id)).toEqual([id]);
+  });
+
+  it("a list the adapter hands back with one id twice is one row, the newest copy", async () => {
+    const twice: DataAdapter = {
+      ...new InMemoryAdapter(),
+      listForUser: async () => [
+        { id: "x", ownerId: "U", entityType: "note", data: { title: "Old" }, serverTime: 1 },
+        { id: "y", ownerId: "U", entityType: "note", data: { title: "Other" }, serverTime: 1 },
+        { id: "x", ownerId: "U", entityType: "note", data: { title: "New" }, serverTime: 2 },
+      ],
+    } as unknown as DataAdapter;
+    const store = new Store(twice);
+    const out = await store.listForUser("U", "note");
+    expect(out.map((i) => [i.id, i.data.title])).toEqual([["y", "Other"], ["x", "New"]]);
   });
 });

@@ -28,8 +28,7 @@ import { useFileUrl } from "../files/useFileUrl";
 import {
   ATTACH, ATTACH_FAILED, ATTACH_NEEDS_APP, ATTACH_TOO_MUCH, ATTACHMENTS_LABEL, ATTACHMENTS_WAIT, BAD_ADDRESS, BCC_LABEL, BODY_LABEL, CC_BCC, CC_LABEL, CLOSE_DRAFT, COMPOSE_TITLE,
   CONFLICT_TITLE, DISCARD_ASK, DISCARD_DRAFT, DISCARD_OFFLINE, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
-  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, ADD_SIGNATURE, NO_SIGNATURE_NOTE, SIG_PICTURE_ROW, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE,
-} from "./copy";
+  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, ADD_SIGNATURE, NO_SIGNATURE_NOTE, SIG_PICTURE_ROW, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE, DRAFTING_REPLY, REPLY_NOT_DRAFTED } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
@@ -59,6 +58,8 @@ export interface ComposeStart {
   failedLine?: string | null;
   /** Opened from a device copy the server may not hold (Drafts, On This Device): its words are not known to be saved, so the first save pushes them. */
   unsynced?: boolean;
+  /** A reply's opening words, read from the thread while the composer opens (2026-10-17). Resolves to "" when there is nothing to say. */
+  draftBody?: () => Promise<string>;
 }
 
 const hasWords = (f: DraftFields): boolean =>
@@ -135,6 +136,23 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
   const stopped = useRef(false);
   const closing = useRef(false);
   const [askDiscard, setAskDiscard] = useState(false);
+  // THE REPLY'S OPENING WORDS (2026-10-17). The reading runs once, as the composer opens; its words go in above the signature
+  // block only if the person has not typed into the body meanwhile (their words win, always), and a reading that fails says so.
+  const [drafting, setDrafting] = useState<"" | "working" | "failed">(start.draftBody ? "working" : "");
+  const bodyAtOpen = useRef(start.fields.body_text);
+  useEffect(() => {
+    const read = start.draftBody;
+    if (!read) return;
+    let on = true;
+    void read().then((words) => {
+      if (!on) return;
+      setDrafting("");
+      if (!words.trim()) return;
+      setFields((f) => (f.body_text === bodyAtOpen.current ? { ...f, body_text: words.trim() + f.body_text } : f));
+    }).catch(() => { if (on) setDrafting("failed"); });
+    return () => { on = false; };
+    // Once, for the composer this screen opened with.
+  }, []);
 
   // The words on screen NOW: the To, Cc and Bcc text that has not been committed yet included (it is committed on blur, and a Close or a
   // pause in typing can come first). `cur` is what an async step (a queued save, a timer, the farewell below) must read: the screen as it
@@ -538,6 +556,8 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
           <TextRow value={fields.body_text} onChange={(v) => set("body_text", v)} placeholder={BODY_LABEL} ariaLabel={BODY_LABEL} rows={8} />
         </div>
       </div></div>
+      {drafting === "working" && <div className="email-note quiet" data-drafting=""><EmailFacts wrap facts={[{ text: DRAFTING_REPLY }]} /></div>}
+      {drafting === "failed" && <div className="email-note quiet" data-drafting="failed"><EmailFacts wrap facts={[{ text: REPLY_NOT_DRAFTED, tone: "warn" }]} /></div>}
       <div className="pad-x" onBlur={commitAddresses} />
       {requirements && (
         <div className="pad-x email-coverage" data-coverage="">

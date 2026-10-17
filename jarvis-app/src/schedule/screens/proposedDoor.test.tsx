@@ -96,6 +96,47 @@ describe("a standalone proposed row holds its actions in the rail, the menu and 
   });
 });
 
+// THE SWIPE IS THE CLEAR (Dave's standing rule; Alfred 2026-10-16 reported the Home row's swipe doing nothing). The gesture
+// itself, as the shared swipe primitive fires it: right past half the rail ticks the task off (and the planned block leaves
+// the day with it); left opens the rail whose first verb is Book It and whose second is the way back to Anytime.
+describe("the proposed row's swipe", () => {
+  const swipe = (el: Element, dx: number) => {
+    fireEvent.touchStart(el, { touches: [{ clientX: 100, clientY: 100 }] });
+    fireEvent.touchMove(el, { touches: [{ clientX: 100 + dx / 2, clientY: 100 }] });
+    fireEvent.touchMove(el, { touches: [{ clientX: 100 + dx, clientY: 100 }] });
+    fireEvent.touchEnd(el);
+  };
+  const mountRow = (plain: boolean) => {
+    const onComplete = vi.fn(), onDrop = vi.fn(), onAccept = vi.fn(), onOpen = vi.fn();
+    render(<ProposedRow plain={plain} block={block} open={false} onToggle={() => {}} onDuration={() => {}} onDrop={onDrop} onAccept={onAccept} onOpen={onOpen} onComplete={onComplete} />);
+    return { onComplete, onDrop, onAccept, onOpen, el: document.querySelector(".sched-proposed")! };
+  };
+  for (const plain of [true, false]) {
+    it(`swiping right past half the rail ticks it off and never opens the task (plain=${plain})`, () => {
+      const r = mountRow(plain);
+      swipe(r.el, 70);
+      expect(r.onComplete).toHaveBeenCalledTimes(1);
+      expect(r.onOpen).not.toHaveBeenCalled();
+      expect(r.onDrop).not.toHaveBeenCalled();
+    });
+    it(`swiping left opens the rail, Book It first, Anytime beside it (plain=${plain})`, () => {
+      const r = mountRow(plain);
+      swipe(r.el, -120);
+      const rail = document.querySelector(".sched-actions")!;
+      expect(rail.getAttribute("aria-hidden")).toBe("false");
+      expect(Array.from(rail.querySelectorAll(".sched-act")).map((b) => b.textContent)).toEqual(["Book It", "Anytime"]);
+      fireEvent.click(screen.getByText("Anytime"));
+      expect(r.onDrop).toHaveBeenCalledTimes(1);
+    });
+  }
+  it("a short right drag snaps back and does nothing", () => {
+    const r = mountRow(true);
+    swipe(r.el, 20);
+    expect(r.onComplete).not.toHaveBeenCalled();
+    expect(r.onOpen).not.toHaveBeenCalled();
+  });
+});
+
 describe("on the Schedule tab, tapping a proposed task answers the same way wherever it sits", () => {
   const nested: PlanBlock = { taskId: "t2", text: "Reply to Nadia", category: "work", start: "13:15", end: "13:45" };
   const day = {

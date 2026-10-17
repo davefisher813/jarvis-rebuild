@@ -56,27 +56,35 @@ export class CachedAdapter implements DataAdapter {
   // made (op.queuedAt); this wrapper sits between the Store and the real
   // adapter in production, and forwarding only the old lists would have
   // dropped every age on the floor exactly where it mattered.
+  //
+  // THE WRITE-THROUGH IS AN UPSERT, AND THE COUNTER MOVES BEFORE THE AWAIT
+  // (2026-10-17, the duplicate rows). A background refresh that went out before
+  // this create and came back after the server had the row, or the realtime
+  // INSERT beating the HTTP answer, already put the new row in the cache; an
+  // append then listed it twice, and the duplicate was saved to disk under the
+  // preload key for every service that reads this type. Bumping `writes` before
+  // the request goes out makes the refresh that overlaps it stand down, and the
+  // merge below replaces a row the cache already holds instead of adding one.
   async create(ownerId: string, entityType: string, data: ItemData, presetId?: string, createdAt?: number): Promise<string> {
+    this.writes++;
     const id = await this.inner.create(ownerId, entityType, data, presetId, createdAt);
     this.writes++;
     const cached = readPreload(ownerId, entityType);
     if (cached) {
       const now = Date.now();
-      writePreload(ownerId, entityType, [...cached, { id, ownerId, entityType, data, serverTime: now, createdAt: createdAt ?? now }]);
+      writePreload(ownerId, entityType, upsertRows(cached, [{ id, ownerId, entityType, data, serverTime: now, createdAt: createdAt ?? now }]));
     }
     return id;
   }
 
   async createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
+    this.writes++;
     const ids = await this.inner.createMany(ownerId, entityType, datas);
     this.writes++;
     const cached = readPreload(ownerId, entityType);
     if (cached) {
       const now = Date.now();
-      writePreload(ownerId, entityType, [
-        ...cached,
-        ...ids.map((id, i) => ({ id, ownerId, entityType, data: datas[i]!, serverTime: now, createdAt: now })),
-      ]);
+      writePreload(ownerId, entityType, upsertRows(cached, ids.map((id, i) => ({ id, ownerId, entityType, data: datas[i]!, serverTime: now, createdAt: now }))));
     }
     return ids;
   }
@@ -86,12 +94,14 @@ export class CachedAdapter implements DataAdapter {
   }
 
   async apply(ownerId: string, id: string, patch: ItemData, serverTime?: ServerTime, clientAt?: number): Promise<boolean> {
+    this.writes++;
     const ok = await this.inner.apply(ownerId, id, patch, serverTime, clientAt);
     if (ok) { this.writes++; this.patchCaches(ownerId, id, patch); }
     return ok;
   }
 
   async del(ownerId: string, id: string, clientAt?: number): Promise<void> {
+    this.writes++;
     await this.inner.del(ownerId, id, clientAt);
     this.writes++;
     this.dropFromCaches(ownerId, id);
@@ -177,3 +187,13 @@ export class CachedAdapter implements DataAdapter {
 // cache, so the next list showed it again until a refresh happened to win.
 // One import, and the next new type cannot be missed.
 export const KNOWN_TYPES: readonly string[] = ALL_ENTITY_TYPES;
+
+/** The cached list with these rows merged in: a row whose id is already there is replaced in place, the rest are appended. */
+export function upsertRows(cached: Item[], rows: Item[]): Item[] {
+  const next = [...cached];
+  for (const r of rows) {
+    const idx = next.findIndex((i) => i.id === r.id);
+    if (idx >= 0) next[idx] = r; else next.push(r);
+  }
+  return next;
+}

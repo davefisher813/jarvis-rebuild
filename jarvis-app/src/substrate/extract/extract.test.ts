@@ -190,3 +190,37 @@ describe("numbers and dates, read without guessing", () => {
     expect(fingerprintOf("acct", "m", "bill", { a: 1 })).toMatch(/^fp1:[0-9a-z]+$/);
   });
 });
+
+// WHAT THE EMAIL ACTUALLY SAID (2026-10-17, Alfred's sweep of the live suggestions).
+describe("event extraction reads the email's own date, end and name", () => {
+  it("an explicit date wins over the weekday before it, and the nearest date to the clock wins over an earlier one", () => {
+    const moved = extractCandidates(mail("hr@equinox.test", "Equinox", "Interview with Equinox", "Your interview, originally October 2, is confirmed for Monday, October 6 at 2:00 PM ET."))[0]!;
+    const e = moved.payload as EventPayload;
+    expect(e.time.all_day === false && e.time.start_at).toBe("2026-10-06T18:00:00.000Z");
+    expect(moved.missing).not.toContain("date");
+  });
+  it("a generic word is named after the subject when the subject names the meeting, else after the sender", () => {
+    const fromSubject = extractCandidates(mail("hr@equinox.test", "Equinox", "Interview with Equinox", "Your meeting is on October 6 at 2:00 PM ET."))[0]!;
+    expect((fromSubject.payload as EventPayload).title).toBe("Interview with Equinox");
+    const fromSender = extractCandidates(mail("hr@equinox.test", "Equinox", "Next steps", "Your meeting is on October 6 at 2:00 PM ET."))[0]!;
+    expect((fromSender.payload as EventPayload).title).toBe("Meeting with Equinox");
+  });
+  it("the subject's own date tail is not the title: 'Video Interview for David Fisher @ Fri Oct 16' is the interview", () => {
+    const c = extractCandidates(mail("book@nsm.test", "NEVERSTOPMOVING", "Video Interview for David Fisher @ Fri Oct 16, 2026 6:00pm - 6:30pm (EDT)", "This video interview is confirmed for Friday, October 16, 2026 from 6:00 PM to 6:30 PM ET."))[0]!;
+    const e = c.payload as EventPayload;
+    expect(e.title).toBe("Video Interview for David Fisher");
+    expect(e.time).toMatchObject({ start_at: "2026-10-16T22:00:00.000Z", end_at: "2026-10-16T22:30:00.000Z" });
+  });
+  it("a clock with no range takes the next clock within reach as its end, and a length elsewhere in the mail is not the meeting's", () => {
+    const c = extractCandidates(mail("book@nsm.test", "Jason Shenloogian", "Booking confirmed", "Your booking is confirmed.\nDate: October 16, 2026\nTime: 6:00 PM ET, Ends: 6:30 PM\n\nPlease arrive 15 minutes early.")).find((x) => x.kind === "event")!;
+    const e = c.payload as EventPayload;
+    expect(e.time).toMatchObject({ start_at: "2026-10-16T22:00:00.000Z", end_at: "2026-10-16T22:30:00.000Z" });
+    // A person is someone you meet with, not a place you are booked at.
+    expect(e.title).toBe("Appointment with Jason Shenloogian");
+  });
+  it("an event that crosses midnight ends the next day", () => {
+    const c = extractCandidates(mail("club@night.test", "The Club", "Party", "Our session is on October 10 at 11:00 PM ET for two hours."))[0]!;
+    const e = c.payload as EventPayload;
+    expect(e.time).toMatchObject({ start_at: "2026-10-11T03:00:00.000Z", end_at: "2026-10-11T05:00:00.000Z" });
+  });
+});

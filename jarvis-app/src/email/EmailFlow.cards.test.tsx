@@ -370,8 +370,8 @@ describe("E24: manual capture, with every AI off", () => {
     fireEvent.click(screen.getByText(CAPTURE_TITLE));
     fireEvent.click(screen.getByText(CAPTURE_KIND.task!));
     await waitFor(() => expect(screen.getAllByText("Task · Not Saved Yet").length).toBeGreaterThan(0));
-    const manual = r.world.cands.find((c) => c.origin === "manual")!;
-    expect(manual).toMatchObject({ kind: "task", status: "needs_details", missing_fields: ["title"] });
+    // NOTHING IS WRITTEN UNTIL SAVE (2026-10-17): the open sheet is a card on this phone only.
+    expect(r.world.cands.find((c) => c.origin === "manual")).toBeUndefined();
     const saveBar = () => document.querySelector(".sheet-bar-save") as HTMLButtonElement;
     expect(saveBar()).toHaveTextContent("Add Task");
     expect(saveBar().className).toContain("dim");
@@ -381,6 +381,8 @@ describe("E24: manual capture, with every AI off", () => {
     expect(saveBar().className).not.toContain("dim");
     fireEvent.click(saveBar());
     await waitFor(() => expect(r.world.items.length).toBe(1));
+    const manual = r.world.cands.find((c) => c.origin === "manual")!;
+    expect(manual).toMatchObject({ kind: "task" });
     expect(r.calls.find((c) => c.fn === "candidate_edit")!.args).toMatchObject({ p_candidate: manual.id, p_user_fields: ["title"], p_missing: [] });
     expect(r.world.items[0]).toMatchObject({ entity_type: "task", data: { text: "Review the expense summary", done: false } });
     expect(toasts.some((t) => t.message === "Added to Tasks · Review the expense summary")).toBe(true);
@@ -422,14 +424,17 @@ describe("Astra's Message sheet: Add to JARVIS and Track This", () => {
     fireEvent.click(screen.getByText(ADD_TO_JARVIS));
     fireEvent.click(screen.getByText(KIND_WORD.task!));
     await waitFor(() => expect(screen.getAllByText(`${KIND_WORD.task} · ${NOT_SAVED_YET}`).length).toBeGreaterThan(0));
-    const manual = r.world.cands.find((c) => c.origin === "manual")!;
-    expect(manual).toMatchObject({ kind: "task", status: "needs_details", missing_fields: ["title"] });
+    // NOTHING IS WRITTEN UNTIL SAVE (2026-10-17): the open sheet is a card on this phone only.
+    expect(r.world.cands.find((c) => c.origin === "manual")).toBeUndefined();
+    expect(r.calls.filter((c) => c.fn === "candidate_propose").length).toBe(0);
     const saveBar = () => document.querySelector(".sheet-bar-save") as HTMLButtonElement;
     expect(saveBar().className).toContain("dim");
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Follow up on the summary" } });
     await waitFor(() => expect(saveBar().className).not.toContain("dim"));
     fireEvent.click(saveBar());
     await waitFor(() => expect(r.world.items.length).toBe(1));
+    const manual = r.world.cands.find((c) => c.origin === "manual")!;
+    expect(manual).toMatchObject({ kind: "task" });
     expect(r.calls.find((c) => c.fn === "candidate_edit")!.args).toMatchObject({ p_candidate: manual.id, p_user_fields: ["title"] });
     expect(r.world.items[0]).toMatchObject({ entity_type: "task", data: { text: "Follow up on the summary", done: false } });
     // No kind picker left open, and Track This's own row is still there, unused.
@@ -444,9 +449,7 @@ describe("Astra's Message sheet: Add to JARVIS and Track This", () => {
     await waitFor(() => expect(screen.getByText(PRIMARY.waiting)).toBeInTheDocument());
     fireEvent.click(screen.getByText(PRIMARY.waiting));
     await waitFor(() => expect(screen.getAllByText(`${KIND_WORD.waiting} · ${NOT_SAVED_YET}`).length).toBeGreaterThan(0));
-    const manual = r.world.cands.find((c) => c.origin === "manual")!;
-    expect(manual).toMatchObject({ kind: "waiting", status: "needs_details" });
-    expect(manual.missing_fields).toEqual(["title", "waiting_for"]);
+    expect(r.world.cands.find((c) => c.origin === "manual")).toBeUndefined();
     const saveBar = () => document.querySelector(".sheet-bar-save") as HTMLButtonElement;
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "A reply from Wei" } });
     fireEvent.change(screen.getByLabelText("Waiting For"), { target: { value: "the updated numbers" } });
@@ -454,5 +457,24 @@ describe("Astra's Message sheet: Add to JARVIS and Track This", () => {
     fireEvent.click(saveBar());
     await waitFor(() => expect(r.world.items.length).toBe(1));
     expect(r.world.items[0]!.entity_type).toBe("waiting");
+    const manual = r.world.cands.find((c) => c.origin === "manual")!;
+    expect(manual).toMatchObject({ kind: "waiting" });
+  });
+
+  // N3 (Alfred, 2026-10-16): "Track This creates a tracker entry even when the user cancels without saving anything."
+  it("Track This, then Cancel, creates nothing: no candidate, no review count, no Waiting record", async () => {
+    const r = rig({ rows: [rows[2]!] });
+    mount(r);
+    await waitFor(() => expect(rowLabels().length).toBe(1));
+    fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
+    await waitFor(() => expect(screen.getByText(PRIMARY.waiting)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(PRIMARY.waiting));
+    await waitFor(() => expect(screen.getAllByText(`${KIND_WORD.waiting} · ${NOT_SAVED_YET}`).length).toBeGreaterThan(0));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Half typed" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByText(`${KIND_WORD.waiting} · ${NOT_SAVED_YET}`)).toBeNull());
+    expect(r.calls.filter((c) => c.fn === "candidate_propose" || c.fn === "candidate_edit" || c.fn === "capture_approve").length).toBe(0);
+    expect(r.world.cands.find((c) => c.origin === "manual")).toBeUndefined();
+    expect(r.world.items.length).toBe(0);
   });
 });

@@ -20,7 +20,7 @@ import { failure, lineFor, type CommandFailure, type RpcClient } from "../substr
 import type { PrepareContext } from "../substrate/destinations/types";
 import type { CaptureKind } from "../substrate/contracts";
 import { AGENT_SUGGESTION, DETAILS, DISMISS, EMAIL_CHANGED, KEEP_SEPARATE, MAY_EXIST, NEEDS_DETAILS, NOT_SAVED_YET, PREVIOUSLY_SAVED, LATEST, RESTORE, REVIEW_LATEST, UNDO, UPDATE_IN, VIEW_RECEIPT, moreSuggestions } from "./copy";
-import { BADGE, PRIMARY, cardLines, isProvisional, isStale, moduleOf, toCard, type Candidate } from "./candidates";
+import { BADGE, PRIMARY, cardLines, isPastEvent, isProvisional, isStale, moduleOf, toCard, type Candidate } from "./candidates";
 import EmailFacts from "./EmailFacts";
 import { dotFacts } from "./format";
 import type { InboxRow } from "./emailClient";
@@ -70,7 +70,8 @@ export default function CandidateCards({ client, candidates: all, row, ctx, read
   // rules read from the words ("can we meet Friday at 10") is the same meeting said loosely, and is not drawn twice.
   const structured = all.some((c) => c.kind === "event" && isProvisional(c) && c.payload.kind === "event" && !!c.payload.external_uid);
   const loose = (c: Candidate): boolean => structured && c.kind === "event" && isProvisional(c) && c.payload.kind === "event" && !c.payload.external_uid;
-  const candidates = (place === "all" ? all : all.filter((c) => (c.status === "dismissed" ? !finish : finish === isFinish(c)))).filter((c) => !loose(c));
+  // A past event already on the server (read before 2026-10-17, or by an older phone) is not drawn either: isPastEvent.
+  const candidates = (place === "all" ? all : all.filter((c) => (c.status === "dismissed" ? !finish : finish === isFinish(c)))).filter((c) => !loose(c) && !(isProvisional(c) && isPastEvent(c.payload, clock())));
 
   const provisional = candidates.filter((c) => isProvisional(c));
   const saved = candidates.filter((c) => c.status === "saved");

@@ -73,10 +73,22 @@ describe("freshness", () => {
     // A disconnected mailbox catching up does not hold the header.
     expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:50:00", sync_state: "current" }), account({ id: "c", state: "disconnected", sync_state: "catching_up" })], NOW))[0]).toBe("Last Checked");
   });
-  it("when current, is the verified time; with no sync facts (before migration 0065) it is the last good sync, as before", () => {
-    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:55:00", verified_through_at: "2026-10-03T09:12:00", sync_state: "current" })], NOW))).toEqual(["Last Checked", "9:12 AM"]);
+  it("when current, is the newest check (2026-10-17: a verified mark older than the last sync no longer holds the clock back); with no sync facts (before migration 0065) it is the last good sync, as before", () => {
+    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T14:55:00", verified_through_at: "2026-10-03T09:12:00", sync_state: "current" })], NOW))).toEqual(["Last Checked", "2:55 PM"]);
+    expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T09:12:00", verified_through_at: "2026-10-03T14:55:00", sync_state: "current" })], NOW))).toEqual(["Last Checked", "2:55 PM"]);
     expect(texts(homeFreshness([account({ last_sync_at: "2026-10-03T09:12:00" })], NOW))).toEqual(["Last Checked", "9:12 AM"]);
     expect(texts(homeFreshness([account({ sync_state: "not_started" })], NOW))).toEqual(["Not Synced Yet"]);
+  });
+  it("a mailbox that is not checking (reauth, paused, failed, stale) does not hold the clock (2026-10-17, 'Last Checked Oct 14')", () => {
+    const fresh = account({ id: "a", last_sync_at: "2026-10-03T14:50:00", sync_state: "current", verified_through_at: "2026-10-03T14:50:00" });
+    for (const stuck of [
+      account({ id: "b", address: "work@example.test", state: "reauth", last_sync_at: "2026-09-14T09:05:00", verified_through_at: "2026-09-14T09:05:00" }),
+      account({ id: "b", address: "work@example.test", sync_state: "paused", last_sync_at: "2026-09-14T09:05:00" }),
+      account({ id: "b", address: "work@example.test", sync_state: "failed", last_sync_at: "2026-09-14T09:05:00" }),
+      account({ id: "b", address: "work@example.test", sync_state: "stale", last_sync_at: "2026-09-14T09:05:00" }),
+    ]) expect(texts(homeFreshness([fresh, stuck], NOW))).toEqual(["Last Checked", "2:50 PM"]);
+    // With nothing checking, the stuck one still says when mail was last seen rather than nothing.
+    expect(texts(homeFreshness([account({ state: "reauth", last_sync_at: "2026-10-03T09:05:00" })], NOW))).toEqual(["Last Checked", "9:05 AM"]);
   });
   it("isCatchingUp is catching_up or syncing on a mailbox that is not disconnected", () => {
     expect(isCatchingUp(account({ sync_state: "catching_up" }))).toBe(true);

@@ -95,12 +95,20 @@ export function homeFreshness(accounts: readonly EmailAccount[], now: Date = new
   const live = accounts.filter((a) => a.state !== "disconnected");
   if (live.length === 0) return [];
   if (live.some(isCatchingUp)) return [{ text: CATCHING_UP }];
-  const synced = live.map((a) => a.verified_through_at ?? a.last_sync_at).filter((x): x is string => !!x).sort();
+  // A MAILBOX THAT IS NOT CHECKING DOES NOT HOLD THE CLOCK (2026-10-17, "Last Checked Oct 14" on a mailbox checked that
+  // morning). One that needs its sign-in again, is paused, or whose sync failed or went stale keeps a frozen time, and
+  // as the minimum it became the header; its own state is already the headline's first line. The checking mailboxes
+  // say when mail was last checked; a current one counts its newest fact, not only the full-history mark.
+  const checking = live.filter((a) => a.state !== "reauth" && a.sync_state !== "paused" && a.sync_state !== "failed" && a.sync_state !== "stale");
+  const pool = checking.length ? checking : live;
+  const synced = pool.map((a) => (a.sync_state === "current" ? latest(a.verified_through_at, a.last_sync_at) : a.verified_through_at ?? a.last_sync_at)).filter((x): x is string => !!x).sort();
   if (synced.length === 0) return [{ text: NOT_SYNCED }];
   const at = synced[0]!;
   if (dayWord(at, now) === "Today") return [{ text: CHECKED }, { text: timeOf(at), tone: "date" }];
   return checkedFacts(at, now);
 }
+
+const latest = (a: string | null | undefined, b: string | null | undefined): string | null => (!a ? b ?? null : !b ? a : a > b ? a : b);
 
 /** A copy line written as fragments joined by a middle dot, drawn as facts instead: the first wears `tone`, the rest are the one grey. For the few copy constants that render inside a facts line. */
 export function dotFacts(line: string, tone?: EmailFact["tone"]): EmailFact[] {

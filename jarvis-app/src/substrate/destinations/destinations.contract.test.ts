@@ -207,7 +207,7 @@ describe("Schedule: the adapter stores what ScheduleService.createEvent stores",
       clientId: captureClientId(ctx, EVENT, "2026-10-04", "10:00"),
     });
     expect(p.data).toEqual(await data(theirs, id!));
-    expect(p.displaySummary).toBe("Rodriguez callback · 2026-10-04 · 10:00 to 10:15");
+    expect(p.displaySummary).toBe("Rodriguez callback · Sun, Oct 4 · 10:00 AM to 10:15 AM");
     expect(p.exactEffect).toBe("Added to Schedule · Rodriguez callback");
   });
 

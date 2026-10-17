@@ -90,6 +90,44 @@ describe("stale-while-revalidate adapter", () => {
     expect(fresh).toEqual(["task"]);
   });
 
+  // ONE ROW PER ID (2026-10-17, the duplicate rows). The write-through used to append.
+  it("a create whose row the cache already holds (a realtime insert or a refresh beat the answer) is listed once", async () => {
+    const inner = new InMemoryAdapter();
+    const adapter = new CachedAdapter(inner);
+    await adapter.listForUser(U, "task"); // warm (empty)
+    const presetId = "11111111-1111-4111-8111-111111111111";
+    // The realtime path put the row in the cache before the HTTP answer came back.
+    writePreload(U, "task", [{ id: presetId, ownerId: U, entityType: "task", data: { text: "a" }, serverTime: 5 }]);
+    await adapter.create(U, "task", { text: "a" }, presetId);
+    const list = await adapter.listForUser(U, "task");
+    expect(list.filter((i) => i.id === presetId)).toHaveLength(1);
+    expect(readPreload(U, "task")!.filter((i) => i.id === presetId)).toHaveLength(1);
+  });
+
+  it("a refresh that overlaps a create stands down, so it cannot write a list the create then appends to again", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const real = new InMemoryAdapter();
+    await real.create(U, "task", { text: "old" });
+    const inner: DataAdapter = {
+      create: (o, t, d, id, at) => real.create(o, t, d, id, at),
+      createMany: (o, t, d) => real.createMany(o, t, d),
+      read: (o, id) => real.read(o, id),
+      apply: (o, id, p, st, c) => real.apply(o, id, p, st, c),
+      del: (o, id, c) => real.del(o, id, c),
+      // The refresh answers only when released, after the create has gone out.
+      listForUser: async (o, t) => { await gate; return real.listForUser(o, t); },
+      getSubscriptionTier: () => real.getSubscriptionTier(),
+    };
+    const adapter = new CachedAdapter(inner);
+    writePreload(U, "task", await real.listForUser(U, "task"));
+    void adapter.listForUser(U, "task"); // warm answer, refresh in flight
+    const id = await adapter.create(U, "task", { text: "new" });
+    release();
+    await flush();
+    expect(readPreload(U, "task")!.filter((i) => i.id === id)).toHaveLength(1);
+  });
+
   it("read-your-writes: create, patch, and delete all show in the next cached list", async () => {
     const inner = new InMemoryAdapter();
     const adapter = new CachedAdapter(inner);

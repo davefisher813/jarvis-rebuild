@@ -1,5 +1,6 @@
 import type { ItemData } from "@core";
 import { madeBy } from "../../shared/provenance";
+import { shortDate } from "../../shared/dateFormat";
 import { isRealDate } from "../../money/ledger/dates";
 import { hashPayload } from "../canonical";
 import { CAPTURE_PAYLOAD_VERSION, type EvidenceField, type Json, type WaitingPayload } from "../contracts";
@@ -53,7 +54,7 @@ export const waitingAdapter: DestinationAdapter<WaitingPayload> = {
       destinationKind: ENTITY_WAITING,
       data: data as unknown as ItemData,
       normalizedPayload,
-      displaySummary: `${data.title} · ${data.counterpartyDisplay}${data.followUpOn ? " · Follow Up " + data.followUpOn : ""}`,
+      displaySummary: `${data.title} · ${data.counterpartyDisplay}${data.followUpOn ? " · Follow Up " + shortDate(data.followUpOn) : ""}`,
       exactEffect: `Tracked · ${data.title}`,
       payloadHash: await hashPayload(CAPTURE_PAYLOAD_VERSION, normalizedPayload as unknown as Json),
       moduleVersion: WAITING_ADAPTER_VERSION,

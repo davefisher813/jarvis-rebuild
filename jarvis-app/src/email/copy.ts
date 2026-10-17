@@ -476,3 +476,9 @@ export function selectedWord(n: number): string {
 export function selectAllLoaded(n: number): string {
   return `Select All ${n} Loaded`;
 }
+
+// THE REPLY DRAFT (2026-10-17, Alfred: "the draft body contained only '-- Dave Fisher'"). A reply opens with words to send or
+// edit when the AI gate allows a reading; while they are coming the composer says so, and a reading that fails says so too,
+// never invented text. With AI off the body is the person's to write, the cursor already in it.
+export const DRAFTING_REPLY = "Drafting a Reply";
+export const REPLY_NOT_DRAFTED = "Couldn't Draft a Reply";

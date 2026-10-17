@@ -14,14 +14,14 @@ import { FormSheet, Group, FieldRow, MenuRow, Note, SwitchRow, TextRow, ErrorLin
 import { Calendar, Clock, DollarSign, Hourglass, Tag } from "../shared/icons";
 import { showToast } from "../shared/toast";
 import { approveCapture, editCandidate, undoCapture, UNDO_TOAST_MS, type ActionResult } from "../substrate/commands/captures";
-import { lineFor, type RpcClient } from "../substrate/commands/errors";
+import { failure, lineFor, type RpcClient } from "../substrate/commands/errors";
 import { adapterFor } from "../substrate/destinations/registry";
 import type { DestinationAdapter, PrepareContext } from "../substrate/destinations/types";
 import type { CaptureKind, CapturePayload } from "../substrate/contracts";
 import { readNumber } from "../substrate/extract/money";
 import { instantOf } from "../substrate/extract/dates";
 import { EMAIL_CHANGED, ENTERED_BY_YOU, FROM_THE_EMAIL, KEEP_IN_EMAIL, NOT_SAVED_YET, NO_DUE_DATE, SAVES_ONLY, SOURCE_EVIDENCE, UNDO } from "./copy";
-import { KIND_WORD, PRIMARY, shortZone, toCard, type Candidate } from "./candidates";
+import { KIND_WORD, PRIMARY, candidatesFor, isLocalCandidate, proposeCandidate, shortZone, toCard, type Candidate } from "./candidates";
 import type { InboxRow } from "./emailClient";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "NZD", "CHF", "MXN"];
@@ -204,7 +204,22 @@ export default function CaptureSheet({ client, candidate, row, ctx, ready, ready
     if (!ready(kind)) { setLine(readyLine(kind)); return; }
     setBusy("save"); setLine(null);
     let current = candidate;
-    if (dirty || candidate.missing_fields.length) {
+    if (isLocalCandidate(candidate)) {
+      // The server hears of a manual capture only now, with the words as the person left them (2026-10-17).
+      const r = await proposeCandidate(client, {
+        message_id: candidate.message_id, kind, payload: built.payload, provenance: {}, missing: check.missing,
+        fingerprint: candidate.fingerprint, extractor_version: "manual", source_hash: candidate.source_hash, origin: "manual",
+      });
+      if (!r.ok) { setLine(lineFor(r)); setBusy(null); return; }
+      const list = await candidatesFor(client, [candidate.message_id]);
+      const made = list.ok ? list.value.find((x) => x.id === r.value.candidate_id) : undefined;
+      if (!made) { setLine(lineFor(list.ok ? failure("NOT_FOUND") : list)); setBusy(null); await onChanged(); return; }
+      current = made;
+      if (userFields.length || check.missing.length !== made.missing_fields.length) {
+        const e = await editCandidate(client, made, built.payload as unknown as Record<string, unknown>, userFields, check.missing);
+        if (e.ok) current = { ...made, revision: e.value.revision, payload_hash: e.value.payload_hash ?? made.payload_hash, payload: built.payload, missing_fields: check.missing, status: e.value.status as Candidate["status"] };
+      }
+    } else if (dirty || candidate.missing_fields.length) {
       const next = await saveChanges();
       if (!next) { setBusy(null); return; }
       current = next;

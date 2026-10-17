@@ -316,3 +316,43 @@ describe("ruling 7: Answered X of Y in the reply composer", () => {
     expect(calls).not.toContain("thread_messages");
   });
 });
+
+// A REPLY OPENS WITH WORDS (2026-10-17, Alfred: the draft body held only "-- Dave Fisher").
+describe("the reply draft body", () => {
+  const start = (draftBody: () => Promise<string>) => ({
+    localKey: "k2", draftId: null, accountId: "acct-dave", revision: null, replyingTo: "Coach Miller", draftBody,
+    fields: { ...emptyFields(), to_addresses: ["coach@example.test"], subject: "Re: Practice", body_text: "\n\n-- \nDave Fisher", thread_id: "t-p", reply_headers: { in_reply_to: "<p2@example.test>", references: [], thread_id: "t-p" } },
+  });
+  const quiet: RpcClient = { rpc: async () => ({ data: null, error: { code: "PGRST202", message: "missing" } }) };
+  const compose = (draftBody: () => Promise<string>) => render(
+    <ComposeScreen client={quiet} userId={USER} accounts={[account()]} offline={false} fileStore={null} now={() => NOW} start={start(draftBody)} onBack={() => {}} onReview={() => {}} onDiscarded={() => {}} briefAI={null} />,
+  );
+  const body = () => (screen.getByLabelText("Message") as HTMLTextAreaElement).value;
+
+  it("says it is drafting, then puts the words above the signature block", async () => {
+    let release: (s: string) => void = () => {};
+    compose(() => new Promise<string>((r) => { release = r; }));
+    expect(document.querySelector("[data-drafting]")).toHaveTextContent("Drafting a Reply");
+    release("Tuesday works for us.");
+    await waitFor(() => expect(body()).toBe("Tuesday works for us.\n\n-- \nDave Fisher"));
+    expect(document.querySelector("[data-drafting]")).toBeNull();
+  });
+  it("the person's own words win: typing before the draft lands keeps what was typed", async () => {
+    let release: (s: string) => void = () => {};
+    compose(() => new Promise<string>((r) => { release = r; }));
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Thursday.\n\n-- \nDave Fisher" } });
+    release("Tuesday works for us.");
+    await waitFor(() => expect(document.querySelector("[data-drafting]")).toBeNull());
+    expect(body()).toBe("Thursday.\n\n-- \nDave Fisher");
+  });
+  it("a reading that fails says so, in amber, and invents nothing", async () => {
+    compose(() => Promise.reject(new Error("no")));
+    await waitFor(() => expect(document.querySelector("[data-drafting=\"failed\"]")).toHaveTextContent("Couldn't Draft a Reply"));
+    expect(body()).toBe("\n\n-- \nDave Fisher");
+  });
+  it("an empty reading leaves the body as it opened and says nothing", async () => {
+    compose(async () => "");
+    await waitFor(() => expect(document.querySelector("[data-drafting]")).toBeNull());
+    expect(body()).toBe("\n\n-- \nDave Fisher");
+  });
+});

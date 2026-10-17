@@ -14,7 +14,7 @@ import { titleCase } from "../../shared/casing";
 import { isMachineAddress } from "../../messages/noReply";
 import { readIcs } from "../../messages/ics";
 import { amountNear, findAmounts, type AmountHit } from "./money";
-import { dateInZone, dateNear, durationIn, findDates, findTimes, instantOf, zoneIn, type DateHit, type TimeHit } from "./dates";
+import { addDays, dateInZone, dateNear, durationIn, findDates, findTimes, instantOf, zoneIn, type DateHit, type TimeHit } from "./dates";
 import { sentencesOf, tidy } from "./text";
 
 export interface Provenance {
@@ -71,6 +71,70 @@ const issuerOf = (input: TemplateInput): string => {
   return titleCase(domain.split(".")[0] ?? input.from_address);
 };
 const anchor = (input: TemplateInput): string => dateInZone(input.internal_date, input.zone);
+
+// WHAT THE EMAIL ACTUALLY SAID (2026-10-17, Alfred's sweep: an Equinox interview read as "Meeting" on Oct 2 when the mail
+// said October 6; a booking read as an hour when the mail said half an hour; "Video Interview for David Fisher @ Fri Oct
+// 16" carried its date in its title). Four small rules, each one a thing the rules got wrong on a real message.
+
+/** Words that are only the KIND of meeting, never which one: a title made of these alone names nothing. */
+const GENERIC_TITLE = /^(?:(?:phone|video|zoom|teams|google meet|intro|initial|first|second|final|quick|brief)\s+)?(?:call|meeting|meet|chat|appointment|interview|session|visit|conference|webinar|class|lesson|consult|consultation|checkup|check-up)$/i;
+const ORG_WORDS = /(inc|llc|ltd|co|corp|company|golf|club|hotel|dental|studio|fitness|gym|center|centre|group|spa|clinic|restaurant|bar|grill|resort|office|team|events|reservations|salon|medical|health|bank|school|academy|university|church)/i;
+
+/** The sender reads as a person (two or three capitalised words, no company word), so a thing is "with" them, not "at" them. */
+export function looksLikePerson(name: string): boolean {
+  const t = tidy(name);
+  if (!t || ORG_WORDS.test(t) || /[@\d&]/.test(t)) return false;
+  const parts = t.split(/\s+/);
+  return parts.length >= 2 && parts.length <= 3 && parts.every((w) => /^[A-Z][a-z'’.-]+$/.test(w));
+}
+
+/** A title without the date, clock or "@ Fri Oct 16" the subject line carried: the card's time says that. */
+export function cleanEventTitle(title: string): string {
+  return tidy(title
+    .replace(/\s*[@|]\s.*$/, "")
+    .replace(/\s+(?:on|for)\s+(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?(?:\s+\w+\.?\s+\d{1,2}(?:,?\s+\d{4})?)?\s*$/i, "")
+    .replace(/\s+(?:on\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\s*$/i, "")
+    .replace(/\s+(?:at|@)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*$/i, "")
+    .replace(/[\s,:;-]+$/, ""));
+}
+
+/** A generic title ("Meeting") named after the sender, or after the subject when the subject names the meeting. */
+function namedTitle(title: string, input: TemplateInput): string {
+  if (!GENERIC_TITLE.test(title)) return title;
+  const subject = (input.text.split("\n")[0] ?? "").replace(/^(?:re|fwd?|fw)\s*:\s*/i, "").trim();
+  if (subject && subject.length <= 80 && MEETING_WORDS.test(subject) && findTimes(subject).length === 0) {
+    const fromSubject = cleanEventTitle(titleCase(tidy(subject)));
+    if (fromSubject && !GENERIC_TITLE.test(fromSubject)) return fromSubject;
+  }
+  return titleCase(`${title} with ${issuerOf(input)}`);
+}
+
+/**
+ * The date a meeting sentence means: an explicit calendar date over a weekday or "tomorrow" (a weekday before a date is
+ * the same date), the one nearest the clock, and after "rescheduled to" or "moved to" the one that follows the word.
+ */
+export function pickEventDate(dates: DateHit[], time: TimeHit, sentence: string): DateHit | undefined {
+  const absolute = dates.filter((d) => d.iso && !d.relative && !d.ambiguous);
+  if (absolute.length === 0) return dates[0];
+  const moved = /\b(?:rescheduled|moved|changed|pushed|shifted)\s+(?:to|for)\b|\bnew\s+(?:date|time|day)\b/i.exec(sentence);
+  if (moved) { const after = absolute.filter((d) => d.start > moved.index); if (after.length) return after[0]; }
+  return [...absolute].sort((a, b) => Math.abs(a.start - time.start) - Math.abs(b.start - time.start))[0];
+}
+
+/** A clock with no end takes the next clock within reach as its end ("Time: 6:00 PM, Ends: 6:30 PM") when it comes later the same day. */
+export function withEnd(time: TimeHit, times: TimeHit[]): TimeHit {
+  if (time.endHH !== undefined) return time;
+  const next = times.find((t) => t.start > time.end && t.start - time.end <= 60);
+  if (!next) return time;
+  const startMin = time.hh * 60 + time.mm, endMin = next.hh * 60 + next.mm;
+  if (endMin <= startMin || endMin - startMin > 12 * 60) return time;
+  return { ...time, endHH: next.hh, endMM: next.mm };
+}
+
+/** A stated length within reach of the clock, never one from elsewhere in the mail ("arrive 15 minutes early"). */
+function durationNear(sentence: string, text: string, time: { end: number }): number | null {
+  return durationIn(sentence) ?? durationIn(text.slice(time.end, time.end + 80));
+}
 
 function money(hit: AmountHit | null, prov: Record<string, Provenance>, missing: string[], field = "amount"): { minor_units: number; currency: string } {
   if (!hit) { missing.push(field, "currency"); return { minor_units: 0, currency: "" }; }
@@ -192,7 +256,8 @@ function eventFromClock(input: TemplateInput, title: string, date: DateHit, time
   const z = zone ?? input.zone;
   const start = instantOf(dateISO, time.hh, time.mm, z);
   const endMinutes = time.hh * 60 + time.mm + mins;
-  const endDate = endMinutes >= 1440 ? dateISO : dateISO;
+  // Past midnight is the next day (2026-10-17: this line used to say dateISO on both sides, so an event crossing midnight ended before it began).
+  const endDate = endMinutes >= 1440 ? addDays(dateISO, 1) : dateISO;
   const end = instantOf(endDate, Math.floor((endMinutes % 1440) / 60), endMinutes % 60, z);
   if (!start.ok) {
     if (start.why === "ambiguous") { missing.push("selected_offset"); prov.selected_offset = { source: "default", note: `This clock happens twice that day · ${(start.offsets ?? []).join(" or ")}` }; }
@@ -236,21 +301,23 @@ export function eventTemplate(input: TemplateInput, billDates: Set<string>): Ext
     if (!meeting && !flight) continue;
     const dates = findDates(s.text, anchorISO);
     const times = findTimes(s.text);
-    const date = dates[0];
-    const time = times[0];
-    if (!date || !time) continue;
+    const time0 = times[0];
+    if (!time0) continue;
+    const date = pickEventDate(dates, time0, s.text);
+    if (!date) continue;
+    const time = withEnd(time0, times);
     // A bill's date is never an event (10): the same date that the bill owes on is not a meeting.
     if (date.iso && billDates.has(date.iso) && !meeting) continue;
     let title: string;
     if (flight) title = `Flight ${flight[1]} to ${flight[2]}`;
     else {
       const phrase = /\b((?:(?!(?:a|an|the|our|your|my|his|her|their|this|that|have|had|has|to|for|of|in|at|on|is|was|be|we|i|you|they|and|or|with|about|from|if|so)\s)[a-z][a-z-]*\s+)?(?:call|meeting|chat|appointment|interview|practice|game|session|visit|conference|webinar|class|lesson|rehearsal|checkup|check-up|consult(?:ation)?)(?:\s+(?:about|for|with|re|regarding|to discuss)\s+[^,.?!\n]{1,40}?)?)(?=\s+(?:is|on|at|tomorrow|next|this|today|tonight|from|starts|will)\b|[,.?!\n]|$)/i.exec(s.text);
-      title = titleCase(tidy(phrase?.[1] ?? meeting![1]!));
+      title = namedTitle(cleanEventTitle(titleCase(tidy(phrase?.[1] ?? meeting![1]!))), input);
     }
     const zoneHint = zoneIn(s.text) ?? zoneIn(text);
-    const duration = durationIn(s.text) ?? durationIn(text);
     const dateAbs: DateHit = { ...date, start: s.start + date.start, end: s.start + date.end };
     const timeAbs: TimeHit = { ...time, start: s.start + time.start, end: s.start + time.end };
+    const duration = durationNear(s.text, text, timeAbs);
     return eventFromClock(input, title, dateAbs, timeAbs, zoneHint, duration, { source: "email", text_start: s.start, text_end: s.end }, null, flight ? "event.flight" : "event.meeting");
   }
   return null;
@@ -269,15 +336,18 @@ export function bookingTemplate(input: TemplateInput): Extracted | null {
   const dates = findDates(text, anchor(input)).filter((d) => d.iso && !d.relative && !d.ambiguous);
   const times = findTimes(text);
   for (const date of dates) {
-    const time = times.find((t) => t.start >= date.end && t.start - date.end <= 80) ?? times.find((t) => t.end <= date.start && date.start - t.end <= 40);
-    if (!time) continue;
+    const time0 = times.find((t) => t.start >= date.end && t.start - date.end <= 80) ?? times.find((t) => t.end <= date.start && date.start - t.end <= 40);
+    if (!time0) continue;
+    const time = withEnd(time0, times);
     const word = noun[1]!.toLowerCase();
     const kindWord = /tee time/.test(word) ? "Tee Time" : /check/.test(word) ? "Check-In" : /appointment/.test(word) ? "Appointment" : /stay/.test(word) ? "Stay" : /booking|booked/.test(word) ? "Booking" : "Reservation";
     const at = /\b(?:[Rr]eservation|[Tt]able|[Bb]ooking|[Ss]tay|[Tt]ee [Tt]ime|[Aa]ppointment)\s+(?:at|with)\s+([A-Z][\w'’&.-]*(?:\s+(?:[A-Z][\w'’&.-]*|of|the|&))*)/.exec(text);
     const place = tidy(at?.[1]?.replace(/\s+(?:of|the|&)$/, "") ?? "") || issuerOf(input);
-    const title = titleCase(`${kindWord} at ${place}`).slice(0, 80);
+    // A person is someone you meet WITH, not a place you are booked AT ("Booking at Jason Shenloogian", 2026-10-17).
+    const person = !at && looksLikePerson(place);
+    const title = titleCase(person ? `${/booking|reservation/i.test(kindWord) ? "Appointment" : kindWord} with ${place}` : `${kindWord} at ${place}`).slice(0, 80);
     const zoneHint = zoneIn(text.slice(Math.max(0, date.start - 40), time.end + 40));
-    return eventFromClock(input, title, date, time, zoneHint, durationIn(text), { source: "email", text_start: noun.index, text_end: noun.index + noun[0].length }, null, "event.booking");
+    return eventFromClock(input, title, date, time, zoneHint, durationNear(text.slice(date.start, time.end + 80), text, time), { source: "email", text_start: noun.index, text_end: noun.index + noun[0].length }, null, "event.booking");
   }
   return null;
 }

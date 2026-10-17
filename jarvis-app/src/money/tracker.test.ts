@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { TrackerService } from "./TrackerService";
-import { SEED_TXS } from "./trackerSeed";
+import { SEED_TXS, SEED_SUBS } from "./trackerSeed";
 import {
   byCategory, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth, incomeCents,
   knownCategories, monthLabel, monthlyCents, monthlySubTotal, monthOf, shiftMonth,
@@ -188,6 +188,16 @@ describe("TrackerService", () => {
     const second = await s.load();
     expect(second.txs).toHaveLength(31);
     expect(second.accounts).toHaveLength(4);
+  });
+
+  it("subscriptions take the same guard as accounts: an import that stopped after them does not write them twice (2026-10-17)", async () => {
+    const s = svc();
+    // An earlier import got as far as the subscriptions and no further (no transaction landed).
+    for (const sub of SEED_SUBS) await s.saveSub(null, sub);
+    expect(await s.seedIfEmpty()).toBe(true);
+    const { subs } = await s.load();
+    expect(subs).toHaveLength(3);
+    expect(subs.filter((x) => x.data.merchantName === "Amazon Prime")).toHaveLength(1);
   });
 
   it("refiles a transaction when its date moves to another month", async () => {

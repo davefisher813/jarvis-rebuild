@@ -108,9 +108,14 @@ import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
 import { localDate, pausedSends, reviewCount, reviewList, threadsLatest, type EmailFocus, type LatestInThread, type PausedSends } from "./waiting";
 import ReviewListScreen from "./ReviewListScreen";
 import PausedScreen from "./PausedScreen";
-import type { ActionResult } from "../substrate/commands/captures";
+import { dismissCandidate, type ActionResult } from "../substrate/commands/captures";
+import { ScheduleService } from "../schedule/ScheduleService";
+import type { EventItem } from "../schedule/types";
+import { savedEventTwin } from "./eventTwin";
 import { useFreshLists } from "../data/useFreshLists";
 import type { ThreadBriefAI } from "../messages/threadBrief";
+import { cardReplyPrompt, parseCardDraft } from "../messages/cardDraft";
+import { coverageGate } from "./useEmailReplyRequirements";
 import { WaitingService } from "../substrate/waiting/WaitingService";
 import type { WaitingItem } from "../substrate/waiting/types";
 import { replySubject } from "../connections/google/map";
@@ -122,7 +127,7 @@ import SectionWhySheet from "./SectionWhySheet";
 import ContactSheet from "./ContactSheet";
 import { recentFrom, resolveSender } from "./contactResolve";
 import {
-  bodyProposals, bodyReadingKey, candidatesFor, contextFor, isProvisional, isToReview, listReadingKey, listRowProposals, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
+  bodyProposals, bodyReadingKey, candidatesFor, contextFor, isPastEvent, isProvisional, isToReview, listReadingKey, listRowProposals, localCandidate, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
   type Candidate,
 } from "./candidates";
 import { EXTRACTOR_VERSION } from "../substrate/extract";
@@ -158,6 +163,9 @@ const outcomeTitle = (d: DraftRow): string => { const o = outcomeOf(d); return o
 const messageFrom = (s: Screen): "inbox" | "search" | "review" => (s.kind === "message" ? s.from : s.kind === "search" ? "search" : s.kind === "reviewList" ? "review" : "inbox");
 
 interface Question extends SuggestionDue { suggestionId: string | null }
+
+/** How long the app may be away before coming back to the foreground reads the inbox again. */
+export const FOREGROUND_RECHECK_MS = 5 * 60_000;
 
 const rowOf = (m: MessageDetail): InboxRow => ({
   id: m.id, account_id: m.account_id, account: m.account, provider_id: m.provider_id, thread_id: m.thread_id, internal_date: m.internal_date,
@@ -285,6 +293,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [readiness, setReadiness] = useState<Readiness>(() => readinessFrom(null, "unknown"));
   const [bills, setBills] = useState<Bill[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  // The Schedule's own rows, for the saved-event question (2026-10-17): a card that is already on the calendar is not proposed again.
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const twinsDismissed = useRef(new Set<string>());
   const bodyText = useRef<Record<string, string>>({});
   const loaded = useRef(false);
   // Compose, review, send (slice 07).
@@ -368,6 +379,29 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       return next;
     });
   }, [client, showDismissed]);
+  // THE SCHEDULE'S OWN ROWS (2026-10-17, Alfred's sweep: the NEVERSTOPMOVING interview, saved Fri 6:00 to 6:30, proposed again
+  // twice). The rules read each message on its own, so an invite, the company's confirmation and the scheduling service's
+  // mail each proposed the one meeting; nothing asked the calendar. Now it is asked, and a card whose event is already there
+  // (same day, start within a quarter hour, and a title, thread or sender that match) is dismissed on the server, once, so
+  // it leaves the cards, the review count and the Today band together.
+  useEffect(() => {
+    if (!store) return;
+    let alive = true;
+    void new ScheduleService(store, userId).listEvents().then((e) => { if (alive) setEvents(e); }).catch(() => { /* no Schedule: nothing to compare against */ });
+    return () => { alive = false; };
+  }, [store, userId, cards]);
+  useEffect(() => {
+    if (!client || events.length === 0) return;
+    const twins: Candidate[] = [];
+    for (const list of Object.values(cards)) for (const c of list) {
+      if (!isProvisional(c) || c.kind !== "event" || c.payload.kind !== "event" || twinsDismissed.current.has(c.id)) continue;
+      const row = rows.find((r) => r.id === c.message_id) ?? found.find((r) => r.id === c.message_id);
+      if (savedEventTwin(c.payload, events, { threadId: row?.thread_id ?? null, sender: row?.from_name ?? "", zone })) twins.push(c);
+    }
+    if (twins.length === 0) return;
+    for (const c of twins) twinsDismissed.current.add(c.id);
+    void Promise.all(twins.map((c) => dismissCandidate(client, c))).then(() => loadCards([...new Set(twins.map((c) => c.message_id))]));
+  }, [client, cards, events, rows, found, zone, loadCards]);
 
   // The rules over a loaded row's subject and snippet, once per message per
   // version on this phone (the server deduplicates by fingerprint anyway).
@@ -382,7 +416,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     for (const row of list) {
       const key = listReadingKey(row.account_id, row.id, row.source_hash);
       if (seen.has(key)) continue;
-      const proposals = listRowProposals(readWithRules(row, zone));
+      const proposals = listRowProposals(readWithRules(row, zone), now);
       // A reading is remembered only when every proposal reached the server:
       // a dropped signal is read again next time, not lost to this phone.
       let kept = true;
@@ -393,7 +427,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       if (kept) rememberReading(userId, key);
     }
     if (touched.length) await loadCards(touched);
-  }, [client, offline, userId, zone, loadCards]);
+  }, [client, offline, userId, zone, now, loadCards]);
 
   // The rules over an opened message's text, once per message per version;
   // Find Useful Details reads it again on purpose. Only for the kinds the spec keeps
@@ -403,13 +437,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (!client || offline) return 0;
     const key = bodyReadingKey(row.account_id, row.id, row.source_hash);
     if (!force && readingsOf(userId).has(key)) return 0;
-    const proposals = bodyProposals(readWithRules(row, zone, text));
+    const proposals = bodyProposals(readWithRules(row, zone, text), now);
     let kept = true;
     if (proposals.length) kept = (await proposeExtracted(client, proposals, { id: row.id, source_hash: row.source_hash })).failed === 0;
     if (kept) rememberReading(userId, key);
     await loadCards([row.id]);
     return proposals.length;
-  }, [client, offline, userId, zone, loadCards]);
+  }, [client, offline, userId, zone, now, loadCards]);
 
   // A calendar file attached to an opened message (ruling 6): its event, read once per message version, and only
   // its event (an invite's text is not a bill or a task). The card it proposes waits for the person's tap.
@@ -417,12 +451,12 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (!client || offline || !/BEGIN:VCALENDAR/.test(ics)) return;
     const key = readingKey(row.account_id, row.id, row.source_hash) + ":ics";
     if (readingsOf(userId).has(key)) return;
-    const proposals = readWithRules(row, zone, ics).filter((p) => p.kind === "event");
+    const proposals = readWithRules(row, zone, ics).filter((p) => p.kind === "event" && !isPastEvent(p.payload, now));
     let kept = true;
     if (proposals.length) kept = (await proposeExtracted(client, proposals, { id: row.id, source_hash: row.source_hash })).failed === 0;
     if (kept) rememberReading(userId, key);
     if (proposals.length) await loadCards([row.id]);
-  }, [client, offline, userId, zone, loadCards]);
+  }, [client, offline, userId, zone, now, loadCards]);
 
   useEffect(() => {
     // Dismissed cards shown or hidden: the page reads again.
@@ -461,21 +495,15 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     else showToast({ message: foundLine(n) });
   }, [client, readBody, showDismissed]);
 
-  // Manual capture: an empty card of the chosen kind, then the sheet.
-  const startCapture = useCallback(async (row: InboxRow, kind: CaptureKind, text?: string) => {
+  // MANUAL CAPTURE WRITES NOTHING UNTIL SAVE (2026-10-17, Alfred: Track This "creates a tracker entry even when the user
+  // cancels"; the blank "Title Needed" cards on the Kinzler thread were the same door). The sheet opens on a card that lives
+  // on this phone only; the server hears of it when the person taps Save, and the sheet proposes and approves it in one go
+  // (CaptureSheet.commit). Cancel closes the sheet and leaves no card, no review count, no Today line.
+  const startCapture = useCallback((row: InboxRow, kind: CaptureKind, text?: string) => {
     if (!client) return;
     const start = manualStart(kind, row, zone, now);
-    const r = await proposeCandidate(client, {
-      message_id: row.id, kind, payload: start.payload, provenance: {}, missing: start.missing,
-      fingerprint: `manual:${kind}:${now.getTime().toString(36)}`, extractor_version: "manual", source_hash: row.source_hash, origin: "manual",
-    });
-    if (!r.ok) { showToast({ message: lineFor(r) }); return; }
-    const list = await candidatesFor(client, [row.id], showDismissed);
-    if (!list.ok) return;
-    setCards((prev) => ({ ...prev, [row.id]: list.value }));
-    const made = list.value.find((x) => x.id === r.value.candidate_id);
-    if (made) setSheet({ candidate: made, row, text });
-  }, [client, zone, now, showDismissed]);
+    setSheet({ candidate: localCandidate(kind, row, start.payload, start.missing, now), row, text });
+  }, [client, zone, now]);
 
   const cardsFor = (row: InboxRow, place: "finish" | "rest" | "all" = "all"): ReactNode => {
     const list = cards[row.id];
@@ -615,6 +643,17 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (loaded.current) return;
     loaded.current = true;
     void load("first");
+  }, [load]);
+  // BACK IN THE FOREGROUND, CHECK AGAIN (2026-10-17, "Last Checked Oct 14" on a phone that had been open all morning). The
+  // list read once on mount and then only on a pull, so a mailbox the app came back to after hours said when it was last
+  // checked the day before. Five minutes away is long enough to ask once more; a tap-away-and-back is not.
+  const lastLoadAt = useRef(0);
+  useEffect(() => { if (!pending && !refreshing) lastLoadAt.current = Date.now(); }, [pending, refreshing]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => { if (document.visibilityState === "visible" && Date.now() - lastLoadAt.current > FOREGROUND_RECHECK_MS) void load("refresh"); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [load]);
 
   const hasProviderNext = Object.values(providerNext).some(Boolean);
@@ -1043,10 +1082,22 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       : fields;
     setScreen({ kind: "compose", start: { localKey: newLocalKey(nowFn), draftId: null, accountId, fields: signed, revision: null, ...extra }, from });
   };
+  // A REPLY OPENS WITH WORDS (2026-10-17). When the AI gate allows a reading of this thread (the same gate as Answered X of Y),
+  // the reply's opening words are drafted from the message as the composer opens: short, in the person's voice, answering what
+  // was asked, above the signature block. The composer owns the waiting line and the failure line; nothing is invented here.
+  const draftReplyBody = (m: MessageDetail): (() => Promise<string>) | undefined => {
+    if (!coverageGate(briefAI).read || !briefAI) return undefined;
+    const ai = briefAI;
+    return async () => {
+      const prompt = cardReplyPrompt(senderOf(m), m.subject, m.snippet, textOf(m));
+      return parseCardDraft(await ai.complete([{ role: "user", content: prompt.user }], prompt.system));
+    };
+  };
   const startReply = (m: MessageDetail, all: boolean, from: Screen) => {
     const acct = accounts.find((a) => a.id === m.account_id);
     if (!acct) return;
-    startCompose(replyFields(m, accounts.map((a) => a.address), all), acct.id, from, { replyingTo: senderOf(m) });
+    const draftBody = draftReplyBody(m);
+    startCompose(replyFields(m, accounts.map((a) => a.address), all), acct.id, from, { replyingTo: senderOf(m), ...(draftBody ? { draftBody } : {}) });
   };
   const openDraft = (d: DraftRow) => {
     setSendFailure(null);

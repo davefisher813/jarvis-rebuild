@@ -3,6 +3,7 @@ import { TasksService } from "../../tasks/TasksService";
 import { ENTITY_TASK, type TaskData } from "../../notes/types";
 import { ENTITY_EVENT, type EventData } from "../../schedule/types";
 import { madeBy } from "../../shared/provenance";
+import { shortDate } from "../../shared/dateFormat";
 import { isRealDate } from "../../money/ledger/dates";
 import { hashPayload } from "../canonical";
 import { CAPTURE_PAYLOAD_VERSION, type EvidenceField, type Json, type TaskPayload } from "../contracts";
@@ -52,7 +53,7 @@ export const taskAdapter: DestinationAdapter<TaskPayload> = {
       destinationKind: ENTITY_TASK,
       data: taskData(title, input.due_date, notes, ctx) as unknown as ItemData,
       normalizedPayload,
-      displaySummary: `${title} · ${input.due_date ? "Due " + input.due_date : "No Deadline"}`,
+      displaySummary: `${title} · ${input.due_date ? "Due " + shortDate(input.due_date) : "No Deadline"}`,
       exactEffect: `Added to Tasks · ${title}`,
       payloadHash: await hashPayload(CAPTURE_PAYLOAD_VERSION, normalizedPayload as unknown as Json),
       moduleVersion: TASKS_ADAPTER_VERSION,
