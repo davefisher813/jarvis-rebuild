@@ -51,6 +51,25 @@ export interface Candidate {
   saved_sibling: { id: string; payload: CapturePayload; destination_id: string | null; action_id: string | null } | null;
 }
 
+/** Whether a card lives on this phone only (a manual capture not yet saved): nothing on the server knows it. */
+export const LOCAL_PREFIX = "local:";
+export const isLocalCandidate = (c: Pick<Candidate, "id">): boolean => c.id.startsWith(LOCAL_PREFIX);
+
+/**
+ * A MANUAL CAPTURE BEFORE IT IS SAVED (2026-10-17). Add to JARVIS and Track This used to write a needs_details card to the
+ * server as the sheet opened, so a cancelled sheet left a card, a review count and a Today line behind. The sheet now opens
+ * on this card, which exists only here; CaptureSheet proposes and approves it in one turn when the person saves.
+ */
+export function localCandidate(kind: CaptureKind, row: Pick<InboxRow, "id" | "account_id" | "source_hash">, payload: CapturePayload, missing: string[], now: Date): Candidate {
+  const at = now.toISOString();
+  return {
+    id: LOCAL_PREFIX + kind + ":" + now.getTime().toString(36), message_id: row.id, account_id: row.account_id, kind, origin: "manual", agent_name: null,
+    status: "needs_details", revision: 0, payload, payload_hash: "", provenance_by_field: {}, missing_fields: missing,
+    fingerprint: `manual:${kind}:${now.getTime().toString(36)}`, source_hash: row.source_hash, message_source_hash: row.source_hash,
+    destination_id: null, action_id: null, proposal_id: null, extractor_version: "manual", created_at: at, updated_at: at, saved_sibling: null,
+  };
+}
+
 export function candidatesFor(client: RpcClient, messageIds: string[], includeDismissed = false): Promise<CommandResult<Candidate[]>> {
   return callCommand<Candidate[]>(client, "candidates_for", { p_messages: messageIds, p_include_dismissed: includeDismissed });
 }
@@ -113,9 +132,24 @@ export function readWithRules(row: Pick<InboxRow, "account_id" | "id" | "account
  */
 export const LIST_ROW_KINDS: readonly CaptureKind[] = ["event"];
 
+/**
+ * A PAST EVENT IS NOT A PROPOSAL (2026-10-17, Alfred's sweep: a June 10, 2025 invitation proposed again). Nothing read
+ * from mail is put on the Schedule behind the person's own clock: a timed event whose end has passed, or an all-day
+ * event whose last day is over, is history, however it reached the reader (an old invite in a forwarded thread, a date
+ * the rules misread as last year). Pure, so the list, the opened message, the calendar file and the cards already on
+ * the server all answer the same.
+ */
+export function isPastEvent(p: CapturePayload, now: Date): boolean {
+  if (p.kind !== "event") return false;
+  const t = p.time;
+  if (t.all_day) return t.end_date_exclusive <= localDate(now.toISOString());
+  const end = Date.parse(t.end_at);
+  return Number.isFinite(end) && end < now.getTime();
+}
+
 /** The proposals a list row may make: the rules' reading of it, cut to the kinds the list reads. */
-export function listRowProposals(proposals: readonly Proposal[]): Proposal[] {
-  return proposals.filter((p) => LIST_ROW_KINDS.includes(p.kind));
+export function listRowProposals(proposals: readonly Proposal[], now: Date = new Date()): Proposal[] {
+  return proposals.filter((p) => LIST_ROW_KINDS.includes(p.kind) && !isPastEvent(p.payload, now));
 }
 
 /** The key a list row is read under: the version and the kinds the list reads, so a kind turned back on reads the rows again. */
@@ -133,8 +167,8 @@ export function listReadingKey(accountId: string, messageId: string, sourceHash:
 export const BODY_READ_KINDS: readonly CaptureKind[] = ["bill", "receipt", "event"];
 
 /** The proposals an opened message's text may make: the rules' reading of it, cut to the kinds the spec keeps. */
-export function bodyProposals(proposals: readonly Proposal[]): Proposal[] {
-  return proposals.filter((p) => BODY_READ_KINDS.includes(p.kind));
+export function bodyProposals(proposals: readonly Proposal[], now: Date = new Date()): Proposal[] {
+  return proposals.filter((p) => BODY_READ_KINDS.includes(p.kind) && !isPastEvent(p.payload, now));
 }
 
 /** The key an opened message's text is read under: the version and the kinds read, so a kind turned back on reads the message again. */

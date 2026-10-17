@@ -406,6 +406,9 @@ export default function EventSheet({
                 placeholder="What's Happening?"
                 aria-label="Event title"
                 value={title}
+                /* A new event opens on its title, keyboard up (the Logging Standard, 2026-10-17); an edit opens quiet. */
+                autoFocus={mode === "new"}
+                data-autofocus={mode === "new" || undefined}
                 onChange={(e) => { setTitle(e.target.value); if (err) setErr(false); }}
               />
             </div>

@@ -5,7 +5,7 @@
 // replaced the old preview-flow tests deliberately; the old behavior was not
 // broken, it was retired.
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useEffect, useState } from "react";
 import type React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
@@ -854,5 +854,40 @@ describe("QuickCapture: the first magic loop (memory_v1)", () => {
     expect(screen.getByText("Mike Rossi", { selector: ".fact" })).toBeInTheDocument();
     expect(complete).not.toHaveBeenCalled();
     flags.memoryOn = false;
+  });
+});
+
+// DICTATION IS THE THING ITSELF (the Logging Standard, 2026-10-17). Speak used
+// to focus a box that was already focused, so the tap did nothing a person
+// could see. With the page's SpeechRecognition the words land in the editable
+// draft; the Capture tap is still the only commit.
+describe("QuickCapture: Speak dictates into the draft", () => {
+  class FakeRecognition {
+    static last: FakeRecognition | null = null;
+    lang = ""; interimResults = false; continuous = false;
+    onresult: ((e: unknown) => void) | null = null;
+    onerror: ((e: unknown) => void) | null = null;
+    onend: (() => void) | null = null;
+    constructor() { FakeRecognition.last = this; }
+    start() {}
+    stop() { this.onend?.(); }
+    abort() { this.onend?.(); }
+    say(words: string, final: boolean) { this.onresult?.({ resultIndex: 0, results: { length: 1, 0: { isFinal: final, length: 1, 0: { transcript: words } } } }); }
+  }
+  const w = window as unknown as { SpeechRecognition?: unknown };
+  beforeEach(() => { w.SpeechRecognition = FakeRecognition; });
+  afterEach(() => { delete w.SpeechRecognition; });
+
+  it("the spoken words appear in the box, editable, and nothing is saved until Capture", () => {
+    render(<NotesProvider userId="u-speak"><QuickCapture ai={new AIService({ available: false })} onClose={() => {}} /></NotesProvider>);
+    const box = screen.getByLabelText("Paste or Type") as HTMLTextAreaElement;
+    fireEvent.click(screen.getByRole("button", { name: "Speak" }));
+    expect(screen.getByRole("button", { name: "Listening" })).toHaveAttribute("aria-pressed", "true");
+    act(() => FakeRecognition.last!.say("call", false));
+    expect(box.value).toBe("call");
+    act(() => FakeRecognition.last!.say("Call Alberto Tomorrow", true));
+    expect(box.value).toBe("Call Alberto Tomorrow");
+    expect(screen.getByRole("button", { name: "Capture" }), "the commit is still a tap away").toBeInTheDocument();
+    expect(screen.queryByText(/Saved/)).toBeNull();
   });
 });

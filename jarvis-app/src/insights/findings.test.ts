@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { comparableGain, findings } from "./findings";
+import { comparableGain, comparableSeries, gainLine, findings } from "./findings";
 import { periodFor } from "./analytics";
 import type { Workout } from "../gym/types";
 
@@ -24,6 +24,32 @@ describe("comparableGain", () => {
   });
 });
 
+// THE SERIES BEHIND THE GAIN (Dave 2026-10-16, W). The Insights trend plotted every session with a set at the rep count,
+// comparable or not, and a date once per session, so a day trained three times drew one point three times over.
+describe("comparableSeries", () => {
+  it("is the comparable sessions only, one point per date, the best of that day", () => {
+    const ws = [
+      w("a", "2026-08-24", [{ w: 125, r: 5 }]),
+      w("a2", "2026-08-24", [{ w: 130, r: 5 }]),
+      w("a3", "2026-08-24", [{ w: 120, r: 5 }]),
+      w("kg", "2026-08-28", [{ w: 60, r: 5 }], {}, "kg"),
+      w("b", "2026-08-31", [{ w: 135, r: 5 }]),
+    ];
+    const g = comparableGain(ws, lift)!;
+    const pts = comparableSeries(ws, g);
+    expect(new Set(pts.map((p) => p.date)).size, "unique per date").toBe(pts.length);
+    expect(pts).toEqual([{ workoutId: "a2", date: "2026-08-24", w: 130 }, { workoutId: "b", date: "2026-08-31", w: 135 }]);
+  });
+  it("says the same number both ways", () => {
+    const ws = [w("a", "2026-08-24", [{ w: 125, r: 2 }]), w("b", "2026-08-31", [{ w: 265, r: 2 }])];
+    const g = comparableGain(ws, lift)!;
+    expect(gainLine(g, "sign")).toBe("+140 Lb at 2 Reps Since Aug 24");
+    expect(gainLine(g, "word")).toBe("Up 140 Lb at 2 Reps Since Aug 24");
+    const down = comparableGain([w("a", "2026-08-24", [{ w: 150, r: 2 }]), w("b", "2026-08-31", [{ w: 140, r: 2 }])], lift)!;
+    expect(gainLine(down, "word")).toBe("Down 10 Lb at 2 Reps Since Aug 24");
+  });
+});
+
 describe("findings", () => {
   const period = periodFor("7d", "2026-09-14");
   it("leads with the gain, then an observation, then a data issue, three at most", () => {
@@ -36,7 +62,9 @@ describe("findings", () => {
     // RAW ISO STAMP on a row a person reads, inside a single string that
     // carried its own middots. The context is a list of facts now, the CSS
     // draws the separators, and a date is a date.
-    expect(f[0]!.context).toEqual(["+10 Lb Since Aug 31"]);
+    // AMENDED 2026-10-16 (Dave, V): the gain names the rep count it was measured at, so the hub's "+140 Lb" cannot be
+    // read as a max and says the same thing the exercise page says.
+    expect(f[0]!.context).toEqual(["+10 Lb at 5 Reps Since Aug 31"]);
     expect(f[1]).toMatchObject({ title: "Working Sets", value: "2" });
     expect(f[2]).toMatchObject({ kind: "issue", open: { kind: "assign" } });
     expect(f[2]!.value).toBe("2 Sets Need a Muscle Assigned");

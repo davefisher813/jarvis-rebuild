@@ -117,7 +117,7 @@ function DaySet({
   onPushTomorrow?: (id: string) => void;
   // Same three moves, for a protected block instead of an event.
   onShiftBlock?: (id: string, mins: number) => void;
-  onRetimeBlock?: (id: string, startMin: number) => void;
+  onRetimeBlock?: (id: string, startMin: number, endMin?: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   // SWIPE LEFT, DELETE (Dave 2026-09-20). This page is a pure renderer, so
   // the confirmation, the write and the Undo toast all belong to the flow;
@@ -264,7 +264,7 @@ function DaySet({
           onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
           heldCount={props.length}
           onShift={onShiftBlock && blockId ? (m) => onShiftBlock(blockId, m) : undefined}
-          onRetime={onRetimeBlock && blockId ? (s) => onRetimeBlock(blockId, s) : undefined}
+          onRetime={onRetimeBlock && blockId ? (s, e) => onRetimeBlock(blockId, s, e) : undefined}
           onResize={onResizeBlock && blockId ? (e) => onResizeBlock(blockId, e) : undefined}
           onDelete={onDeleteBlock && blockId ? () => onDeleteBlock(blockId) : undefined}
         >
@@ -417,7 +417,7 @@ export default function YourDay({
   // 2026-08-28: "edit ALL schedule items THE FUCKING SAME"). No skip/push: a
   // block is a weekly rule, not a single dated thing.
   onShiftBlock?: (id: string, mins: number) => void;
-  onRetimeBlock?: (id: string, startMin: number) => void;
+  onRetimeBlock?: (id: string, startMin: number, endMin?: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   /** Swipe left on a schedule row, Delete. DaySet's pass-through. */
   onDeleteEvent?: (id: string) => void;

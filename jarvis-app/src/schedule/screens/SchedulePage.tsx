@@ -183,7 +183,7 @@ export default function SchedulePage({
   // 2026-08-28: "edit ALL schedule items THE FUCKING SAME"). No skip/push:
   // a block is a weekly rule, not a single dated thing.
   onShiftBlock?: (id: string, mins: number) => void;
-  onRetimeBlock?: (id: string, startMin: number) => void;
+  onRetimeBlock?: (id: string, startMin: number, endMin?: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   onDeleteBlock?: (id: string) => void;
   /** Swipe left, Delete. The flow owns the write and the Undo toast. */
@@ -827,7 +827,7 @@ export default function SchedulePage({
                     lead slot the star and the check take, so the time and the
                     words behind it start where every other row's do. */}
                 <span className="sched-open-plus" aria-hidden="true" />
-                <div className="sched-time">{fmtTime(en.start).time}<span className="ampm">{fmtTime(en.start).ap}</span></div>
+                <div className="sched-time">{fmtTime(en.start).time}{"\u00a0"}<span className="ampm">{fmtTime(en.start).ap}</span></div>
                 <div className="sched-body">
                   <div className="sched-title sched-gap-title">
                     {gapLabel(toMin(en.end) - toMin(en.start))} Open
@@ -864,7 +864,7 @@ export default function SchedulePage({
                 heldCount={heldProps.length}
                 onFillBlock={onFillBlock ? () => onFillBlock(en.l.s, en.l.e) : undefined}
                 onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}
-                onRetime={onRetimeBlock && id ? (s) => onRetimeBlock(id, s) : undefined}
+                onRetime={onRetimeBlock && id ? (s, e) => onRetimeBlock(id, s, e) : undefined}
                 onResize={onResizeBlock && id ? (e) => onResizeBlock(id, e) : undefined}
                 onDelete={onDeleteBlock && id ? () => onDeleteBlock(id) : undefined}
               />

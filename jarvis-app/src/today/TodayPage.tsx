@@ -209,7 +209,7 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
       {/* THE AREA IS A DOT, ONCE (Dave 2026-10-05, D4: "area colour only on a dot"). These rows wore Dave's category bar
           (2026-08-19) AND the dot on the line under the title, the one colour drawn twice. The dot carries the name, so it
           stays and the bar goes. */}
-      <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+      <div className="sched-time">{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
         {/* THE TITLE WRAPS TO TWO LINES BEFORE IT ENDS (Dave 2026-09-26, 2026-09-27): its own span is what the ruled row
             clamps, as DayRow's does. A bare text node in the flex title was cut at the card's edge mid-letter. */}

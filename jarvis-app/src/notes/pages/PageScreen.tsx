@@ -59,7 +59,7 @@ export interface PendingImport { originalAt: number; rows: string[][]; notes: st
 
 type View = "page" | "hole" | "snapshots" | "import" | "lineup" | "score";
 type Sheet =
-  | { k: "record"; id: string | null }
+  | { k: "record"; id: string | null; sec?: string }
   | { k: "fields" }
   | { k: "removeField"; key: string }
   | { k: "holes"; to: 9 | 18 }
@@ -331,6 +331,17 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     showToast({ message: lineCase((recordName(page, r!) || "Row") + " removed"), actionLabel: "Undo", onAction: () => void commit(before, { undoable: false }) });
   };
 
+  // ADD A ROW under the heading whose Add was tapped (every heading carries its own, 2026-10-16); the Fields sheet and a suggested
+  // field, from the starter a page with no rows draws. A suggested field is added on the tap alone, and Undo takes it back.
+  const addRow = (sec?: string) => setSheet({ k: "record", id: null, ...(sec ? { sec } : {}) });
+  const openFields = () => setSheet({ k: "fields" });
+  const suggestField = (key: string) => {
+    void commit(addSuggested(noteRef.current!.page, key));
+    // Honest about where the field is: while the Store still holds the write on this phone alone, the toast says Will Sync.
+    const pending = flagOn("trust_v1") && (store?.pending() ?? false);
+    showToast({ message: savedToastText("Field Added", heldText("Your Page"), pending), actionLabel: "Undo", onAction: undo });
+  };
+
   // CONFIRM: the person says a sensitive row is still true, one row or all of them. Never automatic, and each says so with Undo.
   const confirmEverything = () => {
     const before = noteRef.current!.page;
@@ -488,9 +499,9 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
       {page.kind === "team" && (
         <TeamView page={page} lineups={lineups} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
-          onMakeLineup={() => setView("lineup")} onOpenLineup={onOpenNote} />
+          onMakeLineup={() => setView("lineup")} onOpenLineup={onOpenNote} onFields={() => setSheet({ k: "fields" })} />
       )}
-      {page.kind === "outreach" && <OutreachView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} />}
+      {page.kind === "outreach" && <OutreachView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onFields={() => setSheet({ k: "fields" })} />}
       {page.kind === "lineup" && (
         <LineupView page={page} changes={changes} onOpen={(id) => setSheet({ k: "record", id })}
           onAdd={team ? () => setSheet({ k: "addFromRoster" }) : undefined}
@@ -507,13 +518,14 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       )}
 
       {def?.view === "sheet" && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           onConfirmAll={def.confirm ? confirmEverything : undefined}
+          onFields={openFields} onSuggest={suggestField}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined} />
       )}
       {(def?.view === "occasions" || def?.view === "accomplish") && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           belowHead={offered.length > 0 ? (
             <SuggestCard title={def.view === "occasions" ? "From People" : "Suggested From Your Goals and Projects"} items={offered}
@@ -548,19 +560,22 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <DraftView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onTeams={() => setSheet({ k: "teams" })} onOrder={() => setSheet({ k: "order" })} />
       )}
       {def?.view === "poker" && (
-        <PokerView page={page} rows={poker} payments={pokerGap === 0 ? settleUp(poker) : []} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} />
+        <PokerView page={page} rows={poker} payments={pokerGap === 0 ? settleUp(poker) : []} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+          onFields={openFields} onSuggest={suggestField} />
       )}
       {def?.view === "bizledger" && (
-        <BizLedgerView page={page} rows={ledgerRows} filterWord={`${lf.category} · ${lf.year ?? "Every Year"}`} onFilter={() => setSheet({ k: "ledgerFilter" })} />
+        <BizLedgerView page={page} rows={ledgerRows} category={lf.category} year={lf.year} onFilter={() => setSheet({ k: "ledgerFilter" })} />
       )}
       {def?.view === "session" && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
           timeOf={sessionClock(page)}
+          onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined}
           belowHead={<Card><Row label="Start Time" value={(page.meta?.start ?? "") ? (page.meta!.start!) : "Not Set"} onClick={() => setSheet({ k: "start" })} chev /></Card>} />
       )}
       {def?.view === "trainingplan" && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
+          onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined}
           belowHead={programs.length > 0 ? <Card><Row label="Start From a Program" onClick={() => setSheet({ k: "program" })} chev /></Card> : undefined} />
       )}
       {def?.view === "profile" && <ProfileView page={page} onEdit={(id) => setSheet({ k: "record", id })} />}
@@ -600,7 +615,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       <div className="screen-foot" />
 
       {sheet?.k === "record" && (
-        <RecordSheet page={page} record={record} isNew={!sheet.id}
+        <RecordSheet page={page} record={record} isNew={!sheet.id} defaultSection={sheet.sec}
           onCancel={() => setSheet(null)}
           onSave={(values, section) => {
             // POINTERS ONLY: a password, a PIN or a long number is refused before it is kept, and the page says which field.

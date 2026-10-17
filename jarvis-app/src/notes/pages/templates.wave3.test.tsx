@@ -75,7 +75,7 @@ describe("the picker", () => {
 describe("Money Map keeps pointers only", () => {
   it("refuses a password and says which field, keeps a place, and confirms when asked", async () => {
     await openPicked("u-w3-map", "Money Map");
-    fireEvent.click(screen.getByText("Add Pointer"));
+    fireEvent.click(screen.getByLabelText("Add Pointer Under Banking"));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Chase Checking" } });
     fireEvent.change(screen.getByLabelText("Where to Find It"), { target: { value: "online login: dave / hunter2" } });
     fireEvent.click(within(sheetOf()).getByText("Add"));

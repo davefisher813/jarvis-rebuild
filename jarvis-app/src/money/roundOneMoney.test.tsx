@@ -14,6 +14,7 @@ import TrackerScreen from "./screens/TrackerScreen";
 import { addDays } from "../schedule/calendar";
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "./bills";
+import { setCategoryRegistry } from "../shared/categories";
 import { kindRestated } from "./types";
 import { accountParts, monthLabel, thisMonth, type TrackerTxData } from "./tracker";
 import { resetToasts } from "../shared/toast";
@@ -136,6 +137,9 @@ function SeededTagged() {
     void (async () => {
       const money = await cats.create("Money", "yellow");
       const home = await cats.create("Home", "blue");
+      // The shell seeds this registry at startup (shared/categories.ts); the row resolves an area's name through it. The
+      // in-memory ids were "r1", "r2" until 2026-10-17 and read as slug names by accident; real ids are UUIDs.
+      setCategoryRegistry([{ id: money!, name: "Money", color: "yellow" }, { id: home!, name: "Home", color: "blue" }]);
       await tasks.createTask("Create Invoice", { category: money!, due: T });
       await tasks.createTask("Fix Meter", { category: money!, extraCategories: [home!] });
       await tasks.createTask("Chase Summit Gear Order #D2565", { category: money! });

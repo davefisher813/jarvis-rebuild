@@ -400,7 +400,7 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
   it("reads the week, then the next workout, then the findings, and keeps every logger behind Log Something", async () => {
     render(<NotesProvider userId="hl1"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
-    expect(screen.getByText("Last 7 Days")).toBeInTheDocument();
+    expect(screen.getAllByText("This Week").length).toBeGreaterThan(0); // the board's word for the week card (2026-10-16)
     expect(screen.getByText("Working Sets")).toBeInTheDocument();
     expect(screen.getByText("Training Time")).toBeInTheDocument();
     // WORKOUT FIRST (Dave 2026-10-09): Start Workout leads, with or without a program.

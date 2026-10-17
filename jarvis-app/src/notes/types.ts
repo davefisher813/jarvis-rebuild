@@ -392,9 +392,11 @@ export const TEMPLATES: Record<TemplateKey, Omit<Block, "id">[]> = {
     { type: "heading", text: "Decisions" },
     { type: "text", text: "" },
     { type: "heading", text: "Action Items" },
-    { type: "checklist", items: [] },
+    { type: "checklist", items: [""] },
   ],
-  todo: [{ type: "checklist", items: [] }],
+  // ONE EMPTY ITEM, NEVER NONE (Alfred 2026-10-16: To-Do / Checklist opened blank). The document's task list needs at least
+  // one item, so an empty checklist rendered as nothing; one empty item is a checklist with the cursor ready on its first line.
+  todo: [{ type: "checklist", items: [""] }],
   tracker: [{ type: "table", columns: ["", ""], rows: [["", ""]] }],
   brief: [
     { type: "heading", text: "Objective" },
@@ -402,7 +404,7 @@ export const TEMPLATES: Record<TemplateKey, Omit<Block, "id">[]> = {
     { type: "heading", text: "Key Dates" },
     { type: "bulleted_list", items: [""] },
     { type: "heading", text: "Tasks" },
-    { type: "checklist", items: [] },
+    { type: "checklist", items: [""] },
     { type: "heading", text: "Notes" },
     { type: "text", text: "" },
   ],

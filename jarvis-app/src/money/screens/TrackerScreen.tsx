@@ -608,7 +608,7 @@ function TxSheet({ initial, accounts, categories, categoryFor, links, onUnmatch,
       <Group label="Transaction">
         <FieldRow tone="red" glyph={<Tag className="ic" />} label="Merchant" ariaLabel="Merchant"
           value={merchant} onChange={setMerchant} placeholder="Who Was Paid"
-          error={touched && !merchant.trim()} />
+          error={touched && !merchant.trim()} autoFocus={isNew} />
         <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" ariaLabel="Amount"
           value={amount} onChange={setAmount} placeholder="0.00" inputMode="decimal"
           error={touched && cents <= 0} />

@@ -271,16 +271,16 @@ export default function DayRow({
           >{picked && <CheckGlyph className="ic" />}</button>
         )}
         {selecting ? (
-          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+          <div className="sched-time">{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></div>
         ) : onMoveTo ? (
           <button
             type="button"
             className="sched-time sched-time-btn"
             aria-label={"Change time or length, currently " + t.time + " " + t.ap}
             onClick={(ev) => { ev.stopPropagation(); setPicking(true); }}
-          >{t.time}<span className="ampm">{t.ap}</span></button>
+          >{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></button>
         ) : (
-          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+          <div className="sched-time">{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></div>
         )}
         <div className="sched-body">
           <div className="sched-title">

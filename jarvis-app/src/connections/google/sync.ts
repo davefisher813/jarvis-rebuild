@@ -189,14 +189,18 @@ export async function importCalendar(
   // importer's own making that a surviving twin makes redundant goes, exactly
   // like the same-id and same-slot copies above; anything else is only ever
   // hidden on read (eventTwins.ts), never deleted from here.
-  const redundant = new Set(twinsToHeal(existing));
+  //
+  // The twins are judged among the rows that SURVIVE the first sweep (2026-10-17): judged over `existing`, the survivor
+  // twinsToHeal chose could be a same-slot copy the loop above had already deleted, and the one it kept was then deleted
+  // here as redundant, leaving none. Sequential test ids hid it; real ids are random.
+  const doors = existing.filter((e) => !e.data.gcalId);
+  const redundant = new Set(twinsToHeal([...kept, ...doors]));
   for (const e of kept) {
     if (!redundant.has(e.id)) continue;
     await schedule.deleteEvent(e.id);
     seen.delete(e.data.gcalId!);
     seenSlots.delete(slotOf(e.data));
   }
-  const doors = existing.filter((e) => !e.data.gcalId);
 
   let updated = 0;
   let removed = 0;

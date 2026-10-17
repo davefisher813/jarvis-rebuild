@@ -15,13 +15,14 @@
 // answer should not depend on a component being mounted.
 
 import { capAfterNumber } from "../shared/casing";
-import type { MuscleGroup } from "./muscles";
-import type { Equipment } from "./equipment";
+import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
+import { loadStyleOf, type Equipment } from "./equipment";
 import { libraryRows, type LibraryRow } from "./libraryEdit";
-import { classOf, needsMuscles, readClassStore, type ClassStore, type MovementPattern } from "./classify";
-import { composeLibrary, type LibrarySeeds } from "./library";
-import type { Program, Workout } from "./types";
-import type { GymSettings } from "./settings";
+import { classOf, EMPTY_CLASS, needsMuscles, readClassStore, type Classification, type ClassStore, type MovementPattern } from "./classify";
+import { composeLibrary, newExerciseKey, type LibraryEntry, type LibrarySeeds } from "./library";
+import type { MeasureKind, Program, Workout } from "./types";
+import type { CreatedLift, GymSettings } from "./settings";
+import { normalizeExerciseName, STARTER_EXERCISES, type StarterExercise } from "./starterLibrary";
 
 export type SortKey = "recent" | "name" | "most";
 
@@ -210,4 +211,144 @@ export function shownSignature(seeds: ShownSeeds): string {
     Object.keys(seeds.aliases ?? {}).length,
     (seeds.favoriteKeys ?? []).length,
   ].join("|");
+}
+
+// ---------------------------------------------------------------------------
+// ONE EXERCISE SOURCE FOR EVERY PICKER (Dave 2026-10-16, Q). Add to a day,
+// Add Exercise on the empty workout, Add to a past workout and Swap each
+// searched the raw library their own way: one capped the list at forty, none
+// filtered an exercise the athlete had ARCHIVED, so "Cable Curls" came back
+// in every picker after it was put away. The picker's rows are the library's
+// default view now (hidden and archived out, the same two switches the
+// Exercises page opens with), with no cap (the sheet list scrolls), and the
+// preloaded catalog's entries merged in under the same muscle sections (S9).
+// LibraryPickSheet reads this, so every caller of the sheet gets it for free.
+// ---------------------------------------------------------------------------
+
+export interface PickerRow {
+  entry: LibraryEntry;
+  /** The first primary muscle, for the section it sits under; null when the
+   *  athlete has not said one (and the entry is not a starter). */
+  primary: MuscleGroup | null;
+  /** From the preloaded catalog, not yet the athlete's own. */
+  starter: boolean;
+}
+
+export interface PickerOptions {
+  /** The typed search, matched on the name and every alias. */
+  q?: string;
+  /** Only entries that log this way (Swap: a substitute logs like what it
+   *  replaces). A starter logs weight and reps, so it is offered only when
+   *  that is the kind asked for, or none is. */
+  kind?: MeasureKind;
+  /** The catalog to merge in; the app's own by default. A test hands in a
+   *  fixture; a caller that wants no catalog hands in []. */
+  starters?: readonly StarterExercise[];
+}
+
+/** A starter as the picker shows it: a library entry that exists only in the
+ *  picker, keyed by its normalised name so a React key is stable, logging
+ *  weight and reps, never used. */
+function starterEntry(s: StarterExercise): LibraryEntry {
+  return {
+    key: "starter:" + normalizeExerciseName(s.name), name: s.name, kind: "weight_reps", lastUsed: 0, lastSets: [],
+    starter: { primary: s.primary, secondary: s.secondary },
+  };
+}
+
+const matchesEntry = (e: LibraryEntry, q: string) =>
+  !q || e.name.toLowerCase().includes(q) || (e.aliases ?? []).some((a) => a.toLowerCase().includes(q));
+
+/** The rows every picker lists: the library's default view (hidden and
+ *  archived out) plus the catalog's entries the athlete has not got, matched
+ *  by normalised name against the WHOLE library (an archived "Cable Curls" is
+ *  not offered back as a starter either). Favorites lead, then the most
+ *  recently used, then the rest by name, starters among them. No cap. */
+export function pickerRows(library: LibraryEntry[], store: ClassStore, hiddenKeys: string[] = [], opts: PickerOptions = {}): PickerRow[] {
+  const hidden = new Set(hiddenKeys);
+  const q = (opts.q ?? "").trim().toLowerCase();
+  const out: PickerRow[] = [];
+  for (const e of library) {
+    if (hidden.has(e.key)) continue;
+    if (opts.kind && e.kind !== opts.kind) continue;
+    const c = classOf(store, e, loadStyleOf(e));
+    if (c.archived) continue;
+    if (!matchesEntry(e, q)) continue;
+    out.push({ entry: e, primary: c.primary[0] ?? null, starter: false });
+  }
+  if (!opts.kind || opts.kind === "weight_reps") {
+    const have = new Set(library.map((e) => normalizeExerciseName(e.name)));
+    for (const e of library) for (const a of e.aliases ?? []) have.add(normalizeExerciseName(a));
+    for (const s of opts.starters ?? STARTER_EXERCISES) {
+      if (have.has(normalizeExerciseName(s.name))) continue;
+      const entry = starterEntry(s);
+      if (!matchesEntry(entry, q)) continue;
+      out.push({ entry, primary: s.primary, starter: true });
+    }
+  }
+  return out.sort((a, b) =>
+    (b.entry.favorite ? 1 : 0) - (a.entry.favorite ? 1 : 0)
+    || b.entry.lastUsed - a.entry.lastUsed
+    || a.entry.name.localeCompare(b.entry.name));
+}
+
+export interface PickerSection {
+  /** The muscle's label, or the one head for exercises with no muscle yet. */
+  label: string;
+  muscle: MuscleGroup | null;
+  rows: PickerRow[];
+}
+
+/** The head over the rows that have no primary muscle. */
+export const NO_MUSCLE_SECTION = "No Muscle Yet";
+
+/** The rows under their primary muscle, in the app's muscle order, with the
+ *  unsorted last. A section with no rows is not drawn. */
+export function pickerSections(rows: PickerRow[]): PickerSection[] {
+  const by = new Map<MuscleGroup | null, PickerRow[]>();
+  for (const r of rows) {
+    const list = by.get(r.primary) ?? [];
+    list.push(r);
+    by.set(r.primary, list);
+  }
+  const out: PickerSection[] = [];
+  for (const m of MUSCLE_GROUPS) {
+    const list = by.get(m);
+    if (list?.length) out.push({ label: MUSCLE_LABEL[m], muscle: m, rows: list });
+  }
+  const rest = by.get(null);
+  if (rest?.length) out.push({ label: NO_MUSCLE_SECTION, muscle: null, rows: rest });
+  return out;
+}
+
+/** WHAT PICKING A STARTER MAKES (S9). The athlete's own exercise: a fresh
+ *  opaque key (never derived from the name, so a rename cannot fork its
+ *  history), the catalog's name, weight and reps, and the classification the
+ *  catalog gave it. Pure: the caller writes the seed and the classification
+ *  (GymFlow through its own setters, so its in-memory copies stay in step;
+ *  the sheet straight to GymSettings when nobody is holding copies). */
+export function adoptStarter(entry: LibraryEntry): { entry: LibraryEntry; seed: CreatedLift; cls: Classification } {
+  const key = newExerciseKey();
+  const s = entry.starter;
+  const cls: Classification = { ...EMPTY_CLASS, primary: s ? [s.primary] : [], secondary: s?.secondary ? [s.secondary] : [], measure: "weight_reps" };
+  const seed: CreatedLift = { key, name: entry.name, kind: "weight_reps" };
+  const { starter: _starter, ...rest } = entry;
+  void _starter;
+  return { entry: { ...rest, key, exerciseKey: key }, seed, cls };
+}
+
+/** The settings write for an adoption when no caller holds in-memory copies
+ *  of GymSettings (the Swap picker inside a live session). Both the new
+ *  classification shape and the old flat muscle list, the same two writes
+ *  GymFlow.saveClassStore makes. */
+export function writeAdopted(adopted: { seed: CreatedLift; cls: Classification }[], read: () => GymSettings, write: (s: GymSettings) => void): void {
+  if (adopted.length === 0) return;
+  const gs = read();
+  const classByKey = { ...(gs.classByKey ?? {}) };
+  const muscleByKey = { ...(gs.muscleByKey ?? {}) };
+  for (const a of adopted) {
+    classByKey[a.seed.key] = a.cls;
+    muscleByKey[a.seed.key] = [...a.cls.primary, ...a.cls.secondary];
+  }
+  write({ ...gs, createdLifts: [...(gs.createdLifts ?? []), ...adopted.map((a) => a.seed)], classByKey, muscleByKey });
 }

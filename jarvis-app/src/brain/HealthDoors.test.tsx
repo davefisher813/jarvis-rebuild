@@ -66,7 +66,8 @@ describe("the Health page's three doors", () => {
     // in the app, and the singular is real rather than "1 sessions".
     const counts = Array.from(document.querySelectorAll(".h-door-n")).map((n) => n.textContent);
     // One vocabulary (Dave 2026-10-09, item 13): a visit is a Workout.
-    expect(counts).toEqual(["2 Exercises", "2 Days", "1 Workout"]);
+    // THE BOARD'S ORDER (Dave's approved board 2026-10-16, screen 6): Program, History, Exercises, the exercise count bare.
+    expect(counts).toEqual(["2 Days", "1 Workout", "2"]);
   });
 
   it("opens Program and History from their own doors", () => {
@@ -74,9 +75,9 @@ describe("the Health page's three doors", () => {
     const onOpenHistory = vi.fn();
     render(<HealthBody {...base} onOpenGym={onOpenGym} onOpenExercises={() => {}} onOpenHistory={onOpenHistory} />);
     const doors = document.querySelectorAll(".h-door");
-    fireEvent.click(doors[1]!);
+    fireEvent.click(doors[0]!);
     expect(onOpenGym).toHaveBeenCalledTimes(1);
-    fireEvent.click(doors[2]!);
+    fireEvent.click(doors[1]!);
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
   });
 
@@ -112,7 +113,8 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
     { key: "ek-curl", name: "Leg Curls", kind: "weight_reps" },
     { key: "ek-step", name: "Step Ups", kind: "weight_reps" },
   ];
-  const badge = () => Array.from(document.querySelectorAll(".h-door-n")).map((n) => n.textContent)[0];
+  // The Exercises door's bare number (the board, 2026-10-16: "Exercises · 43").
+  const badge = () => [...document.querySelectorAll(".h-door")].find((d) => d.querySelector(".h-door-k")?.textContent === "Exercises")?.querySelector(".h-door-n")?.textContent;
   let saved: ReturnType<typeof readGymSettings>;
   beforeEach(() => { saved = readGymSettings(); });
   afterEach(() => { writeGymSettings(saved); });
@@ -120,19 +122,19 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
   it("a tester with no program and no workouts who added four by hand sees 4, not 0", () => {
     writeGymSettings({ ...readGymSettings(), createdLifts: HAND_MADE });
     render(<HealthBody {...base} program={null} workouts={[]} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("4 Exercises");
+    expect(badge()).toBe("4");
   });
 
   it("hand-made lifts add to the ones the program and workouts already carry", () => {
     writeGymSettings({ ...readGymSettings(), createdLifts: HAND_MADE });
     render(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("6 Exercises"); // Bench Press, Row, and the four
+    expect(badge()).toBe("6"); // Bench Press, Row, and the four
   });
 
   it("a hand-made lift that was later used is one exercise, not two", () => {
     writeGymSettings({ ...readGymSettings(), createdLifts: [{ key: "ek-bench", name: "Bench Press", kind: "weight_reps" }] });
     render(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("2 Exercises");
+    expect(badge()).toBe("2");
   });
 
   it("counts an archived program's lifts when the caller hands every program in, as the page does", () => {
@@ -140,12 +142,12 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
       { id: "d0", name: "Legs", exercises: [{ id: "e0", name: "Front Squat", kind: "weight_reps", sets: [] }] },
     ] }] } } as unknown as Program;
     render(<HealthBody {...base} libraryPrograms={[program, archived]} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("3 Exercises");
+    expect(badge()).toBe("3");
   });
 
   it("with nothing at all it says 0, honestly", () => {
     render(<HealthBody {...base} program={null} workouts={[]} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("0 Exercises");
+    expect(badge()).toBe("0");
   });
 
   it("the page's list and the badge's number come from the same composition, so a hand-made lift is in both", () => {
@@ -155,7 +157,7 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
     expect(shownLibraryCount([program], workouts, seeds)).toBe(list.length);
     writeGymSettings({ ...readGymSettings(), createdLifts: HAND_MADE });
     render(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe(`${list.length} Exercises`);
+    expect(badge()).toBe(String(list.length));
   });
 
   it("neither screen can quietly go back to a private chain: both go through composeLibrary", () => {
@@ -183,7 +185,8 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
 // badge, and the rows the page actually draws from the same records.
 describe("the Exercises badge is the page's opening list, archived and hidden left out", () => {
   const MADE: CreatedLift[] = [{ key: "ek-test", name: "Test Press", kind: "weight_reps" }];
-  const badge = () => Array.from(document.querySelectorAll(".h-door-n")).map((n) => n.textContent)[0];
+  // The Exercises door's bare number (the board, 2026-10-16: "Exercises · 43").
+  const badge = () => [...document.querySelectorAll(".h-door")].find((d) => d.querySelector(".h-door-k")?.textContent === "Exercises")?.querySelector(".h-door-n")?.textContent;
   const BENCH = fallbackKey("Bench Press", "weight_reps");
   let saved: ReturnType<typeof readGymSettings>;
   beforeEach(() => { saved = readGymSettings(); });
@@ -208,7 +211,7 @@ describe("the Exercises badge is the page's opening list, archived and hidden le
 
   function check(expected: number) {
     const { unmount } = render(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe(`${expected} Exercises`);
+    expect(badge()).toBe(String(expected));
     unmount();
     expect(pageRows()).toBe(expected);
   }
@@ -245,16 +248,16 @@ describe("the Exercises badge is the page's opening list, archived and hidden le
   it("the badge on a mounted dashboard follows the settings on the next render", () => {
     writeGymSettings({ ...readGymSettings(), createdLifts: MADE });
     const { rerender } = render(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("3 Exercises");
+    expect(badge()).toBe("3");
     writeGymSettings({ ...readGymSettings(), classByKey: { "ek-test": { archived: true } } });
     rerender(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("2 Exercises");
+    expect(badge()).toBe("2");
     writeGymSettings({ ...readGymSettings(), classByKey: {}, hiddenKeys: ["ek-test"] });
     rerender(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("2 Exercises");
+    expect(badge()).toBe("2");
     writeGymSettings({ ...readGymSettings(), hiddenKeys: [] });
     rerender(<HealthBody {...base} onOpenExercises={() => {}} />);
-    expect(badge()).toBe("3 Exercises");
+    expect(badge()).toBe("3");
   });
 
   it("the page's header count is the same number, and the Archived chip still shows the archived row", () => {
@@ -348,18 +351,21 @@ describe("the Health page wears the row-action model (2026-10-05)", () => {
 describe("the Health week card's numbers wear a state only when they have one", () => {
   const quiet = { ...base, workouts: [], overview: periodOverview([], null, [], periodFor("7d", today)) };
 
-  it("a week with no workout and no set marks both numbers as zero, so neither is the done green", () => {
+  // AMENDED 2026-10-16 (Dave's approved board, screen 6): the three stats are white with grey labels, busy or quiet; the
+  // one green on the card is a trained day's bar.
+  it("a quiet week's numbers are white, with no done green anywhere on the stats", () => {
     render(<HealthBody {...quiet} />);
-    expect(document.querySelector(".h-week-count")).toHaveClass("zero");
-    const sets = screen.getByText("Working Sets").closest(".h-stat") as HTMLElement;
-    expect(sets).not.toHaveClass("lime");
+    expect(document.querySelector(".h-week-count")).toBeNull();
+    for (const s of document.querySelectorAll(".h-stat")) expect(s).not.toHaveClass("lime");
+    expect(document.querySelector(".h-bar.on")).toBeNull();
   });
 
-  it("a week with a workout does not mark the count as zero", () => {
+  it("a busy week's numbers are white too; the trained days wear the green bar", () => {
     const busy = { ...base, overview: { ...base.overview, workouts: 2, workingSets: 14 } };
     render(<HealthBody {...busy} />);
-    expect(document.querySelector(".h-week-count")).not.toHaveClass("zero");
-    expect(screen.getByText("Working Sets").closest(".h-stat")).toHaveClass("lime");
+    for (const s of document.querySelectorAll(".h-stat")) expect(s).not.toHaveClass("lime");
+    expect([...document.querySelectorAll(".h-stat span")].map((e) => e.textContent)).toEqual(["Workouts", "Working Sets", "Training Time"]);
+    expect(document.querySelectorAll(".h-bar.on").length).toBeGreaterThan(0);
   });
 
   it("Your Progress with nothing to read is the one empty state, with its glyph", () => {

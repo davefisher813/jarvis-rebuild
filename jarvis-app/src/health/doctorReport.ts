@@ -12,6 +12,7 @@
 
 import type { AteBeforeEntry, CallItEntry, LightsOutEntry, TookItEntry, MealEntry, MedDefEntry, CheckInEntry } from "./types";
 import { checkInLine } from "./checkin";
+import { clock12 } from "../shared/clock";
 
 export type ReportKind = "dose" | "food" | "lights_out" | "session" | "meal" | "checkin";
 export const ALL_REPORT_KINDS: ReportKind[] = ["dose", "food", "lights_out", "session", "meal", "checkin"];
@@ -112,7 +113,7 @@ export function doctorReportText(report: DoctorReport): string {
     "",
   ];
   for (const r of report.rows) {
-    lines.push(r.date + "  " + new Date(r.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) + "  " + r.label);
+    lines.push(r.date + "  " + clock12(r.at) + "  " + r.label);
   }
   return lines.join("\n");
 }

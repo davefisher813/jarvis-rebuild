@@ -2,7 +2,8 @@ import type { Store, ItemData } from "@core";
 import { ScheduleService } from "../../schedule/ScheduleService";
 import { ENTITY_EVENT, type EventData } from "../../schedule/types";
 import { ENTITY_TASK, type TaskData } from "../../notes/types";
-import { daysBetween } from "../../schedule/calendar";
+import { daysBetween, fmtTime } from "../../schedule/calendar";
+import { weekdayShortDate } from "../../shared/dateFormat";
 import { madeBy } from "../../shared/provenance";
 import { isRealDate } from "../../money/ledger/dates";
 import { cyrb53 } from "../../messages/briefSource";
@@ -90,7 +91,9 @@ export const eventAdapter: DestinationAdapter<EventPayload> = {
     const shape = shapeOf(input, ctx);
     if ("ok" in shape) return shape;
     const normalizedPayload: EventPayload = { ...input, title, location: input.location?.trim() || null };
-    const when = shape.end ? `${shape.date} · ${shape.start} to ${shape.end}` : `${shape.date} · All Day`;
+    // 12-hour, every time (Dave: AM/PM everywhere, the sheet included). "Fri, Oct 16 · 6:00 PM to 6:30 PM".
+    const clock = (hhmm: string): string => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
+    const when = shape.end ? `${weekdayShortDate(shape.date)} · ${clock(shape.start)} to ${clock(shape.end)}` : `${weekdayShortDate(shape.date)} · All Day`;
     return {
       ok: true,
       kind: "event",

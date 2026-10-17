@@ -134,7 +134,8 @@ describe("casing a lift's name never reaches a comparison", () => {
       ["gym/CondReceipt.tsx", "liftTitle(exercise.name)"],
       ["gym/DuplicateReview.tsx", "{liftTitle(row.name)}"],
       ["gym/BatchSheet.tsx", "{liftTitle(ch.name)}"],
-      ["gym/FitSheet.tsx", "{liftTitle(o.name)}"],
+      // AMENDED 2026-10-16 (the board, screen 3): the lever's name is cased on its way into the row's face (leverFace).
+      ["gym/FitSheet.tsx", "liftTitle(o.name)"],
     ];
     const missing = SITES.filter(([f, call]) => !read(f).includes(call)).map(([f]) => f);
     expect(missing, "these still print the raw spelling").toEqual([]);

@@ -50,6 +50,7 @@ import SayItToSomeoneScreen from "./screens/SayItToSomeoneScreen";
 import SeasonFeedScreen from "./screens/SeasonFeedScreen";
 import LockerScreen from "./screens/LockerScreen";
 import HandoffScreen from "./screens/HandoffScreen";
+import { clock12 } from "../shared/clock";
 
 // HMN-F-06 (2026-09-05): exported now that something outside this module
 // chooses which screen to open (brain/CategoryDetail's More menu).
@@ -493,7 +494,7 @@ export default function HealthFlow({
           onAddWindDown={() => {
             const offer = nightBeforeOffer(nightBeforeCommitments, Date.now());
             if (!offer) return;
-            const line = "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+            const line = "Wind Down at " + clock12(offer.windDownAt);
             take(onOffer, { kind: "windDown", at: offer.windDownAt, line }, OFFER_RECEIPT.windDown);
           }}
           onBack={onExit}

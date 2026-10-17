@@ -26,6 +26,11 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
 }) {
   const [justTapped, setJustTapped] = useState(false);
   const [editing, setEditing] = useState(false);
+  // THE EDIT IS A DRAFT (2026-10-17). The clock input used to write on its first
+  // change, and a time wheel fires change while it is still being scrolled, so
+  // a thumb on the wheel was a write. The draft is held here and written by
+  // Save; Cancel, or leaving the row, writes nothing.
+  const [draftTime, setDraftTime] = useState("");
   const [hours, setHours] = useState(7);
   const [minutes, setMinutes] = useState(30);
   const [night, setNight] = useState(localDay());
@@ -39,10 +44,11 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
 
   const canEdit = !!onEditTime && !!last && !last.pending;
   const timeValue = last ? hhmm(last.data.at) : "";
+  const beginEdit = () => { setDraftTime(timeValue); setEditing(true); };
   const commitTime = (v: string) => {
     if (!last || !onEditTime) return;
     const m = /^(\d{2}):(\d{2})$/.exec(v);
-    if (!m) return;
+    if (!m) { setEditing(false); return; }
     const d = new Date(last.data.at);
     d.setHours(Number(m[1]), Number(m[2]), 0, 0);
     onEditTime(last.id, d.getTime());
@@ -78,7 +84,7 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
           <div className="sh2 sh2-quiet"><span className="t">Last Time</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {/* Row tap (Dave 2026-09-15): the last night's row opens Edit Time. */}
-            <div className="row" {...(canEdit && !editing ? pressable(() => setEditing(true)) : {})}>
+            <div className="row" {...(canEdit && !editing ? pressable(beginEdit) : {})}>
               <div className="row-grow">
                 <div className="conn-name">{weekdayShortDateFromMs(last.data.at)}</div>
                 {/* A bedtime is a neutral time, small caps (§AM F5). Violet
@@ -89,8 +95,12 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
               {/* CLEAN ROW (Dave 2026-10-05): the Edit Time capsule is gone; the row's own tap edits the time, as it always did. */}
               {canEdit && !editing && <div className="chev" />}
               {canEdit && editing && (
-                <input className="input set-field" type="time" aria-label="Bedtime time" defaultValue={timeValue} autoFocus
-                  onChange={(e) => commitTime(e.target.value)} onBlur={() => setEditing(false)} />
+                <>
+                  <input className="input set-field" type="time" aria-label="Bedtime time" value={draftTime} autoFocus
+                    onChange={(e) => setDraftTime(e.target.value)} />
+                  <button type="button" className="btn-sm" onClick={() => commitTime(draftTime)}>Save</button>
+                  <button type="button" className="btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+                </>
               )}
             </div>
           </div></div>

@@ -140,7 +140,7 @@
 
 /* The capture sheet (M3): the excerpt is the sender's own words, quoted, so it is
    the page's ink and not a grey subtext. */
-.email-evidence { margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border-radius: var(--r-md); background: var(--press-3); font-size: var(--t-sub); color: var(--tx-1); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
+.email-evidence { margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border-radius: var(--r-md); background: var(--press-3); font-size: var(--t-sub); color: var(--tx-1); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .email-sheet-acts { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-4) var(--s-4); }
 .email-sheet-acts .btn { width: 100%; min-height: 48px; }
 

@@ -35,6 +35,21 @@ const DATA: WorkoutData = {
 beforeEach(() => { showToast.mockReset(); localStorage.clear(); });
 
 describe("GymFlow: Delete Workout", () => {
+  it("Keep It closes the ask and the workout stays", async () => {
+    let gym: GymService | null = null;
+    function Grab() { gym = useGym(); return null; }
+    let id = "";
+    const { rerender } = render(<NotesProvider userId="gym-keep-workout"><Grab /></NotesProvider>);
+    await waitFor(() => expect(gym).toBeTruthy());
+    await act(async () => { id = (await gym!.saveWorkout(DATA))!; });
+    rerender(<NotesProvider userId="gym-keep-workout"><Grab /><GymFlow startWorkoutId={id} onBack={() => {}} /></NotesProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Workout" }, { timeout: 4000 }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep It" }));
+    expect(screen.queryByText("Delete This Workout?")).toBeNull();
+    expect((await gym!.listWorkouts()).find((w) => w.id === id)).toBeTruthy();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
   it("removes the session, and Undo puts the same record back", async () => {
     let gym: GymService | null = null;
     function Grab() { gym = useGym(); return null; }
@@ -55,6 +70,14 @@ describe("GymFlow: Delete Workout", () => {
 
     const del = await screen.findByRole("button", { name: "Delete Workout" }, { timeout: 4000 });
     await act(async () => { fireEvent.click(del); });
+
+    // IT ASKS FIRST (Dave 2026-10-16, S): the first tap opens the confirm and deletes nothing.
+    expect(screen.getByText("Delete This Workout?")).toBeInTheDocument();
+    expect((await gym!.listWorkouts()).find((w) => w.id === id), "one tap deletes nothing").toBeTruthy();
+    const confirm = screen.getAllByRole("button", { name: "Delete Workout" }).find((b) => b.classList.contains("destructive"))!;
+    expect(confirm, "the sheet's one destructive action").toBeTruthy();
+    expect(screen.getByRole("button", { name: "Keep It" })).toBeInTheDocument();
+    await act(async () => { fireEvent.click(confirm); });
 
     // Gone from the store, not merely gone from the screen.
     const find = async () => (await gym!.listWorkouts()).find((w) => w.id === id) ?? null;

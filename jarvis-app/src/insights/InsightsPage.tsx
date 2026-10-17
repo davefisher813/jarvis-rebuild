@@ -12,7 +12,7 @@ import { lineCase } from "../shared/casing";
 import { PickSheet } from "../gym/ActionSheet";
 import HealthNav, { type HealthView } from "./HealthNav";
 import { periodFor, periodOverview, muscleBreakdown, liftTable, hoursLabel, weekdayShort, inPeriod, type RangeKey, type Period } from "./analytics";
-import { comparableGain, type LiftId, type RepGain } from "./findings";
+import { comparableGain, comparableSeries, gainLine, type LiftId, type RepGain } from "./findings";
 import type { DataCategory } from "./records";
 
 // INSIGHTS (the approved Health design, 2026-09-14, items 3 to 7). A real
@@ -100,19 +100,11 @@ function localDay(at: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** The comparable sessions behind a gain, oldest first, for the chart. */
-function gainSeries(workouts: Workout[], g: RepGain): { workoutId: string; date: string; w: number }[] {
-  const rows = liftTable(workouts, g.lift).slice().reverse();
-  const out: { workoutId: string; date: string; w: number }[] = [];
-  for (const r of rows) {
-    const w = workouts.find((x) => x.id === r.workoutId);
-    const ex = w?.data.exercises.find((e) => (g.lift.exerciseKey ? e.exerciseKey === g.lift.exerciseKey : e.name === g.lift.name));
-    if (!ex) continue;
-    const best = Math.max(...ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && s.r === g.reps && s.w != null).map((s) => s.w!), -Infinity);
-    if (Number.isFinite(best)) out.push({ workoutId: r.workoutId, date: r.date, w: best });
-  }
-  return out;
-}
+/** The comparable sessions behind a gain, oldest first, one point per date,
+ *  for the chart: findings.comparableSeries, the same list the gain was
+ *  measured on (Dave 2026-10-16, W: the chart plotted every session at the
+ *  rep count, comparable or not, and a date three times over). */
+const gainSeries = comparableSeries;
 
 export default function InsightsPage({
   view, onView, today, workouts, metricDefs, metricLogs, logs, muscleMap, cards,
@@ -383,7 +375,8 @@ const musclesCard = breakdown.total === 0 ? null : (
       </div>
       <div className="ins-big lime">{lineCase(`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`)}</div>
       <div className="facts">
-        <span className="fact lime">{lineCase(`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`)}</span>
+        {/* One number, said the hub's way (Dave 2026-10-16, V): the gain names the rep count it was measured at. */}
+        <span className="fact lime">{gainLine(headline, "sign")}</span>
         {/* A count with no state is white (§AM, 2026-09-26), so "Biggest
             gain" above stays the card's one grey. */}
         <span className="fact"><b>{lineCase(`${headline.sessions} comparable workouts`)}</b></span>
@@ -511,9 +504,10 @@ const musclesCard = breakdown.total === 0 ? null : (
                             it, the same answer All Data took (2026-09-16).
                             "120 lb × 6, 130 lb × 8, 140 lb × 6, 150 lb × 6"
                             wrapped two grey lines on every row of this list. */}
-                        <div className="facts"><span className="fact lime">{lineCase(`${r.working} working`)}</span></div>
+                        {/* "3 Working Sets", "1 Working Set" (Dave 2026-10-16, W: the row read "Oct 16 3 Working The Sets"). */}
+                        <div className="facts"><span className="fact lime">{lineCase(`${r.working} working ${r.working === 1 ? "set" : "sets"}`)}</span></div>
                         <details className="exp-more ad-sets" onClick={(e) => e.stopPropagation()}>
-                          <summary>{`The ${r.sets.length === 1 ? "Set" : "Sets"}`}</summary>
+                          <summary>Show Sets</summary>
                           <div className="ins-rows">
                             {r.sets.map((x, i) => (
                               <div className="ins-row" key={x + i}><span className="ins-k">{`Set ${i + 1}`}</span><span className="ins-sub">{x}</span></div>

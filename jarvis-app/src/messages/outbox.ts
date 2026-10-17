@@ -27,6 +27,7 @@ export const HOLD_SECONDS = 12;
 
 import { weekdayShortDateFromMs } from "../shared/dateFormat";
 import type { EmailAttachment } from "../connections/google/map";
+import { clock12 } from "../shared/clock";
 
 export type OutboxState = "held" | "sending" | "failed";
 
@@ -203,7 +204,7 @@ export function holdLine(item: OutboxItem, nowMs: number): string {
 // the device's locale (a 24-hour region drew "14:05").
 export function whenLabel(ms: number, now = new Date()): string {
   const d = new Date(ms);
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const time = clock12(d);
   const sameDay = d.toDateString() === now.toDateString();
   if (sameDay) return time;
   const tmr = new Date(now.getTime() + 86400e3);

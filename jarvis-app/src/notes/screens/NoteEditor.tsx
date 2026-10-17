@@ -30,6 +30,7 @@ import { lineCase } from "../../shared/casing";
 import { useFileUrl } from "../../files/useFileUrl";
 import type { FileStore } from "../../files/FileStore";
 import { pressable } from "../../shared/pressable";
+import { clock12 } from "../../shared/clock";
 
 // THE NOTE SCREEN (the writing system, 2026-09-14).
 //
@@ -130,7 +131,7 @@ type CopyKind = "full" | "body" | "plain" | "markdown";
 // When a version was kept, as words a person reads: the time on its day.
 function versionWhen(at: number, now = Date.now()): string {
   const d = new Date(at);
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const time = clock12(d);
   const today = new Date(now);
   const sameDay = d.toDateString() === today.toDateString();
   const yesterday = new Date(now - 86400000).toDateString() === d.toDateString();
@@ -280,8 +281,12 @@ export default function NoteEditor({
   onRestoreVersion,
   ai,
   onCreateLinkedTask,
+  fresh = false,
 }: {
   note: EditorNote;
+  /** A note made a moment ago, opened for the first time: the body is its primary field and takes the caret with the
+   *  keyboard up (the Logging Standard, 2026-10-17). A note opened to read stays quiet. */
+  fresh?: boolean;
   fileStore?: FileStore | null;
   saveState?: SaveState;
   onRetrySave?: () => void;
@@ -509,6 +514,7 @@ export default function NoteEditor({
           docKey={note.title + " " + note.attachments.length + " " + (note.source?.ref ?? "")}
           onChange={onDocChange}
           level="document"
+          autofocus={fresh}
           placeholder="Start Writing"
           ariaLabel="Note"
           onInsertPhoto={onInsertPhoto}

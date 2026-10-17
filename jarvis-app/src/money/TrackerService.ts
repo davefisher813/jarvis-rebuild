@@ -151,7 +151,10 @@ export class TrackerService {
     if (already.length > 0) return false;
     const have = new Set((await this.listOf<TrackerAccountData>(ENTITY_MONEY_ACCOUNT)).map((a) => a.data.name));
     for (const a of SEED_ACCOUNTS) if (!have.has(a.name)) await this.write(ENTITY_MONEY_ACCOUNT, null, a);
-    for (const s of SEED_SUBS) await this.write(ENTITY_MONEY_SUB, null, s);
+    // Subscriptions take the same guard as accounts (2026-10-17): an import that failed after the subscriptions and before
+    // the first transaction left the Import card up, and the second tap wrote Amazon Prime and SiriusXM again.
+    const haveSubs = new Set((await this.listOf<TrackerSubData>(ENTITY_MONEY_SUB)).map((x) => x.data.merchantName));
+    for (const s of SEED_SUBS) if (!haveSubs.has(s.merchantName)) await this.write(ENTITY_MONEY_SUB, null, s);
     for (const t of SEED_TXS) await this.write(ENTITY_MONEY_TX, null, t);
     return true;
   }

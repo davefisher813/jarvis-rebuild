@@ -21,6 +21,16 @@ export class MetricsService {
    *  newMetricDefData). */
   async createDef(data: MetricDefData): Promise<string | null> {
     if (!data.name.trim()) return null;
+    // ONE DEFINITION PER PRESET (2026-10-17, the Sleep row drawn twice). Callers
+    // gate on React state that can be a render behind; the store is the truth.
+    // A preset that already has a definition is turned back on, not made again.
+    if (data.presetKey) {
+      const had = (await this.listDefs()).find((d) => d.data.presetKey === data.presetKey);
+      if (had) {
+        if (had.data.hidden) await this.updateDef(had.id, { hidden: false });
+        return had.id;
+      }
+    }
     const id = await this.store.create(this.ownerId, ENTITY_METRIC_DEF, { ...data, name: data.name.trim() } as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_METRIC_DEF, entityId: id });
     return id;

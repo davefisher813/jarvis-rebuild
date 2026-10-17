@@ -52,6 +52,9 @@ export const STATE_WORDS = [
   // states by any reading: what the row IS, not what it measured. Healthskin
   // law 2 was right to refuse them as data hues, which is how they got here.
   "SKIPPED", "TO DO",
+  // 2026-10-16 (Dave's approved mockup board, screen 5): a hit goal says Done on the exercise page's goal row, in the
+  // key's green. A state by any reading, and the board's own word for it.
+  "DONE",
 ];
 
 describe("ASTRA: the primitives exist under the harness's own names", () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EQUIPMENT_LABEL, loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type LoadStyle } from "./equipment";
+import { EQUIPMENT_LABEL, loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, weightStep, type LoadStyle } from "./equipment";
 import { MUSCLE_LABEL } from "./muscles";
 import MusclePickSheet, { type MusclePick } from "./MusclePickSheet";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
@@ -8,14 +8,16 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { REST_FLOOR_SEC } from "./pacing";
-import { logButtonLabel, entryNoun, formatSet, fieldsFor } from "./measures";
+import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable } from "./measures";
 import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
-import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
-import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
-import { readGymSettings, rackFrom } from "./settings";
+import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from "./strip";
+import { isSessionPR, lastHeader, lastSessionFor, lastWarmupsFor } from "./prs";
+import { readGymSettings, rackFrom, overloadApplyOf } from "./settings";
 import { readHealthSettings } from "../health/settings";
-import { rampFor, startsInWarmUp, warmupSeed } from "./ramp";
+import { rackIn, rampFor, startsInWarmUp, warmupSeed } from "./ramp";
+import { readClassStore } from "./classify";
+import { exerciseFromEntry } from "./fromLibrary";
 import { suggestFor, type Suggestion } from "./progression";
 import { groupLabels, fillerFor, nextInGroup, nextTurnInGroup, groupOf, roundRestFor } from "./groups";
 import { isLiveGroup, sessionExercises } from "./liveGroups";
@@ -39,7 +41,6 @@ import MusicChip from "../music/MusicChip";
 import { showToast } from "../shared/toast";
 import { monthDay } from "../money/bills";
 import { useWakeLock } from "../shared/useWakeLock";
-import { HyperfocusLine, useHyperfocusGuard } from "../today/useHyperfocusGuard";
 
 const CHEV = (
   <div className="chev" />
@@ -68,7 +69,7 @@ function ElapsedClock({ live }: { live: LiveSession }) {
   // ink (§AM). Parked time is excluded, and the clock says so to VoiceOver;
   // on screen the lift count carries it, not a second plain fact (§AK).
   return (
-    <span className="fact cyan" role="timer" aria-label={paused ? `${text} elapsed, paused time excluded` : `${text} elapsed`}>
+    <span className="fact now" role="timer" aria-label={paused ? `${text} elapsed, paused time excluded` : `${text} elapsed`}>
       {text}
     </span>
   );
@@ -214,8 +215,9 @@ export default function SessionScreen({
   // covers the gaps between sets and during rest, where the old code held
   // nothing awake at all.
   useWakeLock();
-  // UP-CORE-06: the next hard commitment, refreshed every minute.
-  const guard = useHyperfocusGuard();
+  // NO CALENDAR LINE IN A WORKOUT (Dave 2026-10-17): the hyperfocus guard's
+  // amber "next commitment" chip used to ride this header. No schedule or
+  // suggestion banner renders inside a session; the hook is not called here.
   const idx = live.idx;
   const current = live.exercises[idx]!;
   const logged = current.sets;
@@ -291,7 +293,11 @@ export default function SessionScreen({
   // ramp's 160 and 225 sitting on screen. Now it only decides what the Now
   // card opens with: the next step above the heaviest warm-up logged, until
   // the first working set lands or the ramp runs out (ramp.ts).
-  const ramp = exercise.ramp ? rampFor(exercise, rackFrom(readGymSettings())) : [];
+  const gymSettings = readGymSettings();
+  const ramp = exercise.ramp ? rampFor(exercise, rackFrom(gymSettings)) : [];
+  /** THE RACK IN THIS LIFT'S UNIT (2026-10-17, defect G): what the weight
+   *  field steps by on anything plates go on. */
+  const exRack = rackIn(rackFrom(gymSettings), exercise.unit);
   // Part 3 wave 2: a drop segment is not a working set, so it never advances
   // the athlete's place in the plan.
   const workLogged = logged.filter((s) => !s.warmup && !s.drop).length;
@@ -300,6 +306,27 @@ export default function SessionScreen({
   // disagree (stateWord.setCount). `workLogged` above is the PLACE in the plan
   // (a skipped set holds its place); this is what was lifted.
   const count = setCount(logged, planEx.sets.length);
+  // THE PROGRESSION ENGINE (section 10, PROGRESSIVE OVERLOAD, 2026-10-17; was
+  // D6-A): one published rule, autoregulated double progression
+  // (progression.ts), offered before the first working set, with its reason
+  // citing his own last sets. Accepting logs it AND moves the plan; left
+  // alone it changes nothing at all.
+  // 2026-09-26: it rides INSIDE the Now row as one line, so it never moves the
+  // row when it goes; it goes with the first working set, and the program
+  // moves only if that set is logged at the suggested numbers.
+  const suggestion = workLogged === 0
+    ? suggestFor(history, exercise, {
+      mode: readHealthSettings().progression,
+      // The session the Last header names, this workout day's own first
+      // (2026-09-29), so "Last" and "Suggested" are built on the same lift.
+      preferDayId: live.dayId,
+      // The smallest real jump: a PAIR of the smallest plates on anything you
+      // load plates onto (2026-09-14), the stack's own step on a machine, and
+      // the engine's 2.5 default for anything that named no equipment.
+      ...(plateMath(style).offer ? { smallestJump: Math.min(...exRack.plates) * 2 } : style.equipment ? { smallestJump: weightStep(style, exercise.unit) } : {}),
+      ...(style.equipment ? { equipmentLabel: styleSummary(style) } : {}),
+    })
+    : null;
   // THE NOW CARD SHOWS WHAT WILL ACTUALLY BE LOGGED (2026-09-21). It used to
   // show planEx.sets[workLogged] -- the template -- while the big red button
   // named plannedEntryAt() merged with a draft that every write cleared. Two
@@ -318,21 +345,39 @@ export default function SessionScreen({
   // Work | Warm-Up pill overrides it through the draft, and the override
   // survives typing and goes with the next write. Each side has its own
   // starting numbers, and `seed` is the one for the side it is on.
-  const workSeed = nextSetEntry({ plan: planEx, logged, lastSession: seedHit?.sets ?? null });
-  const warm = draft?.warm ?? startsInWarmUp(ramp, logged);
-  const warmFields = fieldsFor(exercise.kind, { ...style, unit: exercise.unit });
-  const warmSeed: SetEntry | null = exercise.kind === "weight_reps"
-    ? {
-      id: "",
-      ...warmupSeed({
-        ramp, logged, work: workSeed?.w ?? null,
-        // A lift nobody has classified reads as a barbell, the ramp's own reading.
-        hasBar: !style.equipment || plateMath(style).hasBar,
-        rack: rackFrom(readGymSettings()), unit: exercise.unit,
-        step: warmFields.find((f) => f.key === "w")?.step ?? 0.5,
-      }),
-    }
+  //
+  // SUGGEST OR PREFILL (2026-10-17, gym/settings.ts overloadApply). Under
+  // "suggest" the first set opens where it always has, on last session's set
+  // at this position (or the plan), and the step rides the card as Suggested
+  // with Use. Under "prefill" the first set opens ON the step. The default,
+  // "suggest", mirrors today's behaviour until Dave rules; it is NOT a product
+  // decision, and both paths are exercised.
+  const seededWork = nextSetEntry({ plan: planEx, logged, lastSession: seedHit?.sets ?? null });
+  const prefillStep = overloadApplyOf(gymSettings) === "prefill" && workLogged === 0 && suggestion && suggestion.kind !== "scheme";
+  const workSeed = prefillStep ? { ...(seededWork ?? blankEntry()), ...suggestion.next } : seededWork;
+  // HIS OWN WARM-UPS FROM LAST TIME (Dave 2026-10-15; defect I): the same
+  // session the Last line reads, its warm-ups in order, so the Warm-Up side
+  // opens on what he actually did, and only falls back to the computed ramp
+  // when there is no history at all.
+  const priorWarmups = exercise.kind === "weight_reps" ? lastWarmupsFor(history, exercise, exercise.kind, lastOpts) : [];
+  const warm = draft?.warm ?? startsInWarmUp(ramp, logged, priorWarmups);
+  const warmFields = fieldsFor(exercise.kind, { ...style, unit: exercise.unit, rack: exRack });
+  const warmGuess = exercise.kind === "weight_reps"
+    ? warmupSeed({
+      ramp, logged, work: workSeed?.w ?? null,
+      // A lift nobody has classified reads as a barbell, the ramp's own reading.
+      hasBar: !style.equipment || plateMath(style).hasBar,
+      rack: rackFrom(gymSettings), unit: exercise.unit,
+      step: warmFields.find((f) => f.key === "w")?.step ?? 0.5,
+      priorWarmups,
+    })
+    : null;
+  const warmSeed: SetEntry | null = warmGuess
+    ? { id: "", ...(warmGuess.w !== undefined ? { w: warmGuess.w } : {}), ...(warmGuess.r !== undefined ? { r: warmGuess.r } : {}) }
     : workSeed;
+  /** The Warm-Up side is the app's computed guess, not his history (defect
+   *  I): the card labels it Suggested. */
+  const warmComputed = !!warmGuess?.computed;
   const seed = warm ? warmSeed : workSeed;
   const pending = withDraft(seed, draft);
   const fields: SetDraft = draft ?? fieldsOf(seed);
@@ -361,6 +406,17 @@ export default function SessionScreen({
   // Squat's suggestion, and every lift after it, for the rest of the session.
   /** The set a Done row opened in the Set sheet (2026-09-26), by id. */
   const [openSetId, setOpenSetId] = useState<string | null>(null);
+  /** THE PLANNED SET A DASHED ROW OPENED (2026-10-17, defect C), by its id in
+   *  this session's plan. Saving writes the session's own plan
+   *  (WorkoutExercise.plan, through the live-session writer); the program is
+   *  never touched from here. */
+  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  /** START REST BY HAND (2026-10-17, defect J): the More sheet's picks. */
+  const [restPickOpen, setRestPickOpen] = useState(false);
+  /** ADD EXERCISE, FROM THE LIBRARY FIRST (2026-10-17, defect K): the picker,
+   *  then the full sheet only for a name the library does not know. */
+  const [addPickOpen, setAddPickOpen] = useState(false);
+  const [addName, setAddName] = useState<string | null>(null);
   /** The Superset chip's two questions (2026-09-26): which lift to pair
    *  with, and whether a program pair breaks for today or for good. */
   /** THE SUPERSET PICKER (2026-09-27): every lift in the session with a Pick
@@ -371,7 +427,6 @@ export default function SessionScreen({
   const [breakAsk, setBreakAsk] = useState(false);
   const [cancelAsk, setCancelAsk] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
   // Default yes: a lift you bothered to name mid-workout is usually one
   // you are doing again, and it is the answer that lets it be paired.
   const [addToDay, setAddToDay] = useState(true);
@@ -385,28 +440,6 @@ export default function SessionScreen({
   // receipt. Two states, one exercise.
   const cond = exercise.cond ?? null;
   const [clockOpen, setClockOpen] = useState(false);
-  // THE PROGRESSION ENGINE (D6-A): a ghost with its reason, offered once,
-  // before the first working set. Accepting logs it AND moves the plan;
-  // Keep dismisses it and changes nothing at all.
-  // Part 3 wave 5: the mode from Health Settings, the rack's smallest plate
-  // as a barbell's increment, and the equipment named on the basis.
-  // 2026-09-26: it rides INSIDE the Now row as one line, so it never moves the
-  // row when it goes; it goes with the first working set, and the program
-  // moves only if that set is logged at the suggested numbers.
-  const suggestion = workLogged === 0
-    ? suggestFor(history, exercise, {
-      mode: readHealthSettings().progression,
-      // The session the Last header names, this workout day's own first
-      // (2026-09-29), so "Last" and "Suggested" are built on the same lift.
-      preferDayId: live.dayId,
-      // 2026-09-14: the smallest real jump is a PAIR of the smallest plates
-      // on anything you load plates onto -- a barbell and a plate-loaded
-      // machine both -- and is meaningless on a pinned stack.
-      ...(plateMath(style).offer ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
-      ...(style.equipment ? { equipmentLabel: styleSummary(style) } : {}),
-    })
-    : null;
-  const [basisOpen, setBasisOpen] = useState(false);
 
   // D5-C: "the session header shows projected finish against your budget the
   // whole time." Re-projected on a slow tick; only sessions that chose a
@@ -417,7 +450,7 @@ export default function SessionScreen({
     const t = setInterval(() => setPaceTick((x) => x + 1), 30_000);
     return () => clearInterval(t);
   }, [live.budgetMin]);
-  const rack = rackFrom(readGymSettings());
+  const rack = rackFrom(gymSettings);
   const finishMs = live.budgetMin ? projectFinishMs(live, programDay, history, rack) : null;
   const over = live.budgetMin ? overBudgetMin(live, programDay, history, rack) : null;
   // A clock time reads the way every other one in the app does: 12-hour
@@ -461,7 +494,6 @@ export default function SessionScreen({
       : "Cool-Down Skipped";
     showToast({ message, actionLabel: "Undo", onAction: undo });
   };
-  const liftsDone = live.exercises.filter((e) => e.sets.length > 0).length;
   // THE METER (2026-09-14, the reference's "4 of 17 planned working sets
   // logged"): working sets logged against the plan the session started with,
   // trims counted, warm-ups and drops excluded, across the whole day.
@@ -473,7 +505,6 @@ export default function SessionScreen({
   const dayCounts = live.exercises.filter((e) => !e.skipped).map((e) => setCount(e.sets, plannedFor(e)));
   const plannedTotal = dayCounts.reduce((n, c) => n + c.target, 0);
   const loggedTotal = dayCounts.reduce((n, c) => n + c.done, 0);
-  const meterPct = plannedTotal > 0 ? Math.min(100, Math.round((loggedTotal / plannedTotal) * 100)) : 0;
   // UP NEXT (2026-09-14): the next exercise in the day's order that still has
   // work in it, as one row under the strip. A group's own Next row wins.
   const upNextIdx = live.exercises.findIndex((e, i) => {
@@ -690,8 +721,12 @@ export default function SessionScreen({
   /** THE ONE WRITER (2026-09-26). The big red button and the tick on the
    *  Now row both land here, and it writes `pending`: the same entry the
    *  fields show and the button names. */
+  /** CAN THE BUTTON WRITE (2026-10-17, defects B and H): the same answer
+   *  disables the button and guards the write, so an empty set never lands. */
+  const loggable = isLoggable(exercise.kind, style, pending);
   const log = () => {
     if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
+    if (!loggable) return;
     // THE PILL DECIDES THE FLAG (2026-09-29): what the button names is what is
     // written, warm-up or work.
     const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId(), ...(warm ? { warmup: true } : {}) };
@@ -745,6 +780,10 @@ export default function SessionScreen({
   const moreActions: SheetAction[] = [
     ...(lastWorkForDrop && !cond ? [{ label: "Log a Drop", onClick: logDrop }] : []),
     ...(loadCalcFor(style) && !cond ? [{ label: loadCalcFor(style)!, onClick: () => setPlatesOpen(true) }] : []),
+    // REST BY HAND (2026-10-17, defect J): with the rest preset Off nothing
+    // ever started a timer. One line, four picks, the same deadline the
+    // automatic rest writes.
+    ...(!cond && restEndsAt == null ? [{ label: "Start Rest", onClick: () => setRestPickOpen(true) }] : []),
     ...(onAdjustTime ? [{ label: "Adjust Time", onClick: onAdjustTime }] : []),
     ...(onOpenHistory ? [{ label: "Exercise History", onClick: onOpenHistory }] : []),
     { label: "Swap Exercise", onClick: () => setSwapOpen(true) },
@@ -775,31 +814,61 @@ export default function SessionScreen({
   const openSet = openSetId ? logged.find((e) => e.id === openSetId) ?? null : null;
   const openSetNo = openSet ? workNumbers(logged)[logged.indexOf(openSet)] ?? 1 : 0;
   const patchSet = (id: string, p: Partial<SetEntry>) => changeSets(logged.map((e) => (e.id === id ? { ...e, ...p } : e)));
+  /** THE SESSION'S PLAN, EDITED FROM A DASHED ROW (defect C). `exercise.sets`
+   *  is this session's plan (GymFlow reads WorkoutExercise.plan into it), so
+   *  the write goes back to that field on the live entry, and the program
+   *  stays as it was. */
+  const openPlan = openPlanId ? exercise.sets.find((e) => e.id === openPlanId) ?? null : null;
+  const openPlanNo = openPlan ? planEx.sets.filter((e) => !e.warmup && !e.skipped).indexOf(openPlan) + 1 : 0;
+  const writePlan = (next: SetEntry[]) => onFit({ exercises: live.exercises.map((e, i) => (i === idx ? { ...e, plan: next } : e)) });
+  /** A dashed row's strip position, back to the planned set it stands for:
+   *  the Now row is ghost[0] (and on the Warm-Up side is a warm-up, so the
+   *  plan's rows sit one further down). */
+  const openGhostAt = (pos: number) => {
+    const g = pos - logged.length;
+    const planned = planGhosts[warm ? g - 1 : g];
+    if (planned) setOpenPlanId(planned.id);
+  };
   /** The suggestion, folded into the Now row (2026-09-26). */
   const [whyOpen, setWhyOpen] = useState(false);
-  // A suggestion that says what the fields already say offers nothing.
-  const suggests = !warm && !!suggestion && !((suggestion.next.w ?? 0) === (pending?.w ?? 0) && (suggestion.next.r ?? 0) === (pending?.r ?? 0));
-  const nowExtra = suggestion && suggests && showNow ? (
-    <div className="se-sugg">
+  // THE OFFER AND ITS REASON (section 10, 2026-10-17). The reason is the line,
+  // as facts: what he did last time, what that meant against the range, and
+  // the step, plus the reps to expect after a jump. Use fills the fields and
+  // hides once they already say it; under "prefill" they already do.
+  const showSugg = !warm && !!suggestion && showNow;
+  const suggests = showSugg && !((suggestion.next.w ?? 0) === (pending?.w ?? 0) && (suggestion.next.r ?? 0) === (pending?.r ?? 0));
+  const nowExtra = suggestion && showSugg ? (
+    <>
       <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, suggestion.next))}`}</span>
-      <button type="button" className="set-last-act se-sugg-act" onClick={(e) => { e.stopPropagation(); setDraft({ ...fieldsOf({ id: "", ...suggestion.next }), warm: false }); }}><span className="act">Use</span></button>
+      {suggests && (
+        <button type="button" className="set-last-act se-sugg-act" aria-label={`Use ${lineCase(formatSet(exercise, suggestion.next))}, the suggested set`}
+          onClick={(e) => { e.stopPropagation(); setDraft({ ...fieldsOf({ id: "", ...suggestion.next }), warm: false }); }}><span className="act">Use</span></button>
+      )}
       <button type="button" className="set-last-act se-sugg-act" aria-expanded={whyOpen} onClick={(e) => { e.stopPropagation(); setWhyOpen((o) => !o); }}><span className="act">{whyOpen ? "Hide Why" : "Why"}</span></button>
-      {whyOpen && (
-        <div className="ins-rows ins-ev">
+      {whyOpen && suggestion.basis && (
+        // THE REASON, BEHIND WHY (section 10): his own last sets, what they
+        // meant against the range, the step, and the reps to expect.
+        <div className="ins-rows ins-ev se-sugg-why">
+          <div className="facts">
+            {suggestion.reason.map((part) => <span className="fact est" key={part}>{part}</span>)}
+            {suggestion.expect && <span className="fact est">{suggestion.expect}</span>}
+            {suggestion.sets !== undefined && <span className="fact est">{lineCase(`${suggestion.sets} ${suggestion.sets === 1 ? "set" : "sets"}`)}</span>}
+            {suggestion.addSet && <span className="fact est">Room for One More Set This Week</span>}
+          </div>
           <div className="ins-row"><span className="ins-k">Why</span><span className="ins-sub">{suggestion.why}</span></div>
-          {suggestion.basis && (
-            <>
-              <div className="ins-row"><span className="ins-k">Exercise</span><span className="ins-sub">{suggestion.basis.variant}</span></div>
-              <div className="ins-row"><span className="ins-k">Read</span><span className="ins-sub">{suggestion.basis.source}</span></div>
-              <div className="ins-row"><span className="ins-k">Sets</span><span className="ins-sub">{suggestion.basis.role}</span></div>
-              <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{suggestion.basis.range}</span></div>
-              <div className="ins-row"><span className="ins-k">Increment</span><span className="ins-sub">{suggestion.basis.increment}</span></div>
-              <div className="ins-row"><span className="ins-k">Marks</span><span className="ins-sub">{suggestion.basis.marks}</span></div>
-            </>
-          )}
+          <div className="ins-row"><span className="ins-k">Exercise</span><span className="ins-sub">{suggestion.basis.variant}</span></div>
+          <div className="ins-row"><span className="ins-k">Read</span><span className="ins-sub">{suggestion.basis.source}</span></div>
+          <div className="ins-row"><span className="ins-k">Sets</span><span className="ins-sub">{suggestion.basis.role}</span></div>
+          <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{suggestion.basis.range}</span></div>
+          <div className="ins-row"><span className="ins-k">Increment</span><span className="ins-sub">{suggestion.basis.increment}</span></div>
+          <div className="ins-row"><span className="ins-k">Marks</span><span className="ins-sub">{suggestion.basis.marks}</span></div>
         </div>
       )}
-    </div>
+    </>
+  ) : warm && warmComputed && showNow && warmSeed ? (
+    // A COMPUTED WARM-UP SAYS SO (defect I): with no warm-ups of his own to
+    // open on, the ramp's step is a suggestion, in the suggestion's own ink.
+    <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, warmSeed))}`}</span>
   ) : null;
   /** Match hides once the fields already say what last time did. */
   const nowLast = lastHit && !warm ? lastAt(logged.length) : undefined;
@@ -846,25 +915,20 @@ export default function SessionScreen({
               <i key={e.exerciseId + i} className={"se-dot" + (i === idx ? " on" : e.skipped ? " skip" : e.sets.length > 0 ? " done" : "")} />
             ))}
           </span>
-          <span className="se-count">{idx + 1}<em>/{live.exercises.length}</em></span>
+          {/* ONE PROGRESS LINE (Dave's board, 2026-10-17; defect O): the dots,
+              the position, the clock and the sets, once each. The "1/3"
+              count and the meter that said the same things again are gone.
+              H-52: the clock is time actually in the gym; parked time is
+              excluded, and once there is any the position fact says so on
+              screen, not only in the clock's VoiceOver label. */}
+          <span className="facts se-elapsed">
+            <span className="fact">{`Exercise ${idx + 1} of ${live.exercises.length}`}{(live.pausedMs ?? 0) > 0 ? ", Paused Time Excluded" : ""}</span>
+            <ElapsedClock live={live} />
+            {plannedTotal > 0 && <span className="fact lime">{lineCase(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
+          </span>
           {pairLabel && <span className="se-chip se-chip-pair">{pairLabel}</span>}
           {gameLine && <span className="se-chip se-chip-game">{gameLine}</span>}
         </div>
-        {/* H-52: how long he has actually been in the gym and how far through
-            the day. Parked time is excluded, and once there is any the line
-            says so on screen, not only in the clock's VoiceOver label: a
-            clock shorter than the wall clock needs its reason in sight
-            (2026-09-26). The caveat rides inside the lift count, the line's
-            one grey, rather than as a second grey fact (§AK), and that fact
-            goes last, after the lime sets, as the one that gives way. */}
-        <div className="facts se-elapsed">
-          <ElapsedClock live={live} />
-          {plannedTotal > 0 && <span className="fact lime">{lineCase(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
-          <span className="fact">{lineCase(`${liftsDone} of ${live.exercises.length} exercises`)}{(live.pausedMs ?? 0) > 0 ? ", Paused Time Excluded" : ""}</span>
-        </div>
-        {plannedTotal > 0 && (
-          <div className="se-meter" role="img" aria-label={`${loggedTotal} of ${plannedTotal} planned working sets logged`}><span style={{ width: meterPct + "%" }} /></div>
-        )}
         {/* D5-C: the projected finish rides the header the whole session --
             amber only when actually over, never red (time pressure is a
             warning, not a verb). Two facts, so two chips, aligned: a sentence
@@ -897,84 +961,6 @@ export default function SessionScreen({
             })}
           </div>
         )}
-        {/* WHAT IT TRAINS, ON THE EXERCISE (Dave 2026-10-09, mockup 3:
-            "equipment selector + secondary muscles"). Neutral chips, not
-            lime: on this screen lime means logged, and a muscle is not. Each
-            is a door to its own picker (mockup 8). The words are the mockup's:
-            Primary and Secondary. */}
-        {muscles && (
-          <div className="se-chips">
-            {muscles.primary.length === 0 && muscles.secondary.length === 0 ? (
-              <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("primary")}>
-                <em>Muscles</em>Not Set
-              </button>
-            ) : (
-              <>
-                <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("primary")}>
-                  <em>Primary</em>{muscles.primary.length ? muscles.primary.map((m) => MUSCLE_LABEL[m]).join(", ") : "Not Set"}
-                </button>
-                <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("secondary")}>
-                  <em>Secondary</em>{muscles.secondary.length ? muscles.secondary.map((m) => MUSCLE_LABEL[m]).join(", ") : "None"}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-        {/* Part 3 wave 5: the equipment convention, on the session too. */}
-        {/* 2026-09-14: the chip names the reading, not just the hardware, so
-            mid-set there is no doubt whether the number on the button is one
-            dumbbell or the pair. "Load" was the old word for it; the row it
-            mirrors is called Equipment now. */}
-        {/* A DOOR, AND IT IS THERE WHEN NOTHING HAS BEEN SAID (2026-09-16).
-            The chip rendered only once an equipment existed, so the lift that
-            most needed the question -- the unclassified one, whose strip was
-            stepping by 5 and calling its number "Weight" -- was the one with
-            no way to answer it. It asks now, and answering is one tap from
-            the rack. */}
-        {onSetLoad ? (
-          <div className="se-chips">
-            <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={() => setLoadAt(idx)}>
-              <em>{style.equipment ? weightLabel(style) : "Equipment"}</em>
-              {style.equipment ? styleSummary(style) : "Not Set"}
-            </button>
-            {/* The per-side reading is said by the Now row's own field
-                ("Reps Per Side") and set in the Equipment sheet, so it is
-                no longer a second chip here (2026-09-26). */}
-            {/* SUPERSET, WHERE THE LIFT IS (Dave, 2026-09-21: "There's also
-                no superset buttons anywhere in the workout pages"; kept on
-                the screen 2026-09-26). One chip, two states: Add pairs this
-                lift with the next in the session, Break Up undoes it, and
-                each asks whether it is for today or for every one of this
-                day. It is the ONLY superset door; the More sheet does not
-                repeat it. */}
-            {supersetChip && (
-              <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={supersetChip}>
-                <em>Superset</em>{pairLabel ? "Edit" : "Add"}
-              </button>
-            )}
-          </div>
-        ) : style.equipment && (
-          <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(style)}</em>{styleSummary(style)}</span></div>
-        )}
-        {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
-            one of the two places two hours disappear, and the person is by
-            definition not looking at their calendar. A fact, in the same
-            line the Up Next card has carried since Group B item 12; never a
-            modal, and it never stops the session. */}
-        <HyperfocusLine guard={guard} variant="chip" />
-        {/* THE HISTORY, AS FACTS RATHER THAN A PARAGRAPH. This was one grey
-            run-on: every set from last time, then the date, then the best,
-            all joined by middots and wrapping to three lines. Best is the
-            number that matters mid-lift, so it leads, in the ramp's ink; last
-            time and its date follow as their own chips. */}
-        {header && (
-          <div className="se-chips">
-            {header.best && <span className="se-chip se-chip-best"><em>Best</em>{lineCase(header.best)}</span>}
-            <span className="se-chip se-chip-last"><em>Last</em>{lineCase(header.last)}</span>
-            <span className="se-chip se-chip-when">{monthDay(header.date)}</span>
-          </div>
-        )}
-        {exercise.note && <div className="se-note">{exercise.note}</div>}
       </div></div>
 
       {/* THE CATCH-UP BANNER (D5-C): "Fall behind and one quiet banner
@@ -992,39 +978,6 @@ export default function SessionScreen({
           </div>
           {lever && <button className="pill-act" onClick={applyLever}>{leverVerb}</button>}
           <button className="pill-act pill-quiet" onClick={() => onFit({ budgetMin: (live.budgetMin ?? 0) + 5 })}>+5 Min</button>
-        </div></div>
-      )}
-
-      {/* THE WARM-UP, in session (D3-C): the day's own checklist, checked
-          off block by block, skippable as one unit. Shows on the first
-          exercise until it is done or waved off. */}
-      {/* AND IT WEARS ITS COLOUR IN HERE TOO (Dave, 2026-09-16: "you actually
-          took the color out of warm up and cool down sections"). The workout
-          DAY has drawn the warm amber and the fading blue since his
-          2026-09-13 ruling; this checklist, the one he actually stands in
-          front of at the rack, has been plain grey the whole time. Nothing
-          took the colour out of it -- it never had it, and the day screen
-          beside it did, which is worse than either answer on its own. Same
-          two classes, same tones, same eyebrow. */}
-      {/* THE SKIP IS THE GROUP'S LABEL ROW'S (Dave 2026-10-05, locked): Skip the Warm-Up and Skip the Cool-Down were rows at the
-          foot of their cards. Each card's label row carries it at the right, the one capsule a group's actions wear. */}
-      {showWarm && (
-        <div className="pad-x"><div className="card list-card-ruled banner-warn">
-          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${spanLabel(programDay.warmUpMin)}` : ""}</div>
-            <button type="button" className="see-all pill-action" aria-label="Skip the Warm-Up" onClick={() => onFit({ warmSkipped: true })}>Skip</button>
-          </div>
-          {warmBlocks.map((b) => {
-            const done = !!live.warmDone?.includes(b.id);
-            return (
-              <div className="row" role="button" tabIndex={0} key={b.id} onClick={() => toggleBlock("warm", b.id)}>
-                <div className="row-grow">
-                  <div className="conn-name">{b.name}</div>
-                  {b.amount && <div className="conn-meta">{b.amount}</div>}
-                </div>
-                {done && <span className="pill pill-good">Done</span>}
-              </div>
-            );
-          })}
         </div></div>
       )}
 
@@ -1093,9 +1046,12 @@ export default function SessionScreen({
             onNowDraft={(d) => setDraft({ ...d, warm })}
             nowWarm={warm}
             onNowMode={flipMode}
+            nowNo={count.nowNo}
+            rack={exRack}
             nowExtra={nowExtra}
             nowMatchesLast={nowMatchesLast}
             onOpenSet={setOpenSetId}
+            onOpenGhost={openGhostAt}
             canAdd={false}
             onChange={changeSets}
             prAt={celebrations ? (i) => isSessionPR(history, exercise, exercise.kind, logged, i) : undefined}
@@ -1108,6 +1064,160 @@ export default function SessionScreen({
           />
         )}
       </div>
+
+      {/* REST TIMER + FILLER (catalog §4.3, §4.2). RIGHT UNDER THE NOW CARD
+          (Dave 2026-10-17, defect J; was under the whole list since
+          2026-09-26). Nothing ABOVE the Now row changes height when a set
+          lands, and this sits below it, so the row does not jump; it is in
+          sight while he rests instead of a screen down. key={restEndsAt}
+          remounts the timer clean on every new deadline instead of it trying
+          to track which set it belongs to. */}
+      {restEndsAt != null && (
+        <RestTimer
+          key={restEndsAt}
+          endsAt={restEndsAt}
+          fillerName={filler?.name}
+          onLogFiller={filler && fillerLiveIdx >= 0 ? () => { onMove(fillerLiveIdx); endRest(); } : undefined}
+          onDismiss={endRest}
+          notifyLine={restNotify ? restLine : undefined}
+          onExtend={() => { onFit({ restEndsAt: restEndsAt + 30_000 }); showToast({ message: "Rest Extended 30 Sec" }); }}
+        />
+      )}
+
+      {/* THE LIFT'S FACTS AND DOORS, UNDER THE WORK (Dave 2026-10-17, section
+          8: the working set and the Log button sit at the top, above history,
+          chips and warm-up blocks). What it trains, what it loads with, the
+          superset door, and last time's numbers were the header's; they are
+          the card under the strip now, and the header keeps the position, the
+          clock and the name. */}
+      {/* THE SECONDARY ZONE (Dave's board, 2026-10-17): Details, the four
+          chips, the warm-up card, then Best and Last. All of it under the
+          work and the Log bar. */}
+      {!current.skipped && (muscles || onSetLoad || style.equipment || header || showWarm) && (
+        <div className="pad-x"><div className="eyebrow se-details">Details</div></div>
+      )}
+      {(muscles || onSetLoad || style.equipment) && !current.skipped && (
+        <div className="pad-x"><div className="card pad se-facts">
+        {/* WHAT IT TRAINS, ON THE EXERCISE (Dave 2026-10-09, mockup 3:
+            "equipment selector + secondary muscles"). Neutral chips, not
+            lime: on this screen lime means logged, and a muscle is not. Each
+            is a door to its own picker (mockup 8). The words are the mockup's:
+            Primary and Secondary. */}
+        {muscles && (
+          <div className="se-chips">
+            {muscles.primary.length === 0 && muscles.secondary.length === 0 ? (
+              <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("primary")}>
+                <em>Muscles</em>Not Set
+              </button>
+            ) : (
+              <>
+                <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("primary")}>
+                  <em>Primary</em>{muscles.primary.length ? muscles.primary.map((m) => MUSCLE_LABEL[m]).join(", ") : "Not Set"}
+                </button>
+                <button type="button" className="se-chip se-chip-when se-chip-door" disabled={!onSetMuscles} onClick={() => setMuscleRole("secondary")}>
+                  <em>Secondary</em>{muscles.secondary.length ? muscles.secondary.map((m) => MUSCLE_LABEL[m]).join(", ") : "None"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {/* Part 3 wave 5: the equipment convention, on the session too. */}
+        {/* 2026-09-14: the chip names the reading, not just the hardware, so
+            mid-set there is no doubt whether the number on the button is one
+            dumbbell or the pair. "Load" was the old word for it; the row it
+            mirrors is called Equipment now. */}
+        {/* A DOOR, AND IT IS THERE WHEN NOTHING HAS BEEN SAID (2026-09-16).
+            The chip rendered only once an equipment existed, so the lift that
+            most needed the question -- the unclassified one, whose strip was
+            stepping by 5 and calling its number "Weight" -- was the one with
+            no way to answer it. It asks now, and answering is one tap from
+            the rack. */}
+        {onSetLoad ? (
+          <div className="se-chips">
+            <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={() => setLoadAt(idx)}>
+              <em>{style.equipment ? weightLabel(style) : "Equipment"}</em>
+              {style.equipment ? styleSummary(style) : "Not Set"}
+            </button>
+            {/* The per-side reading is said by the Now row's own field
+                ("Reps Per Side") and set in the Equipment sheet, so it is
+                no longer a second chip here (2026-09-26). */}
+            {/* SUPERSET, WHERE THE LIFT IS (Dave, 2026-09-21: "There's also
+                no superset buttons anywhere in the workout pages"; kept on
+                the screen 2026-09-26). One chip, two states: Add pairs this
+                lift with the next in the session, Break Up undoes it, and
+                each asks whether it is for today or for every one of this
+                day. It is the ONLY superset door; the More sheet does not
+                repeat it. */}
+            {supersetChip && (
+              <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={supersetChip}>
+                <em>Superset</em>{pairLabel ? "Edit" : "Add"}
+              </button>
+            )}
+          </div>
+        ) : style.equipment && (
+          <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(style)}</em>{styleSummary(style)}</span></div>
+        )}
+        {/* THE HISTORY, AS FACTS RATHER THAN A PARAGRAPH. This was one grey
+            run-on: every set from last time, then the date, then the best,
+            all joined by middots and wrapping to three lines. Best is the
+            number that matters mid-lift, so it leads, in the ramp's ink; last
+            time and its date follow as their own chips. */}
+        </div></div>
+      )}
+
+      {/* THE WARM-UP, in session (D3-C): the day's own checklist, checked
+          off block by block, skippable as one unit. Shows on the first
+          exercise until it is done or waved off. */}
+      {/* AND IT WEARS ITS COLOUR IN HERE TOO (Dave, 2026-09-16: "you actually
+          took the color out of warm up and cool down sections"). The workout
+          DAY has drawn the warm amber and the fading blue since his
+          2026-09-13 ruling; this checklist, the one he actually stands in
+          front of at the rack, has been plain grey the whole time. Nothing
+          took the colour out of it -- it never had it, and the day screen
+          beside it did, which is worse than either answer on its own. Same
+          two classes, same tones, same eyebrow. */}
+      {/* THE SKIP IS THE GROUP'S LABEL ROW'S (Dave 2026-10-05, locked): Skip the Warm-Up and Skip the Cool-Down were rows at the
+          foot of their cards. Each card's label row carries it at the right, the one capsule a group's actions wear. */}
+      {showWarm && (
+        <div className="pad-x"><div className="card list-card-ruled banner-warn">
+          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${spanLabel(programDay.warmUpMin)}` : ""}</div>
+            <button type="button" className="see-all pill-action" aria-label="Skip the Warm-Up" onClick={() => onFit({ warmSkipped: true })}>Skip</button>
+          </div>
+          {warmBlocks.map((b) => {
+            const done = !!live.warmDone?.includes(b.id);
+            return (
+              <div className="row" role="button" tabIndex={0} key={b.id} onClick={() => toggleBlock("warm", b.id)}>
+                <div className="row-grow">
+                  <div className="conn-name">{b.name}</div>
+                  {b.amount && <div className="conn-meta">{b.amount}</div>}
+                </div>
+                {done && <span className="pill pill-good">Done</span>}
+              </div>
+            );
+          })}
+        </div></div>
+      )}
+
+      {/* BEST AND LAST (Dave's board, 2026-10-17): the standing best in the
+          best's purple, last time's date in teal, and every set of that
+          session as its own teal chip. Under the warm-up card, where history
+          belongs: nothing the lifter reads mid-set. */}
+      {(header || exercise.note) && !current.skipped && (
+        <div className="pad-x"><div className="card pad se-hist">
+          {header && (
+            <div className="se-chips">
+              {header.best && <span className="se-chip se-chip-best"><em>Best</em>{lineCase(header.best)}</span>}
+              <span className="se-chip se-chip-last"><em>Last</em>{monthDay(header.date)}</span>
+            </div>
+          )}
+          {header && lastHit && lastHit.sets.length > 0 && (
+            <div className="se-chips">
+              {lastHit.sets.map((s) => <span className="se-chip se-chip-last" key={s.id}>{lineCase(formatSet(lastHit.fx, s))}</span>)}
+            </div>
+          )}
+          {exercise.note && <div className="se-note">{exercise.note}</div>}
+        </div></div>
+      )}
 
       {/* THE COOL-DOWN (D3-C): offered when the work is done, skippable as
           a unit. Skipping here is the same lever the fit sheet offers. */}
@@ -1134,18 +1244,9 @@ export default function SessionScreen({
       {/* SUPERSET, WHERE THE LIFTS ARE (2026-09-27, Dave: "It needs to be easy
           and obvious"). The list of every lift in the session carries the
           door on its own head, the capsule rung every gym page uses. */}
-      <div className="sh2 sh2-quiet"><span className="t">This Workout</span>
-        {/* The head's capsules ride one cluster, the head's own pattern for more capsules than room (components.css, "A HEAD
-            WITH MORE CAPSULES THAN ROOM"): one row when they fit, a right-aligned row under the title when they do not, so the
-            title is never cut to "This ...". */}
-        <span className="sec-left se-head-acts">
-          {canSuperset && <button type="button" className="pill-act se-sup" aria-haspopup="dialog" onClick={() => setPickOpen(true)}>Superset</button>}
-          {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): an exercise that was never in the plan (catalog §3.10) was a row at
-              the foot of the list. */}
-          {/* "Add Exercise" on the face (Dave 2026-10-09, pass-off item 11: "Add" alone did not say what it adds). */}
-          <button type="button" className="pill-act se-add" onClick={() => setAddOpen(true)}>Add Exercise</button>
-        </span>
-      </div>
+      {/* Superset and Add Exercise ride the Log bar's second row now (Dave's
+          board, 2026-10-17), not this head. */}
+      <div className="sh2 sh2-quiet"><span className="t">This Workout</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {live.exercises.map((e, i) => (
           // RED IS A VERB: "you are here" is a fact, not an action, so the
@@ -1214,31 +1315,20 @@ export default function SessionScreen({
           Exercise button sat permanently behind it. No number typed here
           could be right for every text size and every phone, so the bar
           measures itself and this reads what it found. */}
-      {/* REST TIMER + FILLER (catalog §4.3, §4.2). UNDER THE LIST (Dave
-          2026-09-26): nothing above the Now row may change height when a set
-          lands, and this card used to appear and vanish above it, so the row
-          jumped between sets. key={restEndsAt} remounts
-          the timer clean on every new deadline instead of it trying to track
-          which set it belongs to. */}
-      {restEndsAt != null && (
-        <RestTimer
-          key={restEndsAt}
-          endsAt={restEndsAt}
-          fillerName={filler?.name}
-          onLogFiller={filler && fillerLiveIdx >= 0 ? () => { onMove(fillerLiveIdx); endRest(); } : undefined}
-          onDismiss={endRest}
-          notifyLine={restNotify ? restLine : undefined}
-          onExtend={() => { onFit({ restEndsAt: restEndsAt + 30_000 }); showToast({ message: "Rest Extended 30 Sec" }); }}
-        />
-      )}
-
       <div className="screen-foot se-foot" />
 
       {/* THE LOG BAR (H-11 / R8, Health Push B, 2026-09-12): one bar owning
           the bottom edge with the one primary, the note editor's geometry;
           the shell has stepped its tab bar and dock aside (gym/sessionChrome). */}
       {!current.skipped && (
-        <div className="logbar" ref={logbarRef}>
+        // THE FIRST TOUCH ON LOG MUST NOT MOVE THE BAR (2026-10-17, defect D).
+        // The bar rides the visual viewport; with the keyboard up, a press on
+        // Log blurred the field first, the keys collapsed, the bar jumped
+        // down, and the click landed on the stepper under where Log had been.
+        // Keeping the pointer-down from taking focus keeps the keyboard, the
+        // bar and the button where they were until the click lands.
+        <div className="logbar" ref={logbarRef} onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
+          <div className="logbar-main">
           {/* THE SECOND HALF OF THE BAR (2026-09-17). Once the plan is done,
               logging another set is the unusual move and moving on is the
               common one, so they swap places: the extra set keeps a secondary
@@ -1273,9 +1363,18 @@ export default function SessionScreen({
               ? <button className="btn btn-primary btn-launch btn-lg" onClick={() => setClockOpen(true)}>
                   {logged.length === 0 ? "Start the Clock" : "Run It Again"}
                 </button>
-              : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
+              : <button className="btn btn-primary btn-launch btn-lg" onClick={log} disabled={!loggable}>
                   {logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
                 </button>}
+          </div>
+          {/* THE ROW UNDER LOG (Dave's board, 2026-10-17): Superset and Add
+              Exercise, the two moves on the whole workout, as the capsules
+              every non-primary control is (§AL). "Add Exercise" on the face
+              (Dave 2026-10-09, pass-off item 11). */}
+          <div className="logbar-row">
+            {canSuperset && <button type="button" className="pill-act se-sup" aria-haspopup="dialog" onClick={() => setPickOpen(true)}>Superset</button>}
+            <button type="button" className="pill-act se-add" onClick={() => (library.length > 0 ? setAddPickOpen(true) : setAddName(""))}>Add Exercise</button>
+          </div>
         </div>
       )}
 
@@ -1337,6 +1436,29 @@ export default function SessionScreen({
           onCancel={() => setOpenSetId(null)}
         />
       )}
+      {openPlan && (
+        <SetSheet
+          title={`Set ${openPlanNo}`}
+          kind={exercise.kind}
+          fields={fieldsFor(exercise.kind, { ...style, unit: exercise.unit, rack: exRack })}
+          entry={openPlan}
+          planned
+          onSave={(p) => { writePlan(exercise.sets.map((e) => (e.id === openPlan.id ? { ...e, ...p } : e))); setOpenPlanId(null); }}
+          onDuplicate={() => { const i = exercise.sets.indexOf(openPlan); writePlan([...exercise.sets.slice(0, i + 1), duplicateEntry(openPlan), ...exercise.sets.slice(i + 1)]); setOpenPlanId(null); }}
+          onDelete={() => { writePlan(exercise.sets.filter((e) => e.id !== openPlan.id)); setOpenPlanId(null); }}
+          onCancel={() => setOpenPlanId(null)}
+        />
+      )}
+      {restPickOpen && (
+        <ActionSheet
+          title="Start Rest"
+          actions={[60, 90, 120, 180].map((sec) => ({
+            label: sec % 60 === 0 ? `${sec / 60} Min` : `${Math.floor(sec / 60)} Min ${sec % 60} Sec`,
+            onClick: () => onFit({ restEndsAt: Date.now() + sec * 1000 }),
+          }))}
+          onClose={() => setRestPickOpen(false)}
+        />
+      )}
       {swapOpen && (
         <LibraryPickSheet
           title="Swap For"
@@ -1367,14 +1489,33 @@ export default function SessionScreen({
           onCancel={() => setMuscleRole(null)}
         />
       )}
-      {addOpen && (
+      {/* ADD EXERCISE, THE LIBRARY FIRST (2026-10-17, defect K; the empty
+          workout's own door, EmptyWorkoutScreen). A lift he has done arrives
+          with its key, its unit, its convention and its last strip, so the
+          sets file under the history it already has; only a name the library
+          has never seen opens the full sheet, prefilled with that name. */}
+      {addPickOpen && (
+        <LibraryPickSheet
+          title="Add Exercise"
+          library={library}
+          onPick={(entry) => {
+            setAddPickOpen(false);
+            const { id: _id, ...draft } = exerciseFromEntry(entry, readClassStore(gymSettings.classByKey, gymSettings.muscleByKey), (prefix) => prefix + newSetId(), { mintKey: false });
+            onAddMidSession(draft, !!programDay && addToDay);
+          }}
+          onFreeText={(text) => { setAddPickOpen(false); setAddName(text); }}
+          onCancel={() => setAddPickOpen(false)}
+        />
+      )}
+      {addName !== null && (
         <ExerciseSheet
           mode="new"
+          initial={addName ? { id: "", name: addName, kind: "weight_reps", sets: uniformStrip(3, { r: 8 }) } : undefined}
           library={library}
           history={history}
           alsoOnDay={programDay ? { dayName: programDay.name, value: addToDay, onChange: setAddToDay } : undefined}
-          onSave={(draft) => { onAddMidSession(draft, !!programDay && addToDay); setAddOpen(false); }}
-          onCancel={() => setAddOpen(false)}
+          onSave={(draft) => { onAddMidSession(draft, !!programDay && addToDay); setAddName(null); }}
+          onCancel={() => setAddName(null)}
         />
       )}
     </div>

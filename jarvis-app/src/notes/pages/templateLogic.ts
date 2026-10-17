@@ -6,7 +6,9 @@ import { type PageData, type PageRecord, type PageField, type PageSection, type 
 import { templateDef, newTemplatePage, isTemplateKey } from "./templateDefs";
 
 // ---------------------------------------------------------------------------
-// Sections: headings the rows sit under. Named, added, removed and ordered by the person; one with no rows is not drawn.
+// Sections: headings the rows sit under. Named, added, removed and ordered by the person. On the page every heading is drawn,
+// rows or none (Alfred 2026-10-16: a heading hidden until it had a row left 24 templates opening as an empty shell); an export
+// and the session clock still walk only the headings that have rows.
 
 const cleanLabel = (s: string) => s.replace(/\s+/g, " ").trim();
 
@@ -62,8 +64,10 @@ export function setSection(page: PageData, recordId: string, key: string | null)
 
 export interface RowGroup { section: PageSection | null; records: PageRecord[] }
 
-/** The rows in the order they are drawn: the ones above every heading first, then each heading that has rows. */
-export function groupedRecords(page: PageData): RowGroup[] {
+/** The rows in the order they are drawn: the ones above every heading first, then each heading in order. With `includeEmpty`
+ *  (the page itself), a heading with no rows is still a group, so the page draws it with its own Add; without it (an export, the
+ *  session clock), only the headings that have rows come back. */
+export function sectionGroups(page: PageData, opts: { includeEmpty?: boolean } = {}): RowGroup[] {
   const sections = page.sections ?? [];
   const known = new Set(sections.map((s) => s.key));
   const out: RowGroup[] = [];
@@ -72,10 +76,13 @@ export function groupedRecords(page: PageData): RowGroup[] {
   if (loose.length) out.push({ section: null, records: loose });
   for (const s of sections) {
     const recs = all.filter((r) => r.sec === s.key);
-    if (recs.length) out.push({ section: s, records: recs });
+    if (recs.length || opts.includeEmpty) out.push({ section: s, records: recs });
   }
   return out;
 }
+
+/** The groups that have rows: what an export and the session clock walk. */
+export const groupedRecords = (page: PageData): RowGroup[] => sectionGroups(page);
 
 // ---------------------------------------------------------------------------
 // Fields: reorder, and the suggested ones a template offers.
@@ -125,12 +132,12 @@ export function sumOf(records: PageRecord[], key: string): number {
 /** A page's totals as words for its head: "75 Min". Only the totals the template names and the page still has a field for. */
 export function totalsLine(page: PageData, fmtMoney: (n: number) => string = (n) => "$" + n.toLocaleString("en-US")): string {
   const d = templateDef(page.kind);
-  // An empty page has nothing to total: no "$0" beside a head with no rows.
+  // Nothing to total says nothing: no "$0" beside a head with no rows, and no "0 Min" over starter rows with no minutes yet.
   if (!d?.totals || page.records.length === 0) return "";
   return d.totals
     .filter((t) => page.fields.some((x) => x.key === t.key))
-    .map((t) => (t.money ? fmtMoney(sumOf(page.records, t.key)) : `${sumOf(page.records, t.key)} ${t.label}`))
-    .filter((x, _i, all) => all.length > 0 && x !== "")
+    .map((t) => { const n = sumOf(page.records, t.key); return n === 0 ? "" : t.money ? fmtMoney(n) : `${n} ${t.label}`; })
+    .filter((x) => x !== "")
     .join(" · ");
 }
 
@@ -161,6 +168,22 @@ export function fromMyTemplate(t: PageData): PageData {
 /** A catalog page's own starting structure, for "back to the template". */
 export function startingStructure(kind: string): PageData | null {
   return isTemplateKey(kind) ? newTemplatePage(kind) : null;
+}
+
+/** True when a catalog page is exactly as its template made it: the same fields, headings, settings and starter rows, nothing
+ *  brought in and nothing kept. The picker opens such a page instead of making another (Alfred 2026-10-16: Event Day Pack chosen
+ *  twice quietly made a second "Event Day Pack"). Ids are not compared; the values are. */
+export function untouchedTemplatePage(page: PageData): boolean {
+  const fresh = startingStructure(page.kind);
+  if (!fresh || page.mine || (page.originals ?? []).length || (page.snapshots ?? []).length) return false;
+  const shape = (p: PageData) => JSON.stringify({
+    fields: p.fields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options ?? [] })),
+    sections: (p.sections ?? []).map((s) => s.label),
+    meta: p.meta ?? {},
+    games: (p.games ?? []).length,
+    records: p.records.map((r) => ({ v: r.v, sec: (p.sections ?? []).findIndex((s) => s.key === r.sec), link: r.link ?? "", confirmedOn: r.confirmedOn ?? "" })),
+  });
+  return shape(page) === shape(fresh);
 }
 
 // ---------------------------------------------------------------------------

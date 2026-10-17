@@ -24,7 +24,7 @@ import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
-import { bumpStrip } from "./strip";
+import { bumpStrip, uniformStrip } from "./strip";
 import { composeLibrary, newExerciseKey, planOf, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { exerciseFromEntry } from "./fromLibrary";
@@ -56,7 +56,8 @@ import UploadFlow from "./UploadFlow";
 import HistoryScreen, { GymLoadState } from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
-import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
+import { defaultView } from "./libraryView";
+import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type Classification, type ClassConflict, type ClassStore } from "./classify";
 import ClassifySheet from "./ClassifySheet";
 import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
 import { MergeReviewSheet } from "./DuplicateReview";
@@ -559,18 +560,22 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
             this weight for this many. The first is a word now, in the ink a
             label wears, so the two numbers a person scans for are the two
             things in colour. */}
-        <div className="facts">
-          <span className="fact cyan" aria-label={planChipText(exercise)}>
-            {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
-          </span>
+        {/* PRESCRIPTIONS IN GREY, NEVER TEAL (Dave's approved board 2026-10-16,
+            screen 2): "3 Sets · 275 Lb × 5" is the row's one grey line, the
+            count and the target as two facts with the CSS's dot between them.
+            A rest stays a white length beside it, when there is one. */}
+        <div className="facts" aria-label={planChipText(exercise)}>
+          <span className="fact">{lineCase(`${plan.count} ${plan.noun}`)}</span>
+          {plan.target && <span className="fact">{lineCase(plan.target)}</span>}
           {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} Rest`}</b></span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
-      {/* One trailing control, same as the day row above. */}
-      <RowMenuButton onMenu={onMenu} what={liftTitle(exercise.name)} />
+      {/* The chevron (the board): the row opens the exercise; its menu is the long-press, and a screen reader reaches
+          the same moves through the exercise sheet. */}
+      {CHEV}
     </div>
   );
 }
@@ -654,7 +659,11 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // What the same rule bought elsewhere is untouched: the Up Next launch
     // card, which really was the brightest rectangle on a black page and had
     // a red Start inside it, stays plain.
-    <div className="pad-x"><div className={"card list-card-ruled" + (tone === "cool" ? " banner-cool" : " banner-warn")}>
+    // ONE ANATOMY FOR BOTH BLOCKS (Dave 2026-10-16, T): the same head row (the
+    // toned eyebrow and its one text action), the same item rows, and the
+    // wash ONLY when the block has content; an empty block is its head alone,
+    // in its hue, as the comment above says and the code did not do.
+    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
       {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
@@ -736,7 +745,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, startLift, startHistory, startWorkoutId, onRateSession, onLogSoreSpot }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, startLift, startHistory, startWorkoutId, startSameAsLast, startBackdate, onRateSession, onLogSoreSpot }: {
   /** 2026-09-14: open straight onto Your Lifts. The Health page's coverage
    *  card names untagged lifts and has to be able to hand you the screen
    *  that fixes them, rather than describing where it is. */
@@ -779,6 +788,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   /** 2026-09-14: the Health page's Have Less Time? pick. The fit sheet
    *  opens already priced to it; the athlete still says Start. */
   startBudgetMin?: number;
+  /** THE HEALTH CARD'S QUICK LOG (Dave 2026-10-16, T). Same as Last Time
+   *  repeats the newest workout (its program day, or the workout as a day of
+   *  its own); Log a Past Workout asks which day and then the date. Both
+   *  walk in on mount and go back to Health when the session ends, like a
+   *  Start from scratch does. */
+  startSameAsLast?: boolean;
+  startBackdate?: boolean;
 }) {
   const svc = useGym();
   const ai = useAI();
@@ -1026,6 +1042,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // a superset made in a session is for the session, and the program write is
   // its own explicit line in the session's More sheet.
   const [backdateDay, setBackdateDay] = useState<ProgramDay | null>(null);
+  /** Log a Past Workout from History or Health: which day it was, before the date. */
+  const [logPastPick, setLogPastPick] = useState(false);
+  /** A past workout's Add Exercise opens the library first (K, 2026-10-16); the authoring sheet is the fallback, pre-filled. */
+  const [workoutPickOpen, setWorkoutPickOpen] = useState(false);
+  const [workoutAddName, setWorkoutAddName] = useState("");
+  /** Delete Workout asks first (Dave 2026-10-16, S): the confirm sheet is open. */
+  const [deleteAsk, setDeleteAsk] = useState(false);
   // UP-ATH-02 (2026-09-06): the start time rides along now, so the fact can
   // be stated the way an athlete says it ("Game Saturday 6 PM") instead of as
   // a bare date on the program row and nowhere else.
@@ -1084,6 +1107,26 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     () => composeLibrary(allPrograms, workouts, { created: createdLifts, aliases: aliasMap, favoriteKeys }),
     [allPrograms, workouts, aliasMap, favoriteKeys, createdLifts],
   );
+  /** THE ONE EXERCISE COUNT (Dave 2026-10-16, P). The Health hub counts the
+   *  Exercises page's default view (gym/libraryView.shownLibraryCount) and
+   *  this page counted the raw composed library, so the two doors a tap apart
+   *  said 43 and 44. Both count the default view now: hidden and archived
+   *  out, exactly the rows the page lists when it opens. */
+  const shownCount = useMemo(
+    () => defaultView(libraryRows(library, workouts, hiddenKeys), classStore).rows.length,
+    [library, workouts, hiddenKeys, classStore],
+  );
+  /** A STARTER BECOMES THE ATHLETE'S (S9, 2026-10-16). The picker hands back
+   *  the seeds and classifications of the catalog entries it adopted; they are
+   *  written through this flow's own setters, so its in-memory copies of
+   *  GymSettings (createdLifts, classStore) stay in step with the store. */
+  const adoptStarters = (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => {
+    if (adopted.length === 0) return;
+    saveCreatedLifts([...createdLifts, ...adopted.map((a) => a.seed)]);
+    const next: ClassStore = { ...classStore };
+    for (const a of adopted) next[a.seed.key] = a.cls;
+    saveClassStore(next);
+  };
 
   // UP-ATH-02 (2026-09-06), THE SEASON LINK's other half. The program row has
   // said "Next Game: Sep 12" since the link shipped, and the two screens an
@@ -1297,13 +1340,29 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // standard failure toast, the reload runs either way so the screen shows
   // what the store actually holds, and the caller gets false so it never
   // announces a save that did not happen. Same shape as today/TodayFlow.tsx.
+  // THE SCREEN SHOWS THE EDIT AT ONCE (Dave 2026-10-16, R). Every program
+  // edit closed its sheet, awaited the store and only then reloaded, so the
+  // day list drew its old self for a round trip after Add or Delete: a stale
+  // first render on every edit. The programs in memory take the new weeks
+  // before the write goes out and are put back if it fails; the reload after
+  // still shows what the store actually holds.
   const saveWeeks = async (nextWeeks: ProgramWeek[]): Promise<boolean> => {
     if (!program) return false;
+    const id = program.id;
+    const before = program.data.weeks;
+    const withWeeks = (weeks: ProgramWeek[]) => (list: Program[]) =>
+      list.map((p) => (p.id === id ? { ...p, data: { ...p.data, weeks } } : p));
+    setPrograms(withWeeks(nextWeeks));
+    setAllPrograms(withWeeks(nextWeeks));
     const ok = await attemptWrite(async () => {
       // updateProgram resolves false when the item is gone rather than
       // throwing, and a write that did not land is a failure either way.
-      if (!(await svc.updateProgram(program.id, { weeks: nextWeeks }))) throw new Error("program is gone");
+      if (!(await svc.updateProgram(id, { weeks: nextWeeks }))) throw new Error("program is gone");
     });
+    if (!ok) {
+      setPrograms(withWeeks(before));
+      setAllPrograms(withWeeks(before));
+    }
     await reload();
     return ok;
   };
@@ -1550,6 +1609,27 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     enterSession(s);
     if (opts.sameAsLastTime && !last) showToast({ message: "No Prior Session for This Day Yet · Starting Fresh" });
   };
+  /** THE DAY SAME AS LAST TIME REPEATS, FROM OUTSIDE A DAY (Dave 2026-10-16,
+   *  T). From History or the Health card there is no open day, so it is the
+   *  newest workout's: its program day when the program still has it, or the
+   *  workout itself as a scratch day carrying its exercises as the plan. */
+  const repeatLast = () => {
+    const last = [...workouts].sort((a, b) => b.data.date.localeCompare(a.data.date) || b.data.startedAt - a.data.startedAt)[0];
+    if (!last) { showToast({ message: "No Workout to Repeat Yet" }); return; }
+    const inProgram = program ? findDay(program.data.weeks, last.data.dayId) : undefined;
+    const day: ProgramDay = inProgram ?? { ...dayFromWorkout(last.data, last.data.dayName, nid), id: SCRATCH_DAY_ID };
+    setHistoryOpen(false);
+    startDay(day, { sameAsLastTime: true });
+  };
+  /** Log a Past Workout from History or Health: which day it was, then the
+   *  date. With no program day to choose, straight to the date as a workout
+   *  of its own. */
+  const askLogPast = () => {
+    const days = program?.data.weeks.flatMap((w) => w.days) ?? [];
+    if (days.length === 0) { setBackdateDay({ id: SCRATCH_DAY_ID, name: SCRATCH_DAY_NAME, exercises: [] }); return; }
+    setLogPastPick(true);
+  };
+
   // D5: every live start passes through the fit sheet -- except the paths
   // whose whole point is speed or the past: a resume (the sheet was already
   // answered), Same as Last Time (the fastest possible entry), a backdated
@@ -1594,6 +1674,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
     if (day) requestStart(day, { doorEventId: startDoorEventId, budgetMin: startBudgetMin });
   }, [startDayId, startDoorEventId, startBudgetMin, startHandled, loaded, program]);
+
+  // THE HEALTH CARD'S QUICK LOG (Dave 2026-10-16, T): Same as Last Time or
+  // Log a Past Workout, walked into on mount once the lists are read, and
+  // back to Health when the session ends, like a Start from scratch.
+  const [quickHandled, setQuickHandled] = useState(false);
+  useEffect(() => {
+    if ((!startSameAsLast && !startBackdate) || quickHandled || !loaded) return;
+    setQuickHandled(true);
+    startedOutside.current = true;
+    if (startSameAsLast) repeatLast(); else askLogPast();
+  }, [startSameAsLast, startBackdate, quickHandled, loaded]);
 
   // 2026-09-14: a saved session named on the way in opens in its editor
   // once the list has loaded (the Duration finding's way to the card).
@@ -2002,6 +2093,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       />{keepEls}</>
     : keepEls;
 
+  const backdateEl = backdateDay ? (
+    <BackdateSheet
+      dayName={backdateDay.name}
+      onStart={(date) => { const d = backdateDay; setBackdateDay(null); setHistoryOpen(false); startDay(d, { date }); }}
+      onCancel={() => setBackdateDay(null)}
+    />
+  ) : null;
+  /** Which day a past workout was, when Log a Past Workout is asked from History or Health. */
+  const logPastEl = logPastPick && program ? (
+    <PickSheet
+      title="Which Workout Was It"
+      items={[
+        ...program.data.weeks.flatMap((w) => w.days).map((d) => ({ id: d.id, label: workoutTitle(d.name) })),
+        { id: SCRATCH_DAY_ID, label: "Empty Workout" },
+      ]}
+      onPick={(ids) => {
+        setLogPastPick(false);
+        const day = findDay(program.data.weeks, ids[0] ?? "") ?? { id: SCRATCH_DAY_ID, name: SCRATCH_DAY_NAME, exercises: [] };
+        setBackdateDay(day);
+      }}
+      onCancel={() => setLogPastPick(false)}
+    />
+  ) : null;
+
   if (uploadOpen) {
     return <UploadFlow ai={ai} onSave={(p) => void saveUploaded(p)} onCancel={() => setUploadOpen(false)} />;
   }
@@ -2138,10 +2253,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // this one), and closing it lands back on History.
   if (historyOpen && !viewWorkout) {
     return (
-      <HistoryScreen workouts={workouts} status={loadStatus} onRetry={() => { setLoadFailed(false); void reload(); }}
-        onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)}
-        onOpenWorkout={(w) => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}
-        mode={historyMode} onMode={setHistoryMode} />
+      <>
+        <HistoryScreen workouts={workouts} status={loadStatus} onRetry={() => { setLoadFailed(false); void reload(); }}
+          onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)}
+          onOpenWorkout={(w) => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}
+          onSameAsLastTime={workouts.length > 0 ? repeatLast : undefined} onLogPast={askLogPast}
+          mode={historyMode} onMode={setHistoryMode} />
+        {logPastEl}
+        {backdateEl}
+      </>
     );
   }
   // EXERCISES, THE PAGE (was Your Lifts). Every write here goes through one
@@ -2556,6 +2676,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     const closeWorkout = () => {
       setViewWorkout(null); setWorkoutDraft(null);
       setWorkoutMetaOpen(false); setWorkoutExMenu(null); setWorkoutExRename(null); setWorkoutAddOpen(false);
+      setWorkoutPickOpen(false); setWorkoutAddName(""); setDeleteAsk(false);
       // Named on the way in: the way out is the caller's page.
       if (workoutFromOutside) { setWorkoutFromOutside(false); onBack(); }
     };
@@ -2653,7 +2774,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             button at the foot. It is the one capsule on the Exercises head now, and the head draws only when there is a
             workout to add to. */}
         <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
-          <button type="button" className="see-all pill-action" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>
+          {/* THE LIBRARY FIRST (Dave 2026-10-16, K): this opened the authoring sheet alone, so adding a lift he had done
+              fifty times meant typing it. The picker opens first, as the empty workout's does; typing a name nothing
+              matches falls back to the sheet, pre-filled. No library yet goes straight to the sheet. */}
+          <button type="button" className="see-all pill-action" onClick={() => (library.length > 0 ? setWorkoutPickOpen(true) : setWorkoutAddOpen(true))}>Add Exercise</button>
         </div>
         {workoutDraft.map((e, ei) => (
           <div key={e.exerciseId + ei}>
@@ -2699,23 +2823,37 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           )}
           {/* Delete with Undo (2026-08-09): PRs and history derive from the
               workout list, so removing a mislogged session heals every number
-              downstream. Same toast contract as every delete in the app. */}
-          <button className="btn btn-danger btn-block" onClick={async () => {
-            const gone = { ...w.data };
-            const ok = await attemptWrite(() => svc.removeWorkout(w.id));
-            await reload();
-            if (!ok) return;
-            closeWorkout();
-            showToast({
-              message: "Workout deleted",
-              actionLabel: "Undo",
-              // GYM-F-18: the Undo could throw as silently as the delete did,
-              // which is the worst of the two: the session is gone and the
-              // athlete believes they got it back.
-              onAction: async () => { await attemptWrite(() => svc.saveWorkout(gone)); await reload(); },
-            });
-          }}>Delete Workout</button>
+              downstream. Same toast contract as every delete in the app.
+              AND IT ASKS FIRST (Dave 2026-10-16, S: a destructive delete is
+              two taps, like every other). The button opens the confirm; the
+              sheet's one destructive action does the write. */}
+          <button className="btn btn-danger btn-block" onClick={() => setDeleteAsk(true)}>Delete Workout</button>
         </div>
+        {deleteAsk && (
+          <ActionSheet
+            title="Delete This Workout?"
+            actions={[{
+              label: "Delete Workout", destructive: true,
+              onClick: () => void (async () => {
+                const gone = { ...w.data };
+                const ok = await attemptWrite(() => svc.removeWorkout(w.id));
+                await reload();
+                if (!ok) return;
+                closeWorkout();
+                showToast({
+                  message: "Workout deleted",
+                  actionLabel: "Undo",
+                  // GYM-F-18: the Undo could throw as silently as the delete did,
+                  // which is the worst of the two: the session is gone and the
+                  // athlete believes they got it back.
+                  onAction: async () => { await attemptWrite(() => svc.saveWorkout(gone)); await reload(); },
+                });
+              })(),
+            }]}
+            dismissLabel="Keep It"
+            onClose={() => setDeleteAsk(false)}
+          />
+        )}
         <div className="screen-foot" />
 
         {workoutMetaOpen && (
@@ -2769,12 +2907,39 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             the honest state: the sheet plans, and the strip below records
             what was actually done. Its plan rides along as the ghost targets
             the strip offers, exactly as a mid-session add does. */}
+        {workoutPickOpen && (
+          <LibraryPickSheet
+            title="Add Exercise"
+            library={library}
+            onAdopt={adoptStarters}
+            onPick={(entry) => {
+              setWorkoutPickOpen(false);
+              // The one spelling of a library pick (fromLibrary.exerciseFromEntry),
+              // landed as the record keeps a lift: its strip is the plan it was
+              // done against, and the identity it already had is kept (no new key
+              // on a lift the library knows by name alone).
+              const ex = exerciseFromEntry(entry, classStore, nid, { mintKey: false });
+              patchDraft((d) => [...d, {
+                exerciseId: `add${Date.now().toString(36)}`,
+                name: ex.name, kind: ex.kind,
+                ...(ex.unit ? { unit: ex.unit } : {}),
+                ...(ex.timeUnit ? { timeUnit: ex.timeUnit } : {}),
+                ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
+                ...loadFields(ex),
+                sets: ex.sets, custom: true, plan: ex.sets,
+              }]);
+            }}
+            onFreeText={(q) => { setWorkoutPickOpen(false); setWorkoutAddName(q); setWorkoutAddOpen(true); }}
+            onCancel={() => setWorkoutPickOpen(false)}
+          />
+        )}
         {workoutAddOpen && (
           <ExerciseSheet
             mode="new"
             // A saved session has no clock, rest or ramp to run and no note
             // field, so the sheet does not draw them (2026-10-04).
             record
+            initial={workoutAddName ? { id: "", name: workoutAddName, kind: "weight_reps", sets: uniformStrip(3, { r: 8 }) } : undefined}
             library={library}
             history={workouts}
             onSave={(draft) => {
@@ -2791,9 +2956,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               // The muscle it was told goes where a muscle lives (the class
               // store), the one place the record side can ever read it from.
               classifyFromSheet(draft.exerciseKey ?? "", draft);
-              setWorkoutAddOpen(false);
+              setWorkoutAddOpen(false); setWorkoutAddName("");
             }}
-            onCancel={() => setWorkoutAddOpen(false)}
+            onCancel={() => { setWorkoutAddOpen(false); setWorkoutAddName(""); }}
           />
         )}
       </div>
@@ -2829,6 +2994,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           history={workouts}
           onAddEntry={(entry) => addToLive(exerciseFromEntry(entry, classStore, nid, { mintKey: false }))}
           onAddDraft={(draft) => { addToLive(draft); seedLibrary(draft); }}
+          onAdopt={adoptStarters}
           onCancel={() => { clearLive(); enterSession(null); leaveIfStartedOutside(); }}
         />
       );
@@ -3231,6 +3397,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         <LibraryPickSheet
           title={day ? `Add to ${day.name}` : "Add to the Day"}
           library={library}
+          onAdopt={adoptStarters}
           onPick={() => {}}
           onPickMany={async (entries: LibraryEntry[]) => {
             if (!week || !day) return;
@@ -3548,14 +3715,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     )
   ) : null;
 
-  const backdateEl = backdateDay ? (
-    <BackdateSheet
-      dayName={backdateDay.name}
-      onStart={(date) => { const d = backdateDay; setBackdateDay(null); startDay(d, { date }); }}
-      onCancel={() => setBackdateDay(null)}
-    />
-  ) : null;
-
   // ---- day detail: the exercises inside one week's day ----
   if (openDayId && activeWeek) {
     const openDay = activeWeek.days.find((d) => d.id === openDayId) ?? null;
@@ -3579,38 +3738,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               minutes={openDay.warmUpMin}
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "warmUp" })}
             />
-            {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add from Your Lifts and New Exercise were two rows at the foot
-                of the card. They are one capsule on the head now, beside Superset and Reorder, and it opens the two doors
-                (the fast one first, 2026-09-21) or goes straight to a new exercise when there is no library to pick from. */}
-            <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
-              <span className="sec-left">
-                {openDay.exercises.length > 1 && (
-                  <>
-                    {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN
-                        SEE (Dave, 2026-09-21). It was a long-press menu item
-                        called "Group With...", which is a hidden gesture under
-                        a word he does not use, and he could not find it: "no
-                        superset buttons anywhere in the workout pages". It
-                        sits beside Reorder because they are the same kind of
-                        move -- both rearrange the day rather than change a
-                        lift -- and it is hidden for a day with one exercise
-                        in it, which has nothing to pair. */}
-                    <button className="see-all pill-action" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
-                      Superset
-                    </button>
-                    <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
-                      {reorderTarget === "exercises" ? "Done" : "Reorder"}
-                    </button>
-                  </>
-                )}
-                {/* "Add Exercise" on the face (Dave 2026-10-09, pass-off item 11: "Add" alone did not say what it adds). */}
-                <button className="see-all pill-action"
-                  onClick={() => (library.length > 0 ? setAddExOpen(true) : setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }))}>
-                  Add Exercise
-                </button>
-              </span>
-            </div>
-            {/* A day with no exercise yet draws its head and the Add only: no empty plate (rule 12). */}
+            {/* THE LIST, THEN ITS THREE PILLS (Dave's approved board 2026-10-16,
+                screen 2): one card of exercise rows under the warm-up, with
+                Superset, Reorder and Add Exercise as a row of neutral pills
+                beneath it, not a head above it. The doors behind Add Exercise
+                are the two of 2026-10-05 (the picker first, then New
+                Exercise), or straight to a new exercise when there is no
+                library to pick from. */}
             {openDay.exercises.length > 0 && <div className="pad-x list-card"><div className="card list-card-ruled">
               <ReorderList
                 ids={openDay.exercises.map((e) => e.id)}
@@ -3630,6 +3764,53 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 }}
               />
             </div></div>}
+            <div className="pad-x day-acts">
+              {openDay.exercises.length > 1 && (
+                <>
+                  {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN SEE (Dave, 2026-09-21). Beside Reorder because they
+                      are the same kind of move; hidden for a day with one exercise, which has nothing to pair. */}
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
+                    Superset
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
+                    {reorderTarget === "exercises" ? "Done" : "Reorder"}
+                  </button>
+                </>
+              )}
+              {/* "Add Exercise" on the face (Dave 2026-10-09, pass-off item 11: "Add" alone did not say what it adds). */}
+              <button type="button" className="btn btn-secondary btn-sm"
+                onClick={() => (library.length > 0 ? setAddExOpen(true) : setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }))}>
+                Add Exercise
+              </button>
+            </div>
+            {/* THE COOL-DOWN SITS RIGHT UNDER THE EXERCISES (Dave 2026-10-16, T),
+                mirroring the warm-up above them: the two blocks frame the
+                list, and the disclosure, the return and the pins come after. */}
+            <BlockList
+              title="Cool-Down"
+              tone="cool"
+              blocks={openDay.coolDown}
+              minutes={openDay.coolDownMin}
+              onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "coolDown" })}
+            />
+            {(live ?? parkedLive) && (
+              <div className="pad-x">
+                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Workout</button>
+              </div>
+            )}
+            {openDay.exercises.length > 0 && (
+              <div className="pad-x gym-log">
+                <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
+                {/* REAL BUTTONS, SIDE BY SIDE (the board): Same as Last Time (catalog §3.13, the fastest possible entry,
+                    pre-filled with what happened last time) and Log a Past Workout (catalog §3.8: the phone was in a locker). */}
+                <div className="btn-row">
+                  {lastForDay && (
+                    <button className="btn btn-secondary" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same as Last Time</button>
+                  )}
+                  <button className="btn btn-secondary" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>
+                </div>
+              </div>
+            )}
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
                 next session; a logged session keeps the numbers it logged.
                 BEHIND A LABELLED DISCLOSURE since the health polish pass
@@ -3644,18 +3825,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               <summary>About Changes to This Workout</summary>
               <div className="input-hint">Edits apply to future workouts {"\u00b7"} Logged sessions keep their own numbers</div>
             </details></div>
-            {(live ?? parkedLive) && (
-              <div className="pad-x">
-                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Workout</button>
-              </div>
-            )}
-            <BlockList
-              title="Cool-Down"
-              tone="cool"
-              blocks={openDay.coolDown}
-              minutes={openDay.coolDownMin}
-              onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "coolDown" })}
-            />
             {/* PINS, D4: where this day lives in the week. The row is the
                 editor's door; no pin is a legal, honest state, and the row
                 says what it means (rotation keeps its job) rather than
@@ -3670,18 +3839,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 {CHEV}
               </div>
             </div></div>
-            {openDay.exercises.length > 0 && (
-              <div className="pad-x gym-log">
-                <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
-                {lastForDay && (
-                  // SAME AS LAST TIME (catalog §3.13): the fastest possible
-                  // entry, pre-filled with what actually happened last time.
-                  <button className="row-create row-create-bare" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same as Last Time</button>
-                )}
-                {/* LOG IT LATER (catalog §3.8): the phone was in a locker. */}
-                <button className="row-create row-create-bare" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>
-              </div>
-            )}
             <div className="screen-foot" />
           </div>
           {addExOpen && (
@@ -3873,7 +4030,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 </div>
                 {CHEV}
               </div>
-              {library.length > 0 && <LiftsRow count={library.length} onOpen={() => setLibraryOpen(true)} />}
+              {library.length > 0 && <LiftsRow count={shownCount} onOpen={() => setLibraryOpen(true)} />}
             </div></div>
 
             {nextDay && nextDay.exercises.length > 0 && (
@@ -4016,7 +4173,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             reaching, so it keeps its own card down here. */}
         {!program && library.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
-            <LiftsRow count={library.length} onOpen={() => setLibraryOpen(true)} />
+            <LiftsRow count={shownCount} onOpen={() => setLibraryOpen(true)} />
           </div></div>
         )}
         {recent.length > 0 && (
@@ -4099,6 +4256,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       {fitEl()}
       {doorPickEl()}
       {switcherEl}
+      {logPastEl}
+      {backdateEl}
       {receiptEl}
     </>
   );

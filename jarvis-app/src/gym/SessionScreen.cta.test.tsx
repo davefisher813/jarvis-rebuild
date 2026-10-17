@@ -66,25 +66,25 @@ describe("the red button names exactly what the fields hold", () => {
   it("never layers the plan under the fields: reps alone last time is reps alone now", () => {
     // Plan 20 lb x 10; last session logged 10 reps with no weight.
     renderScreen({ history: [workout([{ id: "l1", r: 10 }])] });
-    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(null);
+    expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(null);
     expect(cta()).toHaveTextContent("Log 10 Reps");
   });
 
   it("follows every keystroke, in the same frame", () => {
     renderScreen();
     expect(cta()).toHaveTextContent("Log 20 Lb × 10");
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "25" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "25" } });
     expect(cta()).toHaveTextContent("Log 25 Lb × 10");
-    fireEvent.change(screen.getByLabelText("Set 1 reps"), { target: { value: "8" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "8" } });
     expect(cta()).toHaveTextContent("Log 25 Lb × 8");
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "" } });
     expect(cta(), "an emptied weight comes off the label").toHaveTextContent("Log 8 Reps");
   });
 
   it("writes the numbers it names, with one receipt and an Undo", () => {
     const onLog = vi.fn();
     renderScreen({ onLog });
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "25" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "25" } });
     fireEvent.click(cta());
     expect(onLog).toHaveBeenCalledTimes(1);
     expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 25, r: 10 });
@@ -94,8 +94,8 @@ describe("the red button names exactly what the fields hold", () => {
 
   it("the set before feeds the Now row AND the button once a set is logged", () => {
     renderScreen({ live: live([{ id: "s1", w: 22.5, r: 9 }]) });
-    expect(screen.getByLabelText("Set 2 weight")).toHaveValue(22.5);
-    expect(screen.getByLabelText("Set 2 reps")).toHaveValue(9);
+    expect(screen.getByLabelText("Set 2 Weight")).toHaveValue(22.5);
+    expect(screen.getByLabelText("Set 2 Reps")).toHaveValue(9);
     expect(cta()).toHaveTextContent("Log 22.5 Lb × 9");
     // And the Up Next row carries the same numbers, so it never changes
     // when it becomes Now.
@@ -116,7 +116,7 @@ describe("the red button names exactly what the fields hold", () => {
         onLog={() => {}} onSetLogged={onSetLogged} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
         onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,
     );
-    expect(screen.getByLabelText("Set 2 weight")).toHaveValue(19);
+    expect(screen.getByLabelText("Set 2 Weight")).toHaveValue(19);
     expect(cta()).toHaveTextContent("Log 19 Lb × 10");
   });
 
@@ -125,7 +125,7 @@ describe("the red button names exactly what the fields hold", () => {
     renderScreen({ live: live([{ id: "s1", w: 20, r: 10 }]), history: [workout([{ id: "l1", w: 17.5, r: 12 }, { id: "l2", w: 17.5, r: 12 }])] });
     const match = screen.getByRole("button", { name: /same as last time$/ });
     fireEvent.click(match);
-    expect(screen.getByLabelText("Set 2 weight")).toHaveValue(17.5);
+    expect(screen.getByLabelText("Set 2 Weight")).toHaveValue(17.5);
     expect(cta()).toHaveTextContent("Log 17.5 Lb × 12");
     expect(screen.queryByRole("button", { name: /same as last time$/ }), "the verb hides once the fields match").toBeNull();
   });
@@ -141,7 +141,7 @@ describe("the red button names exactly what the fields hold", () => {
   it("the load calculator opens at the weight in the fields, not the plan's", () => {
     const styled = { ...exercise, equipment: "barbell" as const };
     renderScreen({ exercise: styled });
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "95" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "95" } });
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(screen.getByRole("button", { name: "Plate Calculator" }));
     expect(document.body.textContent).toContain("95");
@@ -152,7 +152,7 @@ describe("the red button names exactly what the fields hold", () => {
     renderScreen({ onLog, live: live([{ id: "s1", w: 20, r: 10 }, { id: "s2", w: 20, r: 10 }, { id: "s3", w: 22.5, r: 8 }]) });
     expect(screen.queryByLabelText(/weight$/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Add a Set" }));
-    expect(screen.getByLabelText("Set 4 weight")).toHaveValue(22.5);
+    expect(screen.getByLabelText("Set 4 Weight")).toHaveValue(22.5);
     expect(cta()).toHaveTextContent("Log 22.5 Lb × 8");
     fireEvent.click(cta());
     expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 22.5, r: 8 });

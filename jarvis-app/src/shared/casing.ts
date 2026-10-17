@@ -220,7 +220,9 @@ function lineCaseWords(text: string): string {
 
 // A TIME IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-05, the review: "7 AM and 10 / AM" left a lone AM on its own
 // line). A non-breaking space between the number and its meridiem keeps the pair together wherever a title wraps. It
-// runs AFTER lineCase, which rejoins words with a plain space.
+// runs AFTER lineCase, which rejoins words with a plain space. It also takes the narrow no-break space (U+202F) that
+// toLocaleTimeString puts there, so a time that arrived from the platform binds the same way (2026-10-17; the app now
+// spells its own times through shared/clock.ts, with a plain space).
 export function bindMeridiem(text: string): string {
-  return text.replace(/(\d) (AM|PM)\b/g, "$1\u00a0$2");
+  return text.replace(/(\d)[ \u202f](AM|PM)\b/g, "$1\u00a0$2");
 }

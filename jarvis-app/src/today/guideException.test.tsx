@@ -25,7 +25,7 @@ describe("an exception inside the guide", () => {
     const rows = container.querySelectorAll(".sched-ticker .sched-locked");
     expect(rows.length).toBeGreaterThan(0);
     for (const r of rows) {
-      expect(r.querySelector(".sched-time")!.textContent).toBe("11:00AM");
+      expect(r.querySelector(".sched-time")!.textContent).toBe("11:00\u00a0AM") /* digits, a no-break space, the meridiem (2026-10-17) */;
       expect(r.textContent).not.toContain("Just Today");
       expect(r.textContent).not.toContain("Back to Normal");
     }
@@ -38,7 +38,7 @@ describe("an exception inside the guide", () => {
     );
     fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
     const row = container.querySelector(".sched-ticker .sched-locked")!;
-    expect(row.querySelector(".sched-time")!.textContent).toBe("11:00AM");
+    expect(row.querySelector(".sched-time")!.textContent).toBe("11:00\u00a0AM");
     expect(row.textContent).not.toContain("Just Today");
     expect(screen.queryByText("Back to Normal")).toBeNull();
   });

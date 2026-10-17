@@ -1,11 +1,12 @@
-import { lineCase, liftTitle } from "../shared/casing";
+import { lineCase, liftTitle, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProgramDay, Workout } from "./types";
 import type { RackConfig } from "./ramp";
 import { own } from "../shared/rowDoor";
-import { estimateDay, leverOffers, trimTargets, type FitPlan, type LeverKey } from "./fit";
+import { planChip } from "./measures";
+import { estimateDay, leverOffers, trimTargets, type FitPlan, type LeverKey, type LeverOffer } from "./fit";
 
 // THE FIT SHEET, D5 (Training Catalog V2, approved 2026-08-31). "Starting a
 // day asks how long you have (or reads the block length)." Every lever is a
@@ -36,7 +37,6 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
   const est = estimateDay(day, history, rack, plan);
   const offers = leverOffers(day, history, rack, plan);
   const over = budget > 0 ? est.min - budget : 0;
-  const budgetTone = over > 0 ? "fit-over" : "fit-under";
 
   const chips: number[] = [30, 45, 60];
   if (defaultBudgetMin && !chips.includes(defaultBudgetMin)) {
@@ -74,123 +74,128 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
     });
   };
 
+  /** THE LEVERS AS THE BOARD WORDS THEM (Dave's approved board 2026-10-16,
+   *  screen 3): a switch row with a bold name and one grey line under it.
+   *  The cool-down lever reads as KEEP (on = kept, which is the default and
+   *  the honest reading of a switch that is on when the sheet opens); the
+   *  trim lever reads as the board says it; the others keep their own names,
+   *  which carry the numbers. The saving rides the line as a second fact. */
+  const leverFace = (o: LeverOffer): { name: string; subs: string[]; on: boolean } => {
+    if (o.key === "skipCool") return { name: "Keep Warm-Up & Cool-Down", subs: ["Counts Toward Your Time"], on: !o.on };
+    if (o.key === "trim") return { name: "Trim Accessories First", subs: ["If Time Runs Short", o.sub], on: o.on };
+    return { name: liftTitle(o.name), subs: [o.sub, ...(o.note ? [o.note] : [])], on: o.on };
+  };
+  /** The plan under a lift's name: "275 Lb × 5", "8 Reps", or the block's clock. */
+  const planLine = (e: ProgramDay["exercises"][number]) => {
+    if (e.cond) return "Clock";
+    const c = planChip(e);
+    return c.target ? lineCase(c.target) : lineCase(`${c.count} ${c.noun}`);
+  };
+  const picked = doable.filter((e) => !(plan.skip ?? []).includes(e.id)).length;
+  /** The board's order: Keep Warm-Up & Cool-Down first, Trim next, the rest after. */
+  const rank = (k: LeverKey) => (k === "skipCool" ? 0 : k === "trim" ? 1 : 2);
+  const ordered = [...offers].sort((a, b) => rank(a.key) - rank(b.key));
+  const paceLine = est.liftCount === 0 && est.condCount > 0
+    ? lineCase("timed from the block's own clock")
+    : est.learnedCount > 0
+      ? lineCase(`${est.learnedCount === est.liftCount ? "all " : ""}${est.learnedCount === est.liftCount ? est.liftCount : `${est.learnedCount} of ${est.liftCount}`} exercises at your logged pace`)
+      : "Default Pace, Improves as You Log";
+
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{day.name} · Plan {spanLabel(planMin)}{gameLine ? " · " + gameLine : ""}</div></div>
+        {/* THE HEAD AS THE BOARD DRAWS IT (screen 3): the day and its planned
+            length as the title, the count and the order as its one grey line.
+            The game line (UP-ATH-02) rides the same grey line when there is one. */}
+        <div className="pad-x fit-head">
+          <div className="fit-title">{workoutTitle(day.name)} · Plan {spanLabel(planMin)}</div>
+          <div className="facts">
+            <span className="fact">{lineCase(`${doable.length} ${doable.length === 1 ? "exercise" : "exercises"}, in program order`)}</span>
+            {gameLine && <span className="fact">{gameLine}</span>}
+          </div>
+        </div>
 
         <div className="sheet-form">
-        {/* WHAT, BEFORE HOW LONG (2026-09-21). The sheet asked how long you
-            had and offered to trim accessory sets, and never asked which
-            lifts -- so a day was a script you ran, and choosing meant Skip or
-            Swap once the session was already going.
-            Everything is on when the sheet opens, so doing nothing here is
-            exactly the behaviour that shipped. Untick two and the session is
-            the rest -- and the estimate below moves as you tick, which makes
-            the time cap and the choice one decision instead of two. The
-            program is untouched either way: this is a stance for one session,
-            the same as every lever under it. */}
-        {doable.length > 1 && (
-          <>
-            <div className="pad-x"><div className="input-label">Doing Today</div></div>
-            <div><div className="list-flat">
-              {doable.map((e) => {
-                const on = !(plan.skip ?? []).includes(e.id);
-                return (
-                  <div className="row" key={e.id} onClick={() => toggleEx(e.id)}>
-                    <div className="task-check-tap" role="checkbox" aria-checked={on}
-                      aria-label={`${liftTitle(e.name)}, ${on ? "doing today" : "not today"}`}
-                      onClick={own(() => toggleEx(e.id))}>
-                      <div className={"task-check" + (on ? " done" : "")} />
-                    </div>
-                    <div className="row-grow">
-                      <div className={"conn-name truncate" + (on ? "" : " fit-off")}>{liftTitle(e.name)}</div>
-                    </div>
-                    <span className="conn-meta">{e.cond ? "Clock" : `${e.sets.length} \u00d7 ${e.sets[0]?.r ?? ""}`}</span>
+        {/* NUMBERS, NOT GREEN CHECKS (the board, screen 3; Dave 2026-10-16: green
+            is done). Every lift is on when the sheet opens, numbered in the
+            program's order; untick one and its badge dims and strikes, the row
+            goes grey, and the estimate below moves. The program is untouched
+            either way: this is a stance for one session (LAW 17). The last
+            lift on cannot be unticked (a workout you did not do is not a
+            workout). A filler rides inside its partner's rest, so it is not
+            offered. */}
+        {doable.length > 0 && (
+          <div className="pad-x"><div className="card list-card-ruled">
+            {doable.map((e, i) => {
+              const on = !(plan.skip ?? []).includes(e.id);
+              return (
+                <div className={"row fit-row" + (on ? "" : " fit-row-off")} key={e.id} role="checkbox" aria-checked={on} tabIndex={0}
+                  aria-label={`${liftTitle(e.name)}, ${on ? "doing today" : "not today"}`}
+                  onClick={() => toggleEx(e.id)}
+                  onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggleEx(e.id); } }}>
+                  <span className={"fit-no" + (on ? "" : " off")} aria-hidden="true">{i + 1}</span>
+                  <div className="row-grow">
+                    <div className={"conn-name truncate" + (on ? "" : " fit-off")}>{liftTitle(e.name)}</div>
+                    <div className="conn-meta">{planLine(e)}</div>
                   </div>
-                );
-              })}
-            </div></div>
-          </>
+                </div>
+              );
+            })}
+          </div></div>
         )}
 
-        <div className="pad-x">
-          <div className="field">
-            <div className="input-label">How Long Do You Have</div>
-            <div className="chip-row chip-wrap-row">
-              {chips.map((b) => (
-                <div key={b} className={"chip" + (budget === b ? " active" : "")} role="button" tabIndex={0}
-                  aria-pressed={budget === b} onClick={() => setBudget(b)}>{spanLabel(b)}</div>
-              ))}
-              <div className={"chip" + (budget === 0 ? " active" : "")} role="button" tabIndex={0}
-                aria-pressed={budget === 0} onClick={() => setBudget(0)}>No Cap</div>
-            </div>
+        <div className="pad-x fit-time">
+          <div className="grp xs-grp"><div className="eyebrow">How Long Do You Have</div></div>
+          {/* ONE SELECTED STATE: the picked length wears a red outline, nothing is filled. */}
+          <div className="chip-row chip-wrap-row">
+            {chips.map((b) => (
+              <div key={b} className={"chip" + (budget === b ? " active" : "")} role="button" tabIndex={0}
+                aria-pressed={budget === b} onClick={() => setBudget(b)}>{spanLabel(b)}</div>
+            ))}
+            <div className={"chip" + (budget === 0 ? " active" : "")} role="button" tabIndex={0}
+              aria-pressed={budget === 0} onClick={() => setBudget(0)}>No Cap</div>
           </div>
         </div>
 
         {offers.length > 0 && (
-          <>
-            <div className="pad-x"><div className="input-label">Levers</div></div>
-            <div><div className="list-flat">
-              {offers.map((o) => (
+          <div className="pad-x"><div className="card list-card-ruled">
+            {ordered.map((o) => {
+              const f = leverFace(o);
+              return (
                 // The whole lever row flips its switch (Dave 2026-09-15: "I want all rows clickable").
                 <div className="row" key={o.key} onClick={() => toggle(o.key)}>
                   <div className="row-grow">
-                    <div className="conn-name truncate">{liftTitle(o.name)}</div>
-                    {/* BOTH FACTS, ONE GREY (pass-off item 9, 2026-09-26). The
-                        saving is the app's estimate, so it wears the key's sky
-                        (.fact.est), the same ink the session's catch-up banner
-                        gives this same number; the guarantee beside it is the
-                        row's one grey. A stated length (the cool-down) is a
-                        number with no state, so it is white. The line is a
-                        wrapping .conn-meta, not a clamped .facts, so at type
-                        scale 1.4 the second fact takes the next line whole
-                        rather than ellipsising (the lead's facts-line rule),
-                        and the stylesheet still draws the dot between them. */}
+                    <div className="conn-name truncate">{f.name}</div>
                     <div className="conn-meta">
-                      {o.est
-                        ? <span className="fact est">{o.sub}</span>
-                        : <span className="fact"><b>{o.sub}</b></span>}
-                      {o.note && <span className="fact">{o.note}</span>}
+                      {f.subs.map((t) => <span className="fact" key={t}>{t}</span>)}
                     </div>
                   </div>
-                  <div className={"switch" + (o.on ? "" : " off")} role="switch" aria-checked={o.on} tabIndex={0}
+                  <div className={"switch" + (f.on ? "" : " off")} role="switch" aria-checked={f.on} tabIndex={0}
                     onClick={own(() => toggle(o.key))} />
                 </div>
-              ))}
-            </div></div>
-          </>
+              );
+            })}
+          </div></div>
         )}
 
+        {/* THE FIT LINE IS PLAIN TEXT (the board): "Fits: 56 Min · All 8 Exercises at Your Logged Pace", the values bold, no
+            pill. The honesty line (D5 "needs D7 for honest numbers") is the sentence's tail: which world the estimate came
+            from. A For Time cap is the ceiling, not a forecast, so it is named when counted. */}
         <div className="pad-x">
           <div className="fit-line">
-            {/* The total is the app's estimate, so it wears the estimate ink
-                (§AM); the span has no size of its own and takes the line's. */}
-            <span>Fits: <span className="fact est">{spanLabel(est.min)}</span></span>
-            {/* No cap says nothing here: the selected No Cap chip above says it. */}
-            {budget > 0 && <span className={budgetTone}>{over > 0 ? `${spanLabel(over)} Over` : over < 0 ? `${spanLabel(-over)} Under` : "On Budget"}</span>}
-          </div>
-          {/* The honesty line (D5 "needs D7 for honest numbers"): the sheet
-              always says which world its estimate came from. GYM-F-07
-              (2026-09-05): a conditioning block is priced from its own stated
-              clock, not from any pace, so a day made only of clocks says that
-              instead of blaming a default pace it never used. A For Time cap
-              is where the clock stops, not how long the work takes -- the only
-              number in this sheet that can only be too high -- so when one is
-              counted it rides the same line rather than stacking a second
-              grey under it (§AK). */}
-          {/* Title Case by the whole rule (pass-off item 9, 2026-09-26):
-              "4 of 4 Lifts at Your Logged Pace", "Default Pace, Improves as
-              You Log". The default wording is the one pacing.ts's paceLine
-              carries, and laws.test.ts pins it in both files. */}
-          <div className="conn-meta">
-            {est.liftCount === 0 && est.condCount > 0
-              ? lineCase("timed from the block's own clock")
-              : est.learnedCount > 0
-                ? lineCase(`${est.learnedCount} of ${est.liftCount} exercises at your logged pace`)
-                : "Default Pace, Improves as You Log"}
-            {est.cappedCount > 0 && lineCase("; a For Time cap is the ceiling, not a forecast")}
+            <span className="fit-k">Fits:</span>
+            <span className="facts">
+              <span className="fact"><b>{spanLabel(est.min)}</b></span>
+              <span className="fact">
+                {est.liftCount > 0 && picked === doable.length
+                  ? <><b>{lineCase(`all ${doable.length} ${doable.length === 1 ? "exercise" : "exercises"}`)}</b>{est.learnedCount === est.liftCount && est.learnedCount > 0 ? " at Your Logged Pace" : ""}</>
+                  : <><b>{lineCase(`${picked} of ${doable.length} exercises`)}</b></>}
+              </span>
+              {!(est.liftCount > 0 && picked === doable.length && est.learnedCount === est.liftCount && est.learnedCount > 0) && <span className="fact">{paceLine}</span>}
+              {est.cappedCount > 0 && <span className="fact">A For Time Cap Is the Ceiling, Not a Forecast</span>}
+              {budget > 0 && over !== 0 && <span className="fact"><b>{over > 0 ? `${spanLabel(over)} Over` : `${spanLabel(-over)} Under`}</b></span>}
+            </span>
           </div>
         </div>
         </div>

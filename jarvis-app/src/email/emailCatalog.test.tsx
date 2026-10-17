@@ -181,7 +181,8 @@ describe("the cards: the facts are separate spans, the colour is the key, the li
   it("an event: the day and the 12-hour span are neutral small-caps facts, the zone is the one grey; a missing zone is a need", () => {
     // The day is read in the event's own zone (issue 112), so "now" is noon Eastern as an instant, not the host's local noon,
     // which is already another day in New York on a machine far enough east.
-    const { container } = cards([cand("c1", EVENT), cand("c2", { ...EVENT, time: { ...EVENT.time, timezone: "" } }, { id: "c2", missing_fields: ["timezone"] })], { now: () => new Date("2026-10-05T16:00:00Z") });
+    // 9 AM Eastern: before the 10 o'clock meeting, because a card whose event has ended is not drawn at all (isPastEvent, 2026-10-17).
+    const { container } = cards([cand("c1", EVENT), cand("c2", { ...EVENT, time: { ...EVENT.time, timezone: "" } }, { id: "c2", missing_fields: ["timezone"] })], { now: () => new Date("2026-10-05T13:00:00Z") });
     const [zoned, bare] = [...container.querySelectorAll(".email-card")];
     expect(texts(zoned!, ".conn-meta .fact")).toEqual(["Today", "10:00 AM to 11:00 AM", "Eastern"]);
     expect(zoned!.querySelectorAll(".fact.date").length).toBe(2);

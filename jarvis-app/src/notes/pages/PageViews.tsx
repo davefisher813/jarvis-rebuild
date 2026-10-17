@@ -6,6 +6,7 @@ import {
   type PageData, type PageRecord, type RosterChange,
   golfTotals, holeWord, scoreOf, toParLabel, recordName, labelOf, OUTREACH_STATUS,
 } from "./pageModel";
+import { suggestedFor } from "./templateLogic";
 
 // THE FOUR TEMPLATE PAGES, DRAWN (issue #115, slice 1). Phone first: a
 // readable page with clear actions, never a grid to arrange. Every record is
@@ -24,20 +25,49 @@ function flagFact(page: PageData, r: PageRecord) {
 }
 
 // ---------------------------------------------------------------------------
+// WHAT THE PAGE STARTS WITH (Alfred 2026-10-16: 24 templates opened as an empty shell, a "0 Items" counter and one Add). A page
+// with no rows yet shows the fields its rows will have, as a quiet facts line under a head whose capsule opens the Fields sheet,
+// and the fields the template offers in one tap, each a row whose word is Add (the shape SuggestCard already draws). Nothing here
+// is added by being shown. The fields' names are the facts, so the line is the row's one grey.
+
+export function StarterCard({ page, onFields, onSuggest }: { page: PageData; onFields?: () => void; onSuggest?: (key: string) => void }) {
+  const fields = page.fields;
+  const suggested = onSuggest ? suggestedFor(page) : [];
+  if (!fields.length) return null;
+  return (
+    <>
+      <Head label="Starts With" action={onFields ? { label: "Edit Fields", onClick: onFields } : undefined} />
+      <Card>
+        <Row label={fields.length === 1 ? "1 Field" : `${fields.length} Fields`} onClick={onFields} chev={!!onFields}
+          meta={<>{fields.map((f) => <span key={f.key} className="fact"><U>{f.label}</U></span>)}</>} />
+      </Card>
+      {suggested.length > 0 && (
+        <>
+          <Head label="Suggested" count={suggested.length} />
+          <Card>{suggested.map((f) => <Row key={f.key} label={f.label} value="Add" onClick={() => onSuggest!(f.key)} />)}</Card>
+        </>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Team Sheet
 
-export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLineup }: {
+export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLineup, onFields }: {
   page: PageData;
   lineups: { id: string; title: string; date: string }[];
   onOpen: (recordId: string) => void;
   onAdd: () => void;
   onMakeLineup?: () => void;
   onOpenLineup: (noteId: string) => void;
+  onFields?: () => void;
 }) {
   const n = page.records.length;
   return (
     <>
-      <Head label={n === 1 ? "1 Player" : `${n} Players`} action={{ label: "Add Player", onClick: onAdd }} />
+      <Head label={n === 0 ? "Players" : n === 1 ? "1 Player" : `${n} Players`} action={{ label: "Add Player", onClick: onAdd }} />
+      {n === 0 && <StarterCard page={page} onFields={onFields} />}
       {n > 0 && (
         <Card>
           {page.records.map((r) => {
@@ -134,11 +164,12 @@ const STATUS_TONE: Record<string, string> = {
   Closed: "good",
 };
 
-export function OutreachView({ page, onOpen, onAdd }: { page: PageData; onOpen: (recordId: string) => void; onAdd: () => void }) {
+export function OutreachView({ page, onOpen, onAdd, onFields }: { page: PageData; onOpen: (recordId: string) => void; onAdd: () => void; onFields?: () => void }) {
   const n = page.records.length;
   return (
     <>
-      <Head label={n === 1 ? "1 Contact" : `${n} Contacts`} action={{ label: "Add Contact", onClick: onAdd }} />
+      <Head label={n === 0 ? "Contacts" : n === 1 ? "1 Contact" : `${n} Contacts`} action={{ label: "Add Contact", onClick: onAdd }} />
+      {n === 0 && <StarterCard page={page} onFields={onFields} />}
       {n > 0 && (
         <Card>
           {page.records.map((r) => {

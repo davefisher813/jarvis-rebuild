@@ -40,7 +40,11 @@ describe("HistoryScreen: Lifts / Sessions", () => {
     expect(len.tagName).toBe("B");
     expect(len.closest(".row-value")).not.toBeNull();
     expect(len.closest(".fact")).not.toHaveClass("amber");
-    expect(screen.getByText("12 Sets")).toHaveClass("fact", "lime");
+    // AMENDED 2026-10-16 (the board, screen 4): set counts stay neutral grey; nothing lime.
+    expect(screen.getByText("12 Sets")).toHaveClass("fact");
+    expect(screen.getByText("12 Sets")).not.toHaveClass("lime");
+    // August is folded to its summary row until tapped (the board, screen 4).
+    fireEvent.click(screen.getByText("1 Workout"));
     expect(screen.getByText("1 Set")).toBeInTheDocument();
   });
 
@@ -87,5 +91,67 @@ describe("History before the workouts have loaded", () => {
   it("once loaded, an empty history is the honest empty state", () => {
     render(<HistoryScreen workouts={[]} status="ready" onBack={() => {}} onOpenLift={() => {}} />);
     expect(screen.getByText("No Numbers Yet")).toBeInTheDocument();
+  });
+});
+
+// TWO WAYS TO LOG, FROM HISTORY (Dave 2026-10-16, T): Same as Last Time and
+// Log a Past Workout were reachable only inside a program day. Two taps here.
+describe("History's Log action", () => {
+  const ws = [workout("w1", "2026-09-12", "Push Day", 47, 12)];
+  it("opens a sheet with both, and each is one more tap", () => {
+    const onSame = vi.fn(), onPast = vi.fn();
+    render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} onSameAsLastTime={onSame} onLogPast={onPast} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log" }));
+    expect(screen.getByText("Log a Workout")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Same as Last Time" }));
+    expect(onSame).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Log" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log a Past Workout" }));
+    expect(onPast).toHaveBeenCalledTimes(1);
+  });
+  it("draws no Log action when the caller offers neither", () => {
+    render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Log" })).toBeNull();
+  });
+  it("the session count is the key's white, never the done green (the colour code)", () => {
+    render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} />);
+    expect(document.querySelector(".pill-good")).toBeNull();
+    const count = screen.getByText("1", { selector: ".row-value .fact b" });
+    expect(count).toBeInTheDocument();
+  });
+});
+
+// THE BOARD, SCREEN 4 (Dave's approved mockup board, 2026-10-16): grey eyebrows
+// for This Week and Last Week, the older month folded to a summary row, and one
+// row shape: a green check, the name, a gold PR mark where a record fell, the
+// date and sets in grey, the length white on the right, a chevron.
+describe("History: the board's order and colours", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); });
+  afterEach(() => { vi.useRealTimers(); });
+  const ws = [
+    { ...workout("w1", "2026-09-12", "Pull Day", 66, 21), data: { ...workout("w1", "2026-09-12", "Pull Day", 66, 21).data, exercises: [{ exerciseId: "b", name: "Bench", kind: "weight_reps" as const, unit: "lb", sets: [{ id: "p", w: 200, r: 5 }] }] } },
+    workout("w2", "2026-09-04", "Push Day", 25, 6),
+    workout("w3", "2026-08-20", "Legs", 52, 1),
+    workout("w4", "2026-08-12", "Legs", 40, 9),
+  ];
+  it("groups under eyebrows, folds the month, and each row reads the same way", () => {
+    const { container } = render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} onOpenWorkout={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Workouts" }));
+    expect([...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent)).toEqual(["This Week", "Last Week", "August"]);
+    // The month is one summary row until tapped.
+    expect(screen.queryByRole("button", { name: /^Open Legs/ })).toBeNull();
+    fireEvent.click(screen.getByText("2 Workouts"));
+    expect(screen.getAllByRole("button", { name: /^Open Legs/ })).toHaveLength(2);
+    // The row: green check, name, PR (the 200 lb bench beat the 135 before it), grey date and sets, white length, chevron.
+    const pull = screen.getByRole("button", { name: /^Open Pull Day/ });
+    expect(pull.querySelector(".hist-done")).not.toBeNull();
+    expect(pull.querySelector(".se-pr")).toHaveTextContent("PR");
+    expect([...pull.querySelectorAll(".facts .fact")].map((f) => f.textContent)).toEqual(["Sep 12", "1 Set"]);
+    expect(pull.querySelector(".facts .fact.lime")).toBeNull();
+    expect(pull.querySelector(".row-value .fact b")).toHaveTextContent("1h 6m");
+    expect(pull.querySelector(".chev")).not.toBeNull();
+    // A workout with no record carries no mark, and nothing on the list is lime.
+    expect(screen.getByRole("button", { name: /^Open Push Day/ }).querySelector(".se-pr")).toBeNull();
+    expect(container.querySelector(".fact.lime, .pill-good")).toBeNull();
   });
 });

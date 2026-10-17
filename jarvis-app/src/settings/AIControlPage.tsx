@@ -14,6 +14,7 @@ import { showToast } from "../shared/toast";
 import { titleCase } from "../shared/casing";
 import { Head, Card, Row, Menu, Switch, Foot, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
+import { clock12 } from "../shared/clock";
 
 const LEVEL_LABEL: Record<AILevel, string> = {
   everything: "Everything",
@@ -257,7 +258,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
               fact, the cost is an estimate, and neither is invented. */}
           {tokenRow && <Row label="Tokens Today" value={tokenRow} className="set-sub" />}
           {showCalls && calls.map((c, i) => (
-            <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{new Date(c.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>} className="set-sub" />
+            <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{clock12(c.at)}</span>} className="set-sub" />
           ))}
         </Card>
         </>

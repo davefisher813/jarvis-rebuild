@@ -19,6 +19,12 @@ describe("EventSheet", () => {
     expect(screen.queryByText("Delete Event")).not.toBeInTheDocument();
   });
 
+  // THE PRIMARY FIELD OPENS FOCUSED (the Logging Standard, 2026-10-17).
+  it("a new event opens on its title, keyboard up", () => {
+    render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByLabelText("Event title"));
+  });
+
   it("blocks save until title present, then saves the draft", () => {
     const onSave = vi.fn();
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);

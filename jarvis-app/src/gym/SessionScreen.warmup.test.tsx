@@ -68,7 +68,7 @@ describe("the Now card opens on the side the ramp says", () => {
     expect(cta()).toHaveTextContent("Log Warm-Up 45 Lb × 10");
     expect(pill("Warm-Up")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Now · Warm-Up")).toBeInTheDocument();
-    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(45);
+    expect(screen.getByLabelText("Warm-Up Weight")).toHaveValue(45);
   });
 
   it("with the ramp off it is Work, and the plan's numbers are what it names", () => {
@@ -154,7 +154,7 @@ describe("the Work | Warm-Up pill", () => {
     fireEvent.click(pill("Work"));
     expect(cta()).toHaveTextContent("Log 225 Lb × 5");
     expect(pill("Work")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(225);
+    expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(225);
     expect(screen.getByText("Now · Set 1")).toBeInTheDocument();
   });
 
@@ -170,18 +170,18 @@ describe("the Work | Warm-Up pill", () => {
     fireEvent.click(pill("Warm-Up"));
     // 225 / 2 = 112.5, floored to what a 45 lb bar and 2.5 lb plates can build.
     expect(cta()).toHaveTextContent("Log Warm-Up 110 Lb × 8");
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "95" } });
+    fireEvent.change(screen.getByLabelText("Warm-Up Weight"), { target: { value: "95" } });
     expect(cta()).toHaveTextContent("Log Warm-Up 95 Lb × 8");
   });
 
   it("the choice survives typing", () => {
     renderScreen();
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "50" } });
-    fireEvent.change(screen.getByLabelText("Set 1 reps"), { target: { value: "12" } });
+    fireEvent.change(screen.getByLabelText("Warm-Up Weight"), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText("Warm-Up Reps"), { target: { value: "12" } });
     expect(cta()).toHaveTextContent("Log Warm-Up 50 Lb × 12");
     expect(pill("Warm-Up")).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(pill("Work"));
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "230" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "230" } });
     expect(cta()).toHaveTextContent("Log 230 Lb × 5");
     expect(pill("Work")).toHaveAttribute("aria-pressed", "true");
   });
@@ -231,9 +231,16 @@ describe("the suggestion belongs to the work", () => {
 
   it("shows on the Work side and hides on the Warm-Up side", () => {
     renderScreen([], { history: [past] });
-    expect(screen.queryByText(/^Suggested/)).toBeNull();
+    // The Warm-Up side carries the ramp's own Suggested label (defect I), never the step.
+    expect(screen.queryByText(/Step to/)).toBeNull();
+    expect(screen.getByText("Suggested 45 Lb × 10")).toBeInTheDocument();
     fireEvent.click(pill("Work"));
-    // Work opens at last week's 225 x 5; the suggestion is 230 x 5.
-    expect(screen.getByText(/^Suggested 230 Lb × 5/)).toBeInTheDocument();
+    // Work opens at last week's 225 x 5; the plan's single target of 5 is a range
+    // of 3 to 5, every set was at the top, so the step is 230 x 3 (section 10).
+    expect(screen.getByText("Suggested 230 Lb × 3", { selector: ".fact" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    expect(screen.getByText("Step to 230 × 3", { selector: ".fact" })).toBeInTheDocument();
+    expect(screen.getByText("Last Time 225 × 5, 5", { selector: ".fact" })).toBeInTheDocument();
+    expect(screen.queryByText("Suggested 45 Lb × 10")).toBeNull();
   });
 });

@@ -24,10 +24,12 @@ import { dayTone } from "../messages/factsLine";
 import { DAY_PRESETS } from "../tasks/reminders";
 import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
+import { spokenInto } from "../shared/useDictation";
 import { lineCase } from "../shared/casing";
 import { flagOn } from "../substrate/flags";
 import { capturePeople } from "../paste/captureContext";
 import { heldText, savedToastText } from "../shared/saved";
+import { clock12 } from "../shared/clock";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -52,7 +54,7 @@ function fmtClock(hhmm: string): string {
   const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
   const d = new Date();
   d.setHours(h ?? 9, m ?? 0);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return clock12(d);
 }
 
 // The resolved date and the clock time, as two facts ("Thursday, Aug 20",
@@ -150,7 +152,7 @@ function fmtRecent(ts: number): string {
   const d = new Date(ts);
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
-  if (sameDay) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  if (sameDay) return clock12(d);
   const yd = new Date(today.getTime() - 86400000);
   if (d.toDateString() === yd.toDateString()) return "Yesterday";
   return shortDateFromMs(ts);
@@ -173,6 +175,9 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // Same seam for the genome: no strand store means the fact lane is closed
   // and a self-fact lands as a task, exactly as it did before Quick Add.
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
+  // Dictation writes into the same draft the keyboard does (spokenInto): the
+  // phrase being said replaces itself until it settles, typing clears the base.
+  const spokenBase = useRef<string | null>(null);
   const strands = useOptionalStrands();
   // UP-CORE-01 reads Contacts and Projects to match names against; UP-MIND-08
   // WRITES to Contacts when a line states a fact about somebody. One reader
@@ -456,7 +461,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               aria-label="Paste or Type"
               placeholder="Dinner with Marco Thursday 7:00 PM"
               value={text}
-              onChange={(e) => { setText(e.target.value); setDupAge(null); }}
+              onChange={(e) => { spokenBase.current = null; setText(e.target.value); setDupAge(null); }}
               autoFocus
             />
             {/* ONE ROW OF THE FIELD'S OWN AIDS, DIRECTLY UNDER IT (Dave 2026-10-05, the review: Speak sat 6px under the field at
@@ -469,7 +474,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                 dictation on its keyboard. Speak points at it. Brain Manual v1 (2026-09-27): the filing doors open the one
                 filing sheet (3 fields max) on top; the capture flow is untouched. */}
             <div className="msg-quiet-acts">
-              <Dictate target={boxRef} />
+              <Dictate target={boxRef} onText={(words, final) => { setText((cur) => spokenInto(spokenBase, cur, words, final)); setDupAge(null); }} />
               {brain && <button className="quiet-action" onClick={() => setFilingMode("decision")}>Log the Decision</button>}
               {brain && <button className="quiet-action" onClick={() => setFilingMode("remember")}>Remember This</button>}
             </div>

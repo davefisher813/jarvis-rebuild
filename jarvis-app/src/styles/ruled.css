@@ -818,7 +818,7 @@
    The same arithmetic every named size in this file already uses. */
 .ruled .sched-time { width: calc(62px * var(--type-scale)); font-size: var(--t-sub); font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
   padding-top: var(--s-0h); text-align: right; }
-.ruled .sched-time .ampm { font-size: var(--t-micro); font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; margin-left: var(--s-0h); }
+.ruled .sched-time .ampm { font-size: var(--t-micro); font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; }
 /* THE RAIL SITS AFTER THE TIME GUTTER, WHATEVER LEADS THE ROW (Dave
    2026-09-16, photographed: a teal line drawn straight through "7:59 PM").
    The rail is absolutely positioned while everything else in the row is laid
@@ -1356,10 +1356,6 @@
    letterform (§AM F5, 2026-09-25) on the kicker token, not a raw 11. */
 .ruled .sched-now .t { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
   text-transform: uppercase; color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-/* The merged time popover: when it starts, and how long it runs. */
-.ruled .time-pop-durs { margin-top: var(--s-3); }
-.ruled .time-pop-durs .input-label { margin-bottom: var(--s-1h); }
-.ruled .time-pop-durs .plan-durs { padding: 0; }
 
 /* ---------- MONEY, PORTED (Notes and Money catalog, 2026-09-02) ----------
    The balance is a hero that holds its own accounts: the total big, the
@@ -1956,11 +1952,11 @@
    ahead. So the logged rows keep the page's ink and the ghost keeps its
    dashed grey, and the PR mark below is what goes loud. */
 
-/* Every chart, bar and sparkline in the module reads as MEASUREMENT, so they
-   all take the measurement hue instead of the app blue. */
+/* A chart's own baseline (its currentColor) is the quiet ink: the strokes
+   carry their own tokens, and teal and lime each mean one thing now
+   (2026-10-16). */
 .ruled.health-ruled .row-sparkline, .ruled.health-ruled .lift-chart,
-.ruled.health-ruled .ht-spark { color: var(--hl-cyan); }
-.ruled.health-ruled .lift-bars { color: var(--hl-lime); }
+.ruled.health-ruled .ht-spark, .ruled.health-ruled .lift-bars { color: var(--tx-3); }
 
 /* The barbell tile, wherever it appears. */
 .ruled.health-ruled .h-hero-ico { background: var(--hl-lime-tint); color: var(--hl-lime-ink); }
@@ -1969,7 +1965,8 @@
    status palette (which means "you are behind") and onto the ramp (which
    means "here is a reading"). A banner is information on these screens. */
 .ruled.health-ruled .banner-good { box-shadow: inset 0 0 0 1px var(--hl-lime-tint); background-image: linear-gradient(var(--hl-lime-tint), var(--hl-lime-tint)); }
-.ruled.health-ruled .banner-blue { box-shadow: inset 0 0 0 1px var(--hl-cyan-tint); background-image: linear-gradient(var(--hl-cyan-tint), var(--hl-cyan-tint)); }
+/* (.banner-blue's teal wash went on 2026-10-16: teal means last time, and the one card that wore it, the Trend card,
+   is plain now.) */
 .ruled.health-ruled .banner-warn { box-shadow: inset 0 0 0 1px var(--hl-amber-tint); background-image: linear-gradient(var(--hl-amber-tint), var(--hl-amber-tint)); }
 /* The cool-down card: medication-free blue off the ramp, fading from the top
    of the card to nothing at its foot (Dave 2026-09-13). */
@@ -1987,6 +1984,11 @@
 .ruled.health-ruled .card.banner-warn:has(.eyebrow-warn) { box-shadow: inset 0 0 0 1px var(--hl-amber-tint);
   background: linear-gradient(180deg, var(--hl-amber-tint), transparent 90%); }
 .ruled.health-ruled .eyebrow.eyebrow-warn { color: var(--hl-amber-ink); }
+/* THE NOW CARD'S WARM-UP SEGMENT (Dave's board 2026-10-16, screen 1): the
+   "Warm-Up" label of the Work | Warm-Up control wears the warm-up amber while
+   it is not the active segment; the active one keeps the control's own face.
+   The amber ink on the segment ground: 8.6:1 dark, 5.0:1 light. */
+.ruled.health-ruled .se-mode .seg:not(.active):last-child { color: var(--hl-amber-ink); }
 
 /* The big one-tap loggers inside the health module (Lights Out, Took It)
    are the same "commit it" move as Start, so they read the same way. */
@@ -2024,7 +2026,15 @@
 .ruled.health-ruled .se-chip, .sheet-scrim > .card .se-chip { display: inline-flex; align-items: baseline; gap: var(--s-1h); flex-shrink: 0;
   font-size: var(--t-caption); font-weight: var(--w-semi); font-variant-numeric: tabular-nums;
   padding: var(--s-1) var(--s-2h); border-radius: var(--r-pill); white-space: nowrap;
-  color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
+  color: var(--tx-2); background: var(--press-3); }
+/* THE WORKOUT COLOUR CODE (Dave 2026-10-16, "like Apple Health"): every colour
+   has ONE fixed meaning on every workout screen and is never decoration.
+   RED is now and action (the Log button, the current set, Start). GREEN is
+   done. AMBER is warm-up. BLUE is cool-down. PURPLE is a standing best.
+   GOLD is a personal record and nothing else. TEAL is last time (the previous
+   session's numbers). Everything else sits on the warm neutrals. The rules
+   below each carry one of those meanings; a chip with none of them is
+   neutral, which is why the base chip above is no longer teal. */
 .ruled.health-ruled .se-chip em, .sheet-scrim > .card .se-chip em { font-style: normal; font-size: var(--t-micro);
   font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; color: var(--tx-2); }
 .ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; column-gap: var(--s-1h);
@@ -2056,15 +2066,25 @@
    on the lift screen) and on the session screen it sits beside .se-chip-best,
    which is lime. This is the narrower thing -- the day you last finished this
    -- so it gets its own name and the lime that fact already has. */
-.ruled.health-ruled .se-chip-best,
 .ruled.health-ruled .se-chip-done { color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
-.ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
+/* BEST IS PURPLE (Dave 2026-10-16). It wore the done lime, which read as gold
+   beside the PR mark and said "finished" about a number that is a standing
+   record. --hl-best is its own purple, apart from --hl-violet (equipment,
+   pair, budget), so one purple means one thing. */
+.ruled.health-ruled .se-chip-best, .sheet-scrim > .card .se-chip-best { color: var(--hl-best-ink); background: var(--hl-best-tint); }
+/* A PR COUNT IS GOLD, like the PR mark it counts (Dave 2026-10-16). */
+.ruled.health-ruled .se-chip-pr, .sheet-scrim > .card .se-chip-pr { color: var(--hl-gold-ink); background: var(--hl-gold-tint); }
+/* LAST TIME IS TEAL, and teal is last time only. */
+.ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
+/* The projected finish is an estimate, so it is the key's sky (it was teal, which now means last time). */
+.ruled.health-ruled .se-chip-time { color: var(--est-ink); background: color-mix(in srgb, var(--est-ink) 16%, transparent); }
 .ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet-ink); background: var(--hl-violet-tint); }
 /* An estimate the app worked out is sky (§AM, 2026-09-26): the Up Next
    card's length was wearing the budget violet. Health has no sky ink of its
    own, so it takes the key's, washed at the budget violet's 16%. */
 .ruled.health-ruled .se-chip-est { color: var(--est-ink); background: color-mix(in srgb, var(--est-ink) 16%, transparent); }
-.ruled.health-ruled .se-chip-over { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
+/* A finish past the budget is late (--sys-red, the crossed guard's red); amber is warm-up only (2026-10-16). */
+.ruled.health-ruled .se-chip-over { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 
 /* THE HYPERFOCUS GUARD, IN THE ROOM'S OWN LANGUAGE (2026-09-21, Dave on a
@@ -2085,7 +2105,11 @@
    known width and this carries a calendar title -- "General Manager
    (Operations) interview" is 37 characters and nowrap would have run it off
    the screen. */
-.ruled.health-ruled .se-guard { color: var(--hl-amber-ink); background: var(--hl-amber-tint);
+/* AMENDED 2026-10-16 (the colour code): amber means warm-up and nothing else
+   on a workout screen, so the guard is the neutral chip at full ink; it is
+   still louder than a grey fact because it is a chip with an edge, and the
+   crossed guard below still takes the late red. */
+.ruled.health-ruled .se-guard { color: var(--tx-1); background: var(--press-3);
   flex-shrink: 1; min-width: 0; white-space: normal; line-height: 1.35; }
 /* The label is a clock reading and never breaks: white-space: normal on the
    chip is for the TITLE, and it was wrapping "3 PM" onto two lines.
@@ -2094,7 +2118,7 @@
    faded colour is an unmeasurable colour. The label is already separated
    from the title by being smaller, bolder and upper case, the way every
    other .se-chip em is, so it does not need to be dimmer as well. */
-.ruled.health-ruled .se-guard em { color: var(--hl-amber-ink); white-space: nowrap; flex-shrink: 0; }
+.ruled.health-ruled .se-guard em { color: var(--tx-2); white-space: nowrap; flex-shrink: 0; }
 /* §AM: --accent-tx is the BRAND red, and the key reserves red-as-brand for
    things that respond to a tap. A guard that has been crossed is LATE in the
    key's sense, which is --sys-red, the same red every overdue thing wears.
@@ -2136,21 +2160,27 @@
 .ruled.health-ruled .se-dots { display: inline-flex; align-items: center; gap: var(--s-1h); }
 .ruled.health-ruled .se-dot { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--press-3); display: block; }
 .ruled.health-ruled .se-dot.done { background: var(--hl-lime); }
-.ruled.health-ruled .se-dot.skip { background: var(--hl-amber); }
-/* The ring around NOW stays; the 8px bloom behind it does not (R5). */
-.ruled.health-ruled .se-dot.on { background: var(--hl-cyan); box-shadow: 0 0 0 2px var(--hl-cyan-tint); }
+/* A skipped exercise is neither done nor warm-up: a quiet dot (2026-10-16; it was amber). */
+.ruled.health-ruled .se-dot.skip { background: var(--tx-4); }
+/* The ring around NOW stays; the 8px bloom behind it does not (R5).
+   NOW IS RED (Dave 2026-10-16): the current exercise's dot and position count wear the key's red. */
+.ruled.health-ruled .se-dot.on { background: var(--sys-red); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 .ruled.health-ruled .se-count { font-size: var(--t-caption); font-weight: var(--w-bold);
-  color: var(--hl-cyan-ink); font-variant-numeric: tabular-nums; }
+  color: var(--sys-red); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .se-count em { font-style: normal; color: var(--tx-3); font-weight: var(--w-medium); }
 
-/* NOW is a position, so it is lit rather than subdued. */
+/* NOW is a position, so it is lit rather than subdued: a red fill (Dave
+   2026-10-16: red is now and action). The key's system red, not the accent
+   fill, which the one-filled-red law keeps for the control you tap; black on
+   it in dark (6.2:1), white on the deeper light red (5.3:1). */
 .ruled.health-ruled .se-now { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: var(--s-1) var(--s-2h); border-radius: var(--r-pill);
-  color: var(--on-fill-dark); background: var(--hl-cyan); }
+  color: var(--on-fill-dark); background: var(--sys-red); }
+[data-theme="light"] .ruled.health-ruled .se-now { color: #fff; }
 
 /* The set kicker. SET 1 was the same grey as everything under it. */
 .ruled.health-ruled .se-kick, .sheet-scrim > .card .se-kick { font-size: var(--t-micro); font-weight: var(--w-bold);
-  letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan-ink); margin-bottom: var(--s-0h);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-2); margin-bottom: var(--s-0h);
   display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 /* TWO LINES, NOT THREE (Dave's row rule, and his 2026-09-14 screenshot: Set 1
    over the numbers over Last was three stacked lines). Last time rides the
@@ -2163,7 +2193,8 @@
    themes. */
 .ruled.health-ruled .se-chips .se-chip, .ruled.health-ruled .se-kick .se-chip,
 .sheet-scrim > .card .se-kick .se-chip { white-space: normal; flex-shrink: 1; min-width: 0; max-width: 100%; }
-.ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber-ink); }
+/* Up next is quiet ink at full strength, like .se-kick.next below: amber is warm-up only (2026-10-16). */
+.ruled.health-ruled .se-kick.se-kick-next { color: var(--tx-2); }
 
 /* ---------- THE FACTS LINE, IN HEALTH (Health R7, Dave's picks 2026-09-12)
    ---------------------------------------------------------------------------
@@ -2197,6 +2228,14 @@
 .ruled.health-ruled .fact.violet, .sheet-scrim > .card .fact.violet { color: var(--hl-violet-ink); }
 .ruled.health-ruled .fact.hblue,  .sheet-scrim > .card .fact.hblue  { color: var(--hl-blue-ink); }
 .ruled.health-ruled .fact.pink,   .sheet-scrim > .card .fact.pink   { color: var(--hl-pink-ink); }
+/* THE COLOUR CODE'S OWN FACTS (Dave 2026-10-16). .fact.now is the live
+   session's elapsed clock and anything else that is NOW (it wore the teal
+   that now means last time); the system red is the key's red that a fact may
+   wear (the brand red promises a tap, §AM). .fact.best is a standing best;
+   .fact.pr a personal record. */
+.ruled.health-ruled .fact.now,    .sheet-scrim > .card .fact.now    { color: var(--sys-red); }
+.ruled.health-ruled .fact.best,   .sheet-scrim > .card .fact.best   { color: var(--hl-best-ink); }
+.ruled.health-ruled .fact.pr,     .sheet-scrim > .card .fact.pr     { color: var(--hl-gold-ink); }
 /* A state word takes the ramp too, and stays small caps rather than a pill. */
 .ruled.health-ruled .fact.st.lime,  .sheet-scrim > .card .fact.st.lime  { color: var(--hl-lime-ink); }
 .ruled.health-ruled .fact.st.cyan,  .sheet-scrim > .card .fact.st.cyan  { color: var(--hl-cyan-ink); }
@@ -2220,25 +2259,30 @@
    Push B hides the chrome behind it. They are here rather than there because
    the skin is one file and one push, and a half-painted block is how a screen
    ends up with two vocabularies.
-   The vocabulary: the current set is CYAN, the hue this module already uses
-   for "the reading you are on". It is not inverted steel, which read as a
-   disabled row, and it is not red, which in Health is the thing you tap. A
-   finished set is lime, the hue of logged work. What is still ahead is quiet
-   ink at full strength -- an Up next kicker, no dimming (R2). */
-.ruled.health-ruled .se-kick.now { color: var(--hl-cyan-ink); }
+   The vocabulary, as first written (2026-09-12): the current set was CYAN,
+   "the reading you are on", chosen over red because red in Health was the
+   thing you tap. OVERRULED 2026-10-16 (Dave's colour code, like Apple
+   Health: every colour has one fixed meaning on every workout screen): RED
+   is now AND action, the Log button, the current set and Start, one colour
+   for the one thing you are doing. Teal is last time only. A finished set
+   is lime, the hue of logged work. What is still ahead is quiet ink at full
+   strength -- an Up next kicker, no dimming (R2). */
+.ruled.health-ruled .se-kick.now { color: var(--sys-red); }
 .ruled.health-ruled .se-kick.done { color: var(--hl-lime-ink); }
-/* NOW, on the open set chip: a 1.5px cyan inset rule, which is an edge rather
+/* NOW, on the open set chip: a 1.5px red inset rule, which is an edge rather
    than a fill, so the numbers inside stay the loudest thing in the row. */
-.ruled.health-ruled .setrow-now { box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
+.ruled.health-ruled .setrow-now { box-shadow: inset 0 0 0 1.5px var(--sys-red); }
 /* THE SET ROW'S STATES, ON THE STRIP (H-17 / R9, Health Push B, 2026-09-12).
    Done is lime with its check, Now is cyan with the inset rule, Up Next and
    Warm-Up are quiet ink at full strength, Skipped is quieter still. */
 .ruled.health-ruled .se-kick.next { color: var(--tx-2); }
 .ruled.health-ruled .se-kick.warm { color: var(--tx-2); }
 .ruled.health-ruled .se-kick.skipped { color: var(--tx-3); }
-/* Part 3 wave 2 (2026-09-13): a drop segment's kicker wears the load hue, so
-   it reads as weight that moved and never as the working set above it. */
-.ruled.health-ruled .se-kick.drop { color: var(--hl-amber-ink); }
+/* Part 3 wave 2 (2026-09-13): a drop segment's kicker read as weight that
+   moved and never as the working set above it. AMENDED 2026-10-16: amber is
+   warm-up only, so the drop kicker is the quiet ink its word already sets
+   apart. */
+.ruled.health-ruled .se-kick.drop { color: var(--tx-2); }
 .ruled.health-ruled .se-kick-ic { width: 10px; height: 10px; vertical-align: -1px; margin-right: var(--s-1); }
 .ruled.health-ruled .set-chip-ghost.setrow-now { border-color: transparent; }
 /* The session screen leaves room for the Log bar (H-11). */
@@ -2256,11 +2300,12 @@
 .ruled.health-ruled .rest-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-1h); margin-top: var(--s-2); }
 .ruled.health-ruled .rest-acts .pill-act { align-self: auto; max-width: none; }
 
-/* THE REST CLOCK IS THE SCREEN (R4: cyan is the rest timer). It is read from
-   across a rack with a bar on your back, so it is 56px and tabular -- the
-   figures must not shuffle sideways as the seconds tick. */
+/* THE REST CLOCK IS THE SCREEN. It is read from across a rack with a bar on
+   your back, so it is 56px and tabular -- the figures must not shuffle
+   sideways as the seconds tick. It was cyan (R4); teal means last time now
+   (2026-10-16), and a count with no state is the key's white. */
 .ruled.health-ruled .rest-clock { font-size: calc(56px * var(--type-scale)); font-weight: var(--w-bold);
-  letter-spacing: -0.02em; line-height: 1; color: var(--hl-cyan); text-align: center; }
+  letter-spacing: -0.02em; line-height: 1; color: var(--tx-1); text-align: center; }
 
 /* THE LOG BAR (R8). One sticky bar owning the bottom edge of a live session,
    with exactly one primary on it, which is the note editor's .editor-bar
@@ -2301,6 +2346,72 @@
    fallback is what the bar measures at the default text size on a phone with
    an indicator, for the one frame before the measurement lands. */
 .ruled.health-ruled .se-foot { height: var(--logbar-clear, 92px); }
+
+/* ---------- THE BOARD'S FIVE SCREENS (Dave's approved mockup board, 2026-10-16)
+   Layout, order and spacing as the board renders them, in the app's own
+   tokens, cards and face; dark and light differ in colour only. */
+/* Screen 2, the program day: the three neutral pills under the list, and the
+   two secondary buttons side by side under Start. */
+.ruled.health-ruled .day-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2h); }
+.ruled.health-ruled .day-acts .btn { position: relative; min-width: 0; flex: 0 1 auto; }
+.ruled.health-ruled .day-acts .btn::after { content: ""; position: absolute; inset: -5px 0; } /* 44pt reach on a 34px pill */
+.ruled.health-ruled .btn-row { display: flex; gap: var(--s-2); }
+.ruled.health-ruled .btn-row > .btn { flex: 1 1 0; min-width: 0; padding-left: var(--s-3); padding-right: var(--s-3); white-space: nowrap; font-size: var(--t-body); }
+/* Screen 3, Doing Today: the title, the number badge, the struck row, the
+   red-outlined length, the plain fit line. */
+.sheet-scrim > .card .fit-head { padding-top: var(--s-2); padding-bottom: var(--s-1); }
+.sheet-scrim > .card .fit-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); line-height: 1.15; color: var(--tx-1); }
+.sheet-scrim > .card .fit-no { flex-shrink: 0; width: 26px; height: 26px; border-radius: var(--r-circle); display: inline-flex;
+  align-items: center; justify-content: center; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--tx-1);
+  background: var(--press-3); box-shadow: inset 0 0 0 1px var(--tx-4); font-variant-numeric: tabular-nums; }
+/* An unticked lift: the badge struck and its ring faded, the name struck (.fit-off); the words keep the one legible grey. */
+.sheet-scrim > .card .fit-no.off { color: var(--tx-3); text-decoration: line-through; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tx-4) 50%, transparent); background: transparent; }
+.sheet-scrim > .card .fit-time { margin-top: var(--s-2); }
+.sheet-scrim > .card .fit-time .chip.active { background: transparent; color: var(--tx-1); box-shadow: inset 0 0 0 1.5px var(--sys-red); }
+/* The fit line reads like a sentence, because it is one: the facts flow inline after "Fits:", the CSS's dot between
+   them, the values bold white, the rest the grey. */
+.sheet-scrim > .card .fit-line { display: block; font-size: var(--t-sub); font-weight: var(--w-regular); color: var(--tx-3); margin-top: var(--s-2); line-height: 1.5; }
+.sheet-scrim > .card .fit-line .fit-k { color: var(--tx-1); font-weight: var(--w-semi); margin-right: var(--s-1); }
+.sheet-scrim > .card .fit-line .facts, .sheet-scrim > .card .fit-line .fact { display: inline; white-space: normal; overflow: visible; margin: 0; }
+.sheet-scrim > .card .fit-line .fact b { color: var(--tx-1); }
+/* Screen 4, History: the done check on the name, the PR mark beside it. */
+.ruled.health-ruled .hist-done { width: 14px; height: 14px; color: var(--good); vertical-align: -2px; margin-right: var(--s-1h); stroke-width: 3; }
+.ruled.health-ruled .conn-name .se-pr { margin-left: var(--s-1h); vertical-align: 2px; }
+/* Screen 5, the exercise page: the big name, the best and the estimate side by
+   side, the axis under the line, the week labels under the bars, the goal row. */
+.ruled.health-ruled .lift-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: var(--track-h1); line-height: 1.15; color: var(--tx-1); padding: var(--s-1) 0 var(--s-2); overflow-wrap: anywhere; }
+.ruled.health-ruled .lift-cells { display: flex; justify-content: space-between; gap: var(--s-3); }
+.ruled.health-ruled .lift-cell { min-width: 0; }
+.ruled.health-ruled .lift-cell-r { text-align: right; }
+.ruled.health-ruled .lift-big { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1; margin-top: var(--s-1); color: var(--tx-1); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ruled.health-ruled .lift-big-best { color: var(--hl-best-ink); }
+.ruled.health-ruled .eyebrow.eyebrow-best { color: var(--hl-best-ink); }
+.ruled.health-ruled .lift-top .se-chips { margin-top: var(--s-3); }
+/* A PR count is a gold outline (the board). */
+.ruled.health-ruled .se-chip-pr { background: transparent; box-shadow: inset 0 0 0 1px var(--hl-gold-ink); }
+.ruled.health-ruled .lift-progress .lift-chart { margin-top: var(--s-2h); }
+.ruled.health-ruled .lift-axis { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-1); }
+.ruled.health-ruled .lift-axis .facts { margin-top: 0; }
+.ruled.health-ruled .lift-bar-labels { display: flex; gap: var(--s-1h); margin-top: var(--s-1); }
+.ruled.health-ruled .lift-bar-labels span { flex: 1; text-align: center; font-size: var(--t-micro); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0.04em; }
+.ruled.health-ruled .lift-bar-labels + .conn-meta { margin-top: var(--s-2); }
+/* The goal-and-milestones card: a goal's bar sits under its facts, the card's own step above the rest of the page. */
+.ruled.health-ruled .lift-goals { margin-bottom: var(--s-2); }
+.ruled.health-ruled .lift-goals .bp-bar { margin-top: var(--s-2); }
+/* Screen 6, the Health hub: the big line and the next-day line under the
+   eyebrow, three white stats, seven day bars (trained days green; the bar
+   rules themselves sit with the week card's, further down). */
+.ruled.health-ruled .h-hero-static { cursor: default; padding-bottom: var(--s-1); }
+.ruled.health-ruled .h-hero-next { padding-top: 0; padding-bottom: var(--s-2h); align-items: center; }
+.ruled.health-ruled .h-hero-next .h-hero-facts { margin-top: 0; flex: 1; min-width: 0; flex-wrap: wrap; white-space: normal; overflow: visible; row-gap: 0; }
+.ruled.health-ruled .h-hero-next .h-hero-facts .fact { white-space: normal; overflow: visible; text-overflow: clip; }
+/* The goal bars stay neutral on the training screens (the board, screens 5 and 6): the one green is Done. */
+.ruled.health-ruled .bp-bar-fill { background: var(--tx-4); }
+.ruled.health-ruled .gym-log { margin-bottom: var(--s-4); }
+.ruled.health-ruled .h-stats { margin-top: var(--s-3); }
+/* THE DAY'S LOG BLOCK (Dave 2026-10-16, T): Start, then Same as Last Time and
+   Log a Past Workout as real secondary buttons, stacked on the grid's step. */
+.ruled.health-ruled .gym-log { display: flex; flex-direction: column; gap: var(--s-2); }
 /* THE NOW ROW STOPS ABOVE THE LOG BUTTON (Dave 2026-10-09, pass-off item 8).
    Any scroll that brings the Now row or one of its fields into view (the
    reveal in SetStrip, the browser's own scroll to a focused field) leaves the
@@ -2313,16 +2424,17 @@
    move at that point and the extra set is the exception. */
 .ruled.health-ruled .logbar .btn:not(:only-child) { flex: 1 1 0; min-width: 0; }
 .ruled.health-ruled .logbar .btn.btn-launch:not(:only-child) { flex: 1.35 1 0; }
-/* The PR mark, the loudest good thing a session can say. Lime fill, no bloom
-   behind it (R5): the hue is already the loudest thing on the screen. */
-.ruled.health-ruled .se-pr { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
+/* The PR mark, the loudest good thing a session can say. GOLD (Dave
+   2026-10-16: gold is a personal record and nothing else), no bloom behind
+   it (R5): the hue is already the loudest thing on the screen. */
+.ruled.health-ruled .se-pr, .sheet-scrim > .card .se-pr { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: var(--s-1) var(--s-2h); border-radius: var(--r-pill);
-  color: var(--on-fill-dark); background: var(--hl-lime); }
+  color: var(--on-fill-dark); background: var(--hl-gold); }
 
 /* The plates, as plates. */
 .ruled.health-ruled .se-plates, .sheet-scrim > .card .se-plates { display: flex; flex-wrap: wrap; gap: var(--s-1h); }
 .ruled.health-ruled .se-plate, .sheet-scrim > .card .se-plate { font-size: var(--t-caption); font-weight: var(--w-bold);
-  font-variant-numeric: tabular-nums; color: var(--hl-amber-ink); background: var(--hl-amber-tint);
+  font-variant-numeric: tabular-nums; color: var(--tx-1); background: var(--press-3);
   padding: var(--s-1) var(--s-2h); border-radius: var(--r-pill); }
 .ruled.health-ruled .se-plate-k, .sheet-scrim > .card .se-plate-k { font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-2); margin-top: var(--s-1h); }
@@ -2333,18 +2445,20 @@
 .ruled.health-ruled .se-note { font-size: var(--t-sub); font-style: italic;
   color: var(--tx-quiet); margin-top: var(--s-2); }
 
-/* HOW IT MOVED: three meanings, three colours, at rest AND when picked. A
-   dot carries the hue while the chip is unpicked, so the scale is readable
-   before anything is chosen. */
+/* HOW IT MOVED: three steps, at rest AND when picked. A dot carries the hue
+   while the chip is unpicked, so the scale is readable before anything is
+   chosen. Clean is lime (it moved, done clean); missed is pink; the grind in
+   between is the quiet ink, because amber means warm-up and nothing else on
+   a workout screen (Dave 2026-10-16). */
 .ruled.health-ruled .chip.mv { position: relative; padding-left: var(--s-7); }
 .ruled.health-ruled .chip.mv::before { content: ""; position: absolute; left: 11px; top: 50%; margin-top: -3.5px;
   width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--mv-hue); }
 .ruled.health-ruled .chip.mv.mv-clean { --mv-hue: var(--hl-lime); }
-.ruled.health-ruled .chip.mv.mv-grind { --mv-hue: var(--hl-amber); }
+.ruled.health-ruled .chip.mv.mv-grind { --mv-hue: var(--tx-3); }
 .ruled.health-ruled .chip.mv.mv-missed { --mv-hue: var(--hl-pink); }
 .ruled.health-ruled .chip.mv.active { color: var(--mv-hue); background: var(--mv-tint); box-shadow: inset 0 0 0 1px var(--mv-hue); }
 .ruled.health-ruled .chip.mv.mv-clean.active { --mv-tint: var(--hl-lime-tint); }
-.ruled.health-ruled .chip.mv.mv-grind.active { --mv-tint: var(--hl-amber-tint); }
+.ruled.health-ruled .chip.mv.mv-grind.active { --mv-tint: var(--press-3); }
 .ruled.health-ruled .chip.mv.mv-missed.active { --mv-tint: var(--hl-pink-tint); }
 
 /* ---------- AND THE GREY SUBTEXT EVERYWHERE ELSE ON THESE SCREENS --------
@@ -2359,7 +2473,9 @@
    .conn-meta was already there. Stated rather than assumed, because the law
    below scans this block for anything quieter. */
 .ruled.health-ruled .conn-meta { color: var(--tx-3); }
-.ruled.health-ruled .conn-meta b, .ruled.health-ruled .conn-name b { color: var(--hl-cyan-ink); font-weight: var(--w-semi); }
+/* An emphasis inside a meta line steps up to --tx-1 (§AM): it wore the teal
+   that means last time (2026-10-16). */
+.ruled.health-ruled .conn-meta b, .ruled.health-ruled .conn-name b { color: var(--tx-1); font-weight: var(--w-semi); }
 /* An eyebrow on these screens is a LABEL, so it keeps the quiet ramp -- but
    --tx-4 was the past-state grey, which is invisible on a phone in a gym.
    R2 (2026-09-12) takes it one further rung, to --tx-2: on the harness there
@@ -2618,7 +2734,7 @@
    done tick, so the one green is the key's. */
 .ruled.health-ruled .h-week-count.zero b { color: var(--tx-1); }
 .ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
-.ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1); min-width: 0; }
+.ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1h); min-width: 0; margin-top: var(--s-3h); }
 /* ONE HEIGHT, WHATEVER THE WEEK DID (2026-09-21, the first audit ever run on
    this screen). The bar's height is the datum, so on a quiet week all seven
    buttons collapsed to 43x27 and the whole strip changed height as the data
@@ -2629,8 +2745,10 @@
 .ruled.health-ruled .h-bar { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--s-1h);
   background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
-.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: var(--r-xs); background: color-mix(in srgb, var(--tx-4) 55%, transparent); }
-.ruled.health-ruled .h-bar.on i { background: var(--hl-lime); }
+/* THE BOARD'S BARS (Dave's approved board 2026-10-16, screen 6): wide, a trained day in the done green, a rest day in the
+   warm grey; they were 10px lime pips. */
+.ruled.health-ruled .h-bar i { display: block; width: 100%; max-width: 40px; height: 10px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--tx-4) 45%, transparent); }
+.ruled.health-ruled .h-bar.on i { background: var(--good-fill); }
 .ruled.health-ruled .h-bar.today { color: var(--tx-1); }
 .ruled.health-ruled .h-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: var(--s-3h); }
 /* THE TILES ARE THE SAME HEIGHT WHATEVER THEIR LABELS DO (2026-09-21, seen
@@ -3283,24 +3401,20 @@
   content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 
-/* HEALTH: metadata pills and facts are neutral (#363A43 on the neutral
-   pill); the lime that carries a number is the ink #4E7402, the bright lime
-   stays a decorative fill; chart tracks are the neutral grey. */
+/* HEALTH IN LIGHT: A CHIP KEEPS ITS MEANING (Dave 2026-10-16, the colour
+   code: light and dark differ in colour only). This block used to neutralise
+   every chip and every lime fact in light, so Best, Last, Done and the
+   estimate said something in dark and nothing in light. Each meaning chip
+   now reads its own -ink twin in both themes (the light inks are the ones
+   measured to clear AA on white, jarvis-design-system.css); only the chips
+   that are neutral in dark (a plain date, a pin, a game) are neutral here,
+   on the opaque raised surface instead of the translucent press. */
 [data-theme="light"] .ruled.health-ruled .se-chip,
-[data-theme="light"] .sheet-scrim > .card .se-chip,
-[data-theme="light"] .ruled.health-ruled .se-chip-best,
-[data-theme="light"] .ruled.health-ruled .se-chip-done,
-[data-theme="light"] .ruled.health-ruled .se-chip-last,
-[data-theme="light"] .ruled.health-ruled .se-chip-time,
-[data-theme="light"] .ruled.health-ruled .se-chip-budget,
-[data-theme="light"] .ruled.health-ruled .se-chip-pair,
-[data-theme="light"] .ruled.health-ruled .se-chip-est,
+[data-theme="light"] .sheet-scrim > .card .se-chip { background: var(--surface-3); }
 [data-theme="light"] .ruled.health-ruled .se-chip-pin,
 [data-theme="light"] .ruled.health-ruled .se-chip-when,
 [data-theme="light"] .ruled.health-ruled .se-chip-game { color: var(--tx-2); background: var(--surface-3); }
 [data-theme="light"] .ruled.health-ruled .se-chip em { color: var(--tx-2); }
-[data-theme="light"] .ruled.health-ruled .fact.lime,
-[data-theme="light"] .sheet-scrim > .card .fact.lime { color: var(--tx-2); }
 [data-theme="light"] .ruled.health-ruled .stat-tile .stat-num,
 [data-theme="light"] .ruled.health-ruled .ins-big.lime { color: var(--hl-lime-ink); }
 [data-theme="light"] .chip.active.chip-lime,
@@ -3550,3 +3664,46 @@
 .sheet-bar-cancel, .sheet-bar-save { min-width: calc(var(--s-10) + var(--s-9)); }
 /* A strip of a picker (a colour family) is a row without a tile, so its hairline starts where its label does, not 20px in. */
 .form-sheet .row.xs-strip + .row.xs-strip::before { left: var(--s-3); }
+
+/* ---------- THE ACTIVE WORKOUT, 2026-10-17 (layout only; no colour here) ----
+   Defects C, D, N and section 8 of the 2026-10-17 pass. Every rule below is
+   geometry: a cursor, a scroll margin, a wrap. Colour stays where the Colour
+   Key keeps it (components.css). */
+/* A PLANNED ROW THAT OPENS ITS EDITOR IS A DOOR (defect C). The plan rows
+   after the Now card took a tap and did nothing; given an editor they say so
+   with the pointer, as every other row does. */
+.ruled.health-ruled .set-chip-ghost.se-next.se-door { cursor: pointer; }
+/* THE NOW ROW STOPS UNDER THE TOP BAR (defect N). The reveal in SetStrip
+   (scrollIntoView, nearest) and the browser's own scroll to a focused field
+   both tucked the row, and the progress line above it, under the sticky
+   .nav-bar (44px plus its own top padding and the safe area). The margin is
+   that bar plus a step, so the row lands below it. One rule for both themes. */
+.ruled.health-ruled .setrow-now,
+.ruled.health-ruled .setrow-now .set-field,
+.ruled.health-ruled .se-grid .set-field { scroll-margin-top: calc(44px + var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px)) + var(--s-3)); }
+/* THE SUGGESTION'S REASON IS A FACTS LINE OF ITS OWN (section 10): what he
+   did, what it meant, the step, the reps to expect; the Use and Why verbs sit
+   under it on the next row of the same block. */
+/* THE LIFT'S FACTS CARD UNDER THE STRIP (section 8): its first chip row sits
+   on the card's own padding, not a margin of its own. */
+.ruled.health-ruled .se-facts > .se-chips:first-child { margin-top: 0; }
+/* THE LOG BAR IS TWO ROWS (Dave's board, 2026-10-17): the filled Log and its
+   partner on the first, Superset and Add Exercise as equal capsules on the
+   second. The bar's own rule (position, top, translateY) is untouched. */
+.ruled.health-ruled .logbar { flex-direction: column; align-items: stretch; }
+.ruled.health-ruled .logbar-main { display: flex; justify-content: center; gap: var(--s-2); }
+.ruled.health-ruled .logbar-row { display: flex; justify-content: center; gap: var(--s-2); margin-top: var(--s-2); }
+.ruled.health-ruled .logbar-row .pill-act { flex: 1 1 0; max-width: none; align-self: auto; justify-content: center; text-align: center; }
+/* THE NOW CARD'S ONE SMALL LINE (the board): last time, the suggestion and its
+   verbs on one wrapping line; the Why panel takes the whole width under it. */
+.ruled.health-ruled .se-nowline { flex-wrap: wrap; overflow: visible; row-gap: var(--s-0h); margin-top: var(--s-1h); }
+.ruled.health-ruled .se-nowline > .fact { flex: 0 1 auto; white-space: normal; overflow: visible; text-overflow: clip; }
+.ruled.health-ruled .se-nowline > .set-last-act { display: inline; margin-top: 0; }
+.ruled.health-ruled .se-nowline > .se-sugg-why { flex-basis: 100%; }
+.ruled.health-ruled .se-sugg-why > .facts { flex-wrap: wrap; overflow: visible; }
+.ruled.health-ruled .se-sugg-why > .facts > .fact { flex: 0 1 auto; white-space: normal; overflow: visible; text-overflow: clip; }
+/* The one progress line: the facts sit beside the dots. */
+.ruled.health-ruled .se-prog > .se-elapsed { margin: 0; min-width: 0; flex: 1 1 auto; }
+/* The secondary zone's eyebrow and its history card's two chip rows. */
+.ruled.health-ruled .se-details { margin-top: var(--s-4); }
+.ruled.health-ruled .se-hist > .se-chips + .se-chips { margin-top: var(--s-1h); }

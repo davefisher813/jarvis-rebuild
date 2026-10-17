@@ -43,7 +43,7 @@ function layerClassesInMarkup(): Set<string> {
     const src = readFileSync(f, "utf8");
     for (const m of src.matchAll(/className=\{?"([^"]*)"/g)) {
       for (const cls of m[1]!.split(/\s+/)) {
-        if (/^(sheet-scrim|hmenu-scrim|block-menu-scrim|time-pop-scrim|ag-scrim|search-overlay)$/.test(cls)) found.add(cls);
+        if (/^(sheet-scrim|hmenu-scrim|block-menu-scrim|ag-scrim|search-overlay)$/.test(cls)) found.add(cls);
       }
     }
   }

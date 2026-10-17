@@ -171,7 +171,9 @@ describe("the last two", () => {
 
   it("the picker names a measurement only when it is news", () => {
     const sheet = src("gym", "LibraryPickSheet.tsx");
-    expect(sheet).toMatch(/!kindFilter && entry\.kind !== "weight_reps" &&/);
+    // AMENDED 2026-10-16: the test is held in a const, so the Yours mark can yield to it (one grey per row).
+    expect(sheet).toMatch(/const meta = !kindFilter && entry\.kind !== "weight_reps";/);
+    expect(sheet).toMatch(/\{meta && \(/);
   });
 });
 

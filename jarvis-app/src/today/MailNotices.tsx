@@ -28,6 +28,7 @@ export interface MailActResult {
 }
 import EvidenceChip from "../messages/EvidenceChip";
 import Dictate from "../shared/Dictate";
+import { spokenInto } from "../shared/useDictation";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
 import { removeTodaySend } from "../messages/todayOutbox";
@@ -215,6 +216,8 @@ export default function MailNotices({
   // A link that would not open, exactly as validated, offered as Copy Link.
   const [fallbacks, setFallbacks] = useState<Record<string, string>>({});
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
+  // Dictation into the open draft (spokenInto): one draft is spoken into at a time.
+  const spokenBase = useRef<string | null>(null);
   // UP-MIND-07 (2026-09-05): today and tomorrow, for the collision clause on
   // a deadline the sender put a clock on. Optional provider on purpose: with
   // no schedule the deadline reads exactly as it did before, never an
@@ -628,14 +631,17 @@ export default function MailNotices({
                       aria-label={n.kind === "nudge" ? "Nudge" : "Reply"}
                       value={draft.text}
                       disabled={draft.sending}
-                      onChange={(e) => setDrafts((d) => ({ ...d, [n.key]: { ...draft, text: e.target.value } }))}
+                      onChange={(e) => { spokenBase.current = null; setDrafts((d) => ({ ...d, [n.key]: { ...draft, text: e.target.value } })); }}
                     />
                     {/* row-tap: verbs line under the draft (Send, Discard, Open It); sending stays button-only */}
                     <div className="row mail-draft-acts">
                       {/* UP-MIND-26 (2026-09-05): the card's draft is his
                           words before they go out over his name, so it is
                           exactly the field worth speaking into. */}
-                      <Dictate target={draftRef} />
+                      <Dictate target={draftRef} onText={(words, final) => setDrafts((d) => {
+                        const cur = d[n.key];
+                        return cur ? { ...d, [n.key]: { ...cur, text: spokenInto(spokenBase, cur.text, words, final) } } : d;
+                      })} />
                       <button className="pill-act" disabled={draft.sending} onClick={() => void send(n, draft.text)}>
                         {draft.sending ? "Sending…" : "Send"}
                       </button>

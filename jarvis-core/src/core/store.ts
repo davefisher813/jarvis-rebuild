@@ -23,6 +23,29 @@ export interface StorePersistence {
 // cannot share an id.
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// ONE ROW PER ID, WHATEVER THE ADAPTER HANDED BACK (2026-10-17). A cached list
+// that was appended to while its own refresh was in flight, or a realtime
+// insert that beat the create's answer, can carry the same id twice; every
+// service lists through here, so this is the one place that holds the line.
+// Same id only: two rows with the same words are two records (three identical
+// overdraft fees are three fees), and nothing here judges content. The copy
+// with the newest serverTime wins.
+export function dedupeById(items: Item[]): Item[] {
+  if (items.length < 2) return items;
+  const seen = new Map<string, number>();
+  let dup = false;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]!;
+    const j = seen.get(it.id);
+    if (j === undefined) { seen.set(it.id, i); continue; }
+    dup = true;
+    if ((it.serverTime ?? 0) >= (items[j]!.serverTime ?? 0)) seen.set(it.id, i);
+  }
+  if (!dup) return items;
+  const keep = new Set(seen.values());
+  return items.filter((_, i) => keep.has(i));
+}
+
 function genId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   const hex = () => Math.floor(Math.random() * 16).toString(16);
@@ -247,8 +270,17 @@ export class Store {
       this.invalidate(ownerId);
       return useId;
     }
+    // ONE ID FOR THE TRY, THE RETRY AND THE REPLAY (2026-10-17, the duplicate
+    // rows). The server used to mint the id, so a create whose answer was lost
+    // after Postgres had committed (iOS "Load failed" on backgrounding, a 5xx
+    // from a proxy in front of a landed insert) was queued again under a NEW
+    // id and landed a second row that nothing could tell from the first. The
+    // id is minted here, once, and travels with the write: a replay of a
+    // create that did land hits the primary key (23505), which the drain
+    // already reads as "landed".
+    const useId = id ?? genId();
     try {
-      const newId = await this.adapter.create(ownerId, entityType, data, id);
+      const newId = await this.adapter.create(ownerId, entityType, data, useId);
       this.invalidate(ownerId);
       this.landed();
       return newId;
@@ -257,7 +289,7 @@ export class Store {
       // ourselves again takes the branch above, which queues the create and
       // shows it locally, so the capture is held instead of lost.
       if (!this.dropSignal(e)) throw e;
-      return this.create(ownerId, entityType, data, id);
+      return this.create(ownerId, entityType, data, useId);
     }
   }
 
@@ -378,14 +410,16 @@ export class Store {
   }
 
   async listForUser(ownerId: string, entityType?: string): Promise<Item[]> {
-    const base = await this.listForUserCached(ownerId, entityType);
+    const base = dedupeById(await this.listForUserCached(ownerId, entityType));
     if (this.pendingCreates.size === 0 && this.pendingDeletes.size === 0 && this.queue.length === 0) return base;
     const patches = this.pendingPatches(ownerId);
     const out = base
       .filter((it) => !this.pendingDeletes.has(it.id))
       .map((it) => { const p = patches.get(it.id); return p ? { ...it, data: mergePatch(it.data, p) } : it; });
+    const have = new Set(out.map((it) => it.id));
     for (const p of this.pendingCreates.values()) {
-      if (p.ownerId === ownerId && (entityType === undefined || p.entityType === entityType)) out.push(this.clonePending(p));
+      // A held create whose row the server already lists (it landed, the answer was lost) is the same record, not a second one.
+      if (p.ownerId === ownerId && (entityType === undefined || p.entityType === entityType) && !have.has(p.id)) out.push(this.clonePending(p));
     }
     return out;
   }

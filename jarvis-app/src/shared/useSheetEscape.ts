@@ -41,7 +41,8 @@ const CANCEL = ".sheet-bar-cancel, .action-sheet .cancel, [data-sheet-cancel]";
 //   full layers   press the control marked data-layer-close
 // Exported because useLayerFocus has to agree with this exactly: a layer
 // Escape closes but Tab can walk out of is the worse half of the same bug.
-export const LAYER_SELECTOR = ".hmenu-scrim, .block-menu-scrim, .time-pop-scrim, .sheet-scrim, .ag-scrim, .search-overlay";
+// (.time-pop-scrim left the roster on 2026-10-17 with the last popover; the time tap is a sheet everywhere now.)
+export const LAYER_SELECTOR = ".hmenu-scrim, .block-menu-scrim, .sheet-scrim, .ag-scrim, .search-overlay";
 const LAYERS = LAYER_SELECTOR;
 const LAYER_CLOSE = "[data-layer-close]";
 

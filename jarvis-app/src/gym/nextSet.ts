@@ -87,6 +87,14 @@ export function nextSetEntry(opts: {
 export interface SetDraft {
   w: string;
   r: string;
+  /** THE OTHER KINDS' FIELDS (2026-10-17, defects A and B). The draft knew
+   *  weight and reps only, so a Plank's Now card had no field to type into
+   *  and a reps-only lift's card was static text. A timed, measured or height
+   *  lift carries its value here; a distance-and-time attempt carries both.
+   *  Present only on a kind that has the field, so a weighted lift's draft is
+   *  the same two strings it always was. */
+  v?: string;
+  t?: string;
   /** WHICH KIND OF SET THE NOW CARD IS ON (2026-09-29). Absent means the
    *  card's own default (ramp.ts startsInWarmUp); present means the athlete
    *  flipped the Work / Warm-Up pill, and it stays through typing. Only the
@@ -94,10 +102,17 @@ export interface SetDraft {
   warm?: boolean;
 }
 
-/** The strings the two fields open with for `seed`: a number the app knows,
- *  or empty, never a zero nobody typed (Dave 2026-09-17: "0135"). */
+const str = (n: number | undefined) => (n ? String(n) : "");
+
+/** The strings the fields open with for `seed`: a number the app knows, or
+ *  empty, never a zero nobody typed (Dave 2026-09-17: "0135"). The value and
+ *  time strings ride along only when the seed carries them. */
 export function fieldsOf(seed: SetEntry | null): SetDraft {
-  return { w: seed?.w ? String(seed.w) : "", r: seed?.r ? String(seed.r) : "" };
+  return {
+    w: str(seed?.w), r: str(seed?.r),
+    ...(seed?.v !== undefined ? { v: str(seed.v) } : {}),
+    ...(seed?.t !== undefined ? { t: str(seed.t) } : {}),
+  };
 }
 
 /** The next set with the athlete's typing laid over it. An emptied field
@@ -107,9 +122,14 @@ export function fieldsOf(seed: SetEntry | null): SetDraft {
 export function withDraft(seed: SetEntry | null, draft: SetDraft | null): SetEntry | null {
   if (!draft) return seed;
   const next: SetEntry = seed ? { ...seed } : ({ id: "" } as SetEntry);
-  const w = Number(draft.w);
-  const r = Number(draft.r);
-  if (draft.w.trim() !== "" && Number.isFinite(w) && w > 0) next.w = w; else delete next.w;
-  if (draft.r.trim() !== "" && Number.isFinite(r) && r > 0) next.r = r; else delete next.r;
+  const lay = (key: "w" | "r" | "v" | "t", text: string | undefined) => {
+    if (text === undefined) return;
+    const n = Number(text);
+    if (text.trim() !== "" && Number.isFinite(n) && n > 0) next[key] = n; else delete next[key];
+  };
+  lay("w", draft.w);
+  lay("r", draft.r);
+  lay("v", draft.v);
+  lay("t", draft.t);
   return next;
 }

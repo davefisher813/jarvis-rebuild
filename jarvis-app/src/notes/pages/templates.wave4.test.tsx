@@ -115,10 +115,16 @@ describe("Running Order, Party Planner and Watch List ride the shared engine", (
     await openWith("u-w4-party", "party", withRows([{ item: "Cake", cost: "40" }, { item: "Balloons", cost: "12.50" }]));
     expect(await screen.findByText("$52.50")).toBeInTheDocument();
   });
-  it("Watch List opens with its headings hidden until a row is under one", async () => {
+  it("Watch List opens with every heading drawn, each with its own Add, and no count of zero", async () => {
     await openWith("u-w4-watch", "watchlist", (p) => p);
-    expect(screen.queryByText("Up Next")).toBeNull();
-    expect(screen.getByText("Add Title")).toBeInTheDocument();
+    for (const h of ["Up Next", "Watching", "Watched"]) expect(screen.getByText(h)).toBeInTheDocument();
+    expect(screen.getAllByText("Add Title")).toHaveLength(3);
+    expect(screen.queryByText(/^0 /)).toBeNull();
+    // What its rows will carry, and the fields it offers in one tap.
+    expect(screen.getByText("Starts With")).toBeInTheDocument();
+    expect(screen.getByText("Edit Fields")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Length"));
+    await waitFor(async () => expect((await pageOf("watchlist"))!.page.fields.some((f) => f.key === "length")).toBe(true), { timeout: 4000 });
   });
 });
 

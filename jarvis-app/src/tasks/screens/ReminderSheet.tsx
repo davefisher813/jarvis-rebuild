@@ -231,7 +231,7 @@ export default function ReminderSheet({
     <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} saveDisabled={incomplete}>
       <Group label="What Would You Like to Remember?">
         <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErrName(false); setReadOff(false); }} placeholder="e.g. Call Alberto"
-          ariaLabel="Reminder" error={errName} right={false} onEnter={save} />
+          ariaLabel="Reminder" error={errName} right={false} onEnter={save} autoFocus={mode === "new"} />
         {readActive && (
           <Strip>
             <span className="rem-read-k">Read from your words</span>

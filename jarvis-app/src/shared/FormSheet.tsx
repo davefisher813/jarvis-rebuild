@@ -82,6 +82,11 @@ export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveL
     switch is pressed. A tap that landed ON a control is that control's own
     and is left alone, and so is a click that only reached the row through a
     portal (a menu's scrim), which is not a tap on the row at all. */
+/** A field that holds a number: its keypad says so. */
+function isNumericField(el: HTMLInputElement): boolean {
+  return el.inputMode === "numeric" || el.inputMode === "decimal" || el.type === "number";
+}
+
 export function tapField(e: MouseEvent<HTMLElement>) {
   const row = e.currentTarget;
   const t = e.target as HTMLElement;
@@ -92,6 +97,11 @@ export function tapField(e: MouseEvent<HTMLElement>) {
   if (!ctl) return;
   if (ctl instanceof HTMLInputElement || ctl instanceof HTMLTextAreaElement || ctl instanceof HTMLSelectElement) {
     ctl.focus();
+    // A NUMBER IS REPLACED, NOT APPENDED TO (Dave 2026-10-17: "Even the cursor
+    // functionality. It matters."). Tapping the row of a numeric field put the
+    // caret after the value, so typing 5 into 310 gave 5310. The row's tap
+    // selects it, the way the field's own focus does below.
+    if (ctl instanceof HTMLInputElement && isNumericField(ctl)) ctl.select();
     if (ctl instanceof HTMLInputElement && /^(date|time|datetime-local|month)$/.test(ctl.type) && typeof ctl.showPicker === "function") {
       try { ctl.showPicker(); } catch { /* not allowed outside a user gesture here; focus is enough */ }
     }
@@ -169,7 +179,7 @@ export function Row({ tone, glyph, lead, label, meta, children, onClick, forward
 
 /** The row that IS an input: a typed value, at the right when it has a
     label beside it, filling the row when it is the row's only thing. */
-export function FieldRow({ tone, glyph, label, value, onChange, placeholder, type = "text", inputMode, ariaLabel, error = false, right = true, onEnter, autoComplete, enterKeyHint }: {
+export function FieldRow({ tone, glyph, label, value, onChange, placeholder, type = "text", inputMode, ariaLabel, error = false, right = true, onEnter, autoComplete, enterKeyHint, autoFocus = false }: {
   tone?: string; glyph?: ReactNode; label?: string; value: string; onChange: (v: string) => void; placeholder?: string;
   type?: "text" | "date" | "time" | "url" | "email" | "tel" | "password"; inputMode?: "text" | "numeric" | "decimal"; ariaLabel: string; error?: boolean; right?: boolean;
   /** What the browser may fill: "current-password" and "new-password" tell a password manager which is which. */
@@ -178,6 +188,10 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
   onEnter?: () => void;
   /** The label on the keyboard's Return key: "next" where Return moves on, "go" where it saves. */
   enterKeyHint?: "next" | "go" | "done";
+  /** THE PRIMARY FIELD OPENS FOCUSED, KEYBOARD UP (the Logging Standard, 2026-10-17). The native autoFocus raises the
+      keyboard on open; `data-autofocus` tells useLayerFocus which control the sheet means, so a layer that is noticed late
+      lands here and not on Cancel. A prefilled value arrives selected, so typing replaces it. */
+  autoFocus?: boolean;
 }) {
   return (
     <div className="row xs-row" onClick={tapField}>
@@ -193,6 +207,14 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
         aria-label={ariaLabel}
         aria-invalid={error || undefined}
         value={value}
+        autoFocus={autoFocus}
+        data-autofocus={autoFocus || undefined}
+        // A NUMBER ARRIVES SELECTED ON EVERY FOCUS (2026-10-17, defect F): the
+        // Set sheet's 310 took a typed 5 as 5310. A text field keeps the
+        // primary-field rule above: selected on open, caret where tapped after.
+        onFocus={(e) => {
+          if (isNumericField(e.currentTarget) || (autoFocus && e.currentTarget.value && e.currentTarget.type === "text")) e.currentTarget.select();
+        }}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onEnter ? (e) => { if (e.key === "Enter") onEnter(); } : undefined}
       />
@@ -201,12 +223,15 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
 }
 
 /** The row that is a paragraph: a few lines of the user's own words. */
-export function TextRow({ value, onChange, placeholder, ariaLabel, rows = 3 }: {
+export function TextRow({ value, onChange, placeholder, ariaLabel, rows = 3, autoFocus = false }: {
   value: string; onChange: (v: string) => void; placeholder?: string; ariaLabel: string; rows?: number;
+  /** As FieldRow's: the sheet's primary field, focused with the keyboard up on open. */
+  autoFocus?: boolean;
 }) {
   return (
     <div className="row xs-row xs-textrow" onClick={tapField}>
       <textarea className="xs-input xs-textarea" rows={rows} placeholder={placeholder} aria-label={ariaLabel} value={value}
+        autoFocus={autoFocus} data-autofocus={autoFocus || undefined}
         onChange={(e) => onChange(e.target.value)} />
     </div>
   );

@@ -301,6 +301,8 @@ export default function CategoryDetail({
   const [gymStartDay, setGymStartDay] = useState<string | null>(null);
   // 2026-09-14: Have Less Time? on the hero hands the gym a budget with the day.
   const [gymStartBudget, setGymStartBudget] = useState<number | null>(null);
+  // The Health card's Quick Log (Dave 2026-10-16): Same as Last Time, or Log a Past Workout.
+  const [gymQuick, setGymQuick] = useState<"repeat" | "backdate" | null>(null);
   // D10-B/D11-C/D13-C: the metric strip and the insight cards, health-kind
   // pages only. Reloaded alongside the gym read (gymOpen dep) so a metric
   // logged from the strip and a set logged in the gym both show up fresh.
@@ -816,6 +818,8 @@ export default function CategoryDetail({
         startWorkoutId={gymWorkoutId ?? undefined}
         startDayId={gymStartDay ?? undefined}
         startBudgetMin={gymStartBudget ?? undefined}
+        startSameAsLast={gymQuick === "repeat"}
+        startBackdate={gymQuick === "backdate"}
         startDoorEventId={gymDoor?.id}
         // The two workout-shaped loggers, offered where the workout is: on the
         // receipt the moment it is finished, and on any logged session opened
@@ -824,7 +828,7 @@ export default function CategoryDetail({
         // history and put it there").
         onRateSession={() => setHealthScreen("callIt")}
         onLogSoreSpot={() => setHealthScreen("pointAtIt")}
-        onBack={() => { setGymOpen(false); setGymLibrary(false); setGymLift(null); setGymHistory(null); setGymWorkoutId(null); setGymStartDay(null); setGymStartBudget(null); void reload(); }}
+        onBack={() => { setGymOpen(false); setGymLibrary(false); setGymLift(null); setGymHistory(null); setGymWorkoutId(null); setGymStartDay(null); setGymStartBudget(null); setGymQuick(null); void reload(); }}
       />
     );
   }
@@ -1016,11 +1020,14 @@ export default function CategoryDetail({
 
   // 2026-09-14 (the reference's Reminders): one workout reminder, a reminder
   // task named Workout and filed to this area, every day at the time chosen.
-  const workoutReminderTask = allTasks.find((t) => t.data.category === categoryId && !!t.data.reminder && t.data.text === "Workout" && !t.data.done) ?? null;
+  // Every copy, not the first (2026-10-17): a second Workout reminder that slipped in (a replayed create) was never removed,
+  // so Health drew "Workout 5:30 PM" twice for good. Setting the time replaces them all with one.
+  const workoutReminderTasks = allTasks.filter((t) => t.data.category === categoryId && !!t.data.reminder && t.data.text === "Workout" && !t.data.done);
+  const workoutReminderTask = workoutReminderTasks[0] ?? null;
   const setWorkoutReminder = async (time: string | null) => {
     const ok = await attemptWrite(async () => {
-      if (!time) { if (workoutReminderTask) await tasksSvc.deleteTask(workoutReminderTask.id); return; }
-      if (workoutReminderTask) { await tasksSvc.deleteTask(workoutReminderTask.id); }
+      for (const t of workoutReminderTasks) await tasksSvc.deleteTask(t.id);
+      if (!time) return;
       await tasksSvc.createReminder("Workout", { time, ...(workoutReminderTask?.data.reminder?.doneCount ? { doneCount: workoutReminderTask.data.reminder.doneCount } : {}) }, categoryId);
     });
     if (ok) await reload();
@@ -1668,7 +1675,7 @@ export default function CategoryDetail({
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the gym
             // block's row starts the session, as its Start pill does.
             <div className="sched-row sched-row-bare" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
-              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All Day</span>}</div>
+              <div className="sched-time">{t ? <>{t.time}{" "}<span className="ampm">{t.ap}</span></> : <span className="ampm">All Day</span>}</div>
               <div className="sched-body">
                 {/* THE TITLE IS THE ROW'S .sched-t, SO IT TAKES THE TWO-LINE WRAP AND ENDS IN AN ELLIPSIS, NEVER A CUT LETTER (Dave
                     2026-09-26; the round-2 review: "Fall Clinic Walkthrou"). The bare div had no clamp to take. */}
@@ -2143,6 +2150,9 @@ export default function CategoryDetail({
           // budget: every lever and its saving is previewed there, and
           // nothing starts until its own Start is tapped.
           onAdjustTime={(dayId) => { setGymStartDay(dayId); setGymStartBudget(30); setGymOpen(true); }}
+          // Quick Log (Dave 2026-10-16): the two other ways to log, two taps from the card where Start lives.
+          onSameAsLastTime={() => { setGymQuick("repeat"); setGymOpen(true); }}
+          onLogPast={() => { setGymQuick("backdate"); setGymOpen(true); }}
           onOpenGym={() => setGymOpen(true)}
           onOpenRecords={openRecords}
           onOpenFinding={openFinding}

@@ -140,7 +140,7 @@ function MissedSheet({ missed, onTick, onAskAgain, onClose }: {
                 onClick={() => onTick(r.id)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTick(r.id); } }}>
                 <div className="cb" aria-hidden="true" />
-                <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>
+                <span className="rem-time">{fmtTime(r.time).time}{"\u00a0"}<span className="ampm">{fmtTime(r.time).ap}</span></span>
                 <div className="row-grow">
                   <div className="rem-name"><span className="rem-name-t">{titleCase(r.text)}</span></div>
                   {area(r) && (
@@ -267,7 +267,7 @@ export default function RemindersStrip({
                 reminder never renders a clock. It says the word instead. */}
             {r.unscheduled
               ? <span className="rem-time rem-unsch">Unscheduled</span>
-              : <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>}
+              : <span className="rem-time">{fmtTime(r.time).time}{"\u00a0"}<span className="ampm">{fmtTime(r.time).ap}</span></span>}
             {/* BROWSER-F-07 (2026-09-05): the name is what you tap to open a
                 reminder and it measured 226x22. The row around it is already
                 44 (min-height on .rem-row) and nothing else lives above or

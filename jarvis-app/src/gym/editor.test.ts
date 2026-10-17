@@ -56,7 +56,10 @@ describe("D2: last time is wired everywhere sets render", () => {
     expect(s).toContain("se-chip-best");
     // AMENDED 2026-09-26 (workout logging): cased by the whole rule.
     expect(s).toMatch(/\{lineCase\(header\.best\)\}/);
-    expect(s).toMatch(/\{lineCase\(header\.last\)\}/);
+    // AMENDED 2026-10-17 (Dave's approved board): last time is its date on
+    // the teal chip, and every set of that session as its own teal chip.
+    expect(s).toMatch(/<em>Last<\/em>\{monthDay\(header\.date\)\}/);
+    expect(s).toMatch(/lastHit\.sets\.map\(\(s\) => <span className="se-chip se-chip-last"/);
     expect(s).toContain("onMatchLast={lastHit");
     // AMENDED 2026-09-26 (workout logging, Dave: only the red button logs):
     // Match puts last time's numbers IN THE FIELDS, and the bar writes them.
@@ -278,9 +281,11 @@ describe("GYM-F-26: every row menu has a visible door", () => {
       .toMatch(/import RowMenuButton from "\.\.\/shared\/RowMenuButton"/);
   });
 
-  it("it is on the day, exercise, program and archived-program rows alike", () => {
+  // AMENDED 2026-10-16 (Dave's approved board, screen 2): the exercise row ends in a chevron, as every row on the
+  // board does; its menu stays the long-press and the moves it held are on the exercise sheet the row opens.
+  it("it is on the day, program and archived-program rows alike", () => {
     const uses = flow.match(/<RowMenuButton onMenu=\{onMenu\}/g) ?? [];
-    expect(uses.length).toBe(4);
+    expect(uses.length).toBe(3);
   });
 
   it("the archived row no longer claims to be a button it cannot honour", () => {
@@ -295,7 +300,7 @@ describe("GYM-F-26: every row menu has a visible door", () => {
   // that while the menu is a real door. The program rows have carried the
   // menu alone since GYM-F-26; this is the rest of the file agreeing.
   it("a row with a menu button does not also wear a chevron", () => {
-    for (const row of ["DayRow", "ExerciseRow", "ProgramRow", "ProgramRowStatic"]) {
+    for (const row of ["DayRow", "ProgramRow", "ProgramRowStatic"]) {
       const body = new RegExp(`function ${row}\\(([\\s\\S]*?)\\n\\}\\n`).exec(flow)?.[1] ?? "";
       expect(body, `${row} must exist`).toBeTruthy();
       expect(body, `${row} carries both a menu and a chevron`).not.toMatch(/\{CHEV\}/);
@@ -327,12 +332,15 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     // row's value in its own slot; what changed is the slot -- .facts, which
     // is the house contract every other list already obeyed, instead of the
     // filled capsule the gym had invented for the same job.
-    expect(rendered).toMatch(/<div className="facts">/);
+    expect(rendered).toMatch(/<div className="facts"/);
     // AMENDED 2026-09-16: the count leads the line and the noun wears the
     // quiet ink, so the chip is drawn from parts instead of one string. The
     // string survives as the label a screen reader speaks.
-    expect(rendered).toMatch(/<span className="fact cyan" aria-label=\{planChipText\(exercise\)\}>/);
-    expect(rendered).toMatch(/\{plan\.count\}<em className="fw">\{plan\.noun\}<\/em>\{plan\.target\}/);
+    // AMENDED 2026-10-16 (Dave's approved board, screen 2): the prescription is the row's grey line, "3 Sets · 275 Lb × 5",
+    // the count and the target as two facts with the CSS's dot between them; never teal.
+    expect(rendered).toMatch(/<div className="facts" aria-label=\{planChipText\(exercise\)\}>/);
+    expect(rendered).toMatch(/<span className="fact">\{lineCase\(`\$\{plan\.count\} \$\{plan\.noun\}`\)\}<\/span>/);
+    expect(rendered).toMatch(/\{plan\.target && <span className="fact">\{lineCase\(plan\.target\)\}<\/span>\}/);
     // AMENDED 2026-09-26 (§AK, sweep #265/#619, settled by the lead): the
     // athlete's quoted note is the row's one grey, so the rest cannot be a
     // second plain grey run. "1:30 rest" is a length with no state that

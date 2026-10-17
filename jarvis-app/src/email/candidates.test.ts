@@ -10,7 +10,7 @@
 //     5.2, AC11): the bill, receipt, task and waiting readings are hidden, not
 //     deleted, behind one constant.
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { BODY_READ_KINDS, LIST_ROW_KINDS, bodyProposals, bodyReadingKey, cardLines, listReadingKey, listRowProposals, readWithRules } from "./candidates";
+import { BODY_READ_KINDS, LIST_ROW_KINDS, bodyProposals, bodyReadingKey, cardLines, isPastEvent, listReadingKey, listRowProposals, localCandidate, readWithRules } from "./candidates";
 import { readingKey } from "../substrate/extract";
 import type { InboxRow } from "./emailClient";
 
@@ -153,7 +153,7 @@ describe("the list reads a row for a calendar event and for nothing else (spec 5
   const TASK = row({ from_name: "Wei Chang", from_address: "wei@example.test", subject: "Mailing address", snippet: "Can you update your mailing address by October 30?" });
   const WAITING = row({ from_name: "Coach Miller", from_address: "coach@example.test", subject: "Re: Transcript", snippet: "I'll get the transcript over to you once the school sends it to me." });
   const EVENT = row({ from_name: "Pat Advisor", from_address: "advisor@example.test", subject: "Meeting", snippet: "Our advisor meeting is on October 8 at 6:00 PM ET for an hour." });
-  const kinds = (r: InboxRow, list: boolean) => (list ? listRowProposals(readWithRules(r, "America/New_York")) : readWithRules(r, "America/New_York")).map((p) => p.kind);
+  const kinds = (r: InboxRow, list: boolean) => (list ? listRowProposals(readWithRules(r, "America/New_York"), NOW) : readWithRules(r, "America/New_York")).map((p) => p.kind);
 
   it("the rules still read bill, receipt, task, waiting and event from the same words (the templates are hidden, not deleted)", () => {
     expect(kinds(BILL, false)).toContain("bill");
@@ -178,7 +178,7 @@ describe("the list reads a row for a calendar event and for nothing else (spec 5
   });
 
   it("an opened message, and Find Useful Details, read a bill, a receipt and an event, and never a task or a Waiting (AC11)", () => {
-    const body = (r: InboxRow) => bodyProposals(readWithRules(r, "America/New_York", r.snippet)).map((p) => p.kind);
+    const body = (r: InboxRow) => bodyProposals(readWithRules(r, "America/New_York", r.snippet), NOW).map((p) => p.kind);
     expect(BODY_READ_KINDS).toEqual(["bill", "receipt", "event"]);
     expect(body(BILL)).toContain("bill");
     expect(body(RECEIPT)).toContain("receipt");
@@ -188,7 +188,7 @@ describe("the list reads a row for a calendar event and for nothing else (spec 5
     // the bait that makes a bill and a task at once makes only the bill
     const both = "Amount due: USD 142.30 by October 15, 2026. Can you update your mailing address by October 30?";
     expect(readWithRules(BILL, "America/New_York", both).map((p) => p.kind)).toEqual(expect.arrayContaining(["bill", "task"]));
-    expect(bodyProposals(readWithRules(BILL, "America/New_York", both)).map((p) => p.kind)).toEqual(["bill"]);
+    expect(bodyProposals(readWithRules(BILL, "America/New_York", both), NOW).map((p) => p.kind)).toEqual(["bill"]);
   });
 
   it("a body reading is remembered under a key that names the kinds read, so turning a kind back on reads the message again", () => {
@@ -205,5 +205,36 @@ describe("the list reads a row for a calendar event and for nothing else (spec 5
     expect(listed).not.toBe(plain);
     expect(listed.startsWith(plain)).toBe(true);
     expect(listed.endsWith(LIST_ROW_KINDS.join(","))).toBe(true);
+  });
+});
+
+const pastRow = (o: Partial<InboxRow>): InboxRow => ({ id: "m-x", account_id: "a1", account: "dave@example.test", provider_id: "p", thread_id: "t", internal_date: "2026-10-03T12:00:00Z", from_address: "", from_name: "", subject: "", snippet: "", has_body: false, attachment_metadata: [], provider_labels: [], source_hash: "h-x", read: false, ...o } as InboxRow);
+
+// A PAST EVENT IS NOT A PROPOSAL (2026-10-17: a June 10, 2025 invitation proposed again).
+describe("isPastEvent", () => {
+  const timed = (start: string, end: string) => ({ kind: "event" as const, title: "Call", location: null, external_uid: null, time: { all_day: false as const, start_at: start, end_at: end, timezone: "America/New_York", selected_offset: "" } });
+  it("a timed event whose end has passed is past; one still ahead, or under way, is not", () => {
+    expect(isPastEvent(timed("2025-06-10T14:00:00Z", "2025-06-10T15:00:00Z"), NOW)).toBe(true);
+    expect(isPastEvent(timed("2026-10-03T14:30:00Z", "2026-10-03T15:30:00Z"), NOW)).toBe(false);
+    expect(isPastEvent(timed("2026-10-16T22:00:00Z", "2026-10-16T22:30:00Z"), NOW)).toBe(false);
+  });
+  it("an all-day event is past once its last day is over; a bill or a task is never past", () => {
+    const allDay = (start: string, endX: string) => ({ kind: "event" as const, title: "Fair", location: null, external_uid: null, time: { all_day: true as const, start_date: start, end_date_exclusive: endX } });
+    expect(isPastEvent(allDay("2026-10-02", "2026-10-03"), NOW)).toBe(true);
+    expect(isPastEvent(allDay("2026-10-03", "2026-10-04"), NOW)).toBe(false);
+    expect(isPastEvent({ kind: "task", title: "Old", due_date: "2025-01-01", notes: "" }, NOW)).toBe(false);
+  });
+  it("the list and the body drop a past event and keep one ahead", () => {
+    const old = pastRow({ from_name: "Pat Advisor", from_address: "advisor@example.test", subject: "Meeting", snippet: "Our advisor meeting is on June 10, 2025 at 6:00 PM ET.", internal_date: "2025-06-01T12:00:00Z" });
+    expect(listRowProposals(readWithRules(old, "America/New_York"), NOW)).toEqual([]);
+    expect(bodyProposals(readWithRules(old, "America/New_York", old.snippet), NOW)).toEqual([]);
+  });
+});
+
+describe("localCandidate (a manual capture before it is saved)", () => {
+  it("lives on this phone only: a local id, no revision, needs details, and the message's own hash", () => {
+    const c = localCandidate("waiting", pastRow({ from_name: "Pat", from_address: "pat@example.test", subject: "Numbers", snippet: "Soon." }), { kind: "waiting", title: "", waiting_for: "", counterparty_display: "Pat", contact_id: null, follow_up_on: null }, ["title", "waiting_for"], NOW);
+    expect(c.id.startsWith("local:")).toBe(true);
+    expect(c).toMatchObject({ kind: "waiting", origin: "manual", status: "needs_details", revision: 0, missing_fields: ["title", "waiting_for"], message_id: "m-x", source_hash: "h-x", message_source_hash: "h-x" });
   });
 });

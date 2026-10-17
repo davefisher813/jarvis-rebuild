@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey, withAliases, withFavorites } from "./library";
+import { buildLibrary, searchLibrary, newExerciseKey, withAliases, withFavorites } from "./library";
+import { pickerRows } from "./libraryView";
 import type { Program, Workout } from "./types";
 
 function program(over: Partial<Program["data"]> = {}): Program {
@@ -82,7 +83,9 @@ describe("searchLibrary", () => {
   });
 });
 
-describe("searchLibraryByKind", () => {
+// AMENDED 2026-10-16: the kind-restricted search is pickerRows' `kind` option
+// (libraryView.ts), the one source every picker reads.
+describe("pickerRows by kind", () => {
   it("only offers a substitute that logs the same way (catalog §3.9)", () => {
     const lib = buildLibrary([program()], [{
       id: "wo3", data: {
@@ -91,8 +94,8 @@ describe("searchLibraryByKind", () => {
         exercises: [{ exerciseId: "e2", name: "40 Yard Dash", kind: "time_faster", unit: "sec", sets: [{ id: "s3", v: 4.6 }] }],
       },
     }]);
-    expect(searchLibraryByKind(lib, "", "weight_reps").map((e) => e.name)).toEqual(["Trap Bar Deadlift"]);
-    expect(searchLibraryByKind(lib, "", "time_faster").map((e) => e.name)).toEqual(["40 Yard Dash"]);
+    expect(pickerRows(lib, {}, [], { kind: "weight_reps", starters: [] }).map((r) => r.entry.name)).toEqual(["Trap Bar Deadlift"]);
+    expect(pickerRows(lib, {}, [], { kind: "time_faster", starters: [] }).map((r) => r.entry.name)).toEqual(["40 Yard Dash"]);
   });
 });
 

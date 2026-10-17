@@ -170,9 +170,23 @@ describe("warmupSeed", () => {
   const ramp = rampFor(ex(), rack);
   const base = { ramp: [], logged: [], work: 225 as number | null, hasBar: true, rack, unit: "lb", step: 5 };
 
-  it("is the next ramp step, weight and reps", () => {
-    expect(warmupSeed({ ...base, ramp })).toEqual({ w: 45, r: 10 });
-    expect(warmupSeed({ ...base, ramp, logged: [{ w: 100, r: 8, warmup: true }] })).toEqual({ w: 135, r: 5 });
+  it("is the next ramp step, weight and reps, and says it is computed (2026-10-17, defect I)", () => {
+    expect(warmupSeed({ ...base, ramp })).toEqual({ w: 45, r: 10, computed: true });
+    expect(warmupSeed({ ...base, ramp, logged: [{ w: 100, r: 8, warmup: true }] })).toEqual({ w: 135, r: 5, computed: true });
+  });
+
+  // Dave 2026-10-15: the warm-up opens on what he warmed up with LAST TIME,
+  // position for position; the ramp is only the answer with no history.
+  it("his own prior warm-ups win over the ramp, one per warm-up logged, then the chain runs as before", () => {
+    const prior = [{ w: 135, r: 10 }, { w: 185, r: 5 }];
+    expect(warmupSeed({ ...base, ramp, priorWarmups: prior })).toEqual({ w: 135, r: 10 });
+    expect(warmupSeed({ ...base, ramp, priorWarmups: prior, logged: [{ w: 135, r: 10, warmup: true }] })).toEqual({ w: 185, r: 5 });
+    // Past his own two, the ramp's next step above the heaviest, and it is not called computed: there is history.
+    expect(warmupSeed({ ...base, ramp, priorWarmups: prior, logged: [{ w: 135, r: 10, warmup: true }, { w: 185, r: 5, warmup: true }] })).toEqual({ w: 190, r: 3 });
+    expect(startsInWarmUp(ramp, [], prior)).toBe(true);
+    expect(startsInWarmUp([], [{ w: 135, warmup: true }], prior), "one of two prior warm-ups logged, no ramp: still warm").toBe(true);
+    expect(startsInWarmUp([], [{ w: 135, warmup: true }, { w: 185, warmup: true }], prior), "both done, no ramp: Work").toBe(false);
+    expect(startsInWarmUp(ramp, [{ w: 225 }], prior), "a working set ends it").toBe(false);
   });
 
   it("repeats the last warm-up when the ramp is used up, for one tap to change", () => {

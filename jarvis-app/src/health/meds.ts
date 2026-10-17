@@ -1,5 +1,6 @@
 import type { TookItEntry, MedDefEntry } from "./types";
 import { shortDateFromMs } from "../shared/dateFormat";
+import { clock12 } from "../shared/clock";
 
 // MEDICATION BY NAME AND AMOUNT (Health Push D, H-38, Dave's picks
 // 2026-09-12; Dave 2026-09-13: "I just want people to be able to log and
@@ -75,7 +76,7 @@ export function sameLocalDay(a: number, b: number): boolean {
 // region says. The empty locale list followed the device, and a 24-hour region
 // drew "14:05" on every dose, meal and check-in row.
 export function clockOf(at: number): string {
-  return new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return clock12(at);
 }
 
 /** "8:05 AM" today, the short date otherwise: the Last fact on a med row. */

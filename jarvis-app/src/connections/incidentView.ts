@@ -13,6 +13,7 @@
 import type { AccountStatus } from "./connectionStatus";
 import type { Ledger, ResolvedEntry } from "./incidentLedger";
 import type { IncidentKind } from "./incident";
+import { clock12 } from "../shared/clock";
 
 export const BANNER_TITLE: Record<IncidentKind, string> = {
   auth: "Gmail Needs Reconnecting",
@@ -35,7 +36,7 @@ function when(iso: string | null): { date: string; time: string } | null {
   if (Number.isNaN(d.getTime())) return null;
   return {
     date: d.toLocaleDateString([], { month: "short", day: "numeric" }),
-    time: d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    time: clock12(d),
   };
 }
 
@@ -93,7 +94,7 @@ export function bannerModels(accounts: AccountStatus[], ledger: Ledger): BannerM
 export function checkedLine(at: string, now: Date): string {
   const t = new Date(at).getTime();
   if (!Number.isFinite(t) || now.getTime() - t < 2 * 60e3) return "Checked Just Now";
-  return `Checked ${new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return `Checked ${clock12(t)}`;
 }
 
 export interface RecoveryNote { incidentId: string; email: string; state: "restored" | "caught_up"; title: string; detail: string }

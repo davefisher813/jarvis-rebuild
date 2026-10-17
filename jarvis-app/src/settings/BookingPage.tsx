@@ -18,6 +18,7 @@ import { useOptionalSchedule } from "../data/NotesProvider";
 import { showToast } from "../shared/toast";
 import { copyText } from "../shared/shareText";
 import { Link2, CalendarDays } from "../shared/icons";
+import { clock12 } from "../shared/clock";
 
 // YOUR TIMES (Track 3, 2026-09-14; the preview's Booking Settings screen:
 // "One screen. Day toggles and a duration list, no wizard"). Available or
@@ -41,7 +42,7 @@ function When({ b }: { b: BookingFace }) {
   const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
   // A clock time is 12-hour with AM or PM whatever the phone's region says
   // (2026-10-05, the catalog gate: a 24-hour region drew "18:00").
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const time = clock12(d);
   return <><span className="fact date">{day}</span><span className="fact date">{time}</span></>;
 }
 

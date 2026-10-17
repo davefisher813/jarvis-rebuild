@@ -46,20 +46,20 @@ function strip(g: SetEntry) {
 describe("the live log box does not print a zero nobody typed", () => {
   it("opens empty when the plan carries no weight", () => {
     strip(ghost({ r: 8 }));
-    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(null);
+    expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(null);
     cleanup();
   });
 
   it("opens empty when the plan carries no reps", () => {
     strip(ghost({ w: 135 }));
-    expect(screen.getByLabelText("Set 1 reps")).toHaveValue(null);
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveValue(null);
     cleanup();
   });
 
   it("shows a real planned number, which is the whole point of a ghost", () => {
     strip(ghost({ w: 135, r: 5 }));
-    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(135);
-    expect(screen.getByLabelText("Set 1 reps")).toHaveValue(5);
+    expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(135);
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveValue(5);
     cleanup();
   });
 
@@ -83,15 +83,15 @@ describe("the live log box does not print a zero nobody typed", () => {
   // to look empty -- which is what "not set yet" looks like.
   it("names each field exactly once, beside it, never twice", () => {
     strip(ghost({ r: 8 }));
-    const w = screen.getByLabelText("Set 1 weight");
+    const w = screen.getByLabelText("Set 1 Weight");
     expect(w, "no ghost copy of the word inside the box").not.toHaveAttribute("placeholder");
-    expect(screen.getByLabelText("Set 1 reps")).not.toHaveAttribute("placeholder");
+    expect(screen.getByLabelText("Set 1 Reps")).not.toHaveAttribute("placeholder");
     // The unit is still stated, in the span the row is built around.
     // Cased by the whole rule (Dave 2026-09-26): "Lb", "Reps".
     expect(screen.getByText("Lb")).toBeInTheDocument();
     expect(screen.getByText("Reps")).toBeInTheDocument();
     // And a screen reader still gets a name for each box.
-    expect(w).toHaveAttribute("aria-label", "Set 1 weight");
+    expect(w).toHaveAttribute("aria-label", "Set 1 Weight");
     cleanup();
   });
 
@@ -103,7 +103,7 @@ describe("the live log box does not print a zero nobody typed", () => {
       <SetStrip kind="weight_reps" unit="lb" entries={[]} ghost={[ghost({ r: 8 })]}
         editableGhosts onNowDraft={onNowDraft} onChange={() => {}} />,
     );
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "135" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "135" } });
     expect(onNowDraft).toHaveBeenLastCalledWith({ w: "135", r: "8" });
     cleanup();
   });
@@ -113,7 +113,10 @@ describe("the live log box does not print a zero nobody typed", () => {
   it("selects a prefilled number on focus, so the first keystroke replaces it", () => {
     expect(read("gym/SetStrip.tsx")).toContain("e.currentTarget.select()");
     const src = read("gym/SetStrip.tsx");
-    expect((src.match(/onFocus=\{selectAll\}/g) ?? []).length, "both fields select").toBe(2);
+    // 2026-10-17: one grid draws every kind's fields (defects A and B), so the
+    // one mapped input carries the select for all of them.
+    expect((src.match(/onFocus=\{selectAll\}/g) ?? []).length, "every field selects").toBe(1);
+    expect(src).toMatch(/\{shown\.map\(\(f\) => \([\s\S]*?onFocus=\{selectAll\}/);
   });
 });
 

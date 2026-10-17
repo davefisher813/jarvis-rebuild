@@ -65,11 +65,13 @@ describe("the program page", () => {
     expect(capsulesInCards(container)).toEqual([]);
   });
 
-  it("a day with exercises opens its screen, where Add is the Exercises head's capsule and the card holds only rows", async () => {
+  // AMENDED 2026-10-16 (Dave's approved board, screen 2): Add Exercise is one of the three neutral pills in the row
+  // under the exercise card, never a row in the card.
+  it("a day with exercises opens its screen, where Add is a pill under the card and the card holds only rows", async () => {
     const { container } = await mountFlow();
     fireEvent.click(screen.getByText("Push", { selector: ".conn-name.truncate" }));
     const add = await screen.findByRole("button", { name: "Add Exercise" });
-    expect(add.closest(".sh2"), "Add Exercise lives in the head").not.toBeNull();
+    expect(add.closest(".day-acts"), "Add Exercise lives in the pill row under the card").not.toBeNull();
     expect(add.closest(".card")).toBeNull();
     expect(container.querySelector(".row-create:not(.row-create-bare)"), "the two doors are not rows in the card").toBeNull();
     expect(capsulesInCards(container)).toEqual([]);
@@ -101,11 +103,14 @@ describe("the live session", () => {
   // AMENDED 2026-10-10 (pass-off items 11 and 12): the capsule says Add
   // Exercise on its face, and Cancel Workout left the foot over the Log
   // button for the top bar's leading slot.
-  it("Add Exercise is This Workout's head capsule and Cancel Workout is the top bar's, far from Log", () => {
+  // AMENDED 2026-10-17 (Dave's approved board): Add Exercise and Superset
+  // are the capsule row under the Log button, not This Workout's head.
+  it("Add Exercise is the Log bar's capsule row and Cancel Workout is the top bar's, far from Log", () => {
     const { container } = renderScreen();
     const add = screen.getByRole("button", { name: "Add Exercise" });
     expect(add).toHaveTextContent("Add Exercise");
-    expect(add.closest(".sh2")).toHaveTextContent("This Workout");
+    expect(add.closest(".logbar-row")).not.toBeNull();
+    expect(add.className).toContain("pill-act");
     expect(add.closest(".card")).toBeNull();
     const cancel = screen.getByRole("button", { name: "Cancel Workout" });
     expect(cancel.closest(".nav-bar")).not.toBeNull();

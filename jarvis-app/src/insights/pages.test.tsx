@@ -29,7 +29,7 @@ describe("InsightsPage", () => {
       onOpenLift={onOpenLift} onOpenWorkout={onOpenWorkout} onOpenAllData={onAll} onAssignMuscles={onAssign} onExport={() => {}} />);
     expect(screen.getByText("Incline Bench")).toBeInTheDocument();
     expect(screen.getAllByText("135 Lb").length).toBeGreaterThan(0);
-    expect(screen.getByText("+10 Lb Since Aug 31")).toBeInTheDocument();
+    expect(screen.getByText("+10 Lb at 5 Reps Since Aug 31")).toBeInTheDocument();
     expect(screen.getByText("3 Comparable Workouts")).toBeInTheDocument();
     // The chart's points open their session, and the list twin is there.
     fireEvent.click(screen.getByRole("button", { name: "Sep 7, 130 lb, open the workout" }));
@@ -92,7 +92,7 @@ describe("InsightsPage", () => {
     fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
     fireEvent.click(screen.getByText("Lat Pull Down"));
     expect(head()).toHaveTextContent("Lat Pull Down");
-    expect(screen.getByText("+20 Lb Since Sep 8")).toBeInTheDocument();
+    expect(screen.getByText("+20 Lb at 5 Reps Since Sep 8")).toBeInTheDocument();
     // A chosen exercise is not the automatic pick, so it stops claiming to be.
     expect(screen.queryByText("Biggest Gain")).toBeNull();
     // And View Sets still opens the exercise it is now about.
@@ -124,6 +124,22 @@ describe("InsightsPage", () => {
     expect(screen.getByText("1 Workout in the Period")).toBeInTheDocument();
     expect(screen.getByText("1 Recorded in All")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Choose exercise").length, "still changeable").toBeGreaterThan(0);
+  });
+
+  // "Oct 16 3 Working The Sets" (Dave 2026-10-16, W): the count names its noun and the disclosure says what it does.
+  it("Strength's workout rows say N Working Sets and Show Sets, and the trend plots a date once", () => {
+    const three = [...workouts, w("c2", "2026-09-13", 140), w("c3", "2026-09-13", 130)];
+    render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={three} metricDefs={[]} metricLogs={[]} logs={none} muscleMap={new Map()} cards={null}
+      onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
+    expect(screen.getAllByText("1 Working Set").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^1 Working$/)).toBeNull();
+    expect(screen.getAllByText("Show Sets").length).toBeGreaterThan(0);
+    expect(screen.queryByText("The Sets")).toBeNull();
+    // Three sessions on Sep 13 are one point on the trend: the best of the day.
+    const points = Array.from(document.querySelectorAll('.ins-card [role="button"][aria-label$="open the workout"]')).map((b) => b.getAttribute("aria-label"));
+    const sep13 = points.filter((l) => l?.startsWith("Sep 13"));
+    expect(sep13).toEqual(["Sep 13, 140 lb, open the workout"]);
   });
 
   it("is honest when there is nothing", () => {

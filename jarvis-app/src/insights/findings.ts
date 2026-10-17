@@ -63,6 +63,31 @@ export function sameContext(a: LoadStyle, b: LoadStyle): boolean {
   return a.equipment === b.equipment;
 }
 
+/** The sessions at one rep count that compare with the latest one: counted
+ *  the same way and logged in the same unit as the latest; a change of
+ *  machine or of kg for lb is not a gain. Oldest first. */
+function comparableAt(all: SessionBest[]): SessionBest[] {
+  const latest = all[all.length - 1];
+  if (!latest) return [];
+  return all.filter((s) => sameContext(s.style, latest.style) && (s.unit ?? "lb") === (latest.unit ?? "lb"));
+}
+
+/** THE SERIES BEHIND A GAIN, for the chart (Dave 2026-10-16, W). The
+ *  Insights trend used to plot every session with a set at the gain's rep
+ *  count, comparable or not, and plotted a date once per session, so a day
+ *  with three sessions drew the same point three times. This is exactly the
+ *  list comparableGain measured, with one point per date: the best of that
+ *  day. Oldest first. */
+export function comparableSeries(workouts: Workout[], g: RepGain): { workoutId: string; date: string; w: number }[] {
+  const all = bestByReps(workouts, g.lift).get(g.reps) ?? [];
+  const byDate = new Map<string, { workoutId: string; date: string; w: number }>();
+  for (const s of comparableAt(all)) {
+    const cur = byDate.get(s.date);
+    if (!cur || s.w > cur.w) byDate.set(s.date, { workoutId: s.workoutId, date: s.date, w: s.w });
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /** The latest session's best comparable change on this lift, or null when
  *  no rep count has a second comparable session to measure against. */
 export function comparableGain(workouts: Workout[], lift: LiftId): RepGain | null {
@@ -70,9 +95,7 @@ export function comparableGain(workouts: Workout[], lift: LiftId): RepGain | nul
   let pick: RepGain | null = null;
   for (const [reps, all] of byReps) {
     const latest = all[all.length - 1]!;
-    // Only sessions counted the same way and logged in the same unit as the
-    // latest one compare; a change of machine or of kg for lb is not a gain.
-    const same = all.filter((s) => sameContext(s.style, latest.style) && (s.unit ?? "lb") === (latest.unit ?? "lb"));
+    const same = comparableAt(all);
     if (same.length < 2) continue;
     const first = same[0]!;
     const gain: RepGain = { lift, reps, from: { w: first.w, date: first.date, workoutId: first.workoutId }, to: { w: latest.w, date: latest.date, workoutId: latest.workoutId }, sessions: same.length, delta: latest.w - first.w };
@@ -124,6 +147,20 @@ export interface FindingsInput {
 
 const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n);
 
+/** ONE NUMBER, SAID THE SAME WAY EVERYWHERE (Dave 2026-10-16, V). The Health
+ *  hub said "+140 Lb" and the exercise page said "Up 161 Lb" about the same
+ *  lift: the first was the top weight at one rep count, the second the change
+ *  in the chart's estimate. Both read the comparable gain now, and both name
+ *  the rep count it was measured at, so the number cannot be mistaken for a
+ *  max. `verb` is the hub's sign ("+140 Lb") or the page's word ("Up 140 Lb"). */
+export function gainLine(g: RepGain, verb: "sign" | "word"): string {
+  const u = g.lift.unit ?? "lb";
+  const amount = verb === "sign"
+    ? `${sign(g.delta)} ${u}`
+    : `${g.delta > 0 ? "up" : g.delta < 0 ? "down" : "no change"}${g.delta === 0 ? "" : ` ${Math.abs(g.delta)} ${u}`}`;
+  return lineCase(`${amount} at ${g.reps} reps since ${monthDay(g.from.date)}`);
+}
+
 // TWO LINES, WHICH IS WHAT A ROW GETS (2026-09-16, Dave on the Health
 // overview: "too much grey subtext. Looks extremely cluttered and breaks 4
 // lines rule"). Each of these ran to four: the name, the reading and a fact,
@@ -159,7 +196,7 @@ export function findings(inp: FindingsInput): Finding[] {
       kind: "change", hue: "lime",
       title: bestGain.lift.name,
       value: lineCase(`${bestGain.to.w} ${u} × ${bestGain.reps}`),
-      context: [lineCase(`${sign(bestGain.delta)} ${u} since ${monthDay(bestGain.from.date)}`)],
+      context: [gainLine(bestGain, "sign")],
       open: { kind: "lift", lift: bestGain.lift },
     });
   }

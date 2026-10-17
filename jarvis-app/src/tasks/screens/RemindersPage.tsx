@@ -280,7 +280,7 @@ export default function RemindersPage({
         onOpen={() => onOpen(it.id)} className={"rem-card" + (it.state === "done" ? " done" : "")}>
         <div className="rem-card-top">
           {it.state === "open" ? ring(it) : <span className="rem-card-cb-space" aria-hidden="true" />}
-          {hasGutter && <div className="rem-time-gutter">{fmtTime(it.time!).time}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
+          {hasGutter && <div className="rem-time-gutter">{fmtTime(it.time!).time}{"\u00a0"}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
           <div className="rem-card-body">
             <div className="rem-card-title">{title}</div>
             <div className="facts">
