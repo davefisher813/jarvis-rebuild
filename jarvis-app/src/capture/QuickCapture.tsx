@@ -29,6 +29,7 @@ import { lineCase } from "../shared/casing";
 import { flagOn } from "../substrate/flags";
 import { capturePeople } from "../paste/captureContext";
 import { heldText, savedToastText } from "../shared/saved";
+import { draftStore } from "../shared/draftStore";
 import { clock12 } from "../shared/clock";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
@@ -40,6 +41,11 @@ import { clock12 } from "../shared/clock";
 // not things a task can be turned into by a chip, and offering it would be a
 // control that promises a move nobody built.
 const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact", decision: "Decision", person: "Person", bill: "Bill" };
+// NO ENTRY IS EVER LOST (the Logging Standard, rule 8, 2026-10-17): the box is
+// written here on every keystroke, read back when the sheet opens again, and
+// cleared by the Capture that spent it or the Cancel that discarded it. A
+// scrim tap (which may be a stray thumb) keeps it.
+const CAPTURE_DRAFT = draftStore("jarvis.capture.draft.v1");
 const KINDS: SavedEntity["kind"][] = ["task", "event", "note", "fact"];
 const FACT_CATEGORIES = Object.keys(STRAND_CATEGORY_LABEL) as StrandCategory[];
 
@@ -200,7 +206,10 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const store = useStore();
   const pending = () => flagOn("trust_v1") && (store?.pending() ?? false);
 
-  const [text, setText] = useState("");
+  const [text, setTextState] = useState(() => CAPTURE_DRAFT.read());
+  // Every write to the box, typed or spoken, is the draft (rule 8).
+  const setText = (v: string | ((cur: string) => string)) =>
+    setTextState((cur) => { const next = typeof v === "function" ? v(cur) : v; CAPTURE_DRAFT.write(next); return next; });
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
   const [saved, setSaved] = useState<Saved[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -321,8 +330,14 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     }
     if (billNote) showToast({ message: billNote });
     haptics.confirm();
-    setSaved(out);
-    setRecents(readRecentCaptures().filter((r) => !out.some((s) => s.id === r.id)));
+    // ENTER SAVES, THE COMPOSER STAYS OPEN (rule 4): the receipt joins the
+    // ones already on the sheet, the box empties and keeps the keyboard, and
+    // the draft it held is spent.
+    CAPTURE_DRAFT.clear();
+    setTextState("");
+    const all = [...saved, ...out];
+    setSaved(all);
+    setRecents(readRecentCaptures().filter((r) => !all.some((s) => s.id === r.id)));
     setPhase("saved");
   };
 
@@ -451,17 +466,22 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     <div className="sheet-scrim" onClick={() => { if (phase !== "saving") onClose(); }}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{phase !== "saved" ? "Smart Paste" : saved.every((x) => x.removed) ? "Smart Paste" : savedToastText("Saved", heldText(), pending())}</div></div>
+        <div className="grp"><div className="eyebrow">{saved.length === 0 || saved.every((x) => x.removed) ? "Smart Paste" : savedToastText("Saved", heldText(), pending())}</div></div>
 
-        {phase !== "saved" && (
-          <div className="pad-x sheet-form">
+        {/* THE BOX STAYS (the Logging Standard, rule 4, 2026-10-17). It used to give way to the receipt, so a second
+            capture was Capture Another, then the box, then Capture: three taps between two thoughts. The box is on the
+            sheet the whole time, focused and empty after each save, with the receipts under it, so Return, Return,
+            Return captures three lines in a row. Return captures; Shift+Return is a new line. */}
+        <div className="pad-x sheet-form">
             <textarea
               ref={boxRef}
               className="input input-multiline"
               aria-label="Paste or Type"
               placeholder="Dinner with Marco Thursday 7:00 PM"
               value={text}
+              enterKeyHint="send"
               onChange={(e) => { spokenBase.current = null; setText(e.target.value); setDupAge(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void capture(); } }}
               autoFocus
             />
             {/* ONE ROW OF THE FIELD'S OWN AIDS, DIRECTLY UNDER IT (Dave 2026-10-05, the review: Speak sat 6px under the field at
@@ -482,23 +502,8 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
             {dupAge !== null && (
               <div className="input-note">You captured this exact text {Math.max(1, Math.round(dupAge / 86400000))} {dupAge < 86400000 * 1.5 ? "day" : "days"} ago.</div>
             )}
-            <div className="sheet-actions">
-              {dupAge === null ? (
-                <button className="btn btn-primary btn-block" onClick={() => void capture()} disabled={!text.trim() || phase === "saving"}>
-                  {phase === "saving" ? "Saving..." : "Capture"}
-                </button>
-              ) : (
-                // B12: the sibling Capture button already disables while
-                // saving; this branch could still double-fire.
-                <button className="btn btn-primary btn-block" disabled={phase === "saving"} onClick={() => void capture(true)}>{phase === "saving" ? "Saving..." : "Save Anyway"}</button>
-              )}
-              <button className="btn btn-secondary btn-block" onClick={onClose} disabled={phase === "saving"}>Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {phase === "saved" && (
-          <div className="pad-x sheet-form">
+        {saved.length > 0 && (
+          <>
             <div className="capture-saved-list">
               {saved.map((s) => {
                 if (s.removed) {
@@ -638,16 +643,35 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               </>
             )}
 
+          </>
+        )}
+
+            {/* ONE PRIMARY, FOR WHAT THE BOX HOLDS. Words in the box: Capture (or Save Anyway over a repeat). An empty box
+                over receipts: Done, which closes and says what landed. Before anything is saved, Cancel is the way out and
+                it spends the draft; the scrim keeps it. */}
             <div className="sheet-actions">
-              <button className="btn btn-primary btn-block" onClick={() => {
-                const kept = saved.filter((x) => !x.removed).length;
-                setText(""); setSaved([]); onClose();
-                if (kept > 0) showToast({ message: savedToastText(kept === 1 ? "Saved" : `Saved ${kept} items`, heldText(undefined, kept), pending()) });
-              }}>Done</button>
-              <button className="btn btn-secondary btn-block" onClick={() => { setText(""); setSaved([]); setPhase("input"); }}>Capture Another</button>
+              {text.trim() || dupAge !== null || saved.length === 0 ? (
+                dupAge === null ? (
+                  <button className="btn btn-primary btn-block" onClick={() => void capture()} disabled={!text.trim() || phase === "saving"}>
+                    {phase === "saving" ? "Saving..." : "Capture"}
+                  </button>
+                ) : (
+                  // B12: the sibling Capture button already disables while
+                  // saving; this branch could still double-fire.
+                  <button className="btn btn-primary btn-block" disabled={phase === "saving"} onClick={() => void capture(true)}>{phase === "saving" ? "Saving..." : "Save Anyway"}</button>
+                )
+              ) : (
+                <button className="btn btn-primary btn-block" onClick={() => {
+                  const kept = saved.filter((x) => !x.removed).length;
+                  setSaved([]); onClose();
+                  if (kept > 0) showToast({ message: savedToastText(kept === 1 ? "Saved" : `Saved ${kept} items`, heldText(undefined, kept), pending()) });
+                }}>Done</button>
+              )}
+              {saved.length === 0 && (
+                <button className="btn btn-secondary btn-block" onClick={() => { CAPTURE_DRAFT.clear(); setTextState(""); onClose(); }} disabled={phase === "saving"}>Cancel</button>
+              )}
             </div>
           </div>
-        )}
       </div>
       {filingMode && (
         <FilingSheet

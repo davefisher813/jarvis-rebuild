@@ -65,6 +65,16 @@ const EXEMPT: { key: string; files: RegExp; check: Check; why: string }[] = [
   // true for exactly one save and never read back off a task.
   { key: "TaskSheet closeNow", files: /.*/, check: "load", why: "an action, not a stored value" },
   { key: "TaskSheet closeNow", files: /BiggerPictureFlow|CategoryDetail/, check: "save", why: "new-task sites cannot close a task that does not exist yet" },
+  // THE LOGGING STANDARD (2026-10-17). `another` is Return's "saved, stay
+  // open", an action like closeNow: TasksFlow reads it to keep the sheet up,
+  // every other door saves and closes as it always did. `reminder` is the
+  // clock time read out of a new task's words; nothing loads it (an edit never
+  // reads the words), and the sheet produces it ONLY where the caller passes
+  // readsReminder, which TasksFlow does and saves. The two doors below do not,
+  // so there "3pm" stays in the title and nothing is read then dropped.
+  { key: "TaskSheet another", files: /.*/, check: "both", why: "an action, not a stored value" },
+  { key: "TaskSheet reminder", files: /.*/, check: "load", why: "read from a new task's words, never stored on the draft" },
+  { key: "TaskSheet reminder", files: /BiggerPictureFlow|CategoryDetail/, check: "save", why: "no readsReminder at these doors, so the time is never read out of the title" },
   // THE HIDDEN-ROW RULE. A row that renders only when the call site passes
   // its list must not be saved where the list is not passed: saving a field
   // whose control is not on screen writes its empty default over a real

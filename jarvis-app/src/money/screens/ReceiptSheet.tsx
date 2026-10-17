@@ -96,10 +96,13 @@ export default function ReceiptSheet({ title = "New Receipt", initial, attachmen
     <FormSheet title={title} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}
       dirty={attachment !== null && attachment !== first}>
       <Group label="Receipt">
+        {/* A NEW RECEIPT OPENS ON ITS VENDOR, KEYBOARD UP; RETURN ON THE AMOUNT SAVES (the Logging Standard, rules 1 and 4,
+            2026-10-17). One that arrives with a vendor (an edit, a read) opens quiet. */}
         <FieldRow tone="red" glyph={<Tag className="ic" />} label="Vendor" ariaLabel="Vendor" value={vendor} onChange={setVendor}
-          placeholder="Who You Paid" error={touched && !vendor.trim()} />
+          placeholder="Who You Paid" error={touched && !vendor.trim()} autoFocus={!initial.vendor} enterKeyHint="next"
+          onEnter={() => document.querySelector<HTMLInputElement>('.form-sheet input[aria-label="Amount"]')?.focus()} />
         <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" ariaLabel="Amount" value={amount} onChange={setAmount}
-          placeholder="0.00" inputMode="decimal" error={touched && parseCents(amount) === null} />
+          placeholder="0.00" inputMode="decimal" error={touched && parseCents(amount) === null} enterKeyHint="go" onEnter={save} />
         <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Date" ariaLabel="Date" type="date" value={date}
           onChange={setDate} error={touched && !date} />
         <MenuRow tone="purple" glyph={<FolderKanban className="ic" />} label="Category" ariaLabel="Category" value={category}

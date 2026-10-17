@@ -58,8 +58,25 @@ describe("LightsOutScreen: sleep from last night", () => {
     fireEvent.click(screen.getByRole("button", { name: "45" }));
     fireEvent.change(screen.getByLabelText("Night ending"), { target: { value: "2026-09-13" } });
     fireEvent.click(screen.getByText("Save Sleep"));
-    expect(onLogSleep).toHaveBeenCalledWith(7.75, "2026-09-13");
+    // The form opened on last night's 8h (rule 7, 2026-10-17), and 45 was picked on top of it.
+    expect(onLogSleep).toHaveBeenCalledWith(8.75, "2026-09-13");
     // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
     expect(screen.getByText("8h")).toBeInTheDocument();
+  });
+
+  // REPEAT-LAST IS ONE TAP (the Logging Standard, rule 7, 2026-10-17): a night
+  // like the last is Save Sleep alone.
+  it("opens on last night's hours and minutes, so a night like it is one tap; the seed stands only before the first entry", () => {
+    const onLogSleep = vi.fn();
+    const { unmount } = render(<LightsOutScreen last={null} onLog={() => {}} onLogSleep={onLogSleep}
+      recentSleep={[{ date: "2026-09-10", hours: 6 }, { date: "2026-09-12", hours: 7.25 }, { date: "2026-09-11", hours: 9 }]} onBack={() => {}} />);
+    expect(screen.getByLabelText("Hours")).toHaveTextContent("7");
+    expect(screen.getByRole("button", { name: "15" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByText("Save Sleep"));
+    expect(onLogSleep).toHaveBeenCalledWith(7.25, expect.any(String));
+    unmount();
+    render(<LightsOutScreen last={null} onLog={() => {}} onLogSleep={() => {}} onBack={() => {}} />);
+    expect(screen.getByLabelText("Hours")).toHaveTextContent("7");
+    expect(screen.getByRole("button", { name: "30" })).toHaveAttribute("aria-pressed", "true");
   });
 });

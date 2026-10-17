@@ -470,3 +470,25 @@ describe("TasksFlow: the New Task sheet's toast tells the truth about where the 
     expect(await saveNewTask({ userId: "trust-off-still", store: offlineStore() })).toEqual([]);
   });
 });
+
+// THE LOGGING STANDARD, rule 4 (2026-10-17): Return in the New Task sheet
+// writes the task and the sheet stays up for the next one, its name empty.
+describe("TasksFlow: Return in the New Task sheet saves and stays", () => {
+  it("the row lands behind the sheet, the sheet stays open and the name is empty", async () => {
+    resetToasts();
+    localStorage.clear();
+    render(<NotesProvider userId="enter-stays"><TasksFlow /></NotesProvider>);
+    const add = await screen.findAllByRole("button", { name: "New Task" });
+    fireEvent.click(add[0]!);
+    const field = await screen.findByLabelText("Task");
+    fireEvent.change(field, { target: { value: "Email the roster" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(rowNamed("Email the Roster")).toBeInTheDocument());
+    expect(screen.getByLabelText("Task"), "the sheet is still up").toHaveValue("");
+    // Save still closes it, as before.
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Call the league" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(rowNamed("Call the League")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByLabelText("Task")).toBeNull());
+  });
+});

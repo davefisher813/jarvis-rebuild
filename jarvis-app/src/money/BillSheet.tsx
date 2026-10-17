@@ -98,10 +98,13 @@ export default function BillSheet({ mode, initial, paidOn, ledger = false, onSav
   return (
     <FormSheet title={mode === "paid" ? "From a Receipt" : mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Bill">
+        {/* A NEW BILL OPENS ON ITS NAME, KEYBOARD UP; RETURN ON THE AMOUNT SAVES (the Logging Standard, rules 1 and 4,
+            2026-10-17). An edit opens quiet. */}
         <FieldRow tone="yellow" glyph={<WalletGlyph />} value={text} onChange={setText} placeholder="e.g. Rent" ariaLabel="Bill name"
-          error={touched && !text.trim()} right={false} />
+          error={touched && !text.trim()} right={false} autoFocus={mode === "new"} enterKeyHint="next"
+          onEnter={() => document.querySelector<HTMLInputElement>('.form-sheet input[aria-label="Amount in dollars"]')?.focus()} />
         <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" value={amount} onChange={setAmount} placeholder="0" inputMode="decimal"
-          ariaLabel="Amount in dollars" error={touched && !valid && !!text.trim()} />
+          ariaLabel="Amount in dollars" error={touched && !valid && !!text.trim()} enterKeyHint="go" onEnter={save} />
       </Group>
       <ErrorLine text={touched && !valid ? "Add a name and an amount." : touched && !currencyOk ? "Use a three letter currency code like USD" : null} />
       {/* UP-CORE-13: what this Save will record, said before it happens. The

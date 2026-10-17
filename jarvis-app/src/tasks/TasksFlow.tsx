@@ -571,7 +571,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(titleCase(draft.text), { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, priority: draft.priority, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(titleCase(draft.text), { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, priority: draft.priority, personId: draft.personId, reminder: draft.reminder }));
     } else if (sheet?.mode === "edit") {
       // One chain for every screen that opens this sheet (saveTaskEdit.ts).
       // Close Task / Mark Done (closeNow) sets the task done and says what it
@@ -581,6 +581,12 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     }
     if (saved && sheet && !draft.closeNow) haptics.confirm();
     const wasNew = sheet?.mode === "new" && saved;
+    // ENTER SAVES, THE COMPOSER STAYS (the Logging Standard, rule 4,
+    // 2026-10-17): Return in the name wrote the task and the sheet stays up
+    // for the next one. No toast either: a toast under an open sheet is
+    // painted behind it (CLAUDE.md, 2026-10-13), and the emptied field is the
+    // receipt. The list behind the sheet still reloads.
+    if (draft.another && wasNew) { await reload(); return true; }
     setSheet(null);
     await reload();
     // A saved task must always be visible (audit 2026-07-30: a new task with
@@ -1321,6 +1327,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           events={sheetEventList}
           mode={sheet.mode}
           initial={sheet.initial}
+          /* This flow writes draft.reminder (onSave), so a clock time in the words is read here (rule 3, 2026-10-17). */
+          readsReminder
           source={sheet.mode === "edit" ? sheet.source : undefined}
           openSourceFor={openSourceFor}
           categories={categories}

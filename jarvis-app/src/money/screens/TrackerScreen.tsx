@@ -538,6 +538,7 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
             accounts={data.accounts.map((a) => a.data.name)}
             categories={pickable}
             categoryFor={categoryFor}
+            last={tx ? undefined : [...data.txs].sort((a, b) => b.data.date.localeCompare(a.data.date))[0]?.data}
             links={tx ? { receipt, bill, billPaidByThis } : undefined}
             onUnmatch={tx ? (which) => void unmatch(tx, which) : undefined}
             onSave={(d) => void save(tx ? tx.id : null, d)}
@@ -550,7 +551,10 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
   );
 }
 
-function TxSheet({ initial, accounts, categories, categoryFor, links, onUnmatch, onSave, onDelete, onCancel }: {
+function TxSheet({ initial, accounts, categories, categoryFor, last, links, onUnmatch, onSave, onDelete, onCancel }: {
+  /** REPEAT-LAST IS ONE TAP (the Logging Standard, rule 7, 2026-10-17): the most recent transaction, offered on a new
+      sheet as Same as Last Time, which fills every field so Save is the next tap. Absent on an edit, or with nothing yet. */
+  last?: TrackerTxData;
   initial: TrackerTxData;
   accounts: string[];
   categories: string[];
@@ -598,6 +602,20 @@ function TxSheet({ initial, accounts, categories, categoryFor, links, onUnmatch,
   return (
     <FormSheet title={initial.merchant ? "Edit Transaction" : "New Transaction"}
       onCancel={onCancel} onSave={submit} saveDisabled={!valid}>
+      {/* Same as Last Time (rule 7): one tap fills the merchant, the amount, the direction, the category and the account
+          from the most recent transaction; Save is the next tap. The row's one grey is who was paid. */}
+      {isNew && last && (
+        <Group className="xs-actions">
+          <Row label="Same as Last Time" meta={titleCase(last.merchant)} chev
+            onClick={() => {
+              setMerchant(last.merchant);
+              setAmount((Math.abs(last.amountCents) / 100).toFixed(2));
+              setIncoming(last.amountCents < 0);
+              setPicked(last.category);
+              setAccount(last.account);
+            }} />
+        </Group>
+      )}
       <Group label="Direction">
         <MenuRow tone="green" glyph={<RepeatGlyph />} label="Direction"
           ariaLabel="Direction" value={incoming ? "in" : "out"}
@@ -606,12 +624,14 @@ function TxSheet({ initial, accounts, categories, categoryFor, links, onUnmatch,
           onPick={(v) => setIncoming(v === "in")} />
       </Group>
       <Group label="Transaction">
+        {/* ENTER SAVES (the Logging Standard, rule 4): Return on the merchant moves to the amount, Return on the amount saves. */}
         <FieldRow tone="red" glyph={<Tag className="ic" />} label="Merchant" ariaLabel="Merchant"
           value={merchant} onChange={setMerchant} placeholder="Who Was Paid"
-          error={touched && !merchant.trim()} autoFocus={isNew} />
+          error={touched && !merchant.trim()} autoFocus={isNew} enterKeyHint="next"
+          onEnter={() => document.querySelector<HTMLInputElement>('.form-sheet input[aria-label="Amount"]')?.focus()} />
         <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" ariaLabel="Amount"
           value={amount} onChange={setAmount} placeholder="0.00" inputMode="decimal"
-          error={touched && cents <= 0} />
+          error={touched && cents <= 0} enterKeyHint="go" onEnter={submit} />
         <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Date" ariaLabel="Date"
           value={date} onChange={setDate} type="date" error={touched && !date} />
       </Group>

@@ -96,3 +96,30 @@ describe("BillSheet: a ledger bill", () => {
     expect((screen.getByLabelText("Currency") as HTMLInputElement).value).toBe("EUR");
   });
 });
+
+// THE LOGGING STANDARD (2026-10-17). Rule 1: a new bill opens on its name with
+// the keyboard up. Rule 4: Return on the amount saves. Rule 6: the amount has
+// the decimal keypad.
+describe("BillSheet: opens on the name, and Return saves", () => {
+  it("a new bill opens focused on its name; Return moves to the amount; Return there saves", () => {
+    const onSave = vi.fn();
+    render(<BillSheet mode="new" onSave={onSave} onCancel={() => undefined} />);
+    const name = screen.getByLabelText("Bill name");
+    expect(document.activeElement).toBe(name);
+    expect(name).toHaveAttribute("data-autofocus");
+    fireEvent.change(name, { target: { value: "Rent" } });
+    fireEvent.keyDown(name, { key: "Enter" });
+    const amount = screen.getByLabelText("Amount in dollars");
+    expect(document.activeElement).toBe(amount);
+    expect(amount).toHaveAttribute("inputmode", "decimal");
+    fireEvent.change(amount, { target: { value: "1200" } });
+    fireEvent.keyDown(amount, { key: "Enter" });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ text: "Rent", bill: { amount: 1200 } });
+  });
+
+  it("an edit opens quiet", () => {
+    render(<BillSheet mode="edit" initial={{ text: "Car Registration", due: "2026-10-01", recurrence: null, bill: { amount: 85 } }} onSave={() => undefined} onCancel={() => undefined} />);
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Bill name"));
+  });
+});

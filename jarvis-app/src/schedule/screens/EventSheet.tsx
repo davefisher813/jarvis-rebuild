@@ -409,7 +409,11 @@ export default function EventSheet({
                 /* A new event opens on its title, keyboard up (the Logging Standard, 2026-10-17); an edit opens quiet. */
                 autoFocus={mode === "new"}
                 data-autofocus={mode === "new" || undefined}
+                enterKeyHint="done"
                 onChange={(e) => { setTitle(e.target.value); if (err) setErr(false); }}
+                /* ENTER SAVES (the Logging Standard, rule 4, 2026-10-17): a sheet whose other fields have their defaults is one
+                   Return from saved; one that is missing a date or a start says so, exactly as the Save tap does. */
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }}
               />
             </div>
             {/* Memory: past events offered whole while typing, as rows under

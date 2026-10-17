@@ -377,3 +377,48 @@ describe("Tracker budgets: a limit with no name", () => {
     expect(toasts.map((t) => t.message)).not.toContain("Name That Category First");
   });
 });
+
+// THE LOGGING STANDARD (2026-10-17). Rule 7: repeat-last is one tap. Rule 4:
+// Return saves. Rule 1: a new sheet opens on its first field.
+describe("Tracker: a new transaction is one tap from the last one, and Return saves", () => {
+  it("Same as Last Time fills the sheet from the most recent transaction, and Save writes a twin", async () => {
+    const h = mount("tr-same", async (s) => {
+      await s.tracker.saveTx(null, tx({ date: day(3), merchant: "Older Place", amountCents: 999, category: "Household" }));
+      await s.tracker.saveTx(null, tx({ date: day(9), merchant: "Trader Joe's", amountCents: 3150, category: "Groceries" }));
+    });
+    await tab("Activity");
+    fireEvent.click(await screen.findByText("Add Manually"));
+    await screen.findByText("New Transaction");
+    expect(document.activeElement, "opens on the merchant").toBe(screen.getByLabelText("Merchant"));
+    const row = screen.getByText("Same as Last Time").closest(".row") as HTMLElement;
+    expect(within(row).getByText("Trader Joe's"), "the row's one grey is who was paid last").toBeInTheDocument();
+    fireEvent.click(row);
+    expect(screen.getByLabelText("Merchant")).toHaveValue("Trader Joe's");
+    expect(screen.getByLabelText("Amount")).toHaveValue("31.50");
+    expect(screen.getByLabelText("Category")).toHaveTextContent("Groceries");
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(3));
+    const made = (await h.current!.tracker.load()).txs.filter((t) => t.data.merchant === "Trader Joe's");
+    expect(made).toHaveLength(2);
+    expect(made.every((t) => t.data.amountCents === 3150 && t.data.category === "Groceries")).toBe(true);
+  });
+
+  it("Return on the merchant moves to the amount, Return on the amount saves; an edit offers no Same as Last Time", async () => {
+    const h = mount("tr-enter", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    await tab("Activity");
+    fireEvent.click(await screen.findByText("Add Manually"));
+    await screen.findByText("New Transaction");
+    const merchant = screen.getByLabelText("Merchant");
+    fireEvent.change(merchant, { target: { value: "Bodega" } });
+    fireEvent.keyDown(merchant, { key: "Enter" });
+    expect(document.activeElement).toBe(screen.getByLabelText("Amount"));
+    expect(screen.getByLabelText("Amount")).toHaveAttribute("inputmode", "decimal");
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "4.25" } });
+    fireEvent.keyDown(screen.getByLabelText("Amount"), { key: "Enter" });
+    await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(2));
+    expect((await h.current!.tracker.load()).txs.some((t) => t.data.merchant === "Bodega" && t.data.amountCents === 425)).toBe(true);
+    fireEvent.click(await screen.findByText("Bodega"));
+    await screen.findByText("Edit Transaction");
+    expect(screen.queryByText("Same as Last Time")).toBeNull();
+  });
+});

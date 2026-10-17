@@ -35,12 +35,16 @@ function ruleOf(rep: { recurrence: string; days?: number[] }): RepeatRule {
   }
 }
 
-export function readQuick(text: string, today: string): QuickRead {
+/** `opts.time` false leaves a clock time in the title unread (a caller with
+ *  nowhere to put one, the Logging Standard 2026-10-17); it still licenses
+ *  the short weekday names beside it. */
+export function readQuick(text: string, today: string, opts: { time?: boolean } = {}): QuickRead {
   const lower = text.toLowerCase();
   const matched: string[] = [];
   let title = text.replace(LEAD_RE, "");
-  const time = resolveTime(lower);
-  const day = resolveDay(lower, today, !!time);
+  const clock = resolveTime(lower);
+  const day = resolveDay(lower, today, !!clock);
+  const time = opts.time === false ? null : clock;
   const rep = resolveRepeat(lower);
   if (rep) { matched.push(rep.text); title = title.replace(REPEAT_RE, " "); }
   if (time) { const m = title.match(TIME_RE); if (m) { matched.push(m[0].trim()); title = title.replace(TIME_RE, " "); } }

@@ -371,10 +371,12 @@ export default function HealthFlow({
         <CallItScreen
           durationMin={callItDuration}
           history={callIt.map((e) => ({ at: e.data.at, rpe: e.data.rpe, durationMin: e.data.durationMin }))}
+          // ZERO CONFIRMATIONS, UNDO INSTEAD (the Logging Standard, rule 5, 2026-10-17): the one tap is final and the
+          // receipt is the way back, as Lights Out and Took It already do.
           onLog={(rpe) => {
             const cheer = celebrateOnLog(callIt.map((e) => ({ at: e.data.at })));
-            svc.logCallIt({ rpe, durationMin: callItDuration });
-            if (cheer) showToast({ message: cheer });
+            const d = svc.logCallIt({ rpe, durationMin: callItDuration });
+            receipt(cheer, "Effort Logged", () => { healthWrite(() => svc.removeCallIt(d.at)); });
             void reload();
           }}
           onBack={onExit}
@@ -388,7 +390,13 @@ export default function HealthFlow({
           // HMN-F-23 (2026-09-05): the dated taps behind each pattern, which
           // is what the catalog says gets handed over.
           summaries={summaries}
-          onLog={(x, y, side, region) => { lastTap.current = svc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }).at; void reload(); }}
+          // The tap is final and its receipt carries Undo (rule 5), the same receipt every other logger here raises.
+          onLog={(x, y, side, region) => {
+            const d = svc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) });
+            lastTap.current = d.at;
+            receipt(null, "Spot Logged", () => { healthWrite(() => svc.removePointAtIt(d.at)); });
+            void reload();
+          }}
           // The ref is read ONCE into a const: narrowing a .current does not
           // survive into a closure, because nothing stops it changing first.
           onDetail={(detail) => { const at = lastTap.current; if (at != null) healthWrite(() => svc.updatePointAtIt(at, detail)); }}
