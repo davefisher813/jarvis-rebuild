@@ -375,8 +375,10 @@ const musclesCard = breakdown.total === 0 ? null : (
       </div>
       <div className="ins-big lime">{lineCase(`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`)}</div>
       <div className="facts">
-        {/* One number, said the hub's way (Dave 2026-10-16, V): the gain names the rep count it was measured at. */}
-        <span className="fact lime">{gainLine(headline, "sign")}</span>
+        {/* One number, said the hub's way (Dave 2026-10-16, V): the gain names the rep count it was measured at.
+            A gain is a standing best, so it wears the colour code's best purple (workoutColourCode.test.ts); the lime
+            it wore means logged or done on these screens. */}
+        <span className="fact best">{gainLine(headline, "sign")}</span>
         {/* A count with no state is white (§AM, 2026-09-26), so "Biggest
             gain" above stays the card's one grey. */}
         <span className="fact"><b>{lineCase(`${headline.sessions} comparable workouts`)}</b></span>
@@ -481,7 +483,8 @@ const musclesCard = breakdown.total === 0 ? null : (
                   {g ? (
                     <>
                       <div className="facts">
-                        <span className="fact lime">{lineCase(`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`)}</span>
+                        {/* A standing best, so the best purple, as on the overview card above. */}
+                        <span className="fact best">{lineCase(`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`)}</span>
                         <span className="fact date">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
                         {/* A count with no state is white (§AM, 2026-09-26):
                             "recorded in all" above is the card's one grey. */}

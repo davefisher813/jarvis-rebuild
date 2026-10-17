@@ -178,3 +178,22 @@ describe("LAW: the workout colour code, on the program page, the day page and th
     expect(lift).toMatch(/sel != null && pts\[sel\] && <circle[^>]*fill="var\(--tx-1\)"/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// ADDED 2026-10-17 (the production click-through of 96604de: the biggest-gain
+// value on Health Insights drew in the done green). A comparable gain is a
+// standing best, "+10 lb at 5 reps"; it wears the best purple, never lime,
+// which on these screens means logged or done. Both gain facts are pinned:
+// the overview card's headline and the per-exercise card's own.
+// ---------------------------------------------------------------------------
+describe("LAW: the workout colour code, on Health Insights", () => {
+  it("PURPLE is a standing best: the comparable-gain facts wear .fact.best, never the done green", () => {
+    const page = read("insights/InsightsPage.tsx");
+    expect(page, "the overview card's headline gain").toMatch(/<span className="fact best">\{gainLine\(headline, "sign"\)\}<\/span>/);
+    expect(page, "the per-exercise card's gain").toMatch(/<span className="fact best">\{lineCase\(`\$\{sign\(g\.delta\)\} \$\{lift\.unit \?\? "lb"\} at \$\{g\.reps\} reps`\)\}<\/span>/);
+    expect(page, "no gain is drawn in lime").not.toMatch(/fact lime">\{gainLine\(/);
+    expect(page, "no gain is drawn in lime").not.toMatch(/fact lime">\{lineCase\(`\$\{sign\(g\.delta\)\}/);
+    // The best hue the fact wears is the one the colour code defines, in the scope these cards render in.
+    expect(colour(RULED, ".ruled.health-ruled .fact.best")).toBe("var(--hl-best-ink)");
+  });
+});
