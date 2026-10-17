@@ -276,6 +276,43 @@ describe("LiftDetailScreen says the hub's gain, not the estimate's change", () =
   });
 });
 
+// THE PLOT AREA (Alfred's live audit of 2dfafd4, 2026-10-17: on Bench Iso the
+// trend line ran down and clipped at the bottom edge of the card). A falling
+// series keeps every point, and every dot around it, inside the plot with
+// room to spare; the baseline sits under the lowest dot; and a gold point
+// says it is a PR when it is tapped.
+describe("LiftDetailScreen: the trend line stays inside its plot area", () => {
+  const ws: Workout[] = [
+    { id: "a", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-08-24", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Bench Iso", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 185, r: 8 }] }] } },
+    { id: "b", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-07", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Bench Iso", kind: "weight_reps", unit: "lb", sets: [{ id: "s2", w: 165, r: 6 }] }] } },
+    { id: "c", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-21", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Bench Iso", kind: "weight_reps", unit: "lb", sets: [{ id: "s3", w: 145, r: 5 }] }] } },
+    { id: "d", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-10-15", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Bench Iso", kind: "weight_reps", unit: "lb", sets: [{ id: "s4", w: 135, r: 3 }] }] } },
+  ];
+  it("a falling line never reaches the plot's edge, the baseline sits under its lowest dot, and the tapped PR says PR", () => {
+    const { container } = render(<LiftDetailScreen {...base} name="Bench Iso" workouts={ws} />);
+    const chart = container.querySelector(".lift-progress .lift-chart")!;
+    expect(chart.getAttribute("viewBox")).toBe("0 0 300 100");
+    const d = chart.querySelector("path")!.getAttribute("d")!;
+    const ys = [...d.matchAll(/[ML][\d.]+,([\d.]+)/g)].map((m) => Number(m[1]));
+    expect(ys.length).toBe(4);
+    const dot = Number(chart.querySelector('circle[fill="var(--hl-gold)"]')!.getAttribute("r"));
+    // Ten units of air at the top, the dot's own radius again at the bottom, inside a 100 unit box.
+    for (const y of ys) { expect(y - dot).toBeGreaterThanOrEqual(5); expect(y + dot).toBeLessThanOrEqual(85); }
+    const floor = Number(chart.querySelector("line")!.getAttribute("y1"));
+    expect(floor).toBeGreaterThan(Math.max(...ys) + dot);
+    expect(floor).toBeLessThan(100);
+    // The one gold dot is the first session (the only PR on a falling line) and it is named.
+    const golds = chart.querySelectorAll('circle[fill="var(--hl-gold)"]');
+    expect(golds.length).toBe(1);
+    expect(golds[0]!.querySelector("title")!.textContent).toBe("PR");
+    // Tapping it reads PR in gold under the chart; tapping a later point does not.
+    fireEvent.click(chart.querySelector('circle[aria-label="Workout 1 of 4"]')!);
+    expect(container.querySelector(".fact.pr")!.textContent).toBe("PR");
+    fireEvent.click(chart.querySelector('circle[aria-label="Workout 4 of 4"]')!);
+    expect(container.querySelector(".fact.pr")).toBeNull();
+  });
+});
+
 // THE BOARD, SCREEN 5 (Dave's approved mockup board, 2026-10-16): the order of
 // the cards and the colour each thing wears.
 describe("LiftDetailScreen: the board's order and colours", () => {

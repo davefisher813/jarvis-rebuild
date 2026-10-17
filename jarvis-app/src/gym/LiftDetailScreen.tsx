@@ -30,6 +30,14 @@ const CHEV = <div className="chev" />;
 // published range row for this lift's own muscle, and the dated receipts.
 
 const CHART_W = 300, CHART_H = 100, PAD = 10;
+// THE PLOT AREA (Alfred's live audit of 2dfafd4, 2026-10-17: "the Progress trend
+// chart line runs down and clips at the bottom edge of the chart card"). The
+// lowest value sat exactly on the baseline, both at CHART_H - PAD, with its
+// gold dot hanging under the line and the svg's edge ten units below; on the
+// phone that read as the line running off the card. A point now lives between
+// PLOT_TOP and PLOT_BOTTOM, its dot (DOT) inside the viewBox by that much
+// again, and the baseline is drawn under the lowest dot, never through it.
+const DOT = 4, PLOT_TOP = PAD, PLOT_BOTTOM = CHART_H - 20, BASELINE = CHART_H - 8;
 // Six past weeks and the one you are in (the board's W1 to W6 and Now).
 const WEEKS = 7;
 
@@ -43,7 +51,7 @@ function linePath(vals: number[]): { path: string; pts: { x: number; y: number }
   const stepX = vals.length > 1 ? (CHART_W - 2 * PAD) / (vals.length - 1) : 0;
   const pts = vals.map((v, i) => ({
     x: PAD + i * stepX,
-    y: flat ? CHART_H / 2 : PAD + (CHART_H - 2 * PAD) * (1 - (v - min) / span),
+    y: flat ? (PLOT_TOP + PLOT_BOTTOM) / 2 : PLOT_TOP + (PLOT_BOTTOM - PLOT_TOP) * (1 - (v - min) / span),
   }));
   const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   return { path, pts };
@@ -297,11 +305,11 @@ export default function LiftDetailScreen({
               <>
                 <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
                   aria-label={`${name} ${label} trend over ${sessions.length} workouts`}>
-                  <line x1={PAD} y1={CHART_H - PAD} x2={CHART_W - PAD} y2={CHART_H - PAD} stroke="currentColor" opacity={0.12} />
+                  <line x1={PAD} y1={BASELINE} x2={CHART_W - PAD} y2={BASELINE} stroke="currentColor" opacity={0.12} />
                   {/* Progression in teal (the previous sessions' numbers), the record in gold. */}
                   {path && <path d={path} fill="none" stroke="var(--hl-cyan)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />}
                   {pts.map((p, i) => prs.has(i) ? (
-                    <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--hl-gold)" />
+                    <circle key={i} cx={p.x} cy={p.y} r={DOT} fill="var(--hl-gold)"><title>PR</title></circle>
                   ) : null)}
                   {/* H-34: the tapped point, in the key's white (a selection, not last time). */}
                   {sel != null && pts[sel] && <circle cx={pts[sel]!.x} cy={pts[sel]!.y} r={4.5} fill="var(--tx-1)" />}
@@ -329,6 +337,8 @@ export default function LiftDetailScreen({
                     <span className="fact date">{shortDate(sessions[sel]!.date)}</span>
                     <span className="fact">{setLine(shownTop(sessions[sel]!))}</span>
                     {kind === "weight_reps" && <span className="fact est">{`Est ${withUnit(chartVals[sel]!)}`}</span>}
+                    {/* A tapped gold point says what it is: gold is a PR and nothing else (2026-10-17). */}
+                    {prs.has(sel) && <span className="fact pr">PR</span>}
                   </div>
                 )}
                 {/* The comparable gain, a recorded fact and not an estimate, so the row's one grey (Dave 2026-10-16, V). */}

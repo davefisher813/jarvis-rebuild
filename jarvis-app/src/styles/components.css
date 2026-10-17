@@ -5832,6 +5832,11 @@ body.selecting .voice-dock { display: none; }
    broken spacing inside the Weekly Work card. Charts are blocks, full
    card width, so the viewBox is the only scale in play. */
 .lift-chart, .lift-bars { display: block; width: 100%; height: auto; }
+/* The trend chart's box is its viewBox's shape (3 to 1) wherever the engine
+   would size an attribute-less svg some other way, and nothing drawn inside it
+   is ever cut: the plot keeps its own padding (LiftDetailScreen PLOT_TOP and
+   PLOT_BOTTOM), so visible overflow costs nothing (2026-10-17). */
+.lift-chart { aspect-ratio: 3 / 1; overflow: visible; }
 /* THE CATCH-UP BANNER (D5-C): one quiet amber-railed line, an offer and a
    loosener. Wears the app's own .banner-warn rail, never a red anything. */
 .catchup { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2h) var(--s-3); border-radius: var(--r-md); }
