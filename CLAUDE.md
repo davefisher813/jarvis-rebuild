@@ -177,21 +177,49 @@ box is a front door and every section keeps its own fast surface; voice set
 logging is built as a test with a command phrase, read-back and undo; one
 event, one record). Read it before touching any capture surface.
 
-## Open on Dave's word, 2026-10-17 (do not guess these)
+## Gym and logging, decided by Dave, 2026-10-17 (his decisions page)
 
-- **Progressive overload: prefill the next step or suggest only.** Both
-  paths exist behind `overloadApply` in `src/gym/settings.ts`, default
-  "suggest", and the default is NOT his decision. No settings row draws it.
-  Seven items wait on the answer and are built on nothing: the default and
-  its control; prefill's one-tap revert; what logging an untouched prefill
-  means (today it counts as accepting and rewrites the plan); how an
-  override is detected so the app never argues twice; warm-up scaling off
-  the suggested top; where the because-clause and expected-rep line sit on
-  the card; which state the set entry records for an untouched prefill.
-- **A logged set entry's `state`** (`src/gym/types.ts`) is "reported" from
-  every hand-logging door and "observed" from the Apple Health import.
-  Absent means unknown, never reported. Nothing writes "suggested" or
-  "planned" until the answer above says what an untouched prefill is.
+Answers 1 to 5, 9 and 10 are his own; 6 to 8 he delegated ("Whatever makes
+the most sense", "Whatever is standard") and Alfred ruled. Do not reopen.
+
+- **Progressive overload is PREFILL.** "Fill it in for me, the next weight
+  and reps are already there, I just log it." "Bring the cursor to it though
+  to edit quickly if they want to change it." `overloadApply` absent reads as
+  "prefill"; no settings row (he asked for prefill, not a switch).
+- **An untouched prefill logged counts as accepting it** and moves the plan.
+  The entry is "reported": suggested is only what sits in the fields.
+- **Never argues twice.** A changed weight on a filled-in step is kept as
+  `SetEntry.declined`; the same step next session is offered with Use, never
+  filled in (`Suggestion.declined`), until he takes it. Changed reps at the
+  step's weight is not an override.
+- **The Now card's first field is focused** on every new set, lift and side,
+  its number selected while it is still the app's; a restored draft keeps
+  the cursor unselected; never under an open sheet. iOS may hold the keyboard
+  until a tap unless the native webview allows programmatic focus to raise it.
+- **Warm-ups under the step**: the computed ramp is built under the prefilled
+  top; his own warm-ups stay his, and only one at or over a lighter top moves.
+- **One exercise library**: stock starters and his own together on the
+  Exercises page and in search-as-you-type; the day-fill picker takes a pick
+  or his own typed name.
+- **Cancel Workout asks to confirm** (standard; protects a misclick).
+- **Voice logging is the adopted standard**: a "Log" phrase starts it, the
+  set is read back, he confirms, Undo after. Session More, Log by Voice.
+- **Notes keep the serif titles** (V10 closed). **The workout screens and the
+  two add-on surfaces are approved as built.**
+
+## Still open on Dave's word (do not guess these)
+
+- The five overload spec gaps: ACSM's two-session rule against the single
+  session step; the volume band (10 to 14 or 10 to 20); what counts as a
+  compound; a block skeleton versus the hand-set Back-Off flag; the concrete
+  strike-two offer.
+- Where "time to a correct saved entry" is recorded, which the voice test
+  needs before it can be scored against tapping.
+- Whether Dave's edits on the library review page were read back after Oct 16.
+- The fifteen template points from the stage 1 report.
+
+## Standing rules from 2026-10-17
+
 - **Every picker adopts a starter through the flow's one door**
   (`onAdopt`, required). A picker that writes GymSettings itself loses the
   adoption on the flow's next classification save; that is why the prop
@@ -204,6 +232,3 @@ event, one record). Read it before touching any capture surface.
   a `ref` that enters the transaction fingerprint. Never dedupe or delete a
   fee by vendor, amount and date; the Aug 26 fee for the Ally payment has
   no posted day because the bank gave none.
-- **The stage 1 to 4 questions** (templates, library, overload spec gaps,
-  session logging, the voice test) are listed in the 2026-10-17 session
-  reports; each unblocks its items the hour it is answered.

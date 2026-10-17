@@ -18,7 +18,7 @@ import { capAfterNumber } from "../shared/casing";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { loadStyleOf, type Equipment } from "./equipment";
 import { libraryRows, type LibraryRow } from "./libraryEdit";
-import { classOf, EMPTY_CLASS, needsMuscles, readClassStore, type Classification, type ClassStore, type MovementPattern } from "./classify";
+import { classOf, EMPTY_CLASS, needsMuscles, readClassStore, starterClass, type Classification, type ClassStore, type MovementPattern } from "./classify";
 import { composeLibrary, newExerciseKey, type LibraryEntry, type LibrarySeeds } from "./library";
 import type { MeasureKind, Program, Workout } from "./types";
 import type { CreatedLift, GymSettings } from "./settings";
@@ -259,6 +259,27 @@ function starterEntry(s: StarterExercise): LibraryEntry {
 const matchesEntry = (e: LibraryEntry, q: string) =>
   !q || e.name.toLowerCase().includes(q) || (e.aliases ?? []).some((a) => a.toLowerCase().includes(q));
 
+/** THE CATALOG'S ENTRIES THE ATHLETE HAS NOT GOT, the one answer every list
+ *  that offers a starter reads (Dave 2026-10-17): the pickers, the Exercises
+ *  page's stock rows and the exercise sheet's name typeahead. Matched by
+ *  normalised name against the WHOLE library and every alias in it, so an
+ *  archived or hidden "Cable Curls", or a name merged away into another lift,
+ *  is never offered back as a starter. In the catalog's own order. */
+export function starterEntries(library: LibraryEntry[], starters: readonly StarterExercise[] = STARTER_EXERCISES): LibraryEntry[] {
+  const have = new Set(library.map((e) => normalizeExerciseName(e.name)));
+  for (const e of library) for (const a of e.aliases ?? []) have.add(normalizeExerciseName(a));
+  return starters.filter((s) => !have.has(normalizeExerciseName(s.name))).map(starterEntry);
+}
+
+/** THE STOCK ROWS ON THE EXERCISES PAGE (Dave 2026-10-17: "It should be all
+ *  exercises. Stock and custom"). The same catalog entries the pickers offer,
+ *  as page rows: never trained, never hidden, carrying their muscles. Nothing
+ *  is written for one by being listed; the page adopts it through the flow's
+ *  one door the moment the athlete opens or changes it. */
+export function stockRows(library: LibraryEntry[], starters?: readonly StarterExercise[]): LibraryRow[] {
+  return libraryRows(starterEntries(library, starters), []);
+}
+
 /** The rows every picker lists: the library's default view (hidden and
  *  archived out) plus the catalog's entries the athlete has not got, matched
  *  by normalised name against the WHOLE library (an archived "Cable Curls" is
@@ -277,13 +298,9 @@ export function pickerRows(library: LibraryEntry[], store: ClassStore, hiddenKey
     out.push({ entry: e, primary: c.primary[0] ?? null, starter: false });
   }
   if (!opts.kind || opts.kind === "weight_reps") {
-    const have = new Set(library.map((e) => normalizeExerciseName(e.name)));
-    for (const e of library) for (const a of e.aliases ?? []) have.add(normalizeExerciseName(a));
-    for (const s of opts.starters ?? STARTER_EXERCISES) {
-      if (have.has(normalizeExerciseName(s.name))) continue;
-      const entry = starterEntry(s);
+    for (const entry of starterEntries(library, opts.starters)) {
       if (!matchesEntry(entry, q)) continue;
-      out.push({ entry, primary: s.primary, starter: true });
+      out.push({ entry, primary: entry.starter!.primary, starter: true });
     }
   }
   return out.sort((a, b) =>
@@ -292,26 +309,28 @@ export function pickerRows(library: LibraryEntry[], store: ClassStore, hiddenKey
     || a.entry.name.localeCompare(b.entry.name));
 }
 
-export interface PickerSection {
+export interface PickerSection<T extends { primary: MuscleGroup | null } = PickerRow> {
   /** The muscle's label, or the one head for exercises with no muscle yet. */
   label: string;
   muscle: MuscleGroup | null;
-  rows: PickerRow[];
+  rows: T[];
 }
 
 /** The head over the rows that have no primary muscle. */
 export const NO_MUSCLE_SECTION = "No Muscle Yet";
 
 /** The rows under their primary muscle, in the app's muscle order, with the
- *  unsorted last. A section with no rows is not drawn. */
-export function pickerSections(rows: PickerRow[]): PickerSection[] {
-  const by = new Map<MuscleGroup | null, PickerRow[]>();
+ *  unsorted last. A section with no rows is not drawn. The Exercises page
+ *  groups its stock rows through this too (2026-10-17), so the catalog sits
+ *  under the same twelve heads, in the same order, wherever it is listed. */
+export function pickerSections<T extends { primary: MuscleGroup | null }>(rows: T[]): PickerSection<T>[] {
+  const by = new Map<MuscleGroup | null, T[]>();
   for (const r of rows) {
     const list = by.get(r.primary) ?? [];
     list.push(r);
     by.set(r.primary, list);
   }
-  const out: PickerSection[] = [];
+  const out: PickerSection<T>[] = [];
   for (const m of MUSCLE_GROUPS) {
     const list = by.get(m);
     if (list?.length) out.push({ label: MUSCLE_LABEL[m], muscle: m, rows: list });
@@ -335,10 +354,12 @@ export function pickerSections(rows: PickerRow[]): PickerSection[] {
  *  session's Swap or Add Exercise landed in the store and was overwritten by
  *  the next classification saved anywhere: its muscles were gone. There is no
  *  second writer now; LibraryPickSheet.onAdopt is required. */
-export function adoptStarter(entry: LibraryEntry): { entry: LibraryEntry; seed: CreatedLift; cls: Classification } {
+export interface Adoption { entry: LibraryEntry; seed: CreatedLift; cls: Classification }
+
+export function adoptStarter(entry: LibraryEntry): Adoption {
   const key = newExerciseKey();
   const s = entry.starter;
-  const cls: Classification = { ...EMPTY_CLASS, primary: s ? [s.primary] : [], secondary: s ? [...s.secondary] : [], measure: "weight_reps" };
+  const cls: Classification = s ? starterClass(s) : { ...EMPTY_CLASS, measure: "weight_reps" };
   const seed: CreatedLift = { key, name: entry.name, kind: "weight_reps" };
   const { starter: _starter, ...rest } = entry;
   void _starter;

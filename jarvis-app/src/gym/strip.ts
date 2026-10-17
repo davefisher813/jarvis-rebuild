@@ -57,6 +57,9 @@ export function duplicateEntry(e: SetEntry): SetEntry {
   const copy: SetEntry = { ...e, id: newSetId() };
   delete copy.at;
   delete copy.moved;
+  // The step he turned down (2026-10-17) belongs to the set he logged
+  // instead, never to a copy of it.
+  delete copy.declined;
   return copy;
 }
 

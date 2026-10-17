@@ -38,7 +38,7 @@ import { Trash2, Check, Forward } from "../shared/icons";
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, style, rack: rackIn, entries, onChange, ghost, nowDraft, onNowDraft, nowWarm = false, onNowMode, nowNo, nowExtra, nowMatchesLast = false, onNowLog, onOpenSet, onOpenGhost, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
+  kind, unit, timeUnit, style, rack: rackIn, entries, onChange, ghost, nowDraft, onNowDraft, nowWarm = false, onNowMode, nowNo, nowExtra, nowMatchesLast = false, onNowLog, nowFocus, onOpenSet, onOpenGhost, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -111,6 +111,14 @@ export default function SetStrip({
    *  does. Given by the live session only; the planning strip has nothing to
    *  log and its fields keep the plain keyboard. */
   onNowLog?: () => void;
+  /** THE CURSOR IS ALREADY THERE (Dave, 2026-10-17: "Bring the cursor to it
+   *  though to edit quickly if they want to change it"; the Now card's focus
+   *  was his delegation, ruled the same way). Given, the Now row's first
+   *  field takes focus each time `key` changes: a new set, a new lift, the
+   *  other side of Work | Warm-Up. `select` puts the whole number under the
+   *  cursor so the first keystroke replaces it; off for numbers he was
+   *  already typing, so a restored draft is never wiped by one key. */
+  nowFocus?: { key: string; select: boolean };
   /** VALUES READY TO EDIT (2026-09-14, the reference's set grid): with this
    *  on, the Now row carries the two fields. */
   editableGhosts?: boolean;
@@ -312,7 +320,7 @@ export default function SetStrip({
                   {grid
                     ? <GhostGrid entry={g} fields={fields} unit={unit} timeUnit={timeUnit} repWord={style ? repLabel(style) : "Reps"}
                         side={warmNow ? "Warm-Up" : `Set ${nowNo ?? workNoAt(pos)}`}
-                        value={nowDraft} onDraft={onNowDraft} onEnter={onNowLog} />
+                        value={nowDraft} onDraft={onNowDraft} onEnter={onNowLog} focus={disabled ? undefined : nowFocus} />
                     : kind === "done"
                       ? <div className="conn-name">Mark Done</div>
                       // A PLANNED ROW READS "Target 275 Lb × 5 · Last 275 Lb × 1"
@@ -553,7 +561,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
 // what the button now logs and what its label now reads. The fields stay
 // uncontrolled -- the local state is still the source of truth for the input,
 // so nothing re-renders under the thumb mid-keystroke.
-function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraft, onEnter }: {
+function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraft, onEnter, focus }: {
   entry: SetEntry;
   /** The kind's fields (measures.fieldsFor), with the equipment's own
    *  increment on the weight, so the arrows move by what the rack can do. */
@@ -574,6 +582,8 @@ function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraf
    *  strip has no log to make, so the hint never promises a write that will
    *  not happen. */
   onEnter?: () => void;
+  /** Focus the first field when `key` changes (SetStrip's nowFocus). */
+  focus?: { key: string; select: boolean };
 }) {
   // A ZERO IS NOT A NUMBER SOMEBODY TYPED (Dave 2026-09-17: "a new exercise
   // renders a buggy and weird looking log box. The typing is all off too").
@@ -613,7 +623,26 @@ function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraf
   // same complaint: a field already reading 135 put the caret at the end, so
   // typing 145 gave 135145. Focus selects, so the first keystroke overwrites
   // -- which is what tapping a number on a form has always meant.
-  const selectAll = (e: { currentTarget: HTMLInputElement }) => e.currentTarget.select();
+  const quiet = useRef(false);
+  const selectAll = (e: { currentTarget: HTMLInputElement }) => {
+    if (quiet.current) { quiet.current = false; return; }
+    e.currentTarget.select();
+  };
+  // THE CURSOR ARRIVES ON ITS OWN (Dave, 2026-10-17). Never over another
+  // field he is in, and never under an open sheet: the sheet's own field
+  // keeps the keyboard.
+  const first = useRef<HTMLInputElement | null>(null);
+  const focusKey = focus?.key;
+  useEffect(() => {
+    const el = first.current;
+    if (!focusKey || !el) return;
+    const active = document.activeElement;
+    if (active && active !== el && active !== document.body && active.matches("input, textarea, select, [contenteditable='true']")) return;
+    if (document.querySelector("[role='dialog']")) return;
+    quiet.current = !focus?.select;
+    el.focus({ preventScroll: true });
+    quiet.current = false;
+  }, [focusKey]);
   /** The word beside each box: the unit on a weight, the rep word, the
    *  exercise's own unit on a time, distance or height, the time unit on the
    *  paired half. The field's label when the lift named no unit. */
@@ -636,7 +665,7 @@ function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraf
       {shown.map((f) => (
         <Fragment key={f.key}>
           <span className="se-field">
-          <input className="set-field" type="number" inputMode={f.key === "r" ? "numeric" : "decimal"} min={0} step={f.step} value={vals[f.key] ?? ""}
+          <input ref={f.key === shown[0]?.key ? first : undefined} className="set-field" type="number" inputMode={f.key === "r" ? "numeric" : "decimal"} min={0} step={f.step} value={vals[f.key] ?? ""}
             onFocus={selectAll} aria-label={`${side} ${nameFor(f)}`}
             {...(onEnter ? { enterKeyHint: "go" as const, onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } } : {})}
             onChange={(e) => { const next = { ...vals, [f.key]: e.target.value }; setVals(next); report(next); }} />

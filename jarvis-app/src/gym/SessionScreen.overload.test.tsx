@@ -192,7 +192,7 @@ describe("I: the warm-up opens on his own last warm-ups", () => {
     again([{ id: "a", w: 135, r: 10, warmup: true }]);
     expect(cta()).toHaveTextContent("Log Warm-Up 185 Lb × 5");
     again([{ id: "a", w: 135, r: 10, warmup: true }, { id: "b", w: 185, r: 5, warmup: true }]);
-    expect(cta(), "past his own warm-ups the card is on Work").toHaveTextContent(/^Log 275 Lb × 8/);
+    expect(cta(), "past his own warm-ups the card is on Work").toHaveTextContent(/^Log (?!Warm-Up)/);
   });
 
   it("with no history the ramp stands, and it is labelled Suggested", () => {
@@ -300,7 +300,8 @@ describe("section 10: progressive overload on the Now card", () => {
   const allTop = session("2026-10-10", [{ id: "h1", w: 275, r: 8 }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 8 }]);
   const plan = bench({ sets: [{ id: "p1", w: 275, r: 6 }, { id: "p2", w: 275, r: 8 }, { id: "p3", w: 275, r: 8 }], equipment: "barbell" });
 
-  it("suggest (the default): the fields open on last time, one line says Last and Suggested, Why cites his sets, Use fills the step", () => {
+  it("suggest (a stored choice, no longer the default): the fields open on last time, one line says Last and Suggested, Why cites his sets, Use fills the step", () => {
+    writeGymSettings({ ...readGymSettings(), overloadApply: "suggest" });
     renderScreen({ history: [allTop] }, plan);
     expect(cta()).toHaveTextContent("Log 275 Lb × 8");
     // The board's one small line: Last in teal, then Suggested, then Use.
@@ -318,24 +319,168 @@ describe("section 10: progressive overload on the Now card", () => {
     expect(screen.queryByRole("button", { name: /^Use 280/ }), "Use hides once the fields say it").toBeNull();
   });
 
-  it("prefill: the first set opens on the step, with the same reason and no Use", () => {
-    writeGymSettings({ ...readGymSettings(), overloadApply: "prefill" });
+  it("prefill, the default (Dave 2026-10-17): the first set opens on the step; the line says why and what to expect; no Use", () => {
     renderScreen({ history: [allTop] }, plan);
     expect(cta()).toHaveTextContent("Log 280 Lb × 6");
     expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(280);
-    expect(screen.getByText("Suggested 280 Lb × 6", { selector: ".fact" })).toBeInTheDocument();
+    const line = screen.getByText("All at the Top of 6 to 8", { selector: ".fact" }).parentElement!;
+    expect(line.className).toContain("se-nowline");
+    expect(within(line).getByText("Expect 6 to 7", { selector: ".fact" })).toBeInTheDocument();
+    expect(screen.queryByText("Suggested 280 Lb × 6"), "the fields already say it").toBeNull();
     expect(screen.queryByRole("button", { name: /^Use 280/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    expect(screen.getByText("Last Time 275 × 8, 8, 8", { selector: ".fact" })).toBeInTheDocument();
     expect(screen.getByText("Step to 280 × 6", { selector: ".fact" })).toBeInTheDocument();
+    expect(screen.getAllByText("All at the Top of 6 to 8"), "the reason is drawn once").toHaveLength(1);
   });
 
-  it("an override becomes the baseline: typing a weight is what logs, and the plan does not move", () => {
+  it("prefill's one-tap revert: Use Last puts last time back, and the step is offered with Use", () => {
+    renderScreen({ history: [allTop] }, plan);
+    fireEvent.click(screen.getByRole("button", { name: /^Use 275 Lb × 8, same as last time/ }));
+    expect(cta()).toHaveTextContent("Log 275 Lb × 8");
+    expect(screen.getByText("Suggested 280 Lb × 6", { selector: ".fact" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Use 280 Lb × 6/ }));
+    expect(cta()).toHaveTextContent("Log 280 Lb × 6");
+  });
+
+  it("with Show Last off the revert is still one tap, to the numbers the set would have opened at", () => {
+    writeGymSettings({ ...readGymSettings(), showLast: false });
+    renderScreen({ history: [allTop] }, plan);
+    fireEvent.click(screen.getByRole("button", { name: "Use 275 Lb × 8, without the step" }));
+    expect(cta()).toHaveTextContent("Log 275 Lb × 8");
+  });
+
+  it("an untouched prefill logged is the accept: reported, the plan moves, nothing declined", () => {
+    const onLog = vi.fn();
+    const onAcceptSuggestion = vi.fn((_s: unknown) => null);
+    renderScreen({ history: [allTop], onLog, onAcceptSuggestion }, plan);
+    fireEvent.click(cta());
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 280, r: 6, state: "reported" });
+    expect(onLog.mock.calls[0]![0].declined).toBeUndefined();
+    expect(onAcceptSuggestion).toHaveBeenCalledTimes(1);
+    expect(onAcceptSuggestion.mock.calls[0]![0]).toMatchObject({ next: { w: 280, r: 6 } });
+  });
+
+  it("an override becomes the baseline: a changed weight is what logs, the plan does not move, and the step is kept as declined", () => {
     const onLog = vi.fn();
     const onAcceptSuggestion = vi.fn();
     renderScreen({ history: [allTop], onLog, onAcceptSuggestion }, plan);
-    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "285" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "275" } });
     fireEvent.click(cta());
-    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 285, r: 8 });
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 275, r: 6, state: "reported", declined: { w: 280, r: 6 } });
     expect(onAcceptSuggestion).not.toHaveBeenCalled();
+  });
+
+  it("changed reps at the step's weight is not an override: nothing declined, and the plan holds", () => {
+    const onLog = vi.fn();
+    const onAcceptSuggestion = vi.fn();
+    renderScreen({ history: [allTop], onLog, onAcceptSuggestion }, plan);
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "5" } });
+    fireEvent.click(cta());
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 280, r: 5 });
+    expect(onLog.mock.calls[0]![0].declined).toBeUndefined();
+    expect(onAcceptSuggestion).not.toHaveBeenCalled();
+  });
+
+  it("never argues twice: a step he changed last time is offered, not filled in, and stays declined until he takes it", () => {
+    const turnedDown = session("2026-10-10", [{ id: "h1", w: 275, r: 8, declined: { w: 280, r: 6 } }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 8 }]);
+    const onLog = vi.fn();
+    renderScreen({ history: [turnedDown], onLog }, plan);
+    expect(cta(), "his own numbers are the baseline").toHaveTextContent("Log 275 Lb × 8");
+    expect(screen.getByText("Suggested 280 Lb × 6", { selector: ".fact" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Use 280 Lb × 6/ })).toBeInTheDocument();
+    fireEvent.click(cta());
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 275, r: 8, declined: { w: 280, r: 6 } });
+  });
+
+  it("never argues twice, the other way: taking the offered step with Use is the accept", () => {
+    const turnedDown = session("2026-10-10", [{ id: "h1", w: 275, r: 8, declined: { w: 280, r: 6 } }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 8 }]);
+    const onLog = vi.fn();
+    const onAcceptSuggestion = vi.fn((_s: unknown) => null);
+    renderScreen({ history: [turnedDown], onLog, onAcceptSuggestion }, plan);
+    fireEvent.click(screen.getByRole("button", { name: /^Use 280 Lb × 6/ }));
+    fireEvent.click(cta());
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 280, r: 6 });
+    expect(onLog.mock.calls[0]![0].declined).toBeUndefined();
+    expect(onAcceptSuggestion).toHaveBeenCalledTimes(1);
+  });
+
+  it("a lighter week's first set does not warm up past itself: his own warm-up at or over the new top moves under it", () => {
+    const heavyWarm = session("2026-10-10", [
+      { id: "w1", w: 135, r: 8, warmup: true }, { id: "w2", w: 255, r: 3, warmup: true },
+      { id: "h1", w: 275, r: 8 }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 8 }]);
+    const { rerender } = renderScreen({ history: [heavyWarm], backOffWeek: true }, plan);
+    expect(cta()).toHaveTextContent("Log Warm-Up 135 Lb × 8");
+    const again = (sets: SetEntry[]) => rerender(
+      <SessionScreen onAdopt={() => {}} live={live(sets, [plan])} exercise={plan} dayExercises={[plan]} programDay={{ id: "d1", name: "Push", exercises: [plan] }}
+        history={[heavyWarm]} library={[]} backOffWeek onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
+        onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,
+    );
+    again([{ id: "a", w: 135, r: 8, warmup: true }]);
+    // 255 under a 245 top: 255 × 245 / 275 is 227.2, rounded down to the rack.
+    expect(cta()).toHaveTextContent("Log Warm-Up 225 Lb × 3");
+  });
+});
+
+describe("the cursor is already there (Dave 2026-10-17, answers 1 and 6)", () => {
+  const allTop = session("2026-10-10", [{ id: "h1", w: 275, r: 8 }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 8 }]);
+
+  it("the Now card's first field is focused on open with its number selected, so a keystroke replaces it", () => {
+    const select = vi.spyOn(HTMLInputElement.prototype, "select");
+    renderScreen({ history: [allTop] });
+    const weight = screen.getByLabelText("Set 1 Weight");
+    expect(weight).toHaveFocus();
+    expect(select.mock.contexts).toContain(weight);
+    select.mockRestore();
+  });
+
+  it("a reps-only lift focuses its reps", () => {
+    renderScreen({}, pullups);
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveFocus();
+  });
+
+  it("the next set takes the cursor once a set lands", () => {
+    const ex = bench();
+    const { rerender } = renderScreen({}, ex);
+    screen.getByLabelText("Set 1 Weight").blur();
+    rerender(
+      <SessionScreen onAdopt={() => {}} live={live([{ id: "a", w: 275, r: 8 }], [ex])} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
+        history={[]} library={[]} onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
+        onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,
+    );
+    expect(screen.getByLabelText("Set 2 Weight")).toHaveFocus();
+  });
+
+  it("never under an open sheet", () => {
+    renderScreen({ onCancel: () => {} });
+    screen.getByLabelText("Set 1 Weight").blur();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Workout" }));
+    expect(screen.getByLabelText("Set 1 Weight")).not.toHaveFocus();
+  });
+});
+
+describe("log by voice, as a test (the Logging Standard, addendum 5; Alfred's ruling 2026-10-17)", () => {
+  it("More opens it; the phrase is read back; his confirm writes a reported set with the big button's receipt and Undo", () => {
+    const onLog = vi.fn();
+    const onSetLogged = vi.fn();
+    renderScreen({ onLog, onSetLogged });
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log by Voice" }));
+    const field = screen.getByLabelText("Say or Type the Set");
+    expect(field, "the cursor is in it, so the keyboard's mic is one tap").toHaveFocus();
+    fireEvent.change(field, { target: { value: "yes" } });
+    expect(screen.getByRole("button", { name: "Log Set" }), "a bare yes logs nothing").toBeDisabled();
+    fireEvent.change(field, { target: { value: "Log 230 for 5" } });
+    expect(screen.getByRole("status")).toHaveTextContent("Log 230 Lb × 5 on Bench Press");
+    expect(onLog).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Log Set" }));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 230, r: 5, state: "reported" });
+    expect(screen.queryByLabelText("Say or Type the Set"), "closed before the receipt").toBeNull();
+    const receipt = vi.mocked(showToast).mock.calls.at(-1)![0];
+    expect(receipt.message).toBe("Logged 230 Lb × 5");
+    expect(receipt.actionLabel).toBe("Undo");
+    receipt.onAction!();
+    expect(onSetLogged).toHaveBeenCalledWith([], 0);
   });
 });

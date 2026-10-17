@@ -62,34 +62,33 @@ const allTop = session("2026-10-10", [{ id: "h1", w: 275, r: 8 }, { id: "h2", w:
 beforeEach(() => { localStorage.clear(); });
 
 describe("the program week's Back-Off flag reaches the engine", () => {
-  it("with backOffWeek the first set is offered a lighter week, and the reason says why", () => {
+  it("with backOffWeek the first set opens on a lighter week, and the reason says why", () => {
     renderScreen({ history: [allTop], backOffWeek: true });
-    expect(screen.getByText("Suggested 245 Lb × 6", { selector: ".fact" })).toBeInTheDocument();
+    // Prefill (Dave, 2026-10-17): the fields hold it; the line says why.
+    expect(cta()).toHaveTextContent("Log 245 Lb × 6");
+    expect(screen.getByText("Back-Off Week", { selector: ".se-nowline .fact" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Why" }));
-    expect(screen.getByText("Back-Off Week", { selector: ".fact" })).toBeInTheDocument();
     expect(screen.getByText("Lighter Week 245 × 6, 2 Sets, Nothing to Failure", { selector: ".fact" })).toBeInTheDocument();
     expect(screen.getByText("2 Sets", { selector: ".fact" })).toBeInTheDocument();
   });
 
   it("without it the same log steps", () => {
     renderScreen({ history: [allTop] });
-    expect(screen.getByText("Suggested 280 Lb × 6", { selector: ".fact" })).toBeInTheDocument();
+    expect(cta()).toHaveTextContent("Log 280 Lb × 6");
   });
 });
 
 describe("rule 7: once set one is logged, the rest of the sets are read against it", () => {
-  it("set one two reps short: the Now card for set two suggests the drop, Use fills it, and the program never moves on it", () => {
+  it("set one two reps short: set two opens on the drop, the line says why, and the program never moves on it", () => {
     const onAcceptSuggestion = vi.fn();
     const onLog = vi.fn();
     renderScreen({ onAcceptSuggestion, onLog }, bench(), [{ id: "l1", w: 275, r: 6 }]);
-    expect(screen.getByText("Suggested 260 Lb × 8", { selector: ".fact" })).toBeInTheDocument();
+    expect(cta()).toHaveTextContent("Log 260 Lb × 8");
+    expect(screen.getByText("2 Reps Short of 8", { selector: ".se-nowline .fact" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Why" }));
     expect(screen.getByText("Set 1 275 × 6", { selector: ".fact" })).toBeInTheDocument();
-    expect(screen.getByText("2 Reps Short of 8", { selector: ".fact" })).toBeInTheDocument();
     expect(screen.getByText("Drop to 260 × 8 for the Rest", { selector: ".fact" })).toBeInTheDocument();
     expect(screen.getByText("Set 1 of Today")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Use 260 Lb × 8/ }));
-    expect(cta()).toHaveTextContent("Log 260 Lb × 8");
     fireEvent.click(cta());
     expect(onLog.mock.calls[0]![0]).toMatchObject({ w: 260, r: 8 });
     expect(onAcceptSuggestion, "an in-session adjustment is never an accept").not.toHaveBeenCalled();
@@ -125,9 +124,8 @@ describe("rule 2: Each Set on Its Own, from the gym store", () => {
       session("2026-10-10", [{ id: "h1", w: 275, r: 8 }, { id: "h2", w: 275, r: 8 }, { id: "h3", w: 275, r: 6 }]),
     ];
     renderScreen({ history: h });
-    expect(screen.getByText("Suggested 280 Lb × 6", { selector: ".fact" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
-    expect(screen.getByText("Sets 1 and 2 at the Top of 6 to 8", { selector: ".fact" })).toBeInTheDocument();
+    expect(cta()).toHaveTextContent("Log 280 Lb × 6");
+    expect(screen.getByText("Sets 1 and 2 at the Top of 6 to 8", { selector: ".se-nowline .fact" })).toBeInTheDocument();
   });
 });
 

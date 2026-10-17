@@ -27,7 +27,10 @@ const renderAt = (l: LiveSession) => render(
 );
 
 describe("the prefill", () => {
-  beforeEach(() => { localStorage.clear(); });
+  // The seeding rule itself, read with no step on top of it: under the
+  // overload prefill (Dave, 2026-10-17) a step the engine computes fills the
+  // first set instead, which SessionScreen.overload.test.tsx covers.
+  beforeEach(() => { localStorage.clear(); writeGymSettings({ ...readGymSettings(), overloadApply: "suggest" }); });
 
   it("opens the first set at last week's numbers, not the plan's", () => {
     renderAt(live([]));

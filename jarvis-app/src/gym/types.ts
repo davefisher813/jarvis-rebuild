@@ -126,15 +126,23 @@ export interface SetEntry extends SetLog {
   at?: number;
   /** WHICH STATE THE VALUE CAME FROM (the Logging Standard, addendum 1,
    *  2026-10-17: "planned is not done"; a record carries one of four states
-   *  and they never blur). Two are written today: "reported", Dave logged it
-   *  by hand (the Log button, the set sheet, the capture box's "225 for 5"),
+   *  and they never blur). Two are written: "reported", Dave logged it by
+   *  hand (the Log button, the set sheet, the capture box's "225 for 5"),
    *  stamped by every door that writes a logged entry; "observed", a trusted
-   *  source recorded it (the Apple Health importer). The other two, planned
-   *  and suggested, are NOT written yet: what logging an untouched prefill
-   *  records is Dave's open question, and nothing here pre-empts it. Absent
-   *  on everything logged before the field existed, and absent means
-   *  unknown, never reported. */
+   *  source recorded it (the Apple Health importer). "Suggested" is what a
+   *  prefilled number is WHILE it sits in the fields; the moment he logs it,
+   *  untouched or not, it is reported (Dave, 2026-10-17: an untouched prefill
+   *  that gets logged counts as accepting it). "Planned" lives on the
+   *  program, never on a logged entry. Absent on everything logged before the
+   *  field existed, and absent means unknown, never reported. */
   state?: "reported" | "observed";
+  /** THE STEP HE CHANGED (2026-10-17, "Your own numbers become the baseline;
+   *  the app never argues twice"). On the first working set only: the weight
+   *  and reps the app filled in, when he logged a different weight. The next
+   *  session that would fill in the same step again offers it instead
+   *  (progression.ts, Suggestion.declined), and the in-session "a little
+   *  more" offer is not made on top of it. */
+  declined?: SetLog;
 }
 
 // EQUIPMENT lives in its own file now (gym/equipment.ts, 2026-09-14), because

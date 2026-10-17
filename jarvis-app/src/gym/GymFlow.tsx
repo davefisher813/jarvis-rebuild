@@ -57,7 +57,7 @@ import UploadFlow from "./UploadFlow";
 import HistoryScreen, { GymLoadState } from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
-import { defaultView } from "./libraryView";
+import { defaultView, stockRows } from "./libraryView";
 import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type Classification, type ClassConflict, type ClassStore } from "./classify";
 import ClassifySheet from "./ClassifySheet";
 import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
@@ -606,7 +606,9 @@ type Sheet =
   | { kind: "program"; programId?: string }
   | { kind: "week"; weekId?: string }
   | { kind: "day"; weekId: string; dayId?: string }
-  | { kind: "exercise"; weekId: string; dayId: string; exId?: string }
+  // `name`: a new exercise opened from the day-fill picker's free text, with
+  // the name already typed (Dave 2026-10-17: pick from the list AND type).
+  | { kind: "exercise"; weekId: string; dayId: string; exId?: string; name?: string }
   // FILL A DAY FROM YOUR LIFTS (2026-09-14): the library as a multi-select,
   // so building a day is one pass instead of one full sheet per exercise.
   | { kind: "fillDay"; weekId: string; dayId: string }
@@ -1123,15 +1125,35 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     () => defaultView(libraryRows(library, workouts, hiddenKeys), classStore).rows.length,
     [library, workouts, hiddenKeys, classStore],
   );
+  /** The catalog's entries he has not got, as the Exercises page lists them
+   *  (Dave 2026-10-17), recomputed only when the library changes. */
+  const stock = useMemo(() => stockRows(library), [library]);
   /** A STARTER BECOMES THE ATHLETE'S (S9, 2026-10-16). The picker hands back
    *  the seeds and classifications of the catalog entries it adopted; they are
    *  written through this flow's own setters, so its in-memory copies of
    *  GymSettings (createdLifts, classStore) stay in step with the store. */
   const adoptStarters = (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => {
     if (adopted.length === 0) return;
-    saveCreatedLifts([...createdLifts, ...adopted.map((a) => a.seed)]);
-    const next: ClassStore = { ...classStore };
-    for (const a of adopted) next[a.seed.key] = a.cls;
+    // FROM THE STORE, NOT THIS RENDER'S COPIES (2026-10-17). The exercise
+    // sheet's typeahead adopts a starter AFTER its caller's save has run in
+    // the same tap, and that save (seedLibrary, classifyFromSheet, the
+    // library page's create) has already written the lift's seed and its
+    // equipment from copies this closure is now behind on. Building from them
+    // would write those away. So the door reads what is stored, keeps a seed
+    // already there under the same key, and fills only the muscles a stored
+    // classification has not said. A picker's adoption mints a key nothing
+    // holds yet, so for it this is the same write as before.
+    const gs = readGymSettings();
+    const created = gs.createdLifts ?? [];
+    const held = new Set(created.map((c) => c.key));
+    saveCreatedLifts([...created, ...adopted.filter((a) => !held.has(a.seed.key)).map((a) => a.seed)]);
+    const next: ClassStore = { ...readClassStore(gs.classByKey, gs.muscleByKey) };
+    for (const a of adopted) {
+      const cur = next[a.seed.key];
+      next[a.seed.key] = cur
+        ? { ...cur, primary: cur.primary.length ? cur.primary : a.cls.primary, secondary: cur.secondary.length ? cur.secondary : a.cls.secondary }
+        : a.cls;
+    }
     saveClassStore(next);
   };
 
@@ -2551,6 +2573,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <>
         <LibraryPage
           rows={rowsNow()}
+          // STOCK AND CUSTOM (Dave 2026-10-17: "It should be all exercises.
+          // Stock and custom"): the catalog's entries he has not got, the
+          // ones every picker offers, adopted through the same door. Only once
+          // his records are read: before that every lift he owns would be
+          // listed as stock, and a tap on one would adopt a second copy.
+          {...(loaded ? { stock: { rows: stock, onAdopt: adoptStarters } } : {})}
           store={classStore}
           todayIso={todayISO()}
           onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
@@ -2968,6 +2996,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             record
             initial={workoutAddName ? { id: "", name: workoutAddName, kind: "weight_reps", sets: uniformStrip(3, { r: 8 }) } : undefined}
             library={library}
+            // The catalog in the name's typeahead (2026-10-17), adopted on
+            // Save, after this save's own seed and muscle are written.
+            onAdopt={adoptStarters}
             history={workouts}
             onSave={(draft) => {
               patchDraft((d) => [...d, {
@@ -3474,6 +3505,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               showToast({ message: added.length === 1 ? `Added ${added[0]!.name}` : `Added ${added.length} Exercises` });
             }
           }}
+          // PICK FROM THE LIST AND TYPE YOUR OWN (Dave 2026-10-17: both). The
+          // same Use Anyway every other picker has, landing where free text
+          // lands elsewhere: the new-exercise sheet, here the day's own, with
+          // the name already typed. Anything ticked first is added before it
+          // opens (LibraryPickSheet hands the picks over first), and the
+          // day's write updates the program at once, so the sheet's save
+          // builds on a day that already holds them.
+          onFreeText={(q) => setSheet({ kind: "exercise", weekId: sheet.weekId, dayId: sheet.dayId, name: q })}
           onCancel={() => setSheet({ kind: "closed" })}
         />
       );
@@ -3489,8 +3528,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       return (
         <ExerciseSheet
           mode={existing ? "edit" : "new"}
-          initial={existing}
+          initial={existing ?? (sheet.name ? { id: "", name: sheet.name, kind: "weight_reps", sets: uniformStrip(3, { r: 8 }) } : undefined)}
           library={library}
+          // The catalog in the name's typeahead, adopted through the flow's
+          // one door on Save (2026-10-17).
+          onAdopt={adoptStarters}
           history={workouts}
           partner={mates.length ? mates.join(", ") : null}
           onPairWith={canPair ? () => { setSheet({ kind: "closed" }); setPicker({ kind: "groupWith", weekId: sheet.weekId, dayId: sheet.dayId, exId: existing!.id }); } : undefined}

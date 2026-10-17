@@ -65,8 +65,9 @@ const toastWith = (re: RegExp) => vi.mocked(showToast).mock.calls.map((c) => c[0
 describe("GymFlow: Undo on the set that accepted a suggestion", () => {
   it("logging the suggested set moves the plan, and the one receipt's Undo puts back the set and the plan", async () => {
     const { gym } = await mount();
-    fireEvent.click(await screen.findByRole("button", { name: /^Use 280 Lb × 6/ }, { timeout: 4000 }));
-    fireEvent.click(screen.getByRole("button", { name: "Log 280 Lb × 6" }));
+    // Prefill (Dave, 2026-10-17): the step is already in the fields, and
+    // logging it untouched is the accept.
+    fireEvent.click(await screen.findByRole("button", { name: "Log 280 Lb × 6" }, { timeout: 4000 }));
     // The set is logged and the plan moved, stepped to 280 × 6 with its range kept.
     await waitFor(async () => expect((await planOf(gym)).sets.map((s) => [s.w, s.r])).toEqual([[280, 6], [280, 6], [280, 6]]), { timeout: 4000 });
     expect((await planOf(gym)).repRange).toEqual({ low: 6, high: 8 });

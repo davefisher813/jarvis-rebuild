@@ -64,7 +64,12 @@ async function mount(opts: { history?: boolean } = {}) {
   return { gym: gym! as GymService };
 }
 
-const rowNamed = (name: string) => screen.queryByText(name, { selector: ".ex-name" });
+// HIS OWN LIST ONLY (2026-10-17). The catalog's starters are listed under his
+// exercises now, and deleting his Bench Press rightly brings the catalog's
+// Bench Press back under Chest; what these tests ask is whether HIS row went.
+// His list is the first card under a head, the one under Your Exercises.
+const ownList = () => document.querySelector(".sh2 + .pad-x .list-card-ruled");
+const rowNamed = (name: string) => [...(ownList()?.querySelectorAll(".ex-name") ?? [])].find((e) => e.textContent === name) ?? null;
 const openMenu = async (name: string) => { fireEvent.click(await screen.findByRole("button", { name: `More for ${name}` })); };
 const toastWith = (re: RegExp) => showToast.mock.calls.map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void }).find((c) => re.test(c.message));
 const listed = () => Array.from(document.querySelectorAll(".ex-name")).map((e) => e.textContent);

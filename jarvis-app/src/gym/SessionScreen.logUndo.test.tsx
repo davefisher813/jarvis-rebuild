@@ -100,8 +100,9 @@ describe("the accept rides the set's receipt", () => {
     programId: "p", dayId: "d1", dayName: "Push", date: "2026-10-17", startedAt: 0, idx: 0,
     exercises: [{ exerciseId: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", exerciseKey: "k-bench", sets: [] }],
   });
+  // Prefill (Dave, 2026-10-17): the step is already in the fields, and
+  // logging it untouched is the accept.
   const logStep = () => {
-    fireEvent.click(screen.getByRole("button", { name: /^Use 280 Lb × 6/ }));
     fireEvent.click(screen.getByRole("button", { name: "Log 280 Lb × 6" }));
     return vi.mocked(showToast).mock.calls[0]![0];
   };

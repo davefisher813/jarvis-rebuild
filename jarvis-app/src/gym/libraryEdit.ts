@@ -61,6 +61,11 @@ export interface LibraryRow {
   aliases?: string[];
   /** Part 3 wave 1: starred on Your Lifts. */
   favorite?: boolean;
+  /** ONLY ON A STOCK ROW (Dave 2026-10-17: "It should be all exercises. Stock
+   *  and custom"): a preloaded catalog entry the athlete has not adopted,
+   *  listed on the Exercises page beside his own. Its muscles ride along so
+   *  the row can show them and an adoption can write them. */
+  starter?: LibraryEntry["starter"];
 }
 
 /** Every lift the athlete has, with its count and its last day. Sorted the
@@ -102,6 +107,7 @@ export function libraryRows(library: LibraryEntry[], workouts: Workout[], hidden
       hidden: hidden.has(e.key),
       ...(e.aliases?.length ? { aliases: e.aliases } : {}),
       ...(e.favorite ? { favorite: true } : {}),
+      ...(e.starter ? { starter: e.starter } : {}),
     }))
     .sort((a, b) => {
       if (a.lastDate && b.lastDate) return b.lastDate.localeCompare(a.lastDate) || a.name.localeCompare(b.name);

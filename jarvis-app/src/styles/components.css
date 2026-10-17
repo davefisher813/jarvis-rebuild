@@ -2761,6 +2761,11 @@ button {
 /* In a sheet's form the quiet capsules are ONE WRAPPING ROW under the field they belong to, on the field's own column
    (2026-10-05, Smart Paste: Speak and the two filing doors). */
 .sheet-form > .msg-quiet-acts { flex-direction: row; flex-wrap: wrap; align-items: center; margin-top: var(--s-2); }
+/* THE READ-BACK (voice set logging, the Logging Standard addendum 5, Alfred 2026-10-17): the set as it will be written,
+   "Log 225 Lb × 5 on Bench Press", under the field it was said into. A name's type and the primary ink, because it is
+   the statement he confirms, not a note about the field; it wraps, never truncates. Both themes, ink only. */
+.voice-readback { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); color: var(--tx-1);
+  line-height: 1.3; margin-top: var(--s-3); }
 /* The thread's last row sat under the floating voice dock (Dave 2026-08-25,
    second screenshot: Reply and Forward half-covered). The dock is fixed over
    the page, so the page has to end above it. Measured against the dock's own

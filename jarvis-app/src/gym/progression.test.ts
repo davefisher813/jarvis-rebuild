@@ -472,3 +472,27 @@ describe("rule 7: inside a session, set one decides the rest", () => {
     expect(inSessionAdjust([], timed, [{ id: "l1", v: 40 }])).toBeNull();
   });
 });
+
+// PREFILL, AND THE APP NEVER ARGUES TWICE (Dave, 2026-10-17). A step he
+// changed when it was filled in is remembered on the set he logged instead.
+describe("never argues twice", () => {
+  const p = plan();
+  it("the same step he turned down last session comes back flagged declined", () => {
+    const h = [wk("2026-10-10", [wex("Bench", [{ w: 275, r: 8, declined: { w: 280, r: 6 } }, { w: 275, r: 8 }, { w: 275, r: 8 }])])];
+    const s = suggestFor(h, p, { smallestJump: 5 })!;
+    expect(s.next).toEqual({ w: 280, r: 6 });
+    expect(s.declined).toBe(true);
+  });
+
+  it("a different step is not the one he turned down", () => {
+    const h = [wk("2026-10-10", [wex("Bench", [{ w: 280, r: 8, declined: { w: 285, r: 6 } }, { w: 280, r: 8 }, { w: 280, r: 8 }])]),
+      wk("2026-10-14", [wex("Bench", [{ w: 285, r: 8 }, { w: 285, r: 8 }, { w: 285, r: 8 }])])];
+    expect(suggestFor(h, p, { smallestJump: 5 })!.declined).toBeUndefined();
+  });
+
+  it("set one logged instead of a filled-in step gets no 'a little more' on top of it", () => {
+    const easy = { id: "l1", w: 275, r: 8, moved: "clean" as const };
+    expect(inSessionAdjust(seasonedBench(), p, [easy], { smallestJump: 5 })!.kind).toBe("up");
+    expect(inSessionAdjust(seasonedBench(), p, [{ ...easy, declined: { w: 280, r: 6 } }], { smallestJump: 5 })).toBeNull();
+  });
+});

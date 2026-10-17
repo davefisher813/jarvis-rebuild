@@ -47,6 +47,12 @@ import type { OverloadTargets } from "./settings";
 //      for the rest, never under twelve sessions. The marks stand in for a
 //      reps-in-reserve number the app does not ask for.
 //
+// PREFILL (Dave, 2026-10-17): the session screen fills the step into the
+// first set's fields; logging them untouched is the accept. A changed weight
+// is recorded on that set (SetEntry.declined), and the same step next time is
+// offered, never filled in again (Suggestion.declined): the app never argues
+// twice.
+//
 // Two rules from the first engine stand: NOTHING IS WRITTEN until the lifter
 // logs the suggested numbers (applySuggestion is the only writer), and a
 // suggestion the evidence cannot support is silence, not a guess. Never
@@ -84,6 +90,11 @@ export interface Suggestion {
   /** The basis on tap: the lift, the session read, which sets counted, the
    *  rep range, the increment, and the marks. */
   basis?: SuggestionBasis;
+  /** NEVER ARGUES TWICE (2026-10-17): last session he changed this same step
+   *  when it was filled in (SetEntry.declined). The session screen then opens
+   *  on his own numbers and offers the step with Use instead of filling it
+   *  in again. */
+  declined?: boolean;
 }
 
 export interface SuggestionBasis {
@@ -150,7 +161,11 @@ function sessionsOf(history: Workout[], ex: Pick<Exercise, "name" | "kind" | "un
     const convert = !!ex.unit && !!hit.unit && ex.unit !== hit.unit;
     out.push({
       date: w.data.date, dayId: w.data.dayId,
-      sets: convert ? work.map((s) => inUnit(ex.kind, s, hit.unit, ex.unit) as SetEntry) : work,
+      // The step he turned down rides in the same unit as the set it sits on.
+      sets: convert ? work.map((s) => {
+        const c = inUnit(ex.kind, s, hit.unit, ex.unit) as SetEntry;
+        return s.declined ? { ...c, declined: inUnit(ex.kind, s.declined, hit.unit, ex.unit) } : c;
+      }) : work,
       unit: convert ? ex.unit : hit.unit,
     });
   }
@@ -537,8 +552,15 @@ export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOption
     marks: marked.length ? lineCase([clean ? `${clean} clean` : "", grind ? `${grind} grind` : "", miss2 ? `${miss2} missed` : ""].filter(Boolean).join(", ")) : "None Marked",
   };
 
+  // NEVER ARGUES TWICE (2026-10-17, the published rule's last line). He
+  // changed the weight of a step the app filled in last session; the same
+  // step is offered now, never filled in again.
+  const turnedDown = weighted ? last.sets[0]?.declined : undefined;
+  const declined = turnedDown?.w !== undefined && next.w !== undefined && same(turnedDown.w, next.w);
+
   return {
     kind, next, from, reason, why, range,
+    ...(declined ? { declined: true } : {}),
     ...(expect ? { expect } : {}),
     ...(addSet ? { addSet: true } : {}),
     ...(addSetWhy ? { addSetWhy } : {}),
@@ -582,7 +604,9 @@ export function inSessionAdjust(history: Workout[], ex: Exercise, logged: SetEnt
     next = { w: lighter, r: targetReps };
     verdict = first.moved === "missed" ? "Marked Hard" : `${targetReps - reps} Reps Short of ${targetReps}`;
     target = `Drop to ${trim(lighter)} × ${targetReps} for the Rest`;
-  } else if (reps >= range.high && first.moved === "clean" && seasoned) {
+  } else if (reps >= range.high && first.moved === "clean" && seasoned && !first.declined) {
+    // A step he turned down on set one is not offered back to him as "a
+    // little more" for the rest (never argues twice).
     kind = "up";
     incrementUsed = Math.max(jump, roundTo(load * 0.025, jump));
     const to = r4(load + incrementUsed);

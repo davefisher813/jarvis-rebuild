@@ -16,7 +16,9 @@ const RULES: { head: string; lines: string[] }[] = [
   { head: "Sets", lines: ["At Most 1 Set More for Each Lift Each Week", "Never in the Week the Weight Steps, and Only After a Week With No Misses", "Whether You Feel Recovered Is Your Call; the App Keeps No Reading of It"] },
   { head: "Inside a Session", lines: ["Set 1 Two or More Reps Short, or Marked Hard, Drops the Rest 5%", "Set 1 at the Top and Marked Easy Offers 2.5% More for the Rest, After 12 Sessions"] },
   { head: "Your Marks", lines: ["Easy, Right and Hard Are Never Required", "All Easy Lets a Step Through; Hard Holds It; Right Leaves the Reps to Decide"] },
-  { head: "Trust", lines: ["Every Suggestion Names Your Own Last Sets", "Nothing Moves Until You Log It", "Your Own Numbers Become the Baseline; the App Never Argues Twice"] },
+  // Dave 2026-10-17: prefill. The step is in the fields; logging it as it is
+  // takes it; a changed weight is his, and that step is offered from then on.
+  { head: "Trust", lines: ["Every Suggestion Names Your Own Last Sets", "The Next Step Is Filled In; Log It as It Is to Take It", "Nothing Moves Until You Log It", "Change the Weight and Your Numbers Become the Baseline", "A Step You Changed Is Offered Next Time, Never Filled In; the App Never Argues Twice"] },
 ];
 
 export default function HowSuggestionsSheet({ onClose }: { onClose: () => void }) {
