@@ -70,23 +70,29 @@ const SEED_TX: SeedTx[] = [
 // Aug 26 (the Ally payment)."
 //
 // So the three rows were not one fee drawn three times; they were an
-// undercount (the bank has five inside this window) wearing one label. Each
-// fee here carries the purchase it was charged for (`about`), the way the
-// statement itself labels it, and a reference (`ref`) that tells it from the
-// fee beside it. The Aug 26 fee is outside this seed's window (September 1 to
-// 15) and is NOT added here; it is reported, not invented into the month.
+// undercount wearing one label. Each fee here carries the purchase it was
+// charged for (`about`), the way the statement itself labels it, and a
+// reference (`ref`) that tells it from the fee beside it.
+//
+// SIX, NOT FIVE (the follow-up order, 2026-10-17): the first pass kept the
+// September statement's window (Sep 1 to 15) and left the Aug 26 fee out, so
+// the app showed five of the bank's six. The window was the seed's own frame,
+// not the bank's; the fee list now carries every fee the bank evidence names.
+// The Aug 26 fee was charged for the Ally payment ($779.00); the evidence gives
+// no posting day for it, so none is written and none is drawn.
 export const FEE_ACCOUNT = "BUSINESS CHECKING ...3305";
 export const FEE_MERCHANT = "Overdraft Fee";
 export const FEE_CENTS = 3500;
 
-/** [fee date, underlying merchant, underlying cents, posted date] */
-type SeedFee = [string, string, number, string];
+/** [fee date, underlying merchant, underlying cents, posted date or none] */
+type SeedFee = [string, string, number, string?];
 const SEED_FEE: SeedFee[] = [
   ["2026-09-01", "MTA", 1900, "2026-08-31"],
   ["2026-09-01", "MTA", 1025, "2026-08-31"],
   ["2026-09-01", "ShopRite", 2351, "2026-08-31"],
   ["2026-09-01", "MTA", 1425, "2026-08-31"],
   ["2026-09-02", "Wienery", 1394, "2026-09-01"],
+  ["2026-08-26", "Ally", 77900],
 ];
 
 /** The stable synthetic reference for a fee we have no bank id for: the
@@ -99,7 +105,7 @@ export function feeRef(account: string, date: string, about: TxAbout): string {
 }
 
 export const SEED_FEES: TrackerTxData[] = SEED_FEE.map(([date, merchant, amountCents, posted]) => {
-  const about: TxAbout = { merchant, amountCents, date: posted };
+  const about: TxAbout = posted ? { merchant, amountCents, date: posted } : { merchant, amountCents };
   return {
     date, month: monthOf(date), merchant: FEE_MERCHANT, name: "Overdraft fee business checking",
     amountCents: FEE_CENTS, category: "Overdraft", account: FEE_ACCOUNT,

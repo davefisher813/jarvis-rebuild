@@ -180,21 +180,31 @@ export class TrackerService {
    * reconcile the app's fee count and dates against the bank's; label each fee
    * row with the underlying transaction it belongs to."
    *
-   * One time and idempotent: it acts only while an unlabelled import fee is
-   * still there, writes whichever of the five labelled fees is missing (by
-   * ref), then removes the unlabelled rows, so a run cut off halfway finishes
-   * on the next load and a finished store is left alone. It never touches a
-   * row that is not an unlabelled import fee: a fee typed by hand carries
-   * "manual" and stays. Runs on the Tracker's load (TrackerScreen).
-   * Returns true when it changed something.
+   * Idempotent: it acts only on a phone that imported (an unlabelled import
+   * fee is still there, or a labelled one already is), writes whichever of the
+   * bank's labelled fees is missing (by ref), then removes the unlabelled
+   * rows, so a run cut off halfway finishes on the next load and a finished
+   * store is left alone. It never touches a row that is not an unlabelled
+   * import fee: a fee typed by hand carries "manual" and stays, and a store
+   * that never imported gets nothing. Runs on the Tracker's load
+   * (TrackerScreen). Returns true when it changed something.
+   *
+   * SIX, NOT FIVE (the follow-up order, 2026-10-17): the first pass acted
+   * only while an unlabelled row remained, so a phone already holding the five
+   * labelled fees could never receive the Aug 26 fee (the Ally payment) the
+   * bank evidence also names. A labelled fee missing by ref is now written on
+   * any phone that imported, which is what makes the sixth reach his.
    */
   async reconcileImportFees(): Promise<boolean> {
     const txs = await this.listOf<TrackerTxData>(ENTITY_MONEY_TX);
     const unlabelled = txs.filter((t) => isUnlabelledImportFee(t.data));
-    if (unlabelled.length === 0) return false;
-    const have = new Set(txs.map((t) => t.data.ref).filter((r): r is string => !!r));
-    for (const fee of SEED_FEES) if (!have.has(fee.ref!)) await this.write(ENTITY_MONEY_TX, null, this.importRow(fee));
+    const refs = new Set(SEED_FEES.map((f) => f.ref!));
+    const have = new Set(txs.map((t) => t.data.ref).filter((r): r is string => !!r && refs.has(r)));
+    const imported = unlabelled.length > 0 || have.size > 0;
+    if (!imported) return false;
+    const missing = SEED_FEES.filter((fee) => !have.has(fee.ref!));
+    for (const fee of missing) await this.write(ENTITY_MONEY_TX, null, this.importRow(fee));
     for (const t of unlabelled) await this.drop(ENTITY_MONEY_TX, t.id);
-    return true;
+    return missing.length > 0 || unlabelled.length > 0;
   }
 }

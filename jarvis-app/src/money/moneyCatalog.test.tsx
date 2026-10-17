@@ -453,6 +453,31 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
     expect(catalogViolations(document.body)).toEqual([]);
   });
 
+  it("a fee whose purchase has no posted day draws no date for it, is reachable in Activity from another month, and the sheet says only what the bank gave (the Aug 26 Ally fee, 2026-10-17)", async () => {
+    // Dated in the month BEFORE the one the Tracker opens on: the Activity list is every row, not the Dashboard's month.
+    const prev = (() => { const [y, m] = MONTH.split("-").map(Number); const d = new Date(y!, m! - 2, 26); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-26`; })();
+    const prevMon = new Date(prev + "T12:00:00").toLocaleString("en-US", { month: "short" });
+    const { container } = mount("cat-fee-ally", async (h) => {
+      await h.tracker.saveTx(null, txData({
+        date: prev, month: prev.slice(0, 7), merchant: "Overdraft Fee", name: "Overdraft fee business checking", amountCents: 3500, category: "Overdraft",
+        account: "BUSINESS CHECKING ...3305", source: "import", about: { merchant: "Ally", amountCents: 77900 }, ref: "wf-3305-x-od-ally-77900",
+      }));
+    }, <TrackerScreen onBack={() => {}} />);
+    await tab("Activity");
+    const row = (await screen.findByText("Overdraft Fee", { selector: ".task-name" })).closest(".task-row") as HTMLElement;
+    expect([...row.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual([`${prevMon} 26`, "For Ally $779.00"]);
+    expect(row.querySelectorAll(".fact.date")).toHaveLength(1);
+    expect([...row.querySelectorAll(".fact")].filter(isGrey).map((f) => f.textContent)).toEqual(["For Ally $779.00"]);
+    expect(catalogViolations(container)).toEqual([]);
+
+    fireEvent.click(row);
+    await screen.findByText("Edit Transaction");
+    const feeRow = (await screen.findByText("Charged For")).closest(".row") as HTMLElement;
+    expect([...feeRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["$779.00", "Ally"]);
+    expect(feeRow.querySelector(".conn-meta > .fact.date")).toBeNull();
+    expect(catalogViolations(document.body)).toEqual([]);
+  });
+
   it("a payment's sheet names what it is matched to as separate facts, for a receipt and for a bill", async () => {
     mount("cat-tx-sheet", async (h) => {
       const txId = (await h.tracker.saveTx(null, txData()))!;

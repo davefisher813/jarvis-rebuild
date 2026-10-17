@@ -73,8 +73,10 @@ export interface TrackerTxData {
 export interface TxAbout {
   merchant: string;
   amountCents: number;
-  /** ISO day the purchase posted. */
-  date: string;
+  /** ISO day the purchase posted. Absent when the bank's record gives none
+   *  (the Aug 26 fee for the Ally payment): a day is never invented, and a
+   *  date fact is drawn only when there is one. */
+  date?: string;
 }
 export interface TrackerBudgetData {
   month: string;
