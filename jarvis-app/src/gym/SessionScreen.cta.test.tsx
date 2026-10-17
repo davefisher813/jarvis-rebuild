@@ -37,7 +37,7 @@ const live = (logged: SetEntry[]): LiveSession => ({
 
 function renderScreen(over: Partial<Parameters<typeof SessionScreen>[0]> = {}) {
   return render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live([])}
       exercise={exercise}
       dayExercises={[exercise]}
@@ -111,7 +111,7 @@ describe("the red button names exactly what the fields hold", () => {
     expect(onSetLogged.mock.calls[0]![0]).toMatchObject([{ id: "s1", w: 19, r: 10 }]);
     // The parent writes the strip back; both readers move to 19.
     rerender(
-      <SessionScreen live={live([{ id: "s1", w: 19, r: 10 }])} exercise={exercise} dayExercises={[exercise]}
+      <SessionScreen onAdopt={() => {}} live={live([{ id: "s1", w: 19, r: 10 }])} exercise={exercise} dayExercises={[exercise]}
         programDay={{ id: "d1", name: "Auxiliary Day", exercises: [exercise] }} history={[]} library={[]}
         onLog={() => {}} onSetLogged={onSetLogged} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
         onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,

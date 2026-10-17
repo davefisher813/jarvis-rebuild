@@ -35,7 +35,7 @@ const live = (sets: SetEntry[]): LiveSession => ({
 
 function renderScreen(sets: SetEntry[] = [], over: Partial<Parameters<typeof SessionScreen>[0]> = {}, ex: Exercise = bench()) {
   return render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live(sets)}
       exercise={ex}
       dayExercises={[ex]}
@@ -103,7 +103,7 @@ describe("the Now card opens on the side the ramp says", () => {
     expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ w: 45, r: 10, warmup: true }));
     const ex = bench();
     rerender(
-      <SessionScreen live={live([warmed(45, 10)])} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
+      <SessionScreen onAdopt={() => {}} live={live([warmed(45, 10)])} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
         history={[]} library={[]} onLog={onLog} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
         onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,
     );

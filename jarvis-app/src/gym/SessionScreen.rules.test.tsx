@@ -35,7 +35,7 @@ const live = (logged: SetEntry[], exs: Exercise[] = [bench()], idx = 0): LiveSes
 
 function renderScreen(over: Partial<Parameters<typeof SessionScreen>[0]> = {}, ex: Exercise = bench(), logged: SetEntry[] = []) {
   return render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live(logged, [ex])}
       exercise={ex}
       dayExercises={[ex]}

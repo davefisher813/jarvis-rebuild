@@ -21,7 +21,7 @@ const lib = (n: number): LibraryEntry[] =>
 describe("the pick sheet cannot trap you", () => {
   it("makes the results list the scroll region, not an unshrinkable block", () => {
     const { container } = render(
-      <LibraryPickSheet title="Add to Push Day 1" library={lib(40)} onPick={() => {}} onPickMany={() => {}} onCancel={() => {}} />,
+      <LibraryPickSheet onAdopt={() => {}} title="Add to Push Day 1" library={lib(40)} onPick={() => {}} onPickMany={() => {}} onCancel={() => {}} />,
     );
     const list = container.ownerDocument.querySelector(".sheet-list");
     expect(list, "the list must be the declared scroller").toBeTruthy();
@@ -30,14 +30,14 @@ describe("the pick sheet cannot trap you", () => {
 
   it("puts Cancel in a bar at the top, where a long list cannot push it away", () => {
     const onCancel = vi.fn();
-    render(<LibraryPickSheet title="Add to Push Day 1" library={lib(40)} onPick={() => {}} onPickMany={() => {}} onCancel={onCancel} />);
+    render(<LibraryPickSheet onAdopt={() => {}} title="Add to Push Day 1" library={lib(40)} onPick={() => {}} onPickMany={() => {}} onCancel={onCancel} />);
     fireEvent.click(screen.getByText("Cancel"));
     expect(onCancel).toHaveBeenCalled();
   });
 
   it("shows the count while you pick, not only after you scroll to it", () => {
     const onPickMany = vi.fn();
-    render(<LibraryPickSheet title="Add to Push Day 1" library={lib(40)} onPick={() => {}} onPickMany={onPickMany} onCancel={() => {}} />);
+    render(<LibraryPickSheet onAdopt={() => {}} title="Add to Push Day 1" library={lib(40)} onPick={() => {}} onPickMany={onPickMany} onCancel={() => {}} />);
     expect(screen.getByText("Add")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Lift 3"));
     fireEvent.click(screen.getByText("Lift 7"));
@@ -48,14 +48,14 @@ describe("the pick sheet cannot trap you", () => {
 
   it("and single-pick mode has the same way out", () => {
     const onCancel = vi.fn();
-    render(<LibraryPickSheet title="Swap For" library={lib(40)} onPick={() => {}} onCancel={onCancel} />);
+    render(<LibraryPickSheet onAdopt={() => {}} title="Swap For" library={lib(40)} onPick={() => {}} onCancel={onCancel} />);
     fireEvent.click(screen.getByText("Cancel"));
     expect(onCancel).toHaveBeenCalled();
   });
 
   it("the search is the app's own search field, not a bare bordered input", () => {
     const { container } = render(
-      <LibraryPickSheet title="Add" library={lib(5)} onPick={() => {}} onPickMany={() => {}} onCancel={() => {}} />,
+      <LibraryPickSheet onAdopt={() => {}} title="Add" library={lib(5)} onPick={() => {}} onPickMany={() => {}} onCancel={() => {}} />,
     );
     const search = container.ownerDocument.querySelector('input[type="search"]');
     expect(search, "a real search input").toBeTruthy();
@@ -65,7 +65,7 @@ describe("the pick sheet cannot trap you", () => {
 
   it("selections survive a search that hides them", () => {
     const onPickMany = vi.fn();
-    render(<LibraryPickSheet title="Add" library={lib(40)} onPick={() => {}} onPickMany={onPickMany} onCancel={() => {}} />);
+    render(<LibraryPickSheet onAdopt={() => {}} title="Add" library={lib(40)} onPick={() => {}} onPickMany={onPickMany} onCancel={() => {}} />);
     fireEvent.click(screen.getByText("Lift 3"));
     fireEvent.change(screen.getByLabelText("Search Exercises"), { target: { value: "Lift 21" } });
     expect(screen.queryByText("Lift 3"), "it is filtered out of the list").toBeNull();

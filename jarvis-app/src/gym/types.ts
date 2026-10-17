@@ -237,6 +237,16 @@ export interface Exercise {
    *  never guesses a lift's muscle from its free-text name. Absent means the
    *  range row simply never claims this exercise. */
   muscleGroup?: import("./muscles").MuscleGroup;
+  /** THE REP RANGE THE PLAN WORKS INSIDE (2026-10-17, progression rule 1).
+   *  Written by progression.applySuggestion when a suggestion is accepted,
+   *  never by hand. The engine used to read the range off the working sets'
+   *  reps alone, and a step writes the bottom of the range into every set,
+   *  so an 8-rep plan (6 to 8) became 6, 6, 6 and read back as 4 to 6: the
+   *  range crept down one step per accepted step. This holds it still. Read
+   *  only while every planned rep still sits inside it; a hand edit that
+   *  leaves it is a new plan and the range derives afresh from the reps.
+   *  Absent on every exercise never stepped, which reads as before. */
+  repRange?: { low: number; high: number };
   /** THE CONDITIONING BLOCK (Closing Round, ruled 2026-09-01: "Two states:
    *  timer while it runs, log after, round splits captured free"). Present
    *  on an exercise that is a clock, not a strip: the format and its cap.

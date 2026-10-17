@@ -4,8 +4,8 @@ import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
 import { newExerciseKey, type LibraryEntry } from "./library";
 import { readClassStore, type Classification } from "./classify";
-import { adoptStarter, pickerRows, pickerSections, writeAdopted, type PickerRow } from "./libraryView";
-import { readGymSettings, writeGymSettings, type CreatedLift } from "./settings";
+import { adoptStarter, pickerRows, pickerSections, type PickerRow } from "./libraryView";
+import { readGymSettings, type CreatedLift } from "./settings";
 import { MEASURE_LABEL, type MeasureKind } from "./types";
 
 /**
@@ -45,11 +45,19 @@ export default function LibraryPickSheet({
   onFreeText?: (query: string) => void;
   /** A STARTER BECOMES THE ATHLETE'S (S9). Each picked catalog entry is
    *  adopted before it is handed to onPick or onPickMany: a fresh key, and
-   *  the catalog's muscles as its classification. A caller holding in-memory
-   *  copies of GymSettings (GymFlow) takes the seeds and classifications
-   *  here and writes them through its own setters; without this the sheet
-   *  writes GymSettings itself. */
-  onAdopt?: (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => void;
+   *  the catalog's muscles as its classification. The seeds and
+   *  classifications go to the caller, and only to the caller: GymFlow
+   *  (adoptStarters) writes them through its own setters so its in-memory
+   *  copies of GymSettings stay in step with the store.
+   *
+   *  REQUIRED (2026-10-17). It was optional, and without it the sheet wrote
+   *  GymSettings itself. Every picker renders under GymFlow, which holds
+   *  copies of classByKey and createdLifts and writes them whole on its next
+   *  change, so a starter adopted from the live session's Swap or Add
+   *  Exercise (neither passed this) lost its muscles the next time any lift
+   *  was classified. A picker without a path back to the flow does not
+   *  compile now. */
+  onAdopt: (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => void;
   onCancel: () => void;
 }) {
   const [q, setQ] = useState("");
@@ -71,7 +79,7 @@ export default function LibraryPickSheet({
   const headed = sections.length > 1;
 
   /** The entries as the caller gets them: a starter adopted, an own entry as
-   *  it was. The adoptions are written once, as a batch. */
+   *  it was. The adoptions are handed over once, as a batch, before the pick. */
   const resolve = (entries: LibraryEntry[]): LibraryEntry[] => {
     const adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[] = [];
     const out = entries.map((e) => {
@@ -80,10 +88,7 @@ export default function LibraryPickSheet({
       adopted.push(a);
       return a.entry;
     });
-    if (adopted.length) {
-      if (onAdopt) onAdopt(adopted);
-      else writeAdopted(adopted, readGymSettings, writeGymSettings);
-    }
+    if (adopted.length) onAdopt(adopted);
     return out;
   };
 

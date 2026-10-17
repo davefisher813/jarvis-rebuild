@@ -28,7 +28,7 @@ const live = (logged: SetEntry[]): LiveSession => ({
 
 function renderScreen(logged: SetEntry[]) {
   return render(
-    <SessionScreen live={live(logged)} exercise={exercise} dayExercises={[exercise]}
+    <SessionScreen onAdopt={() => {}} live={live(logged)} exercise={exercise} dayExercises={[exercise]}
       programDay={{ id: "d1", name: "Arm Day", exercises: [exercise] }} history={[]} library={[]}
       onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
       onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,

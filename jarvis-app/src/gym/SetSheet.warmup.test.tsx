@@ -71,7 +71,7 @@ describe("a converted set in the live session", () => {
     exercises: [{ exerciseId: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", sets: logged }] };
 
   const renderIt = (onSetLogged = vi.fn()) => {
-    render(<SessionScreen live={live} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
+    render(<SessionScreen onAdopt={() => {}} live={live} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
       history={[]} library={[]} onLog={() => {}} onSetLogged={onSetLogged} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
       onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />);
     return onSetLogged;
@@ -90,7 +90,7 @@ describe("a converted set in the live session", () => {
 
   it("the work sets renumber, and the converted one is scored as no record and no tonnage", () => {
     const flipped: LiveSession = { ...live, exercises: [{ ...live.exercises[0]!, sets: [{ ...logged[0]!, warmup: true }, logged[1]!] }] };
-    render(<SessionScreen live={flipped} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
+    render(<SessionScreen onAdopt={() => {}} live={flipped} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
       history={[]} library={[]} onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
       onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />);
     expect(screen.getByLabelText("Warm-Up · Done, 135 lb × 8, tap to edit")).toBeInTheDocument();

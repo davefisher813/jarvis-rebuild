@@ -13,10 +13,10 @@ import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from "./strip";
 import { isSessionPR, lastHeader, lastSessionFor, lastWarmupsFor } from "./prs";
-import { readGymSettings, rackFrom, overloadApplyOf, overloadTargetsOf } from "./settings";
+import { readGymSettings, rackFrom, overloadApplyOf, overloadTargetsOf, type CreatedLift } from "./settings";
 import { readHealthSettings } from "../health/settings";
 import { rackIn, rampFor, startsInWarmUp, warmupSeed } from "./ramp";
-import { readClassStore } from "./classify";
+import { readClassStore, type Classification } from "./classify";
 import { exerciseFromEntry } from "./fromLibrary";
 import { suggestFor, inSessionAdjust, type Suggestion, type SuggestOptions } from "./progression";
 import HowSuggestionsSheet from "./HowSuggestionsSheet";
@@ -101,6 +101,7 @@ export default function SessionScreen({
   onSetMuscles,
   onOpenHistory,
   onAddMidSession,
+  onAdopt,
   onUpdateProgram,
   onAcceptSuggestion,
   onFit,
@@ -180,14 +181,25 @@ export default function SessionScreen({
   onOpenHistory?: () => void;
   /** The draft, and whether it should also land on the program day. */
   onAddMidSession: (draft: Omit<Exercise, "id">, alsoOnDay: boolean) => void;
+  /** A STARTER PICKED IN HERE BECOMES THE ATHLETE'S (S9; 2026-10-17). Swap
+   *  and Add Exercise both list the preloaded catalog, and a pick from it is
+   *  adopted (a fresh key, the catalog's muscles as its classification). The
+   *  adoption goes to GymFlow, the one writer of classByKey and createdLifts,
+   *  through this; the sheet writes nothing itself, so a lift adopted at the
+   *  rack keeps its muscles past the next classification saved anywhere. */
+  onAdopt: (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => void;
   /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
    *  session only; this is the one explicit way to carry it into the
    *  program. Absent on a planned exercise. */
   onUpdateProgram?: () => void;
   /** D6-A: the athlete accepted a suggestion, so the PROGRAM's own plan for
    *  this exercise moves. The only writer; a suggestion left alone changes
-   *  nothing. */
-  onAcceptSuggestion?: (s: Suggestion) => void;
+   *  nothing. IT HANDS BACK THE WAY BACK (2026-10-17, Logging Standard rule
+   *  5: every write inside a logging flow has an Undo): a function that puts
+   *  the plan back exactly as it was before the accept, or null when nothing
+   *  moved (the lift is not in this day's plan). The set's one receipt
+   *  carries one Undo, and that Undo reverts the set and the move together. */
+  onAcceptSuggestion?: (s: Suggestion) => (() => void) | null;
   /** The live day's program week is a back-off week (ProgramWeek.backOff),
    *  handed to the progression engine as its backOffWeek option. */
   backOffWeek?: boolean;
@@ -700,16 +712,25 @@ export default function SessionScreen({
   // snapshot rule, SHARED-F-03), against the exercise it belongs to, so
   // tapping it twice, or late, or after moving to the pair partner lands on
   // the same answer.
-  const receiptForLog = (entry: SetEntry, movedTo?: string) => {
+  //
+  // ONE RECEIPT, ONE UNDO, BOTH WRITES (2026-10-17, Logging Standard rule 5).
+  // Logging the first set at the suggested numbers also moves the program's
+  // plan (the accept below), and that move used to announce itself on a
+  // second toast with no Undo while this one put back only the set: the
+  // plan stayed moved. The accept hands back the way to restore the plan,
+  // the receipt says the plan moved, and its one Undo reverts both. A second
+  // receipt would be a second thing to tap for one action.
+  const receiptForLog = (entry: SetEntry, movedTo?: string, undoAccept?: (() => void) | null) => {
     const before = logged;
     const at = idx;
-    const said = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${entry.warmup ? "Warm-Up " : ""}${lineCase(formatSet(exercise, entry))}`;
+    const logged1 = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${entry.warmup ? "Warm-Up " : ""}${lineCase(formatSet(exercise, entry))}`;
+    const said = undoAccept ? `${logged1} \u00b7 Plan Moved` : logged1;
     showToast({
       // In a superset the receipt says where the session just went, so the
       // screen changing under his thumb is never a surprise.
       message: movedTo ? `${said} \u00b7 Now ${movedTo}` : said,
       actionLabel: "Undo",
-      onAction: () => { onSetLogged(before, at); if (movedTo) onMove(at); },
+      onAction: () => { onSetLogged(before, at); undoAccept?.(); if (movedTo) onMove(at); },
     });
   };
   // WHAT THE FIELDS SAY, RIGHT NOW (2026-09-16, Dave, mid-session: "when you
@@ -753,7 +774,10 @@ export default function SessionScreen({
     // D6-A, the accept (2026-09-26): the program's plan moves only when the
     // first working set is logged AT the suggested numbers. Use puts them in
     // the fields; this is the one explicit accept, and nothing else writes.
-    if (!warm && suggestion && workLogged === 0 && e.w === suggestion.next.w && e.r === suggestion.next.r) onAcceptSuggestion?.(suggestion);
+    // What comes back is the way to put the plan back, for the receipt's Undo.
+    const undoAccept = !warm && suggestion && workLogged === 0 && e.w === suggestion.next.w && e.r === suggestion.next.r
+      ? onAcceptSuggestion?.(suggestion) ?? null
+      : null;
     onLog(e);
     setDraft(null);
     if (warm) {
@@ -775,7 +799,7 @@ export default function SessionScreen({
     const turnIdx = turnId ? live.exercises.findIndex((x) => x.exerciseId === turnId && !x.skipped) : -1;
     const moved = turnIdx >= 0 && turnIdx !== idx;
     if (moved) onMove(turnIdx);
-    receiptForLog(e, moved ? liftTitle(live.exercises[turnIdx]!.name) : undefined);
+    receiptForLog(e, moved ? liftTitle(live.exercises[turnIdx]!.name) : undefined, undoAccept);
   };
   // LOG A DROP (Part 3 wave 2). A segment right after the last working set,
   // opened at that set's own numbers so the only thing to change is the
@@ -1494,6 +1518,7 @@ export default function SessionScreen({
           title="Swap For"
           library={library}
           kindFilter={exercise.kind}
+          onAdopt={onAdopt}
           onPick={(entry) => { onSwap({ exerciseKey: entry.exerciseKey, name: entry.name, kind: entry.kind, unit: entry.unit, timeUnit: entry.timeUnit }); setSwapOpen(false); }}
           onFreeText={(text) => { onSwap({ exerciseKey: newExerciseKey(), name: text, kind: exercise.kind, unit: exercise.unit, timeUnit: exercise.timeUnit }); setSwapOpen(false); }}
           onCancel={() => setSwapOpen(false)}
@@ -1528,6 +1553,7 @@ export default function SessionScreen({
         <LibraryPickSheet
           title="Add Exercise"
           library={library}
+          onAdopt={onAdopt}
           onPick={(entry) => {
             setAddPickOpen(false);
             const { id: _id, ...draft } = exerciseFromEntry(entry, readClassStore(gymSettings.classByKey, gymSettings.muscleByKey), (prefix) => prefix + newSetId(), { mintKey: false });

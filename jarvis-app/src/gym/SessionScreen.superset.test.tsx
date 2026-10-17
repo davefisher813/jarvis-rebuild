@@ -33,7 +33,7 @@ const live = (aSets: SetEntry[], bSets: SetEntry[], idx = 0, groups?: Record<str
 
 function renderScreen(over: Partial<Parameters<typeof SessionScreen>[0]> = {}) {
   return render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live([], [])}
       exercise={a}
       dayExercises={[a, b, c]}

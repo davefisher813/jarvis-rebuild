@@ -173,8 +173,14 @@ describe("GYM-F-16: only the lift that is really in the plan moves the plan", ()
     expect(flow).not.toContain("!day.exercises.some((e) => e.id === ex.id)");
   });
 
-  it("a swapped or added exercise says the plan did not move rather than moving it silently", () => {
-    expect(flow).toContain("is not in this day's plan, so nothing moved");
+  // 2026-10-17: the accept hands the session the way back (Logging Standard
+  // rule 5) instead of raising a toast of its own; a lift not in the plan
+  // hands back nothing, writes nothing, and the set's receipt then says only
+  // what was logged. The receipt claims "Plan Moved" only when a restore came
+  // back, so a swapped or added exercise is never told its plan moved.
+  it("a swapped or added exercise moves nothing and hands back no restore, and the receipt does not claim a move", () => {
+    expect(flow).toMatch(/if \(!behind \|\| behind\.id !== ex\.id\) return null;/);
+    expect(src("SessionScreen.tsx")).toMatch(/const said = undoAccept \? `\$\{logged1\} \\u00b7 Plan Moved` : logged1;/);
   });
 });
 

@@ -28,7 +28,7 @@ const live = (): LiveSession => ({
 
 function renderScreen(onSetLogged: (s: SetEntry[]) => void) {
   return render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live()}
       exercise={exercise}
       dayExercises={[exercise]}
