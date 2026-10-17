@@ -59,3 +59,32 @@ describe.each([["Team Sheet", "team"], ["Outreach Tracker", "outreach"]])("choos
     await waitFor(async () => expect(await count(kind)).toBe(2), { timeout: 4000 });
   });
 });
+
+// A template that is one per event (Event Day Pack has no `one`) still never quietly makes a second while the first is untouched (Alfred
+// 2026-10-16: the duplicate "Event Day Pack" in Notes). The untouched page is opened; once it has been changed, the pick makes a fresh one.
+describe("choosing Event Day Pack from the picker", () => {
+  it("opens the untouched one instead of making another, and makes a fresh one only once the first has been changed", async () => {
+    await mount("u-tpl-dup-eventday");
+    fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Event Day Pack"));
+    await waitFor(async () => expect(await count("eventday")).toBe(1), { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    fireEvent.click(document.querySelector(".nav-back")!);
+    fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Event Day Pack"));
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    expect(await count("eventday")).toBe(1);
+    // Tick a starter: the page is his now.
+    const row = screen.getByText("Tickets").closest(".row")!;
+    fireEvent.click(row.querySelector('[role="checkbox"]')!);
+    await waitFor(async () => {
+      const n = (await svc().listNotes()).find((x) => (x.data as unknown as { page?: { kind?: string } }).page?.kind === "eventday")!;
+      expect((n.data as unknown as { page: { records: { v: Record<string, string> }[] } }).page.records.find((r) => r.v.item === "Tickets")!.v.done).toBe("1");
+    }, { timeout: 4000 });
+    // Opened from the picker, Back returns to the picker.
+    fireEvent.click(document.querySelector(".nav-back")!);
+    fireEvent.click(await screen.findByText("Event Day Pack", {}, { timeout: 4000 }));
+    await waitFor(async () => expect(await count("eventday")).toBe(2), { timeout: 4000 });
+  });
+});

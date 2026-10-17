@@ -26,10 +26,12 @@ const noun = (page: PageData) => templateDef(page.kind)?.noun ?? (page.kind === 
 /** One record, every field it has, typed in place. A value the import was not sure of is named under its group with
  *  the reason, and can be kept as it is in one tap. Nothing here makes a task, an event or a share: Outreach's Make a
  *  Task is its own row and runs only when tapped. */
-export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord }: {
+export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord, defaultSection }: {
   page: PageData;
   record: PageRecord | null;
   isNew: boolean;
+  /** The heading whose Add opened this sheet: a new row starts under it. */
+  defaultSection?: string;
   /** The values changed (all of them for a new row) and, when the page has headings, the heading it was put under (null: above every heading). */
   onSave: (values: Record<string, string>, section?: string | null) => void;
   onCancel: () => void;
@@ -47,8 +49,9 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   const set = (k: string, v: string) => setDraft((d) => ({ ...d, [k]: v }));
   const changed = () => Object.fromEntries(Object.entries(draft).filter(([k, v]) => (record?.v[k] ?? "") !== v));
   const sections = page.sections ?? [];
-  // A new row lands under the heading the last row went under (else the first), so adding a run of rows is a run of taps.
-  const [sec, setSec] = useState<string>(record ? record.sec ?? "" : [...page.records].reverse().find((r) => r.sec && sections.some((x) => x.key === r.sec))?.sec ?? sections[0]?.key ?? "");
+  // A new row lands under the heading whose Add was tapped; failing that, under the heading the last row went under (else the
+  // first), so adding a run of rows is a run of taps.
+  const [sec, setSec] = useState<string>(record ? record.sec ?? "" : (defaultSection && sections.some((x) => x.key === defaultSection) ? defaultSection : undefined) ?? [...page.records].reverse().find((r) => r.sec && sections.some((x) => x.key === r.sec))?.sec ?? sections[0]?.key ?? "");
   const secChanged = isNew ? !!sec : sec !== (record?.sec ?? "");
   const flags = Object.entries(record?.flags ?? {});
   const title = page.kind === "lineup" ? "Lineup Spot" : (isNew ? "New " : "Edit ") + noun(page);
@@ -350,7 +353,7 @@ export function PageShareSheet({ title, page, onClose, onExported }: {
   );
 }
 
-/** THE HEADINGS A PAGE'S ROWS SIT UNDER, edited on the page: named, added, ordered and removed. A heading with no rows is not drawn. */
+/** THE HEADINGS A PAGE'S ROWS SIT UNDER, edited on the page: named, added, ordered and removed. Every heading is drawn, rows or none. */
 export function SectionsSheet({ page, onSave, onCancel, onMove, onRemove }: {
   page: PageData;
   onSave: (labels: Record<string, string>, added: string) => void;
@@ -377,7 +380,7 @@ export function SectionsSheet({ page, onSave, onCancel, onMove, onRemove }: {
           {sections.map((x) => <Row key={x.key} label={x.label} onClick={() => setOrderFor(x.key)} chev />)}
         </Group>
       )}
-      <Note>A Heading With No Rows Stays Off the Page; Removing One Keeps Its Rows</Note>
+      <Note>Every Heading Stays on the Page, Rows or None; Removing One Keeps Its Rows</Note>
       {orderFor && (
         <RowActionSheet title={sections.find((x) => x.key === orderFor)?.label ?? "Heading"} onCancel={() => setOrderFor(null)}
           actions={[

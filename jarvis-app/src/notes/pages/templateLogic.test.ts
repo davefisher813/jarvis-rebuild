@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { newTemplatePage, TEMPLATE_KEYS, TEMPLATES, SHELVES, templateDef } from "./templateDefs";
 import { addRecord, type PageData, takeSnapshot, restoreSnapshot, duplicatePage, pageSummary, recordName } from "./pageModel";
 import {
-  addSection, renameSection, removeSection, moveSection, setSection, groupedRecords, moveField, suggestedFor, addSuggested, sumOf, totalsLine, asMyTemplate, fromMyTemplate,
+  addSection, renameSection, removeSection, moveSection, setSection, groupedRecords, sectionGroups, untouchedTemplatePage, moveField, suggestedFor, addSuggested, sumOf, totalsLine, asMyTemplate, fromMyTemplate,
   restDaysFor, pitcherStatuses, clockAfter, sessionClock, standingsOf, addGame, removeTeamAndGames, gamesOfTeam, num,
 } from "./templateLogic";
 
@@ -33,19 +33,44 @@ describe("the catalog", () => {
 });
 
 const sheet = (): PageData => newTemplatePage("session");
+/** The page with its starter rows taken off, for the tests about placing rows by hand. */
+const bare = (): PageData => ({ ...sheet(), records: [] });
 
-describe("sections: named, added, removed and ordered by the person; empty ones hide", () => {
-  it("draws only the headings that have rows, in order, with loose rows first", () => {
-    let p = sheet();
+describe("sections: named, added, removed and ordered by the person; every one is drawn on the page", () => {
+  it("the page draws every heading, rows or none, in order, with loose rows first; an export walks only the ones with rows", () => {
+    let p = bare();
     expect(groupedRecords(p)).toEqual([]);
+    expect(sectionGroups(p, { includeEmpty: true }).map((x) => x.section?.label ?? null)).toEqual(["Warm-Up", "Drills", "Scrimmage", "Cool-Down"]);
     const a = addRecord(p, { act: "Stretch", min: "10" }); p = setSection(a.page, a.id, p.sections![0]!.key);
     const b = addRecord(p, { act: "Passing", min: "20" }); p = setSection(b.page, b.id, p.sections![1]!.key);
     const c = addRecord(p, { act: "Loose" }); p = c.page;
-    const g = groupedRecords(p);
-    expect(g.map((x) => x.section?.label ?? null)).toEqual([null, "Warm-Up", "Drills"]); // Scrimmage and Cool-Down are empty, so not drawn
+    expect(groupedRecords(p).map((x) => x.section?.label ?? null)).toEqual([null, "Warm-Up", "Drills"]); // Scrimmage and Cool-Down have no rows
+    const all = sectionGroups(p, { includeEmpty: true });
+    expect(all.map((x) => x.section?.label ?? null)).toEqual([null, "Warm-Up", "Drills", "Scrimmage", "Cool-Down"]);
+    expect(all.map((x) => x.records.length)).toEqual([1, 1, 1, 0, 0]);
+  });
+  it("a template with starter rows opens with them under their headings, and a fresh page is untouched until it is changed", () => {
+    const p = sheet();
+    expect(p.records.map((r) => [r.v.act, p.sections!.find((s) => s.key === r.sec)?.label])).toEqual([["Warm-Up", "Warm-Up"], ["Cool-Down", "Cool-Down"]]);
+    expect(untouchedTemplatePage(p)).toBe(true);
+    expect(untouchedTemplatePage(newTemplatePage("eventday"))).toBe(true);
+    expect(untouchedTemplatePage(newTemplatePage("scouting"))).toBe(true);
+    expect(untouchedTemplatePage(addRecord(p, { act: "Passing" }).page)).toBe(false);
+    expect(untouchedTemplatePage({ ...p, records: p.records.slice(1) })).toBe(false);
+    expect(untouchedTemplatePage(renameSection(p, p.sections![0]!.key, "Get Loose"))).toBe(false);
+    expect(untouchedTemplatePage(addSuggested(p, "coach"))).toBe(false);
+    expect(untouchedTemplatePage({ ...p, meta: { start: "17:30" } })).toBe(false);
+    expect(untouchedTemplatePage(asMyTemplate(p))).toBe(false);
+    // Every catalog template's fresh page is untouched; its seeds are a few editable rows, never personal data.
+    for (const k of TEMPLATE_KEYS) {
+      expect(untouchedTemplatePage(newTemplatePage(k)), k).toBe(true);
+      const seeds = TEMPLATES[k].starter ?? [];
+      expect(seeds.length, k).toBeLessThanOrEqual(7);
+      for (const r of seeds) for (const v of Object.values(r.v)) expect(v, `${k}: ${v}`).not.toMatch(/@|\d{3}[- ]\d{3}/);
+    }
   });
   it("renames, adds, moves and removes; a removed heading keeps its rows", () => {
-    let p = sheet();
+    let p = bare();
     const a = addRecord(p, { act: "Stretch" }); p = setSection(a.page, a.id, p.sections![0]!.key);
     p = renameSection(p, p.sections![0]!.key, "  Get   Loose ");
     expect(p.sections![0]!.label).toBe("Get Loose");
@@ -81,7 +106,7 @@ describe("fields: reorder and suggested", () => {
 
 describe("totals", () => {
   it("a session's minutes add up and read as words", () => {
-    let p = sheet();
+    let p = bare();
     p = addRecord(p, { act: "A", min: "10" }).page;
     p = addRecord(p, { act: "B", min: "25" }).page;
     p = addRecord(p, { act: "C", min: "" }).page;
@@ -110,7 +135,7 @@ describe("my templates", () => {
     expect(fresh.meta?.start).toBe("18:00");
   });
   it("sections, snapshots and duplicates carry the new structure", () => {
-    let p = sheet();
+    let p = bare();
     const r = addRecord(p, { act: "X" }); p = setSection(r.page, r.id, p.sections![1]!.key);
     const snap = takeSnapshot(p, "manual", 5);
     const gone = { ...snap, sections: [], records: [] };
@@ -141,7 +166,7 @@ describe("session: a start time puts a clock on every activity", () => {
     expect(clockAfter("18:30", 45)).toBe("7:15 PM");
     expect(clockAfter("00:10", 5)).toBe("12:15 AM");
     expect(clockAfter("", 5)).toBeNull();
-    let p = sheet();
+    let p = bare();
     const a = addRecord(p, { act: "Drills", min: "20" }); p = setSection(a.page, a.id, p.sections![1]!.key);
     const b = addRecord(p, { act: "Stretch", min: "10" }); p = setSection(b.page, b.id, p.sections![0]!.key);
     expect(sessionClock(p).size).toBe(0);

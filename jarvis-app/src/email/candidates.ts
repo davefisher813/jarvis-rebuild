@@ -142,7 +142,7 @@ export const LIST_ROW_KINDS: readonly CaptureKind[] = ["event"];
 export function isPastEvent(p: CapturePayload, now: Date): boolean {
   if (p.kind !== "event") return false;
   const t = p.time;
-  if (t.all_day) return t.end_date_exclusive <= localDate(now);
+  if (t.all_day) return t.end_date_exclusive <= localDate(now.toISOString());
   const end = Date.parse(t.end_at);
   return Number.isFinite(end) && end < now.getTime();
 }

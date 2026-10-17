@@ -5,18 +5,24 @@ import { monthDay } from "../../money/bills";
 import { formatMoney } from "../../money/types";
 import { type PageData, type PageRecord, type PageField, recordName, labelOf } from "./pageModel";
 import { templateDef } from "./templateDefs";
-import { groupedRecords, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, roundName, managersOf, draftSlot, onTheClock, draftRosters, potGap, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod, type BracketMatch, type PokerRow, type Payment } from "./templateLogic";
+import { sectionGroups, totalsLine, pitcherStatuses, restDaysFor, num, sumOf, standingsOf, sessionClock, dueFact, confirmState, unconfirmedCount, monthsWords, roundName, managersOf, draftSlot, onTheClock, draftRosters, potGap, type PitcherStatus, type DebtPlan, type DebtIn, type DebtMethod, type BracketMatch, type PokerRow, type Payment } from "./templateLogic";
 import type { LedgerRow } from "./bizLedger";
 import type { Suggestion } from "./appSuggest";
 import {
   type Standing, SPORTS, SPORT_GROUPS, scoreStanding, sportName, nextPeriod, periodScore, bowlingFrames, bKey, pKey, dKey, dartTurns, dartsLeft, pinsLeft,
 } from "./scoreboard";
-import { U } from "./PageViews";
+import { U, StarterCard } from "./PageViews";
 
 // THE TEMPLATE PAGES OF WAVES 2 TO 4, DRAWN. One shared list of rows under headings (SheetView) draws most of them; the few that
 // do arithmetic for the person (a scoreboard, standings, the pitching board) have a view of their own. Phone first, the Slice 1
 // anatomy: a clean row (its name, then its facts, one grey at most), a tap opens the record's sheet, a section's action is its head's.
 // A checkbox, where a template has one, leads its row, at the left, like every other checkbox in the app.
+//
+// A PAGE OPENS READY (Alfred 2026-10-16: 24 of 40 templates opened as an empty shell, a "0 Items" counter and one Add). Every
+// heading the template gives is drawn from the first open, rows or none, each with its own Add in its head (the one home a
+// section's action has; the DOM law capsulesInRows refuses a capsule at the foot of a list card, so there is no trailing create
+// row). With no rows anywhere, the page says what its rows will carry (StarterCard). A count of zero is not said: the head is the
+// plural alone, since a row with nothing to say shows nothing.
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -46,7 +52,9 @@ export function rowFacts(page: PageData, r: PageRecord, extra?: ReactNode): Reac
   const d = templateDef(page.kind);
   const keys = new Set(d?.show ?? []);
   const fields = page.fields.filter((f) => f.type !== "check" && f.key !== (d?.headline ?? "name") && (keys.has(f.key) || f.extra || f.key.startsWith("f_")));
-  const facts = fields.map((f, i) => ((r.v[f.key] ?? "").trim() ? factFor(f, r.v[f.key]!.trim(), i) : null)).filter(Boolean);
+  // A fact that repeats the row's name says nothing (a Dinner whose type is Dinner), so it is not drawn.
+  const name = (r.v[d?.headline ?? "name"] ?? "").trim();
+  const facts = fields.map((f, i) => { const v = (r.v[f.key] ?? "").trim(); return v && v !== name ? factFor(f, v, i) : null; }).filter(Boolean);
   const flags = Object.keys(r.flags ?? {});
   const flag = flags.length ? <span className="fact warn">{flags.length === 1 ? "Check " + labelOf(page, flags[0]!) : `Check ${flags.length} Values`}</span> : null;
   // What is coming ("Due in 12 Days", "In 3 Days") and, on a sensitive page, whether the row was confirmed.
@@ -62,12 +70,17 @@ export function rowFacts(page: PageData, r: PageRecord, extra?: ReactNode): Reac
 // ---------------------------------------------------------------------------
 // The shared list.
 
-export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, belowHead, onConfirmAll }: {
+export function SheetView({ page, onOpen, onAdd, onToggle, onSections, onFields, onSuggest, timeOf, belowHead, onConfirmAll }: {
   page: PageData;
   onOpen: (recordId: string) => void;
-  onAdd: () => void;
+  /** Add a row, under the heading whose head was tapped (none: the page has no headings). */
+  onAdd: (sectionKey?: string) => void;
   onToggle?: (recordId: string, key: string) => void;
   onSections?: () => void;
+  /** The Fields sheet, from the starter line a page with no rows draws. */
+  onFields?: () => void;
+  /** Add one of the template's suggested fields, from that same starter. */
+  onSuggest?: (key: string) => void;
   /** A clock time per record (a session's), drawn as the row's first fact. */
   timeOf?: Map<string, string>;
   belowHead?: ReactNode;
@@ -76,11 +89,13 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, b
 }) {
   const d = templateDef(page.kind);
   const noun = d?.noun ?? "Row";
+  const plural = d?.plural ?? "Rows";
   const n = page.records.length;
   const check = page.fields.find((f) => f.type === "check");
   const headline = d?.headline ?? "name";
   const total = totalsLine(page, (x) => formatMoney(x, { cents: x % 1 !== 0 }));
-  const groups = groupedRecords(page);
+  const groups = sectionGroups(page, { includeEmpty: true });
+  const hasSections = (page.sections ?? []).length > 0;
   const rowOf = (r: PageRecord) => {
     const name = (r.v[headline] ?? "").trim() || recordName(page, r) || "Unnamed " + noun;
     const t = timeOf?.get(r.id);
@@ -93,7 +108,12 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, b
   };
   return (
     <>
-      <Head label={n === 1 ? `1 ${noun}` : `${n} ${d?.plural ?? "Rows"}`} count={total || undefined} action={{ label: "Add " + noun, onClick: onAdd }} />
+      {/* The page's head: the count and the sums. Its Add is for a page with no headings; with headings, each head carries its own.
+          At zero with headings the heads below ARE the structure, and a "0 Items" line over them would say nothing. */}
+      {(n > 0 || !hasSections) && (
+        <Head label={n === 0 ? plural : n === 1 ? `1 ${noun}` : `${n} ${plural}`} count={total || undefined}
+          action={hasSections ? undefined : { label: "Add " + noun, onClick: () => onAdd() }} />
+      )}
       {d?.note && <Foot>{d.note}</Foot>}
       {onConfirmAll && n > 0 && unconfirmedCount(page, todayLocalISO()) > 0 && (
         <Card><Row label="Confirm Everything Is Still True" meta={<span className="fact warn">{unconfirmedCount(page, todayLocalISO())} To Confirm</span>} onClick={onConfirmAll} chev /></Card>
@@ -101,10 +121,14 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, timeOf, b
       {belowHead}
       {groups.map((g) => (
         <div key={g.section?.key ?? "loose"}>
-          {g.section && <Head label={g.section.label} count={g.records.length} />}
-          <Card>{g.records.map(rowOf)}</Card>
+          {g.section && (
+            <Head label={g.section.label} count={g.records.length || undefined}
+              action={{ label: "Add " + noun, ariaLabel: `Add ${noun} Under ${g.section.label}`, onClick: () => onAdd(g.section!.key) }} />
+          )}
+          {g.records.length > 0 && <Card>{g.records.map(rowOf)}</Card>}
         </div>
       ))}
+      {n === 0 && <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />}
       {onSections && <Head label="Headings" action={{ label: "Edit Headings", onClick: onSections }} />}
     </>
   );
@@ -152,7 +176,7 @@ export function PitchingView({ page, today, onOpen, onAdd, onLimit }: {
           </Card>
         </>
       )}
-      <Head label={outings.length === 1 ? "1 Outing" : `${outings.length} Outings`} action={{ label: "Add Outing", onClick: onAdd }} />
+      <Head label={outings.length === 0 ? "Outings" : outings.length === 1 ? "1 Outing" : `${outings.length} Outings`} action={{ label: "Add Outing", onClick: onAdd }} />
       {outings.length > 0 && (
         <Card>
           {outings.map((r) => {
@@ -189,6 +213,10 @@ export function StandingsView({ page, onTeam, onAddTeam, onGame, onAddGame }: {
   return (
     <>
       <Head label="Standings" action={page.records.length >= 2 ? { label: "Record a Game", onClick: onAddGame } : undefined} />
+      {/* With no teams yet, the table's columns stand where the rows will: what each team's line will say. */}
+      {rows.length === 0 && (
+        <Card><Row label="Team" meta={<><span className="fact">Won-Lost</span><span className="fact">Points</span><span className="fact">For-Against</span></>} /></Card>
+      )}
       {rows.length > 0 && (
         <Card>
           {rows.map((t, i) => (
@@ -201,7 +229,7 @@ export function StandingsView({ page, onTeam, onAddTeam, onGame, onAddGame }: {
           ))}
         </Card>
       )}
-      <Head label={page.records.length === 1 ? "1 Team" : `${page.records.length} Teams`} action={{ label: "Add Team", onClick: onAddTeam }} />
+      <Head label={page.records.length === 0 ? "Teams" : page.records.length === 1 ? "1 Team" : `${page.records.length} Teams`} action={{ label: "Add Team", onClick: onAddTeam }} />
       {games.length > 0 && (
         <>
           <Head label="Games" count={games.length} />
@@ -366,7 +394,7 @@ export function TrainingLogView({ page, workouts, onOpen, onAdd }: { page: PageD
               meta={<>{ISO.test(w.date) && <span className="fact date">{monthDay(w.date)}</span>}{w.minutes !== null && <span className="fact"><b>{w.minutes}</b> Min</span>}<span className="fact">{w.exercises} {w.exercises === 1 ? "Exercise" : "Exercises"}</span></>} />
           ))}</Card>
         : <Foot>{workouts ? "No Workouts Logged Yet; They Appear Here From Health" : "Workouts Appear Here From Health"}</Foot>}
-      <Head label={notes.length === 1 ? "1 Note" : `${notes.length} Notes`} action={{ label: "Add Note", onClick: onAdd }} />
+      <Head label={notes.length === 0 ? "Notes" : notes.length === 1 ? "1 Note" : `${notes.length} Notes`} action={{ label: "Add Note", onClick: onAdd }} />
       {notes.length > 0 && (
         <Card>
           {notes.map((r) => (
@@ -428,7 +456,7 @@ export function DebtView({ page, debts, plan, linkedAsOf, canFromMoney, onOpen, 
   const rows = plan.order.length ? plan.order : page.records.map((r) => r.id);
   return (
     <>
-      <Head label={n === 1 ? "1 Debt" : `${n} Debts`} count={owed > 0 ? formatMoney(owed, { cents: owed % 1 !== 0 }) : undefined} action={{ label: "Add Debt", onClick: onAdd }} />
+      <Head label={n === 0 ? "Debts" : n === 1 ? "1 Debt" : `${n} Debts`} count={owed > 0 ? formatMoney(owed, { cents: owed % 1 !== 0 }) : undefined} action={{ label: "Add Debt", onClick: onAdd }} />
       <Foot>Balances Come From Money; Only the Rate and the Minimum Are Kept Here</Foot>
       <Card>
         {canFromMoney && <Row label="Add From Money" meta={<span className="fact">Cards and Debts You Already Track</span>} onClick={onFromMoney} chev />}
@@ -467,14 +495,18 @@ export function DebtView({ page, debts, plan, linkedAsOf, canFromMoney, onOpen, 
 // ---------------------------------------------------------------------------
 // Business Ledger: read from Money, never stored.
 
-export function BizLedgerView({ page, rows, filterWord, onFilter }: { page: PageData; rows: LedgerRow[]; filterWord: string; onFilter: () => void }) {
+export function BizLedgerView({ page, rows, category, year, onFilter }: { page: PageData; rows: LedgerRow[]; category: string; year: number | null; onFilter: () => void }) {
   const total = rows.reduce((s, r) => s + r.cents, 0) / 100;
   const d = templateDef(page.kind);
   return (
     <>
-      <Head label={rows.length === 1 ? "1 Entry" : `${rows.length} Entries`} count={rows.length ? formatMoney(total, { cents: total % 1 !== 0 }) : undefined} />
+      <Head label={rows.length === 0 ? "Entries" : rows.length === 1 ? "1 Entry" : `${rows.length} Entries`} count={rows.length ? formatMoney(total, { cents: total % 1 !== 0 }) : undefined} />
       {d?.note && <Foot>{d.note}</Foot>}
-      <Card><Row label="Showing" value={filterWord} onClick={onFilter} chev /></Card>
+      {/* The page's two settings, always drawn: they are what the page IS, a filter over Money. */}
+      <Card>
+        <Row label="Category" value={<U>{category}</U>} onClick={onFilter} chev />
+        <Row label="Year" value={year === null ? "Every Year" : String(year)} onClick={onFilter} chev />
+      </Card>
       {rows.length > 0 ? (
         <Card>
           {rows.map((r) => (
@@ -483,7 +515,7 @@ export function BizLedgerView({ page, rows, filterWord, onFilter }: { page: Page
               meta={<><span className="fact date">{monthDay(r.date)}</span><span className="fact"><b>{formatMoney(r.cents / 100, { cents: r.cents % 100 !== 0 })}</b></span><span className="fact">{r.from}</span></>} />
           ))}
         </Card>
-      ) : <Foot>Nothing in This Category Yet; Tag Spending or Receipts in Money With It and They Appear Here</Foot>}
+      ) : <Foot>Nothing in Money for <U>{category}</U>{year === null ? "" : ` in ${year}`} Yet; Tag Spending or Receipts With It and They Appear Here</Foot>}
     </>
   );
 }
@@ -505,7 +537,7 @@ export function BracketView({ page, rounds, champion, format, onEntrant, onAddEn
   const n = page.records.length;
   return (
     <>
-      <Head label={n === 1 ? "1 Entrant" : `${n} Entrants`} action={{ label: "Add Entrant", onClick: onAddEntrant }} />
+      <Head label={n === 0 ? "Entrants" : n === 1 ? "1 Entrant" : `${n} Entrants`} action={{ label: "Add Entrant", onClick: onAddEntrant }} />
       <Card><Row label="Format" value={format === "pool" ? "Round Robin" : "Single Elimination"} onClick={onFormat} chev /></Card>
       {champion && <Card><Row label={<U>{name(champion)}</U>} meta={<span className="fact good">Champion</span>} /></Card>}
       {format === "single" && rounds.map((round, r) => (
@@ -549,7 +581,7 @@ export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: Pag
   const rosters = draftRosters(page);
   return (
     <>
-      <Head label={n === 1 ? "1 Pick" : `${n} Picks`} action={{ label: "Add Pick", onClick: onAdd }} />
+      <Head label={n === 0 ? "Picks" : n === 1 ? "1 Pick" : `${n} Picks`} action={{ label: "Add Pick", onClick: onAdd }} />
       <Card>
         <Row label="Teams" value={teams.length ? `${teams.length} Teams` : "Not Set"} onClick={onTeams} chev />
         <Row label="Order" value={snake ? "Snake" : "Straight"} onClick={onOrder} chev />
@@ -588,13 +620,23 @@ export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: Pag
 
 const dollars = (c: number): string => formatMoney(Math.abs(c) / 100, { cents: c % 100 !== 0 });
 
-export function PokerView({ page, rows, payments, onOpen, onAdd }: { page: PageData; rows: PokerRow[]; payments: Payment[]; onOpen: (id: string) => void; onAdd: () => void }) {
+export function PokerView({ page, rows, payments, onOpen, onAdd, onFields, onSuggest }: {
+  page: PageData; rows: PokerRow[]; payments: Payment[]; onOpen: (id: string) => void; onAdd: () => void; onFields?: () => void; onSuggest?: (key: string) => void;
+}) {
   const n = rows.length;
   const pot = rows.reduce((s, r) => s + r.inCents, 0);
   const gap = potGap(rows);
   return (
     <>
-      <Head label={n === 1 ? "1 Player" : `${n} Players`} count={pot > 0 ? `Pot ${dollars(pot)}` : undefined} action={{ label: "Add Player", onClick: onAdd }} />
+      <Head label={n === 0 ? "Players" : n === 1 ? "1 Player" : `${n} Players`} count={pot > 0 ? `Pot ${dollars(pot)}` : undefined} action={{ label: "Add Player", onClick: onAdd }} />
+      {/* No players yet: the buy-in structure stands where the table will, and the settlement says what it waits on. */}
+      {n === 0 && (
+        <>
+          <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />
+          <Head label="Settle Up" />
+          <Foot>Add Players, Their Buy-Ins and Cash-Outs to See Who Owes Whom</Foot>
+        </>
+      )}
       {n > 0 && (
         <Card>
           {rows.map((r) => (
@@ -614,7 +656,7 @@ export function PokerView({ page, rows, payments, onOpen, onAdd }: { page: PageD
           <Card>{payments.map((p, i) => <Row key={i} label={<><U>{p.from}</U> Pays <U>{p.to}</U></>} value={dollars(p.cents)} />)}</Card>
         </>
       )}
-      {n < 2 && <Foot>Add the Players, Then Their Buy-Ins and Cash-Outs; Who Owes Whom Works Itself Out</Foot>}
+      {n === 1 && <Foot>Add the Players, Then Their Buy-Ins and Cash-Outs; Who Owes Whom Works Itself Out</Foot>}
     </>
   );
 }

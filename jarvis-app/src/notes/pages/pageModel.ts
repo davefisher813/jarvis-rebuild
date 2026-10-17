@@ -48,7 +48,8 @@ export interface PageRecord {
   link?: string;
 }
 
-/** A heading the page's rows are grouped under, named and ordered by the person. A section with no rows is not drawn. */
+/** A heading the page's rows are grouped under, named and ordered by the person. Every section is drawn on the page, rows or
+ *  none, with its own Add (2026-10-16); an export walks only the ones with rows. */
 export interface PageSection { key: string; label: string }
 
 /** One played game on a standings page: two teams (their record ids), the date and the score. Standings are worked out from these. */
@@ -124,7 +125,7 @@ export interface PageData {
   golf?: GolfInfo;
   lineup?: LineupInfo;
   score?: ScoreInfo;
-  /** Headings the rows group under. Empty sections hide. */
+  /** Headings the rows group under. An empty one is still drawn on the page, as structure with an Add of its own. */
   sections?: PageSection[];
   /** Games played, on a standings page. */
   games?: GameRow[];

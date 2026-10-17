@@ -39,7 +39,7 @@ import { type PageKind, type PageData, KIND_NAME, newTeamPage, newOutreachPage, 
 import { StartRoundSheet, StartGameSheet, PageShareSheet } from "./pages/PageSheets";
 import { templateDef, newTemplatePage, isTemplateKey } from "./pages/templateDefs";
 import { newScoreboardPage } from "./pages/scoreboard";
-import { fromMyTemplate } from "./pages/templateLogic";
+import { fromMyTemplate, untouchedTemplatePage } from "./pages/templateLogic";
 import { keepOriginal, readSource, type TableSource } from "./pages/pageImport";
 import RowActionSheet from "../shared/RowActionSheet";
 
@@ -557,6 +557,14 @@ export default function NotesFlow({
 
   // WHICH TEMPLATE IS BEING MADE (issue 106 V3; pickTemplate, below, is the one door).
   const [creating, setCreating] = useState<TemplateKey | null>(null);
+  // THE KEYBOARD STAYS UP ACROSS THE AWAITS (the Logging Standard, 2026-10-17). A new note is made and opened after
+  // several store round trips, so the editor mounts outside the tap that asked for it, and iOS only raises the keyboard
+  // for a focus made inside a gesture. The tap focuses this hidden input at once; when the editor mounts, its own
+  // autofocus moves the caret into the body, and the keyboard that is already up stays up. `freshId` is the note that
+  // gets that caret: the one just made, the first time it opens.
+  const primerRef = useRef<HTMLInputElement | null>(null);
+  const [freshId, setFreshId] = useState<string | null>(null);
+  const primer = <input ref={primerRef} className="visually-hidden-input" aria-hidden="true" tabIndex={-1} readOnly aria-label="Keyboard" />;
   const creatingRef = useRef(false);
   // The screen as an await will find it. A closure over `screen` is the render the tap
   // happened in, the one render that cannot know whether he has since gone Back.
@@ -588,6 +596,7 @@ export default function NotesFlow({
     // Opening reads the note back, which takes its own beats, and Back is live in them too.
     if (!aliveRef.current) return;
     if (screenRef.current !== "templates") { await loadList(); return; }
+    setFreshId(id);
     setScreen("editor");
   };
 
@@ -642,6 +651,16 @@ export default function NotesFlow({
     const running = k === "team" || k === "outreach" || !!templateDef(k)?.one;
     const have = running ? list.filter((n) => n.page === k && !n.deleted && !n.archived && !n.mine) : [];
     if (have.length) { setAlreadyHave({ kind: k, have }); return; }
+    // A PAGE OF THIS TEMPLATE THAT WAS NEVER TOUCHED IS OPENED, NOT MADE AGAIN (Alfred 2026-10-16: Event Day Pack chosen twice
+    // quietly made a second "Event Day Pack"). Untouched means exactly as the template made it: its title, fields, headings,
+    // settings and starter rows, nothing brought in. A page the person has changed is theirs, and the pick makes a fresh one.
+    if (isTemplateKey(k)) {
+      const same = list.filter((n) => n.page === k && !n.deleted && !n.archived && !n.mine);
+      for (const n of same) {
+        const d = await svc.note(n.id);
+        if (d?.page && !d.deletedAt && d.title.trim() === KIND_NAME[k] && untouchedTemplatePage(d.page)) { openPage(n.id, "templates"); return; }
+      }
+    }
     await makePage(k);
   };
   const mineTemplates = list.filter((n) => n.mine && !n.deleted).map((n) => ({ id: n.id, title: n.title, kindName: n.page ? KIND_NAME[n.page] : "Template" }));
@@ -703,6 +722,7 @@ export default function NotesFlow({
     if (creatingRef.current) return;
     creatingRef.current = true;
     setCreating(key);
+    primerRef.current?.focus();
     try {
       await makeNoteFromTemplate(key);
     } finally {
@@ -1065,6 +1085,7 @@ export default function NotesFlow({
   if (screen === "list") {
     return (
       <div className={pushCls} key="list">
+      {primer}
       <NotesList
         notes={list}
         onOpen={openNote}
@@ -1130,6 +1151,7 @@ export default function NotesFlow({
   if (screen === "templates") {
     return (
       <div className={pushCls} key="templates">
+        {primer}
         <Templates onSelect={pickTemplate} onPage={pickPage} mine={mineTemplates} pending={creating} onBack={() => setScreen("list")} />
         {startGame && (
           <StartGameSheet onCancel={() => setStartGame(false)} onStart={(sport) => void (async () => {
@@ -1283,10 +1305,12 @@ export default function NotesFlow({
         <NoteEditor
           fileStore={fileStore}
           note={current}
+          fresh={currentId !== null && currentId === freshId}
           saveState={saveState}
           onRetrySave={() => void flushDoc()}
           backLabel={backToOrigin ? nav.origin!.label : undefined}
           onBack={() => {
+            setFreshId(null);
             void flushDoc().then(() => loadList());
             setScreen("list");
             // Opened for another page: that page is the previous screen.

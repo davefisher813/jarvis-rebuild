@@ -78,7 +78,7 @@ const anchor = (input: TemplateInput): string => dateInZone(input.internal_date,
 
 /** Words that are only the KIND of meeting, never which one: a title made of these alone names nothing. */
 const GENERIC_TITLE = /^(?:(?:phone|video|zoom|teams|google meet|intro|initial|first|second|final|quick|brief)\s+)?(?:call|meeting|meet|chat|appointment|interview|session|visit|conference|webinar|class|lesson|consult|consultation|checkup|check-up)$/i;
-const ORG_WORDS = /(inc|llc|ltd|co|corp|company|golf|club|hotel|dental|studio|fitness|gym|center|centre|group|spa|clinic|restaurant|bar|grill|resort|office|team|events|reservations|salon|medical|health|bank|school|academy|university|church)/i;
+const ORG_WORDS = /\b(inc|llc|ltd|co|corp|company|golf|club|hotel|dental|studio|fitness|gym|center|centre|group|spa|clinic|restaurant|bar|grill|resort|office|team|events|reservations|salon|medical|health|bank|school|academy|university|church)\b/i;
 
 /** The sender reads as a person (two or three capitalised words, no company word), so a thing is "with" them, not "at" them. */
 export function looksLikePerson(name: string): boolean {

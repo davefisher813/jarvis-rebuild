@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// TEMPLATES WAVE 2 (issue #115, Sports), through the real Notes flow over the real store: the picker's shelves, the shared engine (headings that hide
-// when empty, a done mark that leads its row, "save as my template"), and the pages that do arithmetic for the person.
+// TEMPLATES WAVE 2 (issue #115, Sports), through the real Notes flow over the real store: the picker's shelves, the shared engine (every heading
+// drawn from the first open with its own Add, a done mark that leads its row, "save as my template"), and the pages that do arithmetic for the person.
 import "../../shared/tiptapTest";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
@@ -57,31 +57,33 @@ describe("the picker", () => {
 });
 
 describe("Session Plan: headings, minutes and a clock", () => {
-  it("starts with its headings hidden, shows one once it has a row, and totals the minutes", async () => {
+  it("opens ready: every heading drawn with its own Add, a Warm-Up and a Cool-Down already on it, and the minutes add up", async () => {
     await openPicked("u-w2-session", "Session Plan");
-    expect(screen.queryByText("Drills")).toBeNull();            // empty headings are not drawn
-    fireEvent.click(screen.getByText("Add Activity"));
+    // Every heading is on the page from the first open (Alfred 2026-10-16), each with its own Add, and none says a count of zero.
+    for (const h of ["Warm-Up", "Drills", "Scrimmage", "Cool-Down"]) expect(screen.getByLabelText(`Add Activity Under ${h}`)).toBeInTheDocument();
+    expect(screen.getAllByText("Add Activity")).toHaveLength(4);
+    expect(screen.queryByText(/^0 /)).toBeNull();
+    expect(screen.getByText("15 Min")).toBeInTheDocument();    // the starter rows: Warm-Up 10, Cool-Down 5
+    // Drills' own Add starts the row under Drills.
+    fireEvent.click(screen.getByLabelText("Add Activity Under Drills"));
     fireEvent.change(await screen.findByLabelText("Activity"), { target: { value: "Passing Square" } });
     fireEvent.change(screen.getByLabelText("Minutes"), { target: { value: "20" } });
-    // Put it under Drills.
-    fireEvent.click(screen.getByLabelText("Heading"));
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Drills" }));
     fireEvent.click(within(sheetOf()).getByText("Add"));
     expect(await screen.findByText("Passing Square", {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.getByText("Drills")).toBeInTheDocument();
-    expect(screen.queryByText("Scrimmage")).toBeNull();
-    expect(screen.getByText("20 Min")).toBeInTheDocument();
+    await waitFor(async () => expect((await pageOf("session"))!.page.records.find((r) => r.v.act === "Passing Square")!.sec).toBe((await pageOf("session"))!.page.sections![1]!.key), { timeout: 4000 });
+    expect(screen.getByText("35 Min")).toBeInTheDocument();
     // A start time puts a clock on the row.
     fireEvent.click(screen.getByText("Start Time"));
     fireEvent.change(await screen.findByPlaceholderText("Start Time"), { target: { value: "17:30" } });
     fireEvent.click(within(sheetOf()).getByText("Save"));
     expect(await screen.findByText("5:30 PM", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("5:40 PM")).toBeInTheDocument();   // Passing Square, after the ten-minute Warm-Up
   });
 
   it("headings are edited on the page: renamed and added, and a removed one keeps its rows", async () => {
     await openPicked("u-w2-headings", "Session Plan");
     fireEvent.click(screen.getByLabelText("Page options"));
-    fireEvent.click(screen.getByText("Headings"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Headings/ }));
     fireEvent.change(await screen.findByLabelText("Name for Warm-Up"), { target: { value: "Get Loose" } });
     fireEvent.change(screen.getByLabelText("New heading name"), { target: { value: "Water Break" } });
     fireEvent.click(within(sheetOf()).getByText("Save"));
@@ -93,9 +95,11 @@ describe("Session Plan: headings, minutes and a clock", () => {
 });
 
 describe("Event Day Pack: the done mark leads the row", () => {
-  it("is a checkbox at the left of the row, and a tap on it ticks the item without opening it", async () => {
+  it("opens with its headings and starters, and a tap on the checkbox ticks the item without opening it", async () => {
     await openPicked("u-w2-eventday", "Event Day Pack");
-    fireEvent.click(screen.getByText("Add Item"));
+    for (const h of ["Before You Go", "Bring", "People", "Schedule"]) expect(screen.getByLabelText(`Add Item Under ${h}`)).toBeInTheDocument();
+    for (const seed of ["Tickets", "Directions", "Water"]) expect(screen.getByText(seed)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Add Item Under Bring"));
     fireEvent.change(await screen.findByLabelText("Item"), { target: { value: "Water Bottles" } });
     fireEvent.click(within(sheetOf()).getByText("Add"));
     const row = (await screen.findByText("Water Bottles", {}, { timeout: 4000 })).closest(".row")!;
@@ -104,7 +108,7 @@ describe("Event Day Pack: the done mark leads the row", () => {
     // It leads the row: it comes before the name in the row's own order.
     expect(box.compareDocumentPosition(row.querySelector(".conn-name")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(box);
-    await waitFor(async () => expect((await pageOf("eventday"))!.page.records[0]!.v.done).toBe("1"), { timeout: 4000 });
+    await waitFor(async () => expect((await pageOf("eventday"))!.page.records.find((r) => r.v.item === "Water Bottles")!.v.done).toBe("1"), { timeout: 4000 });
     expect(document.querySelector(".sheet-scrim")).toBeNull();
   });
 });

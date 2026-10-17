@@ -31,8 +31,14 @@ export interface TemplateDef {
   /** The fields drawn under a row's name, in order (empty ones are skipped). */
   show: string[];
   fields: PageField[];
-  /** Headings a new page starts with. Rows can be moved between them; a heading with no rows is not drawn. */
+  /** Headings a new page starts with. Rows can be moved between them. EVERY heading is drawn, rows or none, each with its own
+   *  Add (Alfred 2026-10-16: 24 templates opened as an empty shell, a counter and one Add, because a heading with no rows was
+   *  hidden; a template opens READY, its structure on the page). */
   sections?: string[];
+  /** Rows a new page starts with, where the def implies them (a Warm-Up and a Cool-Down, Doors Open, a Dinner per day). The
+   *  smallest structural starters: two to five, plainly editable and removable, never personal data. `sec` is the heading's
+   *  index or label. */
+  starter?: { sec?: number | string; v: Record<string, string> }[];
   /** Fields the page does not start with but offers in one tap: smallest useful structure first, grown when the person says. */
   suggested?: PageField[];
   /** Sums drawn beside the page's count. */
@@ -91,13 +97,16 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Activity", plural: "Activities", headline: "act", show: ["min", "notes"],
     fields: [f("act", "Activity"), f("min", "Minutes", "number"), f("notes", "Notes")],
     sections: ["Warm-Up", "Drills", "Scrimmage", "Cool-Down"], totals: [{ key: "min", label: "Min" }],
+    starter: [{ sec: "Warm-Up", v: { act: "Warm-Up", min: "10" } }, { sec: "Cool-Down", v: { act: "Cool-Down", min: "5" } }],
     suggested: [f("coach", "Coach"), f("equip", "Equipment")], view: "session", wave: 2, meta: { start: "" },
   },
   eventday: {
     key: "eventday", name: "Event Day Pack", shelf: "Sports", desc: "Arrive, Bring, People, Schedule, Checked Off", cat: "yellow", icon: "checks",
     noun: "Item", plural: "Items", headline: "item", show: ["notes"],
     fields: [f("item", "Item"), f("done", "Done", "check"), f("notes", "Notes")],
-    sections: ["Before You Go", "Bring", "People", "Schedule"], suggested: [f("who", "Who"), f("time", "Time")], view: "sheet", wave: 2,
+    sections: ["Before You Go", "Bring", "People", "Schedule"],
+    starter: [{ sec: "Before You Go", v: { item: "Tickets" } }, { sec: "Before You Go", v: { item: "Directions" } }, { sec: "Bring", v: { item: "Water" } }],
+    suggested: [f("who", "Who"), f("time", "Time")], view: "sheet", wave: 2,
   },
   scouting: {
     key: "scouting", name: "Scouting Report", shelf: "Sports", desc: "Opponents or Prospects: Strengths, Weaknesses", cat: "purple", icon: "brain",
@@ -205,12 +214,14 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Occasion", plural: "Occasions", headline: "name", show: ["occasion", "date", "gift", "budget"],
     fields: [f("name", "Person"), f("occasion", "Occasion", "choice", ["Birthday", "Anniversary", "Holiday", "Other"]), f("date", "Date", "date"), f("gift", "Gift Ideas"), f("budget", "Budget", "money"), f("done", "Handled This Year", "check")],
     totals: [{ key: "budget", label: "Budget", money: true }], view: "occasions", one: true, wave: 3, sort: "next", due: { key: "date", yearly: true },
+    note: "A Date Comes Round Every Year; the Page Says When One Is Near",
   },
   trip: {
     key: "trip", name: "Trip Sheet", shelf: "Life", desc: "Getting There, Staying, Doing, Packing, What It Costs", cat: "sky", icon: "send",
     noun: "Item", plural: "Items", headline: "item", show: ["when", "where", "confirmation", "cost"], entry: "Trip Sheet",
     fields: [f("item", "Item"), f("done", "Done", "check"), f("when", "When", "date"), f("where", "Where"), f("confirmation", "Confirmation"), f("cost", "Cost", "money")],
-    sections: ["Getting There", "Staying", "Doing", "Packing"], totals: [{ key: "cost", label: "Cost", money: true }], view: "sheet", wave: 3,
+    sections: ["Getting There", "Staying", "Doing", "Packing"], totals: [{ key: "cost", label: "Cost", money: true }],
+    starter: [{ sec: "Getting There", v: { item: "Flights" } }, { sec: "Staying", v: { item: "Hotel" } }], view: "sheet", wave: 3,
   },
   expenses: {
     key: "expenses", name: "Expenses to Submit", shelf: "Life", desc: "Receipts to Turn In, Totalled, Checked Off", cat: "sky", icon: "dollar",
@@ -228,7 +239,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "mealplan", name: "Meal Plan", shelf: "Life", desc: "A Week of Meals, Day by Day", cat: "green", icon: "calendar",
     noun: "Meal", plural: "Meals", headline: "meal", show: ["type", "notes"], parent: "recipes", entry: "Meal Plan",
     fields: [f("meal", "Meal"), f("type", "Type", "choice", ["Breakfast", "Lunch", "Dinner", "Snack"]), f("notes", "Notes")],
-    sections: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], view: "sheet", wave: 3,
+    sections: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    starter: [0, 1, 2, 3, 4, 5, 6].map((sec) => ({ sec, v: { meal: "Dinner", type: "Dinner" } })), view: "sheet", wave: 3,
   },
   freezer: {
     key: "freezer", name: "Freezer", shelf: "Life", desc: "What Is in There, How Much, Use By", cat: "green", icon: "gauge",
@@ -286,13 +298,16 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "party", name: "Party Planner", shelf: "Entertainment", desc: "Guests, Food, Supplies, Schedule, What It Costs", cat: "pink", icon: "sparkles",
     noun: "Item", plural: "Items", headline: "item", show: ["rsvp", "who", "cost"],
     fields: [f("item", "Item or Guest"), f("done", "Done", "check"), f("rsvp", "RSVP", "choice", ["Yes", "No", "Maybe"]), f("who", "Who"), f("cost", "Cost", "money")],
-    sections: ["Guests", "Food and Drink", "Supplies", "Schedule", "To Do"], totals: [{ key: "cost", label: "Cost", money: true }], suggested: [f("notes", "Notes"), f("when", "When")], view: "sheet", wave: 4,
+    sections: ["Guests", "Food and Drink", "Supplies", "Schedule", "To Do"], totals: [{ key: "cost", label: "Cost", money: true }],
+    starter: [{ sec: "To Do", v: { item: "Send Invites" } }], suggested: [f("notes", "Notes"), f("when", "When")], view: "sheet", wave: 4,
   },
   runorder: {
     key: "runorder", name: "Running Order", shelf: "Entertainment", desc: "A Show or Event, Item by Item, Clock Times From the Start", cat: "blue", icon: "timer",
     noun: "Item", plural: "Items", headline: "item", show: ["min", "who"],
     fields: [f("item", "Item"), f("min", "Minutes", "number"), f("who", "Who"), f("notes", "Notes")],
-    sections: ["Before", "Show", "After"], totals: [{ key: "min", label: "Min" }], suggested: [f("cue", "Cue"), f("where", "Where")], view: "session", wave: 4, meta: { start: "" },
+    sections: ["Before", "Show", "After"], totals: [{ key: "min", label: "Min" }],
+    starter: [{ sec: "Before", v: { item: "Doors Open" } }, { sec: "Show", v: { item: "Opening" } }, { sec: "After", v: { item: "Strike" } }],
+    suggested: [f("cue", "Cue"), f("where", "Where")], view: "session", wave: 4, meta: { start: "" },
   },
   poker: {
     key: "poker", name: "Poker Night", shelf: "Entertainment", desc: "Buy-Ins, Cash-Outs, Who Owes Whom", cat: "red", icon: "dollar",
@@ -313,15 +328,23 @@ export const isTemplateKey = (k: string): k is TemplateKey => (TEMPLATE_KEYS as 
 // Local, so this file keeps to pageModel's types only (pageModel reads TEMPLATE_NAMES from here when it loads).
 const rid = (): string => "r_" + (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 13).replace(/-/g, "") : Math.random().toString(36).slice(2, 13));
 
-/** A page of a catalog template, at its smallest useful size. A profile starts with its one record. */
+/** A page of a catalog template, at its smallest useful size: its fields, every heading, and the starter rows its def implies.
+ *  A profile starts with its one record. */
 export function newTemplatePage(key: TemplateKey): import("./pageModel").PageData {
   const d = TEMPLATES[key];
+  const sections = d.sections ? d.sections.map((label, i) => ({ key: "s" + i, label })) : [];
+  const secKey = (sec: number | string | undefined): string | undefined => {
+    if (sec === undefined) return undefined;
+    const s = typeof sec === "number" ? sections[sec] : sections.find((x) => x.label === sec);
+    return s?.key;
+  };
+  const starters = (d.starter ?? []).map((r) => { const sec = secKey(r.sec); return { id: rid(), v: { ...r.v }, ...(sec ? { sec } : {}) }; });
   return {
     v: 1,
     kind: key,
     fields: d.fields.map((x) => ({ ...x, ...(x.options ? { options: [...x.options] } : {}) })),
-    records: d.view === "profile" ? [{ id: rid(), v: {} }] : [],
-    ...(d.sections ? { sections: d.sections.map((label, i) => ({ key: "s" + i, label })) } : {}),
+    records: d.view === "profile" ? [{ id: rid(), v: {} }] : starters,
+    ...(d.sections ? { sections } : {}),
     ...(d.meta ? { meta: { ...d.meta } } : {}),
   };
 }
