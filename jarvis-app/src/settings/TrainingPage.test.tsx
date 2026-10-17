@@ -131,3 +131,41 @@ describe("TrainingPage: Rack Unit is a whole segmented control and the rack foll
     expect(rackForUnit({ rackUnit: "kg", barWeight: 20, plates: [25, 20] }, "kg")).toEqual({ rackUnit: "kg", barWeight: 20, plates: [25, 20] });
   });
 });
+
+// PROGRESSIVE OVERLOAD'S ONE SETTING AND ITS PUBLISHED RULE (2026-10-17, section 10). The row writes gym/settings.ts
+// overloadTargets through the real store, and the second door to How Suggestions Work is here (the first is the Why
+// row in a session, SessionScreen.rules.test.tsx).
+describe("TrainingPage: Suggestions", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("Step the Weight When offers Every Set at the Top and Each Set on Its Own, and a pick writes the store", () => {
+    render(<TrainingPage onBack={() => {}} />);
+    expect(screen.getByText("Suggestions", { selector: ".sh2 .t" })).toBeInTheDocument();
+    const menu = screen.getByLabelText("Step the Weight When", { selector: ".dd" });
+    expect(menu).toHaveTextContent("Every Set at the Top");
+    fireEvent.click(menu);
+    expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual(["Every Set at the Top", "Each Set on Its Own"]);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Each Set on Its Own" }));
+    expect(readGymSettings().overloadTargets).toBe("perSet");
+    expect(screen.getByLabelText("Step the Weight When", { selector: ".dd" })).toHaveTextContent("Each Set on Its Own");
+  });
+
+  it("a stored perSet reads back, and the rack is untouched by the pick", () => {
+    writeGymSettings({ ...readGymSettings(), overloadTargets: "perSet", barWeight: 35 });
+    render(<TrainingPage onBack={() => {}} />);
+    expect(screen.getByLabelText("Step the Weight When", { selector: ".dd" })).toHaveTextContent("Each Set on Its Own");
+    fireEvent.click(screen.getByLabelText("Step the Weight When", { selector: ".dd" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Every Set at the Top" }));
+    expect(readGymSettings()).toMatchObject({ overloadTargets: "all", barWeight: 35 });
+  });
+
+  it("How Suggestions Work opens the published rule from Settings, Training", () => {
+    render(<TrainingPage onBack={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "How Suggestions Work" }));
+    const sheet = screen.getByRole("dialog", { name: "How Suggestions Work" });
+    expect(sheet.querySelectorAll(".legal-h").length).toBe(9);
+    expect(sheet.textContent).not.toMatch(/\bAI\b|deload/i);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("dialog", { name: "How Suggestions Work" })).toBeNull();
+  });
+});

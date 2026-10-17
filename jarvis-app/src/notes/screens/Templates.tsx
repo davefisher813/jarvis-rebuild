@@ -42,10 +42,14 @@ const CORE: PageEntry[] = [
 ];
 
 // A preset or entry point (Home Inventory under Home and Vehicle Book, Meal Plan under Kitchen Page) is not a row of its own: its parent's row
-// asks which one. So the picker lists the templates the library names, and each preset stays one tap further in.
+// asks which one. So the picker lists the templates the library names, and each preset stays one tap further in. A template that
+// belongs on two shelves (`alsoShelves`: Accomplishments and Milestones under Life and Professional) is one template drawn under
+// each, the same key and the same page; the count of templates does not move.
 const PAGES_LIST: PageEntry[] = [
   ...CORE,
-  ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).map((k) => ({ key: k, name: TEMPLATES[k].shelfName ?? TEMPLATES[k].name, desc: TEMPLATES[k].desc, cat: TEMPLATES[k].cat, Icon: ICONS[TEMPLATES[k].icon], shelf: TEMPLATES[k].shelf })),
+  ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).flatMap((k) =>
+    [TEMPLATES[k].shelf, ...(TEMPLATES[k].alsoShelves ?? [])].map((shelf) =>
+      ({ key: k, name: TEMPLATES[k].shelfName ?? TEMPLATES[k].name, desc: TEMPLATES[k].desc, cat: TEMPLATES[k].cat, Icon: ICONS[TEMPLATES[k].icon], shelf }))),
 ];
 
 /** The entry points a template offers: itself first, then every preset under it. Empty when it has none. */

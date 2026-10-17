@@ -805,3 +805,116 @@ describe("TaskSheet: the sliding evidence is the When group's footer", () => {
     expect(next.textContent).toBe("Where");
   });
 });
+
+// THE LOGGING STANDARD (2026-10-17). Rule 3: one line names the whole task.
+// Rule 4: Return saves and the sheet stays for the next. Rule 8: a half-typed
+// name survives the sheet being torn down.
+describe("TaskSheet: one line, read as it is typed", () => {
+  it("Call Nadia tomorrow 3pm 30 min #Work: due Tomorrow, a 3:00 PM reminder, 30 Min, Work, and Save writes exactly that", () => {
+    localStorage.clear();
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" readsReminder categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Call Nadia tomorrow 3pm 30 min #Work" } });
+    expect(screen.getByText("Read from your words")).toBeInTheDocument();
+    expect(screen.getByText("3:00 PM")).toBeInTheDocument();
+    // The rows draw what the words said: never None under a chip that says Tomorrow.
+    expect(screen.getByLabelText("Due")).toHaveTextContent("Tomorrow");
+    expect(screen.getByLabelText("Length")).toHaveTextContent("30 Min");
+    expect(screen.getByLabelText("Area")).toHaveTextContent("Work");
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const d = onSave.mock.calls[0]![0];
+    expect(d.text).toBe("Call Nadia");
+    expect(d.due).toBe(tomorrow);
+    expect(d.estimateMin).toBe(30);
+    expect(d.category).toBe("c1");
+    expect(d.reminder).toMatchObject({ time: "15:00", startDate: tomorrow, repeat: { kind: "once" }, scheduleKind: "timed" });
+  });
+
+  it("a tap on a chip turns the read off: the words stay in the name and nothing is read from them", () => {
+    localStorage.clear();
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" readsReminder categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Call Nadia tomorrow 3pm" } });
+    fireEvent.click(screen.getByText("3:00 PM"));
+    expect(screen.queryByText("Read from your words")).toBeNull();
+    expect(screen.getByLabelText("Due")).toHaveTextContent("None");
+    fireEvent.click(screen.getByText("Save"));
+    const d = onSave.mock.calls[0]![0];
+    expect(d.text).toBe("Call Nadia Tomorrow 3pm");
+    expect(d.due).toBe("");
+    expect(d.reminder).toBeUndefined();
+  });
+
+  it("a door that does not save a reminder never reads the clock time: 3pm stays in the title, the day is still read", () => {
+    localStorage.clear();
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Call Nadia tomorrow 3pm" } });
+    expect(screen.queryByText("3:00 PM")).toBeNull();
+    expect(screen.getByLabelText("Due")).toHaveTextContent("Tomorrow");
+    fireEvent.click(screen.getByText("Save"));
+    const d = onSave.mock.calls[0]![0];
+    expect(d.text).toBe("Call Nadia 3pm");
+    expect(d.due).toBe(tomorrow);
+    expect(d.reminder).toBeUndefined();
+  });
+
+  it("a day he picked himself is not overridden by the words", () => {
+    localStorage.clear();
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Due"));
+    fireEvent.click(screen.getByText("Today"));
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Call Nadia tomorrow" } });
+    expect(screen.getByLabelText("Due")).toHaveTextContent("Today");
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].due).toBe(today);
+  });
+
+  it("Return saves a new task with another, and the sheet stays open on an empty, focused name", async () => {
+    localStorage.clear();
+    const onSave = vi.fn((_d: unknown) => Promise.resolve(true));
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    const field = screen.getByLabelText("Task");
+    fireEvent.change(field, { target: { value: "Email Sam" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ text: "Email Sam", another: true });
+    await waitFor(() => expect(screen.getByLabelText("Task")).toHaveValue(""));
+    expect(document.activeElement).toBe(screen.getByLabelText("Task"));
+    expect(screen.getByText("Save"), "the sheet is still up").toBeInTheDocument();
+  });
+
+  it("Return on an edit saves once and does not ask to stay", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="edit" initial={{ text: "Send Invoice" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.keyDown(screen.getByLabelText("Task"), { key: "Enter" });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0].another).toBeUndefined();
+  });
+
+  it("a half-typed name comes back when a new sheet opens again; Save spends it; Cancel discards it", async () => {
+    localStorage.clear();
+    const first = render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Email Sa" } });
+    first.unmount();
+    const onSave = vi.fn((_d: unknown) => Promise.resolve(true));
+    const second = render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByLabelText("Task")).toHaveValue("Email Sa");
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(localStorage.getItem("jarvis.task.draft.v1")).toBeNull());
+    second.unmount();
+    const onCancel = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={onCancel} />);
+    expect(screen.getByLabelText("Task")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Never mind" } });
+    expect(localStorage.getItem("jarvis.task.draft.v1")).toBe("Never mind");
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(onCancel).toHaveBeenCalled();
+    expect(localStorage.getItem("jarvis.task.draft.v1")).toBeNull();
+    // An edit never reads the draft.
+    render(<TaskSheet mode="edit" initial={{ text: "Send Invoice" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByDisplayValue("Send Invoice")).toBeInTheDocument();
+  });
+});

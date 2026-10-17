@@ -237,7 +237,7 @@ export default function LiftDetailScreen({
   const moved = gain && gain.delta !== 0 ? gainLine(gain, "word") : null;
 
   return (
-    <div className="screen ruled health-ruled">
+    <div className="screen ruled health-ruled wo-screen">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">{liftTitle(name)}</div>

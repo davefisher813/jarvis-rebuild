@@ -64,13 +64,13 @@ const WERE_SHELLS: { name: string; pick: string[]; heads: string[]; texts?: (str
   { name: "Scouting Report", pick: ["Scouting Report"], heads: ["Reports", "Starts With", "Suggested"], texts: ["Add Report", "Strengths", "Weaknesses", "Position"] },
   { name: "League Standings", pick: ["League Standings"], heads: ["Standings", "Teams"], texts: ["Add Team", "Won-Lost", "Points", "For-Against"] },
   { name: "Group Manager Page", pick: ["Group Manager Page"], heads: ["Leaders", "Members", "Starts With"], texts: ["Role", "Dues Paid"], adds: 2 },
-  { name: "Home and Vehicle Book", pick: ["Home and Vehicle Book", "Home and Vehicle Book"], heads: ["Home", "Vehicles", "Appliances", "Starts With"], texts: ["Make and Model", "Next Due"], adds: 3 },
+  { name: "Home and Vehicle Book", pick: ["Home and Vehicle Book", "Home and Vehicle Book"], heads: ["Home", "Vehicles", "Appliances", "Purchases and Warranties", "Starts With"], texts: ["Make and Model", "Next Due"], adds: 4 },
   { name: "Health Card", pick: ["Health Card", "Person"], heads: ["Allergies", "Conditions", "Doctors", "Emergency Contacts"], texts: ["Medications Live in Health; This Card Does Not Copy Them"], adds: 4 },
   { name: "Handover Sheet", pick: ["Handover Sheet", "Handover Sheet"], heads: ["Right Now", "Every Day", "If Something Goes Wrong", "Contacts"], texts: ["What to Know"], adds: 4 },
   { name: "People and Occasions", pick: ["People and Occasions"], heads: ["Occasions", "Starts With"], texts: ["Add Occasion", "Gift Ideas", "Budget", "A Date Comes Round Every Year; the Page Says When One Is Near"] },
   { name: "Trip Sheet", pick: ["Trip Sheet", "Trip Sheet"], heads: ["Getting There", "Staying", "Doing", "Packing"], texts: ["Flights", "Hotel"], adds: 4 },
   { name: "Kitchen Page", pick: ["Kitchen Page", "Recipes"], heads: ["Mains", "Sides", "Desserts", "Other", "Starts With"], texts: ["Ingredients", "Directions"], adds: 4 },
-  { name: "Money Map", pick: ["Money Map"], heads: ["Banking", "Cards and Loans", "Investing", "Other", "Starts With"], texts: ["Where to Find It", "Names and Places Only; No Passwords, PINs or Full Account Numbers"], adds: 4 },
+  { name: "Money Map", pick: ["Money Map"], heads: ["Banking", "Cards and Loans", "Investing", "Subscriptions and Renewals", "For My Family", "Other", "Starts With"], texts: ["Where to Find It", "Names and Places Only; No Passwords, PINs or Full Account Numbers"], adds: 6 },
   { name: "Insurance Page", pick: ["Insurance Page"], heads: ["Home and Auto", "Health and Life", "Other", "Starts With"], texts: ["Carrier", "Renews", "Premium"], adds: 3 },
   { name: "Giving Log", pick: ["Giving Log"], heads: ["Gifts", "Starts With", "Suggested"], texts: ["Add Gift", "Amount", "Receipt"] },
   { name: "1:1 Log", pick: ["1:1 Log"], heads: ["Meetings", "Starts With"], texts: ["Add Meeting", "Topics", "Follow-Ups", "Next 1:1"] },
@@ -119,7 +119,8 @@ describe("the 16 that were ready still open as they did", () => {
   for (const t of PAGES) {
     it(t.name, async () => {
       await openPicker("u-ready16-" + t.name.replace(/\W+/g, "-").toLowerCase());
-      fireEvent.click(screen.getByText(t.pick[0]!));
+      // Accomplishments and Milestones sits under Life AND Professional (the 2026-10-13 spec): two rows, one template.
+      fireEvent.click(screen.getAllByText(t.pick[0]!)[0]!);
       await screen.findByLabelText("Page options", {}, { timeout: 4000 });
       expectReady(t.name);
       for (const a of t.anchors) expect(screen.getAllByText(a).length, `${t.name}: ${a}`).toBeGreaterThan(0);

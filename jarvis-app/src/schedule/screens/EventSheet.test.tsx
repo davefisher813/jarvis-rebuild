@@ -417,3 +417,20 @@ describe("EventSheet: actions, and empty picks", () => {
     expect(rep.textContent).toBe("Weekly");
   });
 });
+
+// THE LOGGING STANDARD, rule 4 (2026-10-17): Return in the title saves, with
+// the same refusal the Save tap gives a sheet that is missing its date.
+describe("EventSheet: Return in the title saves", () => {
+  it("Return saves a titled event with its defaults, and refuses an untitled one out loud", () => {
+    const onSave = vi.fn();
+    render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    const title = screen.getByLabelText("Event title");
+    fireEvent.keyDown(title, { key: "Enter" });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Needs Title · Date · Start")).toBeInTheDocument();
+    fireEvent.change(title, { target: { value: "Standup" } });
+    fireEvent.keyDown(title, { key: "Enter" });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ title: "Standup", date: "2026-05-24", start: "09:00" });
+  });
+});

@@ -32,6 +32,43 @@ describe("the catalog", () => {
   });
 });
 
+// THE 2026-10-13 BUILD SPEC'S FINAL LIST, the definition-level lines the defs lacked (compared 2026-10-17): Home and Vehicle Book's
+// Purchases and Warranties section and the Inventory preset's "where its receipt is"; Money Map's Subscriptions and Renewals and
+// For My Family sections; the Expenses to Submit preset's reimbursement status with its headings following it; Accomplishments and
+// Milestones under both Life and Professional. The picker still holds forty templates: a second shelf is a second row, not a
+// second template.
+describe("the final list's definitions", () => {
+  it("Home and Vehicle Book has a Purchases and Warranties heading, and Home Inventory says where the receipt is", () => {
+    expect(TEMPLATES.homebook.sections).toEqual(["Home", "Vehicles", "Appliances", "Purchases and Warranties"]);
+    expect(newTemplatePage("homebook").sections!.map((s) => s.label)).toContain("Purchases and Warranties");
+    expect(TEMPLATES.homebook.suggested!.find((f) => f.key === "warranty")).toMatchObject({ label: "Warranty Ends", type: "date" });
+    expect(TEMPLATES.inventory.fields.find((f) => f.key === "receipt")).toMatchObject({ label: "Where the Receipt Is", type: "text" });
+  });
+  it("Money Map has Subscriptions and Renewals and For My Family, still pointers only", () => {
+    expect(TEMPLATES.moneymap.sections).toEqual(["Banking", "Cards and Loans", "Investing", "Subscriptions and Renewals", "For My Family", "Other"]);
+    expect(TEMPLATES.moneymap.fields.find((f) => f.key === "kind")!.options).toContain("Subscription");
+    expect(TEMPLATES.moneymap.pointersOnly).toBe(true);
+    expect(TEMPLATES.moneymap.fields.some((f) => /password|pin\b|login/i.test(f.label))).toBe(false);
+  });
+  it("Expenses to Submit carries a reimbursement status, with the headings following it", () => {
+    const status = TEMPLATES.expenses.fields.find((f) => f.key === "status")!;
+    expect(status).toMatchObject({ label: "Status", type: "choice", options: ["To Submit", "Submitted", "Reimbursed"] });
+    expect(TEMPLATES.expenses.sections).toEqual(status.options);
+    expect(TEMPLATES.expenses.show).toContain("status");
+    expect(TEMPLATES.expenses.suggested!.find((f) => f.key === "submittedOn")).toMatchObject({ label: "Submitted On", type: "date" });
+    const page = newTemplatePage("expenses");
+    expect(page.sections!.map((s) => s.label)).toEqual(["To Submit", "Submitted", "Reimbursed"]);
+    expect(page.fields.find((f) => f.key === "status")!.options).toEqual(["To Submit", "Submitted", "Reimbursed"]);
+  });
+  it("Accomplishments and Milestones sits under Life and also Professional, as one template", () => {
+    expect(TEMPLATES.accomplish.shelf).toBe("Life");
+    expect(TEMPLATES.accomplish.alsoShelves).toEqual(["Professional"]);
+    for (const k of TEMPLATE_KEYS) for (const s of TEMPLATES[k].alsoShelves ?? []) expect(s, k).not.toBe(TEMPLATES[k].shelf);
+    // Forty in the picker: six note templates, four of slice one, and every catalog template that is not a preset.
+    expect(6 + 4 + TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).length).toBe(40);
+  });
+});
+
 describe("pointers only", () => {
   const page = newTemplatePage("moneymap");
   it("a password, a PIN and a long number are a way in", () => {

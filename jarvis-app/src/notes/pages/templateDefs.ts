@@ -67,6 +67,10 @@ export interface TemplateDef {
   note?: string;
   /** The rows are read from the app (Business Ledger over Money), never stored: no Add, no import. */
   derived?: boolean;
+  /** OTHER SHELVES THE PICKER LISTS IT UNDER (the 2026-10-13 spec: Accomplishments and Milestones sits under both Life and
+   *  Professional). The template is still ONE template on its own `shelf`; a second row is the same key, one tap to the same
+   *  page, never a second template. */
+  alsoShelves?: Shelf[];
 }
 
 const f = (key: string, label: string, type: PageField["type"] = "text", options?: string[]): PageField => ({ key, label, type, ...(options ? { options } : {}) });
@@ -146,8 +150,9 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
   moneymap: {
     key: "moneymap", name: "Money Map", shelf: "Finance", desc: "Where Everything Is: Pointers Only, Never Passwords", cat: "yellow", icon: "wallet",
     noun: "Pointer", plural: "Pointers", headline: "name", show: ["kind", "where", "contact"],
-    fields: [f("name", "Name"), f("kind", "Kind", "choice", ["Bank", "Card", "Loan", "Investment", "Retirement", "Bill", "Other"]), f("where", "Where to Find It"), f("contact", "Contact"), f("notes", "Notes")],
-    sections: ["Banking", "Cards and Loans", "Investing", "Other"], suggested: [f("opened", "Opened", "date"), f("who", "Whose")],
+    fields: [f("name", "Name"), f("kind", "Kind", "choice", ["Bank", "Card", "Loan", "Investment", "Retirement", "Bill", "Subscription", "Other"]), f("where", "Where to Find It"), f("contact", "Contact"), f("notes", "Notes")],
+    // The 2026-10-13 spec: a Subscriptions and Renewals section, and For My Family (what they would need to find, pointers only).
+    sections: ["Banking", "Cards and Loans", "Investing", "Subscriptions and Renewals", "For My Family", "Other"], suggested: [f("opened", "Opened", "date"), f("who", "Whose"), f("renews", "Renews", "date")],
     view: "sheet", one: true, wave: 3, pointersOnly: true, confirm: true,
     note: "Names and Places Only; No Passwords, PINs or Full Account Numbers",
   },
@@ -176,12 +181,14 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "homebook", name: "Home and Vehicle Book", shelf: "Life", desc: "Home, Vehicles, Appliances: Service Dates and What Is Due", cat: "orange", icon: "home",
     noun: "Item", plural: "Items", headline: "item", show: ["model", "serviced", "due"], entry: "Home and Vehicle Book",
     fields: [f("item", "Item"), f("model", "Make and Model"), f("serviced", "Last Serviced", "date"), f("due", "Next Due", "date"), f("notes", "Notes")],
-    sections: ["Home", "Vehicles", "Appliances"], suggested: [f("vin", "VIN or Serial"), f("vendor", "Who Services It")], view: "sheet", one: true, wave: 3, due: { key: "due" },
+    // The 2026-10-13 spec: a Purchases and Warranties section, with the warranty's end one tap away.
+    sections: ["Home", "Vehicles", "Appliances", "Purchases and Warranties"], suggested: [f("vin", "VIN or Serial"), f("vendor", "Who Services It"), f("warranty", "Warranty Ends", "date")], view: "sheet", one: true, wave: 3, due: { key: "due" },
   },
   inventory: {
     key: "inventory", name: "Home Inventory", shelf: "Life", desc: "Everything You Own: Room, Value, Serial", cat: "orange", icon: "list",
     noun: "Item", plural: "Items", headline: "item", show: ["room", "value", "bought"], parent: "homebook", entry: "Home Inventory",
-    fields: [f("item", "Item"), f("room", "Room"), f("value", "Value", "money"), f("bought", "Bought", "date"), f("serial", "Serial Number"), f("notes", "Notes")],
+    // The 2026-10-13 spec: what I own, where it is, where its receipt is.
+    fields: [f("item", "Item"), f("room", "Room"), f("value", "Value", "money"), f("bought", "Bought", "date"), f("serial", "Serial Number"), f("receipt", "Where the Receipt Is"), f("notes", "Notes")],
     sections: ["Living Room", "Kitchen", "Bedrooms", "Garage", "Other"], totals: [{ key: "value", label: "Value", money: true }], view: "sheet", one: true, wave: 3,
   },
   healthcard: {
@@ -225,9 +232,10 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
   },
   expenses: {
     key: "expenses", name: "Expenses to Submit", shelf: "Life", desc: "Receipts to Turn In, Totalled, Checked Off", cat: "sky", icon: "dollar",
-    noun: "Expense", plural: "Expenses", headline: "vendor", show: ["date", "amount", "for"], parent: "trip", entry: "Expenses to Submit",
-    fields: [f("vendor", "Vendor"), f("submitted", "Submitted", "check"), f("date", "Date", "date"), f("amount", "Amount", "money"), f("for", "For"), f("receipt", "Receipt", "check")],
-    sections: ["To Submit", "Submitted"], totals: [{ key: "amount", label: "Total", money: true }], view: "sheet", wave: 3, sort: "dateDesc",
+    noun: "Expense", plural: "Expenses", headline: "vendor", show: ["date", "amount", "for", "status"], parent: "trip", entry: "Expenses to Submit",
+    // The 2026-10-13 spec: a reimbursement status, with the headings following it; the submitted date is one tap away.
+    fields: [f("vendor", "Vendor"), f("submitted", "Submitted", "check"), f("status", "Status", "choice", ["To Submit", "Submitted", "Reimbursed"]), f("date", "Date", "date"), f("amount", "Amount", "money"), f("for", "For"), f("receipt", "Receipt", "check")],
+    sections: ["To Submit", "Submitted", "Reimbursed"], suggested: [f("submittedOn", "Submitted On", "date")], totals: [{ key: "amount", label: "Total", money: true }], view: "sheet", wave: 3, sort: "dateDesc",
   },
   recipes: {
     key: "recipes", name: "Recipes", shelf: "Life", desc: "Recipes, Meal Plan, Freezer", cat: "green", icon: "list", shelfName: "Kitchen Page", entry: "Recipes",
@@ -252,7 +260,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "accomplish", name: "Accomplishments and Milestones", shelf: "Life", desc: "What You Finished, Dated; the App Suggests, You Confirm", cat: "yellow", icon: "zap",
     noun: "Entry", plural: "Entries", headline: "title", show: ["date", "area"],
     fields: [f("title", "What"), f("date", "Date", "date"), f("area", "Area"), f("notes", "Notes")],
-    suggested: [f("who", "With"), f("proof", "Proof or Link")], view: "accomplish", one: true, wave: 3, sort: "dateDesc",
+    suggested: [f("who", "With"), f("proof", "Proof or Link")], view: "accomplish", one: true, wave: 3, sort: "dateDesc", alsoShelves: ["Professional"],
   },
 
   // ---- Wave 3: Professional

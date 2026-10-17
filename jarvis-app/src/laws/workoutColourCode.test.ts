@@ -146,3 +146,35 @@ describe("LAW: the workout colour code", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// ADDED 2026-10-17 (Alfred's production check of 96604de, and Dave on the day
+// page: "There's no color"). Three more places the code reaches, pinned so a
+// chip or a dot cannot slide back to a hue that means something else.
+// ---------------------------------------------------------------------------
+describe("LAW: the workout colour code, on the program page, the day page and the chart", () => {
+  it("TEAL is last time on the Up Next card: its Last chip, never the done green; its count is neutral", () => {
+    const flow = read("gym/GymFlow.tsx");
+    expect(flow, "the Last chip wears the last-time teal").toMatch(/className="se-chip se-chip-last"><em>Last<\/em>\{agoPhrase/);
+    expect(flow, "and no longer the done green").not.toMatch(/se-chip-done"><em>Last<\/em>/);
+    expect(flow, "a count of exercises has no state, so the neutral chip").toMatch(/className="se-chip se-chip-when">\{nextDay\.exercises\.length\}/);
+  });
+
+  it("TEAL is last time on the day page's list: each row's Last fact, after the grey prescription", () => {
+    const flow = read("gym/GymFlow.tsx");
+    expect(flow).toMatch(/\{last && <span className="fact cyan">\{`Last \$\{lineCase\(last\)\}`\}<\/span>\}/);
+    // The read is the session's own (prs.lastSessionFor), this day's session first.
+    expect(flow).toMatch(/lastSessionFor\(workouts, e, e\.kind, \{ preferDayId: openDay\.id \}\)/);
+  });
+
+  it("GOLD on the progress chart is a PR point and nothing else", () => {
+    const lift = read("gym/LiftDetailScreen.tsx");
+    const golds = [...lift.matchAll(/--hl-gold/g)];
+    expect(golds, "one gold fill on the page's chart").toHaveLength(1);
+    const lines = lift.split("\n");
+    const at = lines.findIndex((l) => l.includes("--hl-gold"));
+    expect(lines.slice(at - 1, at + 1).join("\n"), "and it is drawn only where prIndexes says a record fell").toMatch(/prs\.has\(i\) \? \(\s*<circle/);
+    // The tapped point is the key's white, never gold.
+    expect(lift).toMatch(/sel != null && pts\[sel\] && <circle[^>]*fill="var\(--tx-1\)"/);
+  });
+});

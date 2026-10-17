@@ -250,10 +250,17 @@ describe("a card that cannot compare does not explain comparison", () => {
 // between a cyan count and a violet estimate -- while one card below it, on
 // the same screen, the weekday a day was last trained is a lime .fact. The
 // same fact, adjacent, in two colours.
+// AMENDED 2026-10-17 (the workout colour code, Dave 2026-10-16: teal is last
+// time, green is done; Alfred's production check of 96604de found the Up Next
+// card's "LAST Tuesday" in the done green). The chip says LAST, so it wears
+// the last-time teal (.se-chip-last), never the done green. The day row's
+// weekday (doneWord) is the day the day was DONE this week, so it keeps the
+// done green; the two are no longer one fact in two colours, they are two
+// facts in the code's two colours. workoutColourCode.test.ts pins the chip.
 describe("the day you last trained is lime wherever it appears", () => {
   it("gives the Up Next card the colour the day rows already use", () => {
     expect(GYM_FLOW, "the last-trained chip is not the neutral date chip")
-      .toMatch(/className="se-chip se-chip-done"><em>Last<\/em>\{agoPhrase/);
+      .toMatch(/className="se-chip se-chip-last"><em>Last<\/em>\{agoPhrase/);
     expect(GYM_FLOW, "and the day row's weekday it matches is lime")
       .toContain('<span className="fact lime">{doneWord}</span>');
     const css = read("styles/ruled.css");

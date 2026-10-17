@@ -2058,7 +2058,8 @@ export default function CategoryDetail({
     // (HealthBody). The gym's own screens wear the rulings too now (the
     // training skin retired 2026-09-03). Other categories keep the app's
     // default card.
-    <div className={"screen ruled" + (kind === "health" ? " health-ruled" : " area-ruled")}>
+    // .wo-screen on the Health hub only: the board's geometry (screen 6), scoped in ruled.css with the gym's five screens.
+    <div className={"screen ruled" + (kind === "health" ? " health-ruled wo-screen" : " area-ruled")}>
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>

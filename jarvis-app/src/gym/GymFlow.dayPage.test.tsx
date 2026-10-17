@@ -141,6 +141,22 @@ describe("T: the day page's blocks and its log actions", () => {
     expect(row.querySelector(".chev"), "a chevron ends the row").not.toBeNull();
   });
 
+  // LAST TIME IN TEAL ON THE LIST (Dave 2026-10-17, scrolling this list: "There's no color"). After the grey
+  // prescription, a row whose exercise has a logged session carries that session's first working set as a teal fact,
+  // the same read the Active Workout's planned rows make ("Target … · Last …"); a row with no history carries none.
+  it("a row with history carries a teal Last fact after the grey plan; a row without carries none", async () => {
+    await mount(async (gym) => { await gym.saveWorkout(PAST); });
+    await openDay();
+    const bench = screen.getByText("Bench Press", { selector: ".conn-name" }).closest(".row-press")!;
+    expect([...bench.querySelectorAll(".facts .fact")].map((f) => f.textContent)).toEqual(["1 Set", "185 Lb × 5", "Last 185 Lb × 5"]);
+    const last = bench.querySelector(".facts .fact:last-child")!;
+    expect(last).toHaveClass("fact", "cyan");
+    // The prescription stays the row's one grey: nothing before the Last fact wears a tone.
+    for (const f of [...bench.querySelectorAll(".facts .fact")].slice(0, 2)) expect(f.className).toBe("fact");
+    const curls = screen.getByText("Cable Curls", { selector: ".conn-name" }).closest(".row-press")!;
+    expect(curls.querySelector(".fact.cyan")).toBeNull();
+  });
+
   it("a block with content wears its wash", async () => {
     const week = PROGRAM.weeks[0]!;
     const withBlocks: ProgramData = { ...PROGRAM, weeks: [{ ...week, days: [{ ...week.days[0]!, warmUp: [{ id: "b1", name: "Bike", amount: "5 Min" }], coolDown: [{ id: "b2", name: "Stretch" }] }] }] };

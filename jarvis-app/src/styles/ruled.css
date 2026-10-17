@@ -3707,3 +3707,208 @@
 /* The secondary zone's eyebrow and its history card's two chip rows. */
 .ruled.health-ruled .se-details { margin-top: var(--s-4); }
 .ruled.health-ruled .se-hist > .se-chips + .se-chips { margin-top: var(--s-1h); }
+
+/* ---------- THE BOARD'S GEOMETRY, MEASURED (Dave's approved board 2026-10-16; his 2026-10-17
+   correction on the phone: "The spacing and format is all messed up. It's not scaled accordingly
+   and doesn't look like the preview.") ------------------------------------------------------
+   Six screens, one scope: .wo-screen on the Active Workout, the program day, History, the
+   exercise page and the Health hub, and .wo-sheet on Doing Today (a portal to body). Every
+   number below is the board's own CSS read at its 390px frame, so it applies 1:1 at the app's
+   viewport; the spacing tokens are used where one matches and the board's off-grid steps are
+   written as calc() with the board named. Colour, surface and font are untouched: only size,
+   weight, spacing, radius and format move, and only inside these screens.
+   THE RADIUS CONFLICT, FLAGGED: Dave's 2026-10-05 rule says 24 on cards and pill buttons; the
+   board draws 16 on cards and 12 on buttons, fields and set rows. The board is the later,
+   explicit ruling for these screens, so --r-card and --r-field are re-bound here and nowhere
+   else. The type tokens are re-bound the same way: the board's row name is 15 (the app's 16)
+   and its plan and meta line 12.5 (the app's 14). */
+.ruled.health-ruled.wo-screen, .sheet-scrim > .card.wo-sheet {
+  --r-card: 16px;                             /* the board's card corner */
+  --r-field: 12px;                            /* the board's button, field and set row corner */
+  --t-name: calc(15px * var(--type-scale));   /* the board's row name: 15 / 700 */
+  --t-sub: calc(12.5px * var(--type-scale));  /* the board's plan line and meta: 12.5 grey */
+}
+/* 16, 11 and 5 below are the board's own measured steps (its screen padding, its row padding, its dot gap), off the
+   spacing scale on purpose and named in laws.test.ts's MEASURED set with this reason. */
+/* Screen padding 16 and 12 between blocks. */
+.ruled.health-ruled.wo-screen .pad-x { padding-left: 16px; padding-right: 16px; }
+.ruled.health-ruled.wo-screen .list-card-ruled { margin-left: 16px; margin-right: 16px; }
+.ruled.health-ruled.wo-screen .pad-x > .list-card-ruled, .ruled.health-ruled.wo-screen .pad-x > div > .list-card-ruled { margin-left: 0; margin-right: 0; }
+.ruled.health-ruled.wo-screen > .pad-x + .pad-x,
+.ruled.health-ruled.wo-screen > .pad-x:has(> .card) + .pad-x,
+.ruled.health-ruled.wo-screen > .pad-x + .pad-x:has(> .card),
+.ruled.health-ruled.wo-screen > .pad-x + .sh2 { margin-top: var(--s-3); }
+.ruled.health-ruled.wo-screen .sh2 { padding: var(--s-3h) 16px var(--s-1); }
+.ruled.health-ruled.wo-screen .nav-bar + .pad-x { margin-top: var(--s-3); }
+/* The card: 14 inside, 16 corners, a 1px soft border (the same soft colour). */
+.ruled.health-ruled.wo-screen .card, .sheet-scrim > .card.wo-sheet .sheet-form .card { border-width: 1px; }
+.ruled.health-ruled.wo-screen .card .card { border-width: 0; }
+.ruled.health-ruled.wo-screen .card.pad { padding: var(--s-3h); }
+.ruled.health-ruled.wo-screen .card.pad > .eyebrow { margin-bottom: var(--s-2h); }
+/* Rows: 11 above and below, 14 at the sides, the hairline at the text's edge. */
+.ruled.health-ruled.wo-screen .list-card-ruled > .row, .ruled.health-ruled.wo-screen .card .row,
+.sheet-scrim > .card.wo-sheet .row { padding: 11px var(--s-3h); min-height: 0; gap: var(--s-3); }
+.ruled.health-ruled.wo-screen .row + .row::before, .sheet-scrim > .card.wo-sheet .row + .row::before { left: var(--s-3h); }
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:first-child { padding-top: var(--s-3h); }
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:last-child { padding-bottom: var(--s-3h); }
+/* The eyebrow: 11 / 700 / .08em. */
+.ruled.health-ruled.wo-screen .eyebrow, .ruled.health-ruled.wo-screen .h-eyebrow, .sheet-scrim > .card.wo-sheet .eyebrow {
+  font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.08em; }
+.ruled.health-ruled.wo-screen .grp .eyebrow::after { content: none; }
+.ruled.health-ruled.wo-screen .card > .grp { padding: var(--s-3h) var(--s-3h) 0; }
+/* Buttons: the red one 15 / 700 with 14 above and below, corners 12; a neutral one 14 / 600 with 12,
+   side by side with an 8 gap. The red button paints 46 tall; a neutral paints 41 and reaches 44 by
+   its ::after. */
+.ruled.health-ruled.wo-screen .btn-lg, .sheet-scrim > .card.wo-sheet .sheet-actions .btn {
+  height: auto; min-height: 0; padding: var(--s-3h) var(--s-3); font-size: calc(15px * var(--type-scale));
+  font-weight: var(--w-semi); border-radius: var(--r-field); position: relative; }
+.ruled.health-ruled.wo-screen .btn-secondary:not(.btn-sm), .sheet-scrim > .card.wo-sheet .sheet-actions .btn-secondary {
+  min-height: 0; padding: var(--s-3); font-size: calc(14px * var(--type-scale)); font-weight: var(--w-medium);
+  border-radius: var(--r-field); position: relative; }
+.ruled.health-ruled.wo-screen .btn-secondary:not(.btn-sm)::after, .sheet-scrim > .card.wo-sheet .sheet-actions .btn-secondary::after {
+  content: ""; position: absolute; inset: -2px 0; }
+.ruled.health-ruled.wo-screen .btn-row { gap: var(--s-2); }
+.ruled.health-ruled.wo-screen .btn-row > .btn { font-size: calc(14px * var(--type-scale)); padding-left: var(--s-2); padding-right: var(--s-2); }
+.ruled.health-ruled.wo-screen .gym-log { gap: var(--s-2); margin-bottom: var(--s-3); }
+.ruled.health-ruled.wo-screen .sheet-actions, .sheet-scrim > .card.wo-sheet .sheet-actions { gap: var(--s-2); }
+/* Pills: 12 / 600, 7 by 11, pill corners, 6 apart; 44 reached by the ::after. */
+.ruled.health-ruled.wo-screen .btn-sm {
+  height: auto; min-height: 0; padding: 7px 11px; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-medium); }
+.ruled.health-ruled.wo-screen .day-acts { gap: var(--s-1h); margin-top: var(--s-3); }
+.ruled.health-ruled.wo-screen .day-acts .btn::after { inset: -8px 0; }
+.ruled.health-ruled.wo-screen .lift-top .se-chips { margin-top: var(--s-3); column-gap: var(--s-1h); }
+.ruled.health-ruled.wo-screen .lift-top .se-chips .se-chip { padding: 7px 11px; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-medium); }
+/* ---- Screen 1, the Active Workout ---- */
+/* The progress line and the name sit on the page, not in a card. */
+.ruled.health-ruled.wo-screen .se-head { background: transparent; border: 0; box-shadow: none; padding: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ruled.health-ruled.wo-screen .se-prog { gap: var(--s-2); }
+.ruled.health-ruled.wo-screen .se-dots { gap: 5px; }
+.ruled.health-ruled.wo-screen .se-head .p3-q { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1;
+  letter-spacing: -0.02em; margin: var(--s-0h) 0 0; }
+/* The Now card: 14 inside, 16 corners (its red ring is the colour code's); a planned set row 12 by 14, corners 12,
+   with a solid soft edge; the kicker of a planned row 14 / 700 in the row's own ink and the line under it the grey. */
+.ruled.health-ruled.wo-screen .set-chip-ghost, .ruled.health-ruled.wo-screen .set-chip { min-height: 0; padding: var(--s-3) var(--s-3h);
+  border-radius: var(--r-field); border-style: solid; border-color: var(--card-bd); }
+.ruled.health-ruled.wo-screen .set-chip-ghost.setrow-now { padding: var(--s-3h); border-radius: var(--r-card); }
+.ruled.health-ruled.wo-screen .set-chip-ghost .se-kick:not(.now) { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi);
+  text-transform: none; letter-spacing: 0; color: var(--tx-1); margin-bottom: var(--s-0h); }
+.ruled.health-ruled.wo-screen .set-strip-ghosts > .set-chip-ghost + .set-chip-ghost { margin-top: var(--s-3); }
+.ruled.health-ruled.wo-screen .se-mode { margin-top: var(--s-2h); padding: 3px; border-radius: var(--r-sm); }
+.ruled.health-ruled.wo-screen .se-mode .seg { min-height: 0; padding: 7px; font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium); }
+/* Each field a box: the number 26 / 800 over its unit 11 / 700, 12 inside, corners 12, side by side 8 apart. */
+.ruled.health-ruled.wo-screen .se-grid { gap: var(--s-2); margin-top: var(--s-2h); align-items: stretch; }
+.ruled.health-ruled.wo-screen .se-field { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center;
+  padding: var(--s-3); border-radius: var(--r-field); background: var(--press-3); border: 1px solid var(--card-bd); }
+.ruled.health-ruled.wo-screen .se-grid .set-field { width: 100%; height: auto; font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold);
+  line-height: 1; color: var(--tx-1); }
+.ruled.health-ruled.wo-screen .se-field .se-grid-u { margin-top: var(--s-0h); font-weight: var(--w-semi); letter-spacing: 0.06em; }
+.ruled.health-ruled.wo-screen .se-nowline { margin-top: var(--s-2h); line-height: 1.5; }
+/* Details: the eyebrow over a grid of four chips, 8 apart, each a 10 kicker over a 14 / 600 value, 8 inside, no card
+   around them. */
+.ruled.health-ruled.wo-screen .se-details { margin-top: var(--s-3h); padding-top: var(--s-3h); border-top: 1px solid var(--divider); }
+.ruled.health-ruled.wo-screen .card.se-facts { background: transparent; border: 0; box-shadow: none; padding: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.ruled.health-ruled.wo-screen .se-facts > .se-chips { display: contents; }
+.ruled.health-ruled.wo-screen .se-facts .se-chip { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-0h);
+  padding: var(--s-2); border-radius: var(--r-sm); border: 1px solid var(--card-bd); font-size: calc(14px * var(--type-scale));
+  font-weight: var(--w-medium); white-space: normal; min-width: 0; max-width: none; overflow-wrap: anywhere; }
+.ruled.health-ruled.wo-screen .se-facts .se-chip em { font-size: calc(10px * var(--type-scale)); letter-spacing: 0.07em;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The door's chevron sits in the chip's top corner rather than as a third line under the value. */
+.ruled.health-ruled.wo-screen .se-facts .se-chip-door { padding-right: var(--s-2); }
+.ruled.health-ruled.wo-screen .se-facts .se-chip-door::before { position: absolute; right: var(--s-2); top: var(--s-2h); margin: 0; }
+/* The warm-up and cool-down cards, on the day and in the session: the eyebrow row, then the items 8 and 3 apart at 700,
+   14 inside, no rows of their own and no hairlines. */
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) { padding: var(--s-3h) var(--s-3h) 0; min-height: 0; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row,
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row { padding: var(--s-2) var(--s-3h) 0; min-height: 0; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row ~ .row,
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row ~ .row { padding-top: 3px; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row:last-child,
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row:last-child { padding-bottom: var(--s-3h); }
+.ruled.health-ruled.wo-screen .list-card-ruled > .grp ~ .row::before,
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) ~ .row::before { content: none; }
+.ruled.health-ruled.wo-screen .grp > .see-all.pill-action { min-height: 0; padding: 5px var(--s-2h); font-size: calc(12px * var(--type-scale)); }
+.ruled.health-ruled.wo-screen .grp > .see-all.pill-action::after { inset: -10px 0; }
+/* Best and Last: the two as eyebrow over value, left and right, then last time's sets as 12 / 600 chips with 8 corners. */
+.ruled.health-ruled.wo-screen .se-hist { padding: var(--s-3h); }
+.ruled.health-ruled.wo-screen .se-hist > .se-chips:first-child { margin-top: 0; justify-content: space-between; flex-wrap: nowrap; }
+.ruled.health-ruled.wo-screen .se-hist > .se-chips:first-child > .se-chip { flex-direction: column; align-items: flex-start; gap: var(--s-0h);
+  padding: 0; background: transparent; font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); white-space: nowrap; }
+.ruled.health-ruled.wo-screen .se-hist > .se-chips:first-child > .se-chip-last { align-items: flex-end; }
+.ruled.health-ruled.wo-screen .se-hist > .se-chips:first-child > .se-chip em { color: inherit; letter-spacing: 0.08em; }
+.ruled.health-ruled.wo-screen .se-hist > .se-chips + .se-chips { margin-top: var(--s-2h); column-gap: var(--s-1h); row-gap: var(--s-1h); }
+.ruled.health-ruled.wo-screen .se-hist > .se-chips + .se-chips > .se-chip { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-medium);
+  padding: 5px var(--s-2); border-radius: var(--r-sm); }
+/* The Log bar: the red button, then Superset and Add Exercise as 14 / 600 neutrals with 12 corners, 8 apart. */
+.ruled.health-ruled.wo-screen .logbar-row .pill-act { min-height: 0; padding: var(--s-3); font-size: calc(14px * var(--type-scale));
+  font-weight: var(--w-medium); border-radius: var(--r-field); border-top: 2px solid transparent; border-bottom: 2px solid transparent; margin-block: -2px; }
+/* ---- Screen 3, Doing Today ---- */
+.sheet-scrim > .card.wo-sheet .pad-x { padding-left: 16px; padding-right: 16px; }
+.sheet-scrim > .card.wo-sheet .fit-head { padding-top: var(--s-2); padding-bottom: 0; }
+.sheet-scrim > .card.wo-sheet .fit-title { font-size: calc(22px * var(--type-scale)); font-weight: var(--w-bold); }
+.sheet-scrim > .card.wo-sheet .fit-head .facts { margin-top: var(--s-1); }
+.sheet-scrim > .card.wo-sheet .sheet-form > .pad-x + .pad-x { margin-top: var(--s-3); }
+.sheet-scrim > .card.wo-sheet .fit-time { margin-top: var(--s-3); }
+.sheet-scrim > .card.wo-sheet .fit-time .grp { padding: 0 0 var(--s-2); }
+.sheet-scrim > .card.wo-sheet .fit-time .chip-row { padding: 0; gap: var(--s-1h); flex-wrap: wrap; overflow: visible; }
+.sheet-scrim > .card.wo-sheet .chip { min-height: 0; padding: 7px 11px; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-medium); }
+.sheet-scrim > .card.wo-sheet .chip::after { content: ""; position: absolute; inset: -8px 0; }
+.sheet-scrim > .card.wo-sheet .fit-line { margin-top: var(--s-3); }
+.sheet-scrim > .card.wo-sheet .sheet-actions { padding-top: var(--s-3); padding-bottom: var(--s-4); }
+/* ---- Screen 4, History: 12 above and below a row, 15 name, 12.5 meta, 14 / 700 length; the PR mark 10.5 / 800 in a
+   5-cornered tag. ---- */
+.ruled.health-ruled.wo-screen .row-value > .fact > b { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); }
+.ruled.health-ruled.wo-screen .se-pr { font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em;
+  padding: var(--s-0h) var(--s-1h); border-radius: var(--r-xs); }
+/* ---- Screen 5, the exercise page: the name 24 / 800, the bar labels 10 and 6 under the bars. ---- */
+.ruled.health-ruled.wo-screen .lift-title { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1.15;
+  letter-spacing: -0.01em; padding: var(--s-1) 0 0; }
+.ruled.health-ruled.wo-screen .lift-progress .lift-chart { margin-top: var(--s-2h); }
+.ruled.health-ruled.wo-screen .lift-bar-labels { gap: var(--s-1h); margin-top: var(--s-1h); }
+.ruled.health-ruled.wo-screen .lift-bar-labels span { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-normal); letter-spacing: 0; }
+/* ---- Screen 6, the Health hub: the eyebrow, "Log It as You Go" at 24 / 800 six under it, the next-day line six under
+   that, the red button 14 under that; three 20 / 800 stats over 12 grey labels with no rules between; the week as a 56
+   track of bars 6 apart with 5 corners and 10 labels 6 under; the doors as rows. ---- */
+.ruled.health-ruled.wo-screen .h-hero-wrap { padding-top: 0; }
+.ruled.health-ruled.wo-screen .h-hero-head { padding: var(--s-3h) var(--s-3h) 0; }
+.ruled.health-ruled.wo-screen .h-hero { padding: var(--s-1h) var(--s-3h) 0; }
+.ruled.health-ruled.wo-screen .h-hero-t { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1.15;
+  letter-spacing: -0.01em; white-space: normal; }
+.ruled.health-ruled.wo-screen .h-hero-static { padding-bottom: 0; }
+.ruled.health-ruled.wo-screen .h-hero-next { padding: var(--s-1h) var(--s-3h) 0; }
+.ruled.health-ruled.wo-screen .h-hero-next .h-hero-facts { line-height: 1.5; }
+.ruled.health-ruled.wo-screen .h-hero-cta { padding: var(--s-3h); gap: var(--s-2); }
+.ruled.health-ruled.wo-screen .h-week-card { padding: var(--s-3h); }
+.ruled.health-ruled.wo-screen .h-stats { margin-top: var(--s-3); gap: var(--s-2h); }
+.ruled.health-ruled.wo-screen .h-stat, .ruled.health-ruled.wo-screen .h-stat:first-child { border-left: 0; padding: 0; }
+.ruled.health-ruled.wo-screen .h-stat b { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0; line-height: 1.3; }
+.ruled.health-ruled.wo-screen .h-stat span { min-height: 0; margin-top: 0; }
+.ruled.health-ruled.wo-screen .h-bars { margin-top: 16px; height: 56px; gap: var(--s-1h); }
+.ruled.health-ruled.wo-screen .h-bar { gap: var(--s-1h); font-size: calc(10px * var(--type-scale)); font-weight: var(--w-normal); letter-spacing: 0; }
+.ruled.health-ruled.wo-screen .h-bar i { max-width: none; border-radius: var(--r-xs); }
+.ruled.health-ruled.wo-screen .h-doors { margin-top: 0; }
+.ruled.health-ruled.wo-screen .h-door { padding: var(--s-3) var(--s-3h); }
+.ruled.health-ruled.wo-screen .h-door + .h-door::before { left: var(--s-3h); }
+/* The board's rows and buttons, where a shared rule re-pads or re-sizes them inside this scope: the day page's
+   pressable row carries its own padding (.row-press), the Log bar's capsules a 34px line, the warm-up head's text
+   action a 44px box, a field a 44px floor, and the sheet's inner card no corners. */
+.ruled.health-ruled.wo-screen .row:has(> .row-press) { padding: 0; }
+.ruled.health-ruled.wo-screen .row > .row-press { padding: 11px var(--s-3h); }
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:first-child > .row-press { padding-top: var(--s-3h); }
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:last-child > .row-press { padding-bottom: var(--s-3h); }
+.ruled.health-ruled.wo-screen .logbar-row .pill-act { line-height: 1.2; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) > .see-all { min-height: 0; padding: 0;
+  line-height: 1.2; position: relative; }
+.ruled.health-ruled.wo-screen .list-card-ruled > .row:has(> .row-grow > .eyebrow) > .see-all::after { content: ""; position: absolute; inset: -14px -8px; }
+.ruled.health-ruled.wo-screen .se-field .set-field { min-height: 0; padding: 0; height: calc(26px * var(--type-scale)); flex: 0 0 auto; }
+.ruled.health-ruled.wo-screen .se-field .se-grid-u { line-height: 1.5; }
+.sheet-scrim > .card.wo-sheet .sheet-form .card { border-radius: var(--r-card); }
+.sheet-scrim > .card.wo-sheet .list-card-ruled > .row:first-child { padding-top: var(--s-3h); }
+.sheet-scrim > .card.wo-sheet .list-card-ruled > .row:last-child { padding-bottom: var(--s-3h); }
+/* The field's number keeps the box at the number's own height: Chromium's spin button would hold the input at 31px
+   under a 26px number (the board's box is 70 tall; with the spinner it measured 77). A phone draws no spinner anyway. */
+.ruled.health-ruled.wo-screen .se-field .set-field { -webkit-appearance: none; appearance: textfield; }
+.ruled.health-ruled.wo-screen .se-field .set-field::-webkit-inner-spin-button,
+.ruled.health-ruled.wo-screen .se-field .set-field::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

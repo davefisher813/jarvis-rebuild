@@ -105,13 +105,27 @@ export interface GymSettings {
    *  PRODUCT DECISION: absent reads as "suggest" only because that mirrors
    *  today's behaviour until Dave rules; both paths work. */
   overloadApply?: OverloadApply;
+  /** WHAT HAS TO REACH THE TOP OF THE RANGE BEFORE THE LOAD STEPS (2026-10-17,
+   *  section 10, brief section 1). "all": every working set at the top, which
+   *  is the rule for everyone under about twelve sessions of a lift and the
+   *  default for everyone else. "perSet": a set position at the top steps for
+   *  that position only, the rest hold and add reps; honoured only once the
+   *  lift has twelve sessions behind it, because a beginner's sets are not
+   *  yet steady enough to read one at a time. Absent reads as "all". */
+  overloadTargets?: OverloadTargets;
 }
 
 export type OverloadApply = "suggest" | "prefill";
+export type OverloadTargets = "all" | "perSet";
 
 /** The switch above, read with its interim default. */
 export function overloadApplyOf(s: Pick<GymSettings, "overloadApply">): OverloadApply {
   return s.overloadApply === "prefill" ? "prefill" : "suggest";
+}
+
+/** Which sets have to top the range before a step, read with its default. */
+export function overloadTargetsOf(s: Pick<GymSettings, "overloadTargets">): OverloadTargets {
+  return s.overloadTargets === "perSet" ? "perSet" : "all";
 }
 
 /** A lift the athlete created by hand, before ever doing it. See

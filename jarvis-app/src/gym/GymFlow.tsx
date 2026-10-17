@@ -16,7 +16,7 @@ import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { targetLine, formatSet, planChip, planChipText } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
-import { receiptFor, type Receipt } from "./prs";
+import { receiptFor, lastSessionFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
 import type { Goal } from "../life/types";
 import { liftMeasureState, trainingMeasureState, type LiftMeasure, type TrainingMeasure } from "./goalMeasures";
@@ -509,9 +509,13 @@ function minutesValue(w: WorkoutData) {
     : <div className="row-value"><span className="fact"><b>{spanLabel(workoutMinutes(w))}</b></span></div>;
 }
 
-function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
+function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
   exercise: Exercise;
   pairLabel?: string;
+  /** LAST TIME, IN TEAL (Dave 2026-10-17 on the day page: "There's no color"). The exercise's last logged working
+   *  set on this day, the same read the Active Workout's rows make (prs.lastSessionFor), as "275 Lb × 8"; absent
+   *  when nothing has been logged. The prescription stays the row's one grey; this is the code's teal beside it. */
+  last?: string | null;
   onOpen: () => void;
   onMenu: () => void;
 }) {
@@ -568,6 +572,8 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
           <span className="fact">{lineCase(`${plan.count} ${plan.noun}`)}</span>
           {plan.target && <span className="fact">{lineCase(plan.target)}</span>}
           {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} Rest`}</b></span> : null}
+          {/* Teal is last time (the colour code, 2026-10-16), the way the session's planned rows read "Target … · Last …". */}
+          {last && <span className="fact cyan">{`Last ${lineCase(last)}`}</span>}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
@@ -3072,6 +3078,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         musclesOf={musclesOf}
         onSetMuscles={(next) => setMuscles(exercise, next)}
         onOpenHistory={() => setLiftDetailFor({ name: exercise.name, kind: exercise.kind, ...(exercise.exerciseKey ? { exerciseKey: exercise.exerciseKey } : {}), ...(exercise.unit ? { unit: exercise.unit } : {}), ...(exercise.timeUnit ? { timeUnit: exercise.timeUnit } : {}) })}
+        // THE WEEK'S WORD REACHES THE ENGINE (2026-10-17, section 10): the
+        // program week that holds this session's day, marked Back-Off, makes
+        // every suggestion in the session a lighter one (progression rule 4).
+        // Still a label everywhere else: no target or set is rewritten by it.
+        backOffWeek={!!program?.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId))?.backOff}
         {...(() => {
           // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
           // a superset as I'm logging"; 2026-09-26: "Superset linking between
@@ -3721,9 +3732,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     if (openDay) {
       const labels = groupLabels(openDay.exercises);
       const lastForDay = lastWorkoutForDay(openDay.id);
+      /** The row's teal Last fact: the last logged session's first working set, this day's own session first. */
+      const lastLine = (e: Exercise): string | null => {
+        const hit = lastSessionFor(workouts, e, e.kind, { preferDayId: openDay.id });
+        return hit && hit.sets[0] ? formatSet(hit.fx, hit.sets[0]) : null;
+      };
       return (
         <>
-          <div className="screen ruled health-ruled">
+          {/* .wo-screen: the board's geometry for the program day (screen 2), scoped in ruled.css. */}
+          <div className="screen ruled health-ruled wo-screen">
             <div className="nav-bar">
               <button className="nav-back" aria-label="Back" onClick={() => setOpenDayId(null)}></button>
               <div className="nav-title truncate">{openDay.name}</div>
@@ -3757,6 +3774,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     <ExerciseRow
                       exercise={e}
                       pairLabel={labels.get(e.id)}
+                      last={lastLine(e)}
                       onOpen={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exId: e.id })}
                       onMenu={() => setRowMenu({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exercise: e })}
                     />
@@ -4065,16 +4083,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     one short readable line, and four aligned chips read in a
                     glance where a sentence has to be parsed. */}
                 <div className="se-chips">
-                  <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Exercise" : "Exercises"}</em></span>
+                  {/* A count has no state, so the neutral chip: teal is last time and nothing else (the colour code, 2026-10-16). */}
+                  <span className="se-chip se-chip-when">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Exercise" : "Exercises"}</em></span>
                   {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{spanLabel(nextEst)}</span>}
                   {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
                     <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
                       ? "Today"
                       : upcomingPin!.inDays === 1 ? "Tomorrow" : WEEKDAY_ABBR[(todayDow() + upcomingPin!.inDays) % 7]}</span>
                   )}
-                  {/* Lime, like the weekday on the day rows below it: this is
-                      the same fact, so it wears the same colour (2026-09-18). */}
-                  {lastNextDay && <span className="se-chip se-chip-done"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
+                  {/* LAST TIME IS TEAL (the colour code, 2026-10-16; Alfred's production check of 96604de found this
+                      "LAST Tuesday" in the done green). It wore lime since 2026-09-18 as a completion fact; the code
+                      gives last time one hue everywhere, and green means done. */}
+                  {lastNextDay && <span className="se-chip se-chip-last"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
                 </div>
                 {/* row-tap: the launch card's verb line, filled edge to edge by its one Start button */}
                 <div className="offer-row">

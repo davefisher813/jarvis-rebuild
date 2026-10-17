@@ -1,8 +1,9 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { readGymSettings, writeGymSettings, type GymSettings } from "../gym/settings";
+import { readGymSettings, writeGymSettings, overloadTargetsOf, type GymSettings, type OverloadTargets } from "../gym/settings";
 import { DEFAULT_BAR, DEFAULT_PLATES } from "../gym/ramp";
-import { Head, Card, Switch, Foot, focusField } from "./kit";
+import HowSuggestionsSheet from "../gym/HowSuggestionsSheet";
+import { Head, Card, Switch, Foot, Menu, Row, focusField } from "./kit";
 
 // S5-Q32 (2026-09-04): "bar weight and plates have no control." Every plate
 // calculation and warm-up ramp already reads GymSettings.barWeight/.plates
@@ -144,12 +145,41 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
   );
 }
 
+/** The two answers to which sets have to top the range before the weight steps (gym/settings.ts overloadTargets). */
+export const OVERLOAD_TARGET_WORDS: Record<OverloadTargets, string> = { all: "Every Set at the Top", perSet: "Each Set on Its Own" };
+
+/** PROGRESSIVE OVERLOAD, THE SETTING AND THE RULE (2026-10-17, section 10). One menu row for which sets have to reach the
+ *  top of the range before the weight steps, and the door to the published rule, so the engine is never a black box
+ *  (brief section 7). The row writes the gym store on tap, like the rack; the sheet is words only. */
+export function SuggestionSettings() {
+  const [targets, setTargets] = useState<OverloadTargets>(() => overloadTargetsOf(readGymSettings()));
+  const [howOpen, setHowOpen] = useState(false);
+  const pick = (v: string) => {
+    const next: OverloadTargets = v === "perSet" ? "perSet" : "all";
+    setTargets(next);
+    writeGymSettings({ ...readGymSettings(), overloadTargets: next });
+  };
+  return (
+    <>
+      <Head label="Suggestions" />
+      <Card>
+        <Menu label="Step the Weight When" value={targets} ariaLabel="Step the Weight When" word={OVERLOAD_TARGET_WORDS[targets]}
+          options={(["all", "perSet"] as const).map((v) => ({ value: v, label: OVERLOAD_TARGET_WORDS[v] }))} onPick={pick} />
+        <Row label="How Suggestions Work" onClick={() => setHowOpen(true)} chev />
+      </Card>
+      <Foot>Each Set on Its Own waits for twelve sessions of a lift</Foot>
+      {howOpen && <HowSuggestionsSheet onClose={() => setHowOpen(false)} />}
+    </>
+  );
+}
+
 export default function TrainingPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Training" back="Settings" onBack={onBack} />
       <Head label="In the Gym" />
       <RackSettings withShowLast />
+      <SuggestionSettings />
       <div className="screen-foot" />
     </div>
   );

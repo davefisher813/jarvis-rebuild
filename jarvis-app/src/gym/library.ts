@@ -49,7 +49,7 @@ export interface LibraryEntry {
    *  picking it adopts it (libraryView.adoptStarter) and the adopted entry
    *  carries no `starter`. The muscles ride along so the adoption can write
    *  them as the exercise's classification. */
-  starter?: { primary: import("./muscles").MuscleGroup; secondary: import("./muscles").MuscleGroup | null };
+  starter?: { primary: import("./muscles").MuscleGroup; secondary: readonly import("./muscles").MuscleGroup[] };
 }
 
 /** UP-ATH-21 (2026-09-06): exported, so Your Lifts asks the same question

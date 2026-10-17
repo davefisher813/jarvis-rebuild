@@ -360,7 +360,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     // Filed again, then pasted a third time with "Save Anyway": already there.
     fireEvent.click(screen.getByText("Redo"));
     await waitFor(async () => expect(await ledgerRef!.listBills()).toHaveLength(1));
-    fireEvent.click(screen.getByText("Capture Another"));
+    // The box never left the sheet (rule 4, 2026-10-17): the next line goes straight in.
     fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "pay Geico $214" } });
     fireEvent.click(screen.getByText("Capture"));
     fireEvent.click(await screen.findByText("Save Anyway"));
@@ -889,5 +889,64 @@ describe("QuickCapture: Speak dictates into the draft", () => {
     expect(box.value).toBe("Call Alberto Tomorrow");
     expect(screen.getByRole("button", { name: "Capture" }), "the commit is still a tap away").toBeInTheDocument();
     expect(screen.queryByText(/Saved/)).toBeNull();
+  });
+});
+
+// THE LOGGING STANDARD (2026-10-17), rules 4 and 8. Return saves and the box
+// stays on the sheet, empty and focused, so three lines are Return, Return,
+// Return; and a half-typed line survives the sheet being torn down.
+describe("QuickCapture: Return captures and the box stays", () => {
+  const mount = (id: string) => render(<NotesProvider userId={id}><QuickCapture ai={new AIService({ available: false })} onClose={() => {}} /></NotesProvider>);
+
+  it("Return saves the line; the box is empty, still on the sheet and still focused; the next line joins the receipts", async () => {
+    mount("u-enter");
+    const box = screen.getByLabelText("Paste or Type") as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(box);
+    fireEvent.change(box, { target: { value: "Renew the domain" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await waitFor(() => expect(screen.getByText("Renew the Domain")).toBeInTheDocument());
+    const after = screen.getByLabelText("Paste or Type") as HTMLTextAreaElement;
+    expect(after.value).toBe("");
+    expect(document.activeElement).toBe(after);
+    expect(screen.queryByText("Capture Another")).toBeNull();
+    fireEvent.change(after, { target: { value: "Call Alberto" } });
+    fireEvent.keyDown(after, { key: "Enter" });
+    await waitFor(() => expect(screen.getByText("Call Alberto")).toBeInTheDocument());
+    expect(screen.getByText("Renew the Domain"), "the first receipt is still there").toBeInTheDocument();
+    // With the box empty the one primary is Done.
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("Shift+Return is a new line, not a save", () => {
+    mount("u-shift");
+    const box = screen.getByLabelText("Paste or Type") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "Renew the domain" } });
+    fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+    expect(screen.queryByText("Saved")).toBeNull();
+    expect(box.value).toBe("Renew the domain");
+  });
+
+  it("a half-typed line comes back after a remount, and the save spends it", async () => {
+    const first = mount("u-draft-1");
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Dentist Thurs" } });
+    first.unmount();
+    const second = mount("u-draft-2");
+    const box = screen.getByLabelText("Paste or Type") as HTMLTextAreaElement;
+    expect(box.value).toBe("Dentist Thurs");
+    fireEvent.change(box, { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Renew the Domain")).toBeInTheDocument());
+    second.unmount();
+    mount("u-draft-3");
+    expect((screen.getByLabelText("Paste or Type") as HTMLTextAreaElement).value).toBe("");
+  });
+
+  it("Cancel is the discard: the draft does not come back", () => {
+    const first = mount("u-cancel-1");
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Never mind" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    first.unmount();
+    mount("u-cancel-2");
+    expect((screen.getByLabelText("Paste or Type") as HTMLTextAreaElement).value).toBe("");
   });
 });

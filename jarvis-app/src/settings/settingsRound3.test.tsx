@@ -64,7 +64,8 @@ describe("Training: the unit note sits under the unit, and the plates say what a
   it("the other-unit note is the block right under the card that holds Rack Unit and Bar Weight", () => {
     const { container } = render(<TrainingPage onBack={() => {}} />);
     const cards = [...container.querySelectorAll(".set-card")].map((c) => c.closest(".pad-x")!);
-    expect(cards.length).toBe(2);
+    // The rack's two cards lead; Suggestions (2026-10-17, section 10) follows them as a third.
+    expect(cards.length).toBeGreaterThanOrEqual(2);
     const first = cards[0]!;
     expect(first.querySelector('[aria-label="Rack Unit"]'), "the first card holds the unit").not.toBeNull();
     expect(norm(first.nextElementSibling!.querySelector(".input-hint"))).toBe("An exercise logged in the other unit is converted both ways");

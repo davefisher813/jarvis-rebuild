@@ -620,12 +620,16 @@ function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraf
           A field with the word already written beside it needs no ghost of
           the same word inside it; empty reads as "not set yet", which is what
           it is, and aria-label still names each field for a screen reader. */}
+      {/* EACH FIELD IS A BOX (Dave's board 2026-10-16, screen 1): the number over its unit word in one bounded field,
+          the two fields side by side. .se-field is the box; the input and the word inside it are what they were. */}
       {shown.map((f) => (
         <Fragment key={f.key}>
+          <span className="se-field">
           <input className="set-field" type="number" inputMode={f.key === "r" ? "numeric" : "decimal"} min={0} step={f.step} value={vals[f.key] ?? ""}
             onFocus={selectAll} aria-label={`${side} ${nameFor(f)}`}
             onChange={(e) => { const next = { ...vals, [f.key]: e.target.value }; setVals(next); report(next); }} />
           <span className="se-grid-u">{wordFor(f)}</span>
+          </span>
         </Fragment>
       ))}
     </div>

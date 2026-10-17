@@ -31,8 +31,15 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
   // a thumb on the wheel was a write. The draft is held here and written by
   // Save; Cancel, or leaving the row, writes nothing.
   const [draftTime, setDraftTime] = useState("");
-  const [hours, setHours] = useState(7);
-  const [minutes, setMinutes] = useState(30);
+  // REPEAT-LAST IS ONE TAP (the Logging Standard, rule 7, 2026-10-17): the form
+  // opens on last night's hours when there are any, so a night like the last is
+  // one Save; the 7h 30m seed stands only before the first entry. Tapping the
+  // stepper's number selects it (rule 2), so typing replaces the prefill.
+  const latest = recentSleep.reduce<{ date: string; hours: number } | null>((best, r) => (!best || r.date > best.date ? r : best), null);
+  const seedHours = latest ? Math.floor(latest.hours) : 7;
+  const seedMinutes = latest ? [0, 15, 30, 45].reduce((a, b) => (Math.abs(b - (latest.hours - seedHours) * 60) < Math.abs(a - (latest.hours - seedHours) * 60) ? b : a), 0) : 30;
+  const [hours, setHours] = useState(seedHours);
+  const [minutes, setMinutes] = useState(seedMinutes);
   const [night, setNight] = useState(localDay());
   const [sleepSaved, setSleepSaved] = useState(false);
   const sleepValid = hours + minutes / 60 > 0 && /^\d{4}-\d{2}-\d{2}$/.test(night);

@@ -103,7 +103,9 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      {/* .wo-sheet: the board's geometry for Doing Today (screen 3), scoped in ruled.css; the sheet portals to body,
+          so it cannot inherit the screen's .wo-screen. */}
+      <div className="card wo-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         {/* THE HEAD AS THE BOARD DRAWS IT (screen 3): the day and its planned
             length as the title, the count and the order as its one grey line.

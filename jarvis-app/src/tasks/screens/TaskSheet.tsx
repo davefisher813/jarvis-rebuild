@@ -1,9 +1,11 @@
 import { createPortal } from "react-dom";
 import { categoriesOf, setCategories } from "../categories";
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import MarkdownField from "../../shared/MarkdownField";
 import type { ColorSlot } from "../../categories/types";
-import type { TaskStep } from "../../notes/types";
+import type { ReminderInfo, TaskStep } from "../../notes/types";
+import { readQuickTask } from "../quickTask";
+import { draftStore } from "../../shared/draftStore";
 import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
@@ -14,10 +16,10 @@ import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
 import { rowDoor, own } from "../../shared/rowDoor";
 import HeadMenu from "../../shared/HeadMenu";
-import { tapField } from "../../shared/FormSheet";
-import { onPressKey } from "../../shared/pressable";
+import { tapField, Strip } from "../../shared/FormSheet";
+import { onPressKey, pressable } from "../../shared/pressable";
 import RowCtxAction from "../../shared/RowCtxAction";
-import { addDays } from "../../schedule/calendar";
+import { addDays, fmtTime } from "../../schedule/calendar";
 import { sortPicks } from "../../shared/pickerSort";
 import { titleCase } from "../../shared/casing";
 
@@ -51,6 +53,14 @@ export interface TaskDraft {
   // Set only by the "Close Task" offer under a fully-checked list: this
   // Save should also mark the task done. Never set by the ordinary Save tap.
   closeNow?: boolean;
+  // ONE FIELD, NATURAL LANGUAGE (the Logging Standard, rule 3, 2026-10-17): a
+  // clock time typed into the name ("call Nadia tomorrow 3pm") is a one-time
+  // reminder on the due day. Only ever set by the read; no row edits it.
+  reminder?: ReminderInfo;
+  // ENTER SAVES AND THE COMPOSER STAYS OPEN (rule 4): set when Return saved a
+  // new task and the sheet is staying up for the next one. The flow writes
+  // the task and leaves the sheet where it is.
+  another?: boolean;
 }
 /** A project this sheet can file a task to. The extra two fields are what
  *  makes the picker SMART (Dave 2026-09-09: "if someone selects a project or
@@ -74,6 +84,12 @@ const isoOf = (d: Date) => {
   return `${y}-${m}-${day}`;
 };
 const todayISO = () => isoOf(new Date());
+// NO ENTRY IS EVER LOST (the Logging Standard, rule 8, 2026-10-17): a new
+// task's name is written here on every keystroke, read back when the sheet
+// opens again, and cleared by the Save or the Cancel that spent it. A scrim
+// tap (which may be a stray thumb) keeps it.
+const TASK_DRAFT = draftStore("jarvis.task.draft.v1");
+const clock = (hhmm: string) => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
 // LIFE-F-12 (2026-09-05): the presets used to add n x 86,400,000ms to local
 // midnight. On the clocks-back Sunday the local day is 25 hours long, so
 // Tomorrow and Next Week both resolved to today and This Weekend to Friday.
@@ -104,6 +120,7 @@ function Tile({ tone, children }: { tone: string; children: ReactNode }) {
 export default function TaskSheet({
   mode,
   initial,
+  readsReminder = false,
   categories,
   categoryMinutes = {},
   people = [],
@@ -183,6 +200,10 @@ export default function TaskSheet({
   // BRAIN-F-09 (2026-09-05): a parent that writes hands back whether the
   // write landed, so the Saving latch can let go when it did not.
   onSave: (draft: TaskDraft) => void | Promise<boolean | void>;
+  /** THE WORDS' CLOCK TIME BECOMES A REMINDER ONLY WHERE THE FLOW SAVES ONE (rule 3, 2026-10-17). A caller that writes
+      `draft.reminder` passes this; elsewhere "3pm" stays in the title rather than being read and then dropped on Save
+      (laws/sheetFields: every field the sheet shows is written by every door). */
+  readsReminder?: boolean;
   onSchedule?: () => void;
   // Break It Down: hands the current text back so the flow can split it into
   // real tasks. Absent when AI is off, so the row never promises nothing.
@@ -228,7 +249,15 @@ export default function TaskSheet({
   const [delArmed, setDelArmed] = useState(false);
   // SHOWN IN TITLE CASE, SAVED IN TITLE CASE (Dave 2026-10-05): a title typed months ago in whatever case the keyboard felt
   // like reads right here, and Save writes it cased (the write door).
-  const [text, setText] = useState(initial?.text ? titleCase(initial.text) : "");
+  // A new sheet with no name handed in reopens on the draft the last one was
+  // typing (rule 8); an edit, or a name the caller chose, is left alone.
+  const [text, setTextState] = useState(initial?.text ? titleCase(initial.text) : mode === "new" ? TASK_DRAFT.read() : "");
+  const setText = (v: string) => { setTextState(v); if (mode === "new") TASK_DRAFT.write(v); };
+  const nameRef = useRef<HTMLInputElement>(null);
+  // THE LINE IS READ AS IT IS TYPED (rule 3): a day, a clock time, a rhythm, a
+  // length and a #area become chips under the name, and the words leave the
+  // title on Save. Tapping a chip turns the read off and keeps the words.
+  const [readOff, setReadOff] = useState(false);
   // No default category (2026-08-09): defaulting to whichever category was
   // first silently mis-tagged every "+" task, the exact poisoning the
   // quick-add path fixed on 2026-08-03. Untagged is honest; tagging is a tap.
@@ -239,7 +268,6 @@ export default function TaskSheet({
   // multi); None clears and closes.
   const [cats, setCats] = useState<string[]>(() =>
     categoriesOf({ category: initial?.category, extraCategories: initial?.extraCategories }));
-  const category = cats[0] ?? "";
   const toggleCat = (id: string) => setCats((cur) => {
     if (id === "") return [];
     if (!cur.includes(id)) return [...cur, id];
@@ -314,9 +342,30 @@ export default function TaskSheet({
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
   const [priority, setPriority] = useState<"high" | "low" | undefined>(initial?.priority);
-  const lengthLabel = estimateMin === null ? "None" : durLabel(estimateMin);
-  const usualWord = categoryMinutes[category] ? durLabel(categoryMinutes[category]!) : "";
   const [err, setErr] = useState(false);
+
+  // WHAT THE NAME SAYS, AND WHAT THE ROWS THEN SHOW (rule 3). The read fills a
+  // row only where he has not: a day read from the words is the due date
+  // unless he picked one himself, a #area fills a blank Area and never adds to
+  // one he chose (the same rule fillAreaFrom keeps), a length fills an unset
+  // Length. The rows below draw the effective values, so the sheet never says
+  // None under a chip that says Tomorrow.
+  const read = useMemo(() => (mode === "new" && !readOff ? readQuickTask(text, today, categories, { time: readsReminder }) : null), [text, today, mode, readOff, categories, readsReminder]);
+  const readActive = !!read && read.matched.length > 0;
+  const effDue = readActive && read!.day && due === (initial?.due ?? "") ? read!.day : due;
+  const effCats = readActive && read!.categoryId && cats.length === 0 ? [read!.categoryId] : cats;
+  const effCategory = effCats[0] ?? "";
+  const effEstimate = readActive && read!.estimateMin !== null && estimateMin === null ? read!.estimateMin : estimateMin;
+  const readRepeat = readActive && read!.repeat && read!.repeat.kind !== "once" && read!.repeat.kind !== "everyNDays" && read!.repeat.kind !== "afterCompletion"
+    ? read!.repeat.kind : null;
+  const effRepeat = readRepeat && repeat === "" ? readRepeat : repeat;
+  // A clock time in the words is a one-time ping on the due day (or today),
+  // the exact shape the reminder sheet writes for One Time.
+  const effReminder: ReminderInfo | undefined = readActive && read!.time
+    ? { time: read!.time, onMiss: "let_go", scheduleKind: "timed", startDate: effDue || today, repeat: { kind: "once" }, followUp: null, tz: "local" }
+    : undefined;
+  const lengthLabel = effEstimate === null ? "None" : durLabel(effEstimate);
+  const usualWord = categoryMinutes[effCategory] ? durLabel(categoryMinutes[effCategory]!) : "";
 
   // STEPS (2026-09-04): a checklist inside the task, edited locally like
   // every other field here and committed whole on Save (TasksService.setSteps
@@ -374,10 +423,10 @@ export default function TaskSheet({
   // fallback for a due date arriving from outside (edit mode, a task whose
   // date matches no preset). Any preset clears it, so the two never fight.
   const [picking, setPicking] = useState(false);
-  const derivedMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow"
-    : due === weekend ? "weekend" : due === nextWeek ? "nextweek" : "pick";
-  const dueMode = picking && due !== "" ? "pick" : derivedMode;
-  const dueWord = dueMode === "pick" ? dateWord(due) : undefined;
+  const derivedMode = effDue === "" ? "none" : effDue === today ? "today" : effDue === tomorrow ? "tomorrow"
+    : effDue === weekend ? "weekend" : effDue === nextWeek ? "nextweek" : "pick";
+  const dueMode = picking && effDue !== "" ? "pick" : derivedMode;
+  const dueWord = dueMode === "pick" ? dateWord(effDue) : undefined;
   const pickDue = (v: string) => {
     if (v !== "pick") setPicking(false);
     if (v === "none") setDue("");
@@ -394,8 +443,8 @@ export default function TaskSheet({
     }
   };
 
-  const primaryName = categories.find((c) => c.id === category)?.name ?? "";
-  const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
+  const primaryName = categories.find((c) => c.id === effCategory)?.name ?? "";
+  const areaWord = effCats.length === 0 ? "None" : effCats.length === 1 ? primaryName : `${primaryName} +${effCats.length - 1}`;
   const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
   const eventWord = titleCase(events.find((e) => e.id === eventId)?.title ?? "None");
   // The evidence under the When group takes the key's colour for what it
@@ -410,8 +459,12 @@ export default function TaskSheet({
   // closeNow: the "Close Task" offer under a fully-checked list calls
   // save(true) -- one tap both saves the steps and marks the task done. The
   // ordinary Save button calls save() with no argument.
-  const save = (closeNow = false) => {
-    if (!text.trim()) {
+  // another: Return in the name field of a new task (rule 4). The task is
+  // written, the name empties and keeps the keyboard, the rest of the sheet
+  // (the day, the area, the project) stays as set for the next one.
+  const save = (closeNow = false, another = false) => {
+    const name = readActive ? read!.title : text;
+    if (!name.trim()) {
       setErr(true);
       return;
     }
@@ -420,7 +473,7 @@ export default function TaskSheet({
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
     const r = onSave({
-      text: titleCase(text.trim()), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
+      text: titleCase(name.trim()), ...setCategories(effCats), due: effDue, repeat: effRepeat, projectId: projectId || undefined,
       // With a project the goal is the project's (or none); without one it
       // is the pick.
       goalId: (project ? project.goalId : goalId) || undefined, eventId: eventId || undefined,
@@ -429,13 +482,27 @@ export default function TaskSheet({
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
       steps: steps.length ? steps : undefined,
       notes: notes.trim() || undefined,
-      estimateMin: estimateMin ?? undefined,
+      estimateMin: effEstimate ?? undefined,
       priority,
       personId: personId || undefined,
       closeNow: closeNow || undefined,
+      reminder: effReminder,
+      another: another || undefined,
     });
-    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
+    void Promise.resolve(r).then((ok) => {
+      if (ok === false) { setSaving(false); return; }
+      TASK_DRAFT.clear();
+      if (!another) return;
+      // Saved and staying: the name empties with the keyboard still up.
+      setTextState("");
+      setReadOff(false);
+      setErr(false);
+      setSaving(false);
+      nameRef.current?.focus();
+    }, () => setSaving(false));
   };
+  // Cancel is the explicit discard, so it spends the draft; the scrim keeps it.
+  const cancel = () => { if (mode === "new") TASK_DRAFT.clear(); onCancel(); };
 
   const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);
   const showNav = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onLogDecision || !!onTextPerson);
@@ -451,7 +518,7 @@ export default function TaskSheet({
             button hands its onClick the click event positionally, and
             save's first parameter is closeNow -- passing `save` directly
             would read every ordinary click as a truthy closeNow. */}
-        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} saveDisabled={!text.trim()} />
+        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={cancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} saveDisabled={!text.trim()} />
         {/* TICKING IT OFF IS NOT A CHECKLIST FEATURE (Dave, 2026-09-15: "you
             can't even clear it if you've completed it... which is
             ridiculous").
@@ -533,9 +600,25 @@ export default function TaskSheet({
                 /* A new task opens on its name, keyboard up (the Logging Standard, 2026-10-17); an edit opens quiet. */
                 autoFocus={mode === "new"}
                 data-autofocus={mode === "new" || undefined}
+                ref={nameRef}
+                enterKeyHint={mode === "new" ? "send" : "done"}
                 onChange={(e) => { setText(e.target.value); if (err) setErr(false); }}
+                /* ENTER SAVES (rule 4): a new task is written and the sheet stays for the next; an edit is written and closes. */
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (mode === "new") save(false, true); else save(); } }}
               />
             </div>
+            {/* WHAT THE WORDS SAID (rule 3), as the reminder sheet draws its own read: one strip of lit chips under the name,
+                each a fact read from the line, any tap turning the read off so the words stay as typed. */}
+            {readActive && (
+              <Strip>
+                <span className="rem-read-k">Read from your words</span>
+                {read!.day && <div {...pressable(() => setReadOff(true))} className="chip active" aria-pressed>{read!.day === today ? "Today" : read!.day === tomorrow ? "Tomorrow" : dateWord(read!.day)}</div>}
+                {read!.time && <div {...pressable(() => setReadOff(true))} className="chip active" aria-pressed>{clock(read!.time)}</div>}
+                {readRepeat && <div {...pressable(() => setReadOff(true))} className="chip active" aria-pressed>{titleCase(readRepeat)}</div>}
+                {read!.estimateMin !== null && <div {...pressable(() => setReadOff(true))} className="chip active" aria-pressed>{durLabel(read!.estimateMin)}</div>}
+                {read!.categoryId && <div {...pressable(() => setReadOff(true))} className="chip active" aria-pressed>{categories.find((c) => c.id === read!.categoryId)?.name}</div>}
+              </Strip>
+            )}
             {/* PRIORITY (Dave, 2026-10-13). One tap, three answers, saved with
                 the task. Normal is the resting answer and stores nothing. */}
             {/* row-tap: the three answers are the row's controls; the label beside them has nothing else to open */}
@@ -637,7 +720,7 @@ export default function TaskSheet({
                 white/gray, must be amber"). Today is amber, a day behind us is red, and
                 anything later stays the plain value. The tone is on the row; the menu's
                 own value takes it (components.css .xs-due-*). */}
-            <div className={"row xs-row" + (due && due < today ? " xs-due-red" : due === today ? " xs-due-warn" : "")} onClick={tapField}>
+            <div className={"row xs-row" + (effDue && effDue < today ? " xs-due-red" : effDue === today ? " xs-due-warn" : "")} onClick={tapField}>
               <Tile tone="orange"><Clock className="ic" /></Tile>
               <div className="conn-name">Due</div>
               <HeadMenu variant="value" ariaLabel="Due" value={dueMode} label={dueWord} off={dueMode === "none"}
@@ -677,9 +760,9 @@ export default function TaskSheet({
                 {/* The learned median is an estimate the app worked out, so
                     it wears the key's sky (§AM, 2026-09-26), not the grey
                     the unset value beside it already wears. */}
-                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in This Area</span></div>}
+                {effEstimate === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in This Area</span></div>}
               </div>
-              <HeadMenu variant="value" ariaLabel="Length" value={estimateMin === null ? "" : String(estimateMin)} label={lengthLabel} off={estimateMin === null}
+              <HeadMenu variant="value" ariaLabel="Length" value={effEstimate === null ? "" : String(effEstimate)} label={lengthLabel} off={effEstimate === null}
                 options={[{ value: "", label: "None" }, ...DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))]}
                 onPick={(v) => setEstimateMin(v === "" ? null : Number(v))} />
             </div>
@@ -701,9 +784,9 @@ export default function TaskSheet({
               <div className="row-grow">
                 <div className="conn-name">Area</div>
                 {/* Title Case on the sub line too (Dave's pass-off, 2026-09-26). */}
-                {cats.length > 1 && <div className="conn-meta">{primaryName} Is the Main One</div>}
+                {effCats.length > 1 && <div className="conn-meta">{primaryName} Is the Main One</div>}
               </div>
-              <HeadMenu variant="value" ariaLabel="Area" value={category} label={areaWord} off={cats.length === 0} multi picked={cats}
+              <HeadMenu variant="value" ariaLabel="Area" value={effCategory} label={areaWord} off={effCats.length === 0} multi picked={effCats}
                 options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
                 onPick={toggleCat} />
             </div>

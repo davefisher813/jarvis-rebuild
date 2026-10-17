@@ -623,3 +623,43 @@ describe("HealthFlow: an offer is a thing, not a sentence", () => {
     stop();
   });
 });
+
+// THE LOGGING STANDARD, rule 5 (2026-10-17): a log is never confirmed, and its
+// receipt carries Undo for at least five seconds. Lights Out and Took It had
+// it; How Hard It Was and Where It Hurts logged in silence or with a bare cheer.
+describe("HealthFlow: every one-tap log has an Undo on its receipt", () => {
+  const toasts: { message: string; actionLabel?: string; onAction?: () => void }[] = [];
+  beforeEach(() => { toasts.length = 0; });
+
+  it("How Hard It Was: the tap logs, the receipt says Undo, and Undo removes the entry", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u1");
+    const off = subscribeToast((t) => { if (t) toasts.push(t); });
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="callIt" onExit={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Effort 7 of 10" }));
+    await waitFor(async () => expect(await svc.listCallIt()).toHaveLength(1));
+    const receipt = toasts.find((t) => t.actionLabel === "Undo");
+    expect(receipt, "the receipt carries Undo").toBeDefined();
+    expect(receipt!.message).toBe("Effort Logged");
+    expect(screen.queryByText(/are you sure/i)).toBeNull();
+    receipt!.onAction!();
+    await waitFor(async () => expect(await svc.listCallIt()).toHaveLength(0));
+    off();
+  });
+
+  it("Where It Hurts: a region row logs, the receipt says Undo, and Undo removes the entry", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u1");
+    const off = subscribeToast((t) => { if (t) toasts.push(t); });
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="pointAtIt" onExit={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "List" }));
+    fireEvent.click(screen.getByText("Neck").closest(".row")!);
+    await waitFor(async () => expect(await svc.listPointAtIt()).toHaveLength(1));
+    const receipt = toasts.find((t) => t.actionLabel === "Undo");
+    expect(receipt).toBeDefined();
+    expect(receipt!.message).toBe("Spot Logged");
+    receipt!.onAction!();
+    await waitFor(async () => expect(await svc.listPointAtIt()).toHaveLength(0));
+    off();
+  });
+});

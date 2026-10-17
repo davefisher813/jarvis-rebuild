@@ -31,7 +31,9 @@ describe("saveTaskEdit: every field the sheet shows is written", () => {
   it("writes the whole draft", async () => {
     const { svc, reload } = setup();
     const id = (await svc.createTask("Old Title", { category: "c0", due: todayISO() }))!;
-    const draft: Required<Omit<TaskDraft, "closeNow">> = {
+    // closeNow is the sheet's action, not a field; reminder and another are the
+    // new-task read and Return's stay-open (2026-10-17), which an edit never sends.
+    const draft: Required<Omit<TaskDraft, "closeNow" | "reminder" | "another">> = {
       text: "New Title", category: "c1", extraCategories: ["c2"], due: addDays(todayISO(), 3), repeat: "weekly",
       projectId: "p1", goalId: "g1", eventId: "e1",
       plan: { cue: { kind: "time", what: "13:00" }, then: "Call Marco" },

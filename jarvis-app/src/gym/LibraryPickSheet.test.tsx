@@ -7,7 +7,8 @@ import type { LibraryEntry } from "./library";
 import { EMPTY_CLASS, type ClassStore } from "./classify";
 import { pickerRows, pickerSections, adoptStarter, NO_MUSCLE_SECTION } from "./libraryView";
 import { readGymSettings, writeGymSettings } from "./settings";
-import type { StarterExercise } from "./starterLibrary";
+import { STARTER_EXERCISES, type StarterExercise } from "./starterLibrary";
+import { MUSCLE_GROUPS, MUSCLE_LABEL } from "./muscles";
 
 // ONE EXERCISE SOURCE FOR EVERY PICKER (Dave 2026-10-16, Q), AND THE
 // PRELOADED CATALOG MERGED INTO IT (S9). "Add to Push Day" stopped at forty
@@ -21,9 +22,9 @@ const entry = (i: number, over: Partial<LibraryEntry> = {}): LibraryEntry =>
   ({ key: "k" + i, name: "Lift " + i, kind: "weight_reps", unit: "lb", lastUsed: 1000 - i, lastSets: [], ...over });
 
 const STARTERS: StarterExercise[] = [
-  { name: "Bench Press", primary: "chest", secondary: "triceps" },
-  { name: "Back Squat", primary: "quads", secondary: "glutes" },
-  { name: "Lift 3", primary: "back", secondary: null },
+  { name: "Bench Press", primary: "chest", secondary: ["triceps", "shoulders"] },
+  { name: "Back Squat", primary: "quads", secondary: ["glutes", "hamstrings"] },
+  { name: "Lift 3", primary: "back", secondary: [] },
 ];
 
 beforeEach(() => { localStorage.clear(); });
@@ -46,7 +47,7 @@ describe("pickerRows: the library's default view, no cap, the catalog merged in"
     expect(starters.sort()).toEqual(["Back Squat", "Bench Press"]);
     const bench = rows.find((r) => r.entry.name === "Bench Press")!;
     expect(bench.primary).toBe("chest");
-    expect(bench.entry.starter).toEqual({ primary: "chest", secondary: "triceps" });
+    expect(bench.entry.starter).toEqual({ primary: "chest", secondary: ["triceps", "shoulders"] });
   });
 
   it("an archived exercise of the same name keeps its starter out too", () => {
@@ -76,18 +77,109 @@ describe("pickerRows: the library's default view, no cap, the catalog merged in"
     expect(a.entry.exerciseKey).toBe(a.entry.key);
     expect(a.entry.starter).toBeUndefined();
     expect(a.seed).toEqual({ key: a.entry.key, name: "Bench Press", kind: "weight_reps" });
-    expect(a.cls).toMatchObject({ primary: ["chest"], secondary: ["triceps"], measure: "weight_reps" });
+    expect(a.cls).toMatchObject({ primary: ["chest"], secondary: ["triceps", "shoulders"], measure: "weight_reps" });
     expect(a.cls.equipment, "a starter carries no equipment").toBeUndefined();
+  });
+
+  it("a starter with no secondary adopts with an empty secondary list, not a null", () => {
+    const row = pickerRows([], {}, [], { starters: STARTERS }).find((r) => r.entry.name === "Lift 3")!;
+    expect(adoptStarter(row.entry).cls).toMatchObject({ primary: ["back"], secondary: [] });
+  });
+});
+
+describe("the real catalog in the picker (Dave's 111, 2026-10-16)", () => {
+  it("a fresh athlete with no exercises sees all 111 under the twelve sections, in the app's order", () => {
+    const rows = pickerRows([], {}, []);
+    expect(rows).toHaveLength(111);
+    expect(rows.every((r) => r.starter)).toBe(true);
+    const sections = pickerSections(rows);
+    expect(sections.map((s) => s.label)).toEqual(MUSCLE_GROUPS.map((m) => MUSCLE_LABEL[m]));
+    expect(sections.reduce((n, s) => n + s.rows.length, 0)).toBe(111);
+    for (const s of sections) for (const r of s.rows) expect(r.primary).toBe(s.muscle);
+  });
+
+  it("an athlete who already has Bench Press sees it once, theirs, never the catalog's copy too", () => {
+    const rows = pickerRows([entry(1, { name: "Bench Press" })], { k1: { ...EMPTY_CLASS, primary: ["chest"] } }, []);
+    const bench = rows.filter((r) => r.entry.name === "Bench Press");
+    expect(bench).toHaveLength(1);
+    expect(bench[0]!.starter).toBe(false);
+    expect(bench[0]!.entry.key).toBe("k1");
+    expect(rows).toHaveLength(111);
+    // Spelling folds: "bench-press" typed by hand is the same exercise.
+    expect(pickerRows([entry(2, { name: "bench-press" })], {}, []).filter((r) => r.starter && r.entry.name === "Bench Press")).toHaveLength(0);
+  });
+
+  it("picking a catalog entry adopts it with its primary and every secondary", () => {
+    const dl = pickerRows([], {}, []).find((r) => r.entry.name === "Deadlift")!;
+    const a = adoptStarter(dl.entry);
+    expect(a.cls).toMatchObject({ primary: ["back"], secondary: ["glutes", "hamstrings", "forearms"], measure: "weight_reps" });
+    expect(a.seed).toEqual({ key: a.entry.key, name: "Deadlift", kind: "weight_reps" });
+    const lat = pickerRows([], {}, []).find((r) => r.entry.name === "Lateral Raise")!;
+    expect(adoptStarter(lat.entry).cls).toMatchObject({ primary: ["shoulders"], secondary: [] });
+  });
+
+  it("search reaches the catalog", () => {
+    expect(pickerRows([], {}, [], { q: "turkish" }).map((r) => r.entry.name)).toEqual(["Turkish Get-Up"]);
+    expect(pickerRows([], {}, [], { q: "SQUAT" }).map((r) => r.entry.name).sort()).toEqual(
+      STARTER_EXERCISES.filter((e) => /squat/i.test(e.name)).map((e) => e.name).sort(),
+    );
+    expect(pickerRows([], {}, [], { q: "zercher" })).toHaveLength(0);
   });
 });
 
 describe("LibraryPickSheet lists the default view", () => {
-  it("has no cap: sixty rows are sixty rows", () => {
+  it("has no cap: sixty rows are sixty rows, and the catalog's 111 ride beside them", () => {
     const library = Array.from({ length: 60 }, (_, i) => entry(i));
     const { container } = render(
       <LibraryPickSheet title="Add to Push Day" library={library} onPick={() => {}} onPickMany={() => {}} onCancel={() => {}} />,
     );
-    expect(container.ownerDocument.querySelectorAll(".sheet-list .row")).toHaveLength(60);
+    expect(container.ownerDocument.querySelectorAll(".sheet-list .row")).toHaveLength(60 + 111);
+  });
+
+  it("a fresh athlete sees the whole catalog under twelve heads, nothing marked Yours", () => {
+    const { container } = render(<LibraryPickSheet title="Add Exercise" library={[]} onPick={() => {}} onCancel={() => {}} />);
+    const doc = container.ownerDocument;
+    expect(Array.from(doc.querySelectorAll(".sheet-list .eyebrow")).map((e) => e.textContent)).toEqual(MUSCLE_GROUPS.map((m) => MUSCLE_LABEL[m]));
+    expect(doc.querySelectorAll(".sheet-list .row")).toHaveLength(111);
+    expect(screen.queryAllByText("Yours")).toHaveLength(0);
+    expect(screen.getByText("Turkish Get-Up")).toBeInTheDocument();
+    // Every name is drawn exactly as Dave wrote it: the title-caser re-cases none of them.
+    const drawn = Array.from(doc.querySelectorAll(".sheet-list .conn-name")).map((e) => e.textContent).sort();
+    expect(drawn).toEqual(STARTER_EXERCISES.map((e) => e.name).sort());
+  });
+
+  it("an athlete who owns Bench Press sees it once, marked Yours, under Chest", () => {
+    writeGymSettings({ ...readGymSettings(), classByKey: { k1: { primary: ["chest"], secondary: ["triceps", "shoulders"], tags: [] } } });
+    const { container } = render(<LibraryPickSheet title="Add Exercise" library={[entry(1, { name: "Bench Press" })]} onPick={() => {}} onCancel={() => {}} />);
+    expect(screen.getAllByText("Bench Press")).toHaveLength(1);
+    expect(screen.getAllByText("Yours")).toHaveLength(1);
+    expect(container.ownerDocument.querySelectorAll(".sheet-list .row")).toHaveLength(111);
+    const chest = Array.from(container.ownerDocument.querySelectorAll(".sheet-list > div")).find((d) => d.querySelector(".eyebrow")?.textContent === "Chest")!;
+    expect(within(chest as HTMLElement).getByText("Bench Press")).toBeInTheDocument();
+    expect(within(chest as HTMLElement).getByText("Yours")).toHaveClass("fact");
+  });
+
+  it("picking a catalog row adopts it: a fresh key, its muscles written, and the pick carries no starter", () => {
+    const onPick = vi.fn();
+    render(<LibraryPickSheet title="Add Exercise" library={[]} onPick={onPick} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Search Exercises"), { target: { value: "deadlift" } });
+    fireEvent.click(screen.getByText("Deadlift"));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    const picked = onPick.mock.calls[0]![0] as LibraryEntry;
+    expect(picked.key).toMatch(/^ek/);
+    expect(picked.starter).toBeUndefined();
+    const gs = readGymSettings();
+    expect(gs.createdLifts?.map((c) => c.name)).toEqual(["Deadlift"]);
+    expect(gs.classByKey?.[picked.key]).toMatchObject({ primary: ["back"], secondary: ["glutes", "hamstrings", "forearms"] });
+    expect(gs.muscleByKey?.[picked.key]).toEqual(["back", "glutes", "hamstrings", "forearms"]);
+  });
+
+  it("the search field reaches the catalog", () => {
+    render(<LibraryPickSheet title="Add Exercise" library={[]} onPick={() => {}} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Search Exercises"), { target: { value: "curl" } });
+    const names = Array.from(document.querySelectorAll(".sheet-list .conn-name")).map((e) => e.textContent);
+    expect(names).toEqual(expect.arrayContaining(["Curl", "Hammer Curl", "Nordic Curl", "Wrist Curl"]));
+    expect(names.every((n) => /curl/i.test(n ?? ""))).toBe(true);
   });
 
   it("leaves an archived exercise out, in every mode", () => {
@@ -102,8 +194,6 @@ describe("LibraryPickSheet lists the default view", () => {
   });
 
   it("marks the athlete's own rows Yours, once, and draws no mark on a catalog row", () => {
-    // The catalog is empty until the approved list lands, so the merge is proved with a fixture through pickerRows above;
-    // here the sheet's own rows prove the mark: every row is his, every row says Yours exactly once.
     const library = [entry(1), entry(2, { favorite: true }), entry(3, { kind: "rounds" })];
     const { container } = render(<LibraryPickSheet title="Add Exercise" library={library} onPick={() => {}} onCancel={() => {}} />);
     const rows = Array.from(container.ownerDocument.querySelectorAll(".sheet-list .row"));
@@ -115,16 +205,23 @@ describe("LibraryPickSheet lists the default view", () => {
     expect(within(row3).getByText("Rounds")).toHaveClass("conn-meta");
     expect(within(row3).queryByText("Yours")).toBeNull();
     for (const r of rows) expect(r.querySelectorAll(".conn-meta, .row-value .fact").length, "at most one grey").toBeLessThanOrEqual(1);
+    // A catalog row says nothing in the trailing slot.
+    const bench = rows.find((r) => r.textContent?.includes("Bench Press"))!;
+    expect(bench.querySelectorAll(".conn-meta, .row-value, .pill")).toHaveLength(0);
+    expect(screen.getAllByText("Yours")).toHaveLength(1);
   });
 
   it("draws section heads only when there is more than one section", () => {
     writeGymSettings({ ...readGymSettings(), classByKey: { k1: { primary: ["chest"], secondary: [], tags: [] } } });
     const { container, unmount } = render(<LibraryPickSheet title="Add" library={[entry(1), entry(2)]} onPick={() => {}} onCancel={() => {}} />);
     const heads = () => Array.from(container.ownerDocument.querySelectorAll(".sheet-list .eyebrow")).map((e) => e.textContent);
-    expect(heads()).toEqual(["Chest", NO_MUSCLE_SECTION]);
+    // The catalog fills the twelve; the unclassified Lift 2 brings the thirteenth, last.
+    expect(heads()).toEqual([...MUSCLE_GROUPS.map((m) => MUSCLE_LABEL[m]), NO_MUSCLE_SECTION]);
     unmount();
-    render(<LibraryPickSheet title="Add" library={[entry(2), entry(3)]} onPick={() => {}} onCancel={() => {}} />);
+    // A kind filter the catalog does not log under (Swap on a rounds exercise) leaves only his two unsorted rows: one section, no head.
+    render(<LibraryPickSheet title="Swap For" library={[entry(2, { kind: "rounds" }), entry(3, { kind: "rounds" })]} kindFilter="rounds" onPick={() => {}} onCancel={() => {}} />);
     expect(document.querySelectorAll(".sheet-list .eyebrow")).toHaveLength(0);
+    expect(document.querySelectorAll(".sheet-list .row")).toHaveLength(2);
   });
 
   it("a pick hands back the entry; a free-text fallback stays for a name nothing matches", () => {

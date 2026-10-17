@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readGymSettings, writeGymSettings, DEFAULT_GYM_SETTINGS, type GymSettings } from "./settings";
+import { readGymSettings, writeGymSettings, overloadTargetsOf, DEFAULT_GYM_SETTINGS, type GymSettings } from "./settings";
 import type { Storage2 } from "./liveSession";
 
 function mem(): Storage2 {
@@ -56,5 +56,21 @@ describe("the rack", () => {
     expect(rackFrom({ showLast: true, barWeight: 0, plates: [], rackUnit: "lb" }).bar).toBe(45);
     expect(rackFrom({ showLast: true, barWeight: 45, plates: [], rackUnit: "lb" }).plates.length).toBeGreaterThan(0);
     expect(rackFrom({ showLast: true, barWeight: 45, plates: [-5, 45], rackUnit: "lb" }).plates).toEqual([45]);
+  });
+});
+
+// WHICH SETS HAVE TO TOP THE RANGE (2026-10-17, section 10, brief section 1):
+// a setting, "all" by default, read with its default like overloadApply.
+describe("overloadTargets", () => {
+  it("reads as all when nothing is stored, and only perSet means perSet", () => {
+    expect(overloadTargetsOf(readGymSettings(mem()))).toBe("all");
+    expect(overloadTargetsOf({ overloadTargets: "perSet" })).toBe("perSet");
+    expect(overloadTargetsOf({ overloadTargets: "nonsense" as unknown as "all" })).toBe("all");
+  });
+
+  it("round-trips through the store", () => {
+    const s = mem();
+    writeGymSettings({ ...DEFAULT_GYM_SETTINGS, overloadTargets: "perSet" }, s);
+    expect(overloadTargetsOf(readGymSettings(s))).toBe("perSet");
   });
 });
