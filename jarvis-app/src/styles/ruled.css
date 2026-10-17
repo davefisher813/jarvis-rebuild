@@ -2956,7 +2956,10 @@
    the chevron at the right; Health leads with five icon chips. No shading
    on any tile. */
 .ruled .area-cards { display: flex; flex-direction: column; gap: var(--s-2h); }
-.ruled .area-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); cursor: pointer; }
+/* ONE LEFT EDGE (Dave 2026-10-17, "we need left alignment"): the tile sits at the card's content edge, --s-4, the
+   inset the section head and every other row use, and the one the Health card beside it already had (measured
+   35px against its 41px at 390). The vertical rhythm is unchanged. */
+.ruled .area-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); cursor: pointer; }
 .ruled .area-card:active { opacity: 0.85; }
 /* PLAIN LIKE THE OTHER AREA CARDS (Dave's pick, 2026-09-26). The card lost its green wash and green border: Health's colour
    lives on its tile, as every area's does. Since 2026-10-05 it is the same card in every respect (the five section capsules

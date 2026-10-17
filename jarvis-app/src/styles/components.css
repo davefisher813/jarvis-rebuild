@@ -1785,7 +1785,14 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    shell must add neither: the shared rule above gives .task-row 12px padding
    and a 44px floor because in TASKS it is the row itself. Stacked on a mail
    .row those became 24px of black around every row in the inbox. */
-.task-row.swipe-shell { padding: 0; min-height: 0; }
+/* AND IT HOLDS INSIDE A RULED CARD (2026-10-17, Dave's inbox screenshots). ruled.css's `.ruled .task-row` re-states
+   the padding (8px 20px) at the same specificity and loads later, so every mail row in a .ruled card paid the shell's
+   20px on top of its own: the avatar sat 41px inside the card, not 20, and the section head's edge was 21px to its
+   left. The .ruled twin outranks it. And the shell is a BLOCK, not a flex row: as a flex container it sized the .row
+   it carried to that row's own text (a GitHub subject measured 1078px wide in a 348px shell at 390), so the subject
+   and snippet never reached their ellipsis and the chevron fell off the card. A block gives the row the shell's width
+   and the row's own min-width: 0 columns do the rest. */
+.task-row.swipe-shell, .ruled .task-row.swipe-shell { padding: 0; min-height: 0; display: block; }
 /* SHARED-F-21 (2026-09-05): the shell is a swipe surface in its own right
    (NotificationsFlow spreads the handlers on a bare .swipe-shell, with no
    .task-row under it), so it carries pan-y itself rather than inheriting it
@@ -3176,6 +3183,12 @@ button {
    clock, on any page, ever again. */
 .pagebar { position: sticky; top: 0; z-index: 40; padding-top: var(--safe-top, env(safe-area-inset-top, 0px));
   pointer-events: none; transition: background var(--dur-fast) var(--ease-out); }
+/* THE INSET IS PAID ONCE (2026-10-17, Dave's Life screenshot: the status bar, a dead band, then "Life"). .screen
+   (jarvis-design-system.css) pads its top by --safe-top for the screens that have no bar of their own, and the
+   chassis bar above pads by the same inset so it clears the clock when it sticks. A screen that opens with the bar
+   paid both: measured at a 59px inset, the large title sat 162px down instead of 103 (the bar's own height), on
+   every chassis page alike. The bar is the one that clears the clock; the screen under it adds nothing. */
+.screen:has(> .pagebar) { padding-top: 0; }
 .pagebar-row { height: 44px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 var(--s-3); position: relative; }
 .pagebar-row > * { pointer-events: auto; }

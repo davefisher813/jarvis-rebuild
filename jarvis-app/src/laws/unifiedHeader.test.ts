@@ -438,3 +438,42 @@ describe("A Place to Begin is about the list it sits on", () => {
     expect(flow, "no sheet re-lists the list below").not.toContain("otherPicks");
   });
 });
+
+// ---------------------------------------------------------------------------
+// THE INSET IS PAID ONCE (Dave 2026-10-17, from a screenshot of Life: the
+// status bar, a dead band, then "Life" with its stroke). Two rules each
+// cleared the phone's top inset: .screen (jarvis-design-system.css) pads by
+// --safe-top for the screens that have no bar of their own, and the chassis
+// bar (.pagebar) pads by the same inset so it clears the clock when it
+// sticks. A screen that opens with the bar paid both, and at a 59px inset its
+// large title sat 162px down instead of 103. The fix is one rule in the
+// chassis: a screen that opens with the bar adds nothing of its own. This
+// holds the three parts together so neither inset can quietly come back.
+// ---------------------------------------------------------------------------
+describe("the chassis clears the top inset once", () => {
+  const css = (f: string) => read("styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");
+
+  it(".screen and .pagebar each pad by --safe-top, so a screen that opens with the bar pads nothing", () => {
+    expect(css("jarvis-design-system.css"), ".screen still carries the inset for bar-less screens")
+      .toMatch(/\.screen\s*\{[^}]*padding-top:\s*var\(--safe-top\)/);
+    const chassis = css("components.css");
+    expect(chassis, "the bar clears the clock when it sticks").toMatch(/\.pagebar\s*\{[^}]*padding-top:\s*var\(--safe-top/);
+    expect(chassis, "a screen that opens with the bar must not pay the inset twice")
+      .toMatch(/\.screen:has\(> \.pagebar\)\s*\{\s*padding-top:\s*0;?\s*\}/);
+  });
+
+  it("every chassis page opens its screen with the bar, so the rule reaches it", () => {
+    const PAGES = [
+      "life/tabs/AreasTab.tsx", "tasks/screens/TasksPage.tsx", "tasks/screens/RemindersPage.tsx",
+      "bigger/BiggerPicturePage.tsx", "email/EmailFlow.tsx", "today/TodayPage.tsx",
+    ];
+    for (const f of PAGES) {
+      const src = read(f);
+      const at = src.search(/className=\{?"screen ruled/);
+      expect(at, f + " has no ruled screen").toBeGreaterThan(-1);
+      // The bar (PageHeader, or Today's own .pagebar) is the first thing inside the screen.
+      const next = src.slice(at, at + 900);
+      expect(next, f + " opens its screen with something other than the bar").toMatch(/<PageHeader\b|className=\{"pagebar /);
+    }
+  });
+});
