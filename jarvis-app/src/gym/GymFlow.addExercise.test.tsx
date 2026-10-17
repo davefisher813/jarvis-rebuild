@@ -178,10 +178,18 @@ describe("a lift added to a finished workout", () => {
     );
   }
 
+  // THE LIBRARY FIRST (Dave 2026-10-16, K): Add Exercise opens the picker; a name nothing matches falls back to the
+  // authoring sheet, pre-filled with what was typed.
+  const typeNew = async (name: string) => {
+    fireEvent.click(await screen.findByRole("button", { name: "Add Exercise" }, { timeout: 4000 }));
+    fireEvent.change(await screen.findByLabelText("Search Exercises"), { target: { value: name } });
+    fireEvent.click(screen.getByRole("button", { name: /Use .*Anyway/ }));
+    expect(await screen.findByLabelText("Exercise name")).toHaveValue(name);
+  };
+
   it("does not draw the rows a saved session cannot keep", async () => {
     await open();
-    fireEvent.click(await screen.findByRole("button", { name: "Add Exercise" }, { timeout: 4000 }));
-    expect(await screen.findByLabelText("Exercise name")).toBeInTheDocument();
+    await typeNew("Zercher Squat");
     // What a record keeps stays.
     for (const kept of ["Measure", "Muscle"]) expect(screen.getAllByText(kept).length, kept).toBeGreaterThan(0);
     // What only a live session or a day can use does not.
@@ -191,8 +199,7 @@ describe("a lift added to a finished workout", () => {
 
   it("saves the lift with its strip and files the muscle it was told in the classification", async () => {
     const { gym } = await open();
-    fireEvent.click(await screen.findByRole("button", { name: "Add Exercise" }, { timeout: 4000 }));
-    fireEvent.change(await screen.findByLabelText("Exercise name"), { target: { value: "Cable Fly" } });
+    await typeNew("Cable Fly");
     pick("Muscle", "Chest");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     // The muscle is where every other muscle lives, so the amber Assign
@@ -210,19 +217,23 @@ describe("a lift added to a finished workout", () => {
     expect((readGymSettings().classByKey as Record<string, { primary: string[] }>)[key]!.primary).toEqual(["chest"]);
   });
 
-  it("an already-classified lift keeps the muscle it has", async () => {
-    // Bench Press is in the workout under ek-bench, classified as chest; add it again as triceps.
+  it("a lift picked from the library lands with its own key and keeps the muscle it has", async () => {
+    // Bench Press is in the workout under ek-bench, classified as chest.
     writeGymSettings({ ...readGymSettings(), classByKey: { "ek-bench": { primary: ["chest"] } } as never });
     const { gym } = await open();
     fireEvent.click(await screen.findByRole("button", { name: "Add Exercise" }, { timeout: 4000 }));
-    fireEvent.focus(await screen.findByLabelText("Exercise name"));
-    fireEvent.change(screen.getByLabelText("Exercise name"), { target: { value: "Bench" } });
-    // Picked from the library, so it carries the lift's own key.
-    fireEvent.mouseDown(screen.getByText("Bench Press", { selector: ".conn-name" }));
-    pick("Muscle", "Triceps");
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    // The picker lists it; one tap lands it in the draft with no authoring sheet.
+    fireEvent.click(await screen.findByText("Bench Press", { selector: ".sheet-list .conn-name" }));
+    expect(screen.queryByLabelText("Exercise name")).toBeNull();
     await waitFor(() => expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument());
-    expect(gym).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(async () => {
+      const w = (await gym.listWorkouts())[0]!;
+      expect(w.data.exercises.filter((e) => e.name === "Bench Press")).toHaveLength(2);
+    });
+    const added = (await gym.listWorkouts())[0]!.data.exercises.at(-1)!;
+    expect(added.exerciseKey).toBe("ek-bench");
+    expect(added.sets.length).toBeGreaterThan(0);
     expect((readGymSettings().classByKey as Record<string, { primary: string[] }>)["ek-bench"]!.primary).toEqual(["chest"]);
   });
 });

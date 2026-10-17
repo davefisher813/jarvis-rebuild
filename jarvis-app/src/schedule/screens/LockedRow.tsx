@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { fmtTime, minToHHMM } from "../calendar";
+import RetimeSheet from "./RetimeSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import { SCHED_ACT_W } from "./schedRail";
 import { useChipInView } from "../../shared/useChipInView";
@@ -61,7 +62,8 @@ export default function LockedRow({
   state?: StateWord | null;
   onOpen?: () => void;
   onShift?: (mins: number) => void;
-  onRetime?: (startMin: number) => void;
+  /** The time tap's Move: a new start, with a new end when the sheet's length changed too, as ONE write with one Undo. */
+  onRetime?: (startMin: number, endMin?: number) => void;
   onResize?: (endMin: number) => void;
   /** Swipe left, Delete. The block is a routine record; the caller owns Undo. */
   onDelete?: () => void;
@@ -160,11 +162,11 @@ export default function LockedRow({
             <button
               type="button"
               className="sched-time sched-time-btn"
-              aria-label={"Change time, currently " + t.time + " " + t.ap}
+              aria-label={"Change time or length, currently " + t.time + " " + t.ap}
               onClick={(ev) => { ev.stopPropagation(); setPicking(true); }}
-            >{t.time}<span className="ampm">{t.ap}</span></button>
+            >{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></button>
           ) : (
-            <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+            <div className="sched-time">{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></div>
           )}
           <div className="sched-body">
             <div className="sched-title sched-lock-title">
@@ -246,25 +248,31 @@ export default function LockedRow({
           </div>
         </div>
       )}
+      {/* TAP THE TIME IS A SHEET, NOT A POPOVER (2026-10-17). The popover
+          that hung under this row held an <input type="time"> whose first
+          change WAS the write: Chrome fires change per segment and the iOS
+          wheel fires while it scrolls, so a thumb resting on the wheel wrote
+          the routine, and Escape (which taps the scrim) only closed a panel
+          that had already written. DayRow fixed the identical bug on
+          2026-10-01 with RetimeSheet: portalled, holds a draft, and writes
+          once on Move; Cancel and Escape write nothing. A start change takes
+          the length with it in ONE call, so the flow commits one write with
+          one Undo; a length change alone resizes, as the length chips do. */}
       {picking && onRetime && (
-        <>
-          <div className="time-pop-scrim" onClick={() => setPicking(false)} />
-          <div className="time-pop">
-            <input
-              className="input time-pop-input"
-              type="time"
-              aria-label="New time"
-              defaultValue={minToHHMM(l.s)}
-              onChange={(ev) => {
-                const v = ev.target.value;
-                if (!v) return;
-                setPicking(false);
-                const p = v.split(":");
-                onRetime(Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0));
-              }}
-            />
-          </div>
-        </>
+        <RetimeSheet
+          title={label}
+          start={minToHHMM(l.s)}
+          minutes={mins}
+          onCancel={() => setPicking(false)}
+          onSave={(s, m) => {
+            setPicking(false);
+            const p = s.split(":");
+            const startMin = Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
+            const lenChanged = m != null && m !== mins;
+            if (startMin !== l.s) onRetime(startMin, lenChanged ? startMin + m : undefined);
+            else if (lenChanged) (onResize ?? ((e: number) => onRetime(l.s, e)))(l.s + m);
+          }}
+        />
       )}
     </div>
   );

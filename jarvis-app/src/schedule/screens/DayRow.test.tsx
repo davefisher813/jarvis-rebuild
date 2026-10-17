@@ -441,3 +441,14 @@ describe("the Join link on an event row", () => {
     expect(screen.queryByText("Join")).toBeNull();
   });
 });
+
+// ONE PHRASE, READ AS ONE (2026-10-17). The meridiem span sat flush against the
+// digits with a CSS margin faking the gap, so the row's text read "8:32PM" when
+// copied, read aloud or asserted on. A no-break space is in the markup now and
+// the margin is gone, so what is drawn and what is read agree.
+describe("the time on the row reads as one phrase", () => {
+  it("digits, a no-break space, then the meridiem", () => {
+    const { container } = render(<DayRow e={ev({ start: "20:32" })} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
+    expect(container.querySelector(".sched-time")!.textContent).toBe("8:32\u00a0PM");
+  });
+});

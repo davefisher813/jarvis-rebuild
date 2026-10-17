@@ -1675,7 +1675,7 @@ export default function CategoryDetail({
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the gym
             // block's row starts the session, as its Start pill does.
             <div className="sched-row sched-row-bare" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
-              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All Day</span>}</div>
+              <div className="sched-time">{t ? <>{t.time}{" "}<span className="ampm">{t.ap}</span></> : <span className="ampm">All Day</span>}</div>
               <div className="sched-body">
                 {/* THE TITLE IS THE ROW'S .sched-t, SO IT TAKES THE TWO-LINE WRAP AND ENDS IN AN ELLIPSIS, NEVER A CUT LETTER (Dave
                     2026-09-26; the round-2 review: "Fall Clinic Walkthrou"). The bare div had no clamp to take. */}

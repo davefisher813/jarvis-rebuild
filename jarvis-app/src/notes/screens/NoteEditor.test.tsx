@@ -5,7 +5,7 @@
 // @vitest-environment jsdom
 import "../../shared/tiptapTest";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoteEditor, { type EditorNote } from "./NoteEditor";
 import { blocksToDoc } from "../docModel";
@@ -24,6 +24,31 @@ const NOTE: EditorNote = {
 };
 
 const base = { note: NOTE, onBack: () => {}, onDocChange: () => {} };
+
+// THE PRIMARY FIELD OPENS FOCUSED (the Logging Standard, 2026-10-17): a note
+// made a moment ago opens with the caret in its body; one opened to read
+// stays quiet.
+describe("a fresh note opens writing", () => {
+  // jsdom will not hold focus on a contenteditable, so what is pinned is the
+  // focus call itself landing on the body (ProseMirror focuses its own dom).
+  // The editor autofocuses after it mounts (a timeout, then an animation
+  // frame), so the test waits for the call rather than counting ticks.
+  const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 80)));
+  it("fresh puts the caret in the body; a note opened to read does not", async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    try {
+      const { unmount } = render(<NoteEditor {...base} fresh />);
+      const body = document.querySelector(".doc-pm")!;
+      expect(body).toBeInTheDocument();
+      await waitFor(() => expect(focus.mock.instances, "the body took the caret").toContain(body));
+      unmount();
+      focus.mockClear();
+      render(<NoteEditor {...base} />);
+      await settle();
+      expect(focus.mock.instances).not.toContain(document.querySelector(".doc-pm"));
+    } finally { focus.mockRestore(); }
+  });
+});
 
 describe("the header", () => {
   it("is Back and More; Delete, Connections, Pin, Tags, Archive and the checklist door live inside More", () => {

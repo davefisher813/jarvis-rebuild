@@ -196,6 +196,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-rep, .sched-until:not(.sched-until-btn) { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
+/* ONE CASING FOR THE CONNECTIVE (2026-10-17): "UNTIL 7:00 PM" read in small caps where it could not be tapped and
+   "Until 7:00 PM" where it could, so the same fact changed case from one row to the next. The button keeps its own
+   size and the key colour (it is tappable, ruled.css) and takes the vocabulary's caps. */
+.sched-until-btn { text-transform: uppercase; letter-spacing: var(--track-caps); }
 .sched-firstmove { font-size: var(--t-meta); color: var(--warn); }
 /* The separator between facts on the category line. Dimmer than the facts it
    divides, so it groups without competing. */
@@ -951,6 +955,9 @@ body:has(.focus-screen) .toast-dock { order: 1; transform: translateY(calc(-1 * 
 .quiet-action { background: var(--press-1); border: 0; font-family: var(--f); font-size: var(--t-meta);
   font-weight: var(--w-medium); color: var(--tx-2); min-height: 32px; border-radius: var(--r-pill);
   display: inline-flex; align-items: center; padding: 0 var(--s-3); }
+/* LISTENING IS A LIVE STATE (Dictate, 2026-10-17): the capsule's word turns the key's amber while the microphone is
+   open, the same ink the Now marker wears for a moment that is happening. Colour only; the capsule keeps its shape. */
+.quiet-action[aria-pressed="true"] { color: var(--warn); }
 /* An offer inside a card: primary action sized to its label, quiet dismiss
    beside it. Not .field-row, which stretches its children to fill. */
 .offer-row { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
@@ -1960,7 +1967,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    case and the one wide clock takes the few pixels it needs instead of
    losing them. Tabular figures keep the digits themselves aligned. */
 .rem-time-gutter { flex-shrink: 0; min-width: 56px; white-space: nowrap; font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
-.rem-time-gutter .ampm { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); margin-left: var(--s-0h); }
+.rem-time-gutter .ampm { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); }
 .rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-0h); }
 /* The task row's type, exactly (Dave 2026-09-15: "the font is too big").
    .ruled .task-row .task-title is 16px at --w-regular with -0.01em; this row
@@ -3630,17 +3637,11 @@ button {
    .sched-until-btn already lives by. */
 .sched-time-btn::after { content: ""; position: absolute; inset: -6px -8px -3px; }
 .sched-time-btn:active { color: var(--accent-tx); }
-.time-pop-scrim { position: fixed; inset: 0; z-index: 60; }
-/* BROWSER-F-17 (2026-09-05): under the row, not on it. top: 50% with a
-   translateY(-50%) centred this panel on the row it edits, so the title of the
-   thing being changed was hidden while it was changed, along with the nested
-   task under it. It hangs below now, and DayRow flips it above only when below
-   would run off the screen. */
-.time-pop { position: absolute; left: var(--s-4); top: calc(100% + 6px);
-  z-index: 61; background: var(--surface-3); border: 0.5px solid var(--card-bd);
-  border-radius: var(--r-md); padding: var(--s-2); box-shadow: var(--shadow-float); }
-.time-pop.time-pop-up { top: auto; bottom: calc(100% + 6px); }
-.time-pop-input { width: 150px; height: 40px; }
+/* THE POPOVER IS GONE (2026-10-17). The time-pop rules (the panel, its scrim,
+   its up variant and its input) left with LockedRow's last use of them: the time tap on a
+   protected block opens the Change Time sheet, as an event's has since
+   2026-10-01. Nothing hangs under a row and commits on the first change of a
+   clock input any more. */
 
 /* B3/B5 (2026-08-23): TAP THE UNTIL. Same relationship to .sched-until that
    .sched-time-btn has to .sched-time: the text keeps its exact paint and the
@@ -3780,7 +3781,7 @@ button {
    Measured: the head row goes 52 to 58, and three heads cost 18px of page.
    The ::after below still expands the hit past the paint, and now clears 44
    rather than stopping at 42. */
-.sh2 .see-all.pill-action, .plan-head .see-all.pill-action, .xs-grp .see-all.pill-action, .grp > .see-all.pill-action, .grp-acts > .see-all.pill-action {
+.sh2 .see-all.pill-action, .plan-head .see-all.pill-action, .xs-grp .see-all.pill-action, .grp > .see-all.pill-action, .grp-acts > .see-all.pill-action, .h-hero-head > .see-all.pill-action {
   /* THE CAPSULE RECIPE, NOT A GREY BUTTON WITH A DARK LABEL (2026-10-05, the perfect bar; D3). Head capsules were
      --press-3 with --tx-1 ink while Focus, Clear All and Add All to Calendar (.row-act) and Add Task, Reply (.notice-alt)
      were --capsule-fill with the red label, so one screen drew three recipes in light and two in dark. Every capsule is
@@ -3790,10 +3791,10 @@ button {
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
   min-height: 34px; margin: 0; position: relative;
 }
-[data-theme="light"] .sh2 .see-all.pill-action, [data-theme="light"] .plan-head .see-all.pill-action, [data-theme="light"] .xs-grp .see-all.pill-action, [data-theme="light"] .grp > .see-all.pill-action, [data-theme="light"] .grp-acts > .see-all.pill-action {
+[data-theme="light"] .sh2 .see-all.pill-action, [data-theme="light"] .plan-head .see-all.pill-action, [data-theme="light"] .xs-grp .see-all.pill-action, [data-theme="light"] .grp > .see-all.pill-action, [data-theme="light"] .grp-acts > .see-all.pill-action, [data-theme="light"] .h-hero-head > .see-all.pill-action {
   color: var(--on-light-red);
 }
-.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after, .xs-grp .see-all.pill-action::after, .grp > .see-all.pill-action::after, .grp-acts > .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after, .xs-grp .see-all.pill-action::after, .grp > .see-all.pill-action::after, .grp-acts > .see-all.pill-action::after, .h-hero-head > .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
 /* A SHEET GROUP'S LABEL ROW CARRIES ITS ACTION AT THE RIGHT (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md
    section 2): the group's one capsule, the same one a section head wears, never a row inside the card below it. */
 .grp:has(> .see-all.pill-action), .grp:has(> .grp-acts) { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2h); }
@@ -5791,16 +5792,17 @@ body.selecting .voice-dock { display: none; }
 .receipt-note::placeholder { color: var(--tx-2); }
 
 /* THE FIT SHEET (D5-C, 2026-08-31). The fits line is the sheet's verdict
-   row: what the plan costs vs what the athlete has. Over wears amber (time
-   pressure, never red -- RED IS A VERB), under wears green. On Health's
-   own surfaces, which is where this sheet renders, they take Health's inks
-   for the same meanings (§AM, 2026-09-25): over budget is the Health
-   amber and in range is lime, as every other Health readout draws them. */
+   row: what the plan costs vs what the athlete has. Over wore amber and
+   under wore green until the workout colour code (Dave 2026-10-16): amber
+   is warm-up and green is done on every workout screen, and a budget read
+   is neither, so on Health's own surfaces, where this sheet renders, both
+   are the key's white for a number with no state. The plain .fit-over
+   below is the app-wide fallback and renders nowhere in Health. */
 .fit-line { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-2); }
 .fit-over { color: var(--warn); font-weight: var(--w-semi); }
 .fit-under { color: var(--good); font-weight: var(--w-semi); }
-.sheet-scrim > .card .fit-over, .ruled.health-ruled .fit-over { color: var(--hl-amber-ink); }
-.sheet-scrim > .card .fit-under, .ruled.health-ruled .fit-under { color: var(--hl-lime-ink); }
+.sheet-scrim > .card .fit-over, .ruled.health-ruled .fit-over,
+.sheet-scrim > .card .fit-under, .ruled.health-ruled .fit-under { color: var(--tx-1); }
 /* LIFT DETAIL, D9-A: hand-authored SVG, no charting library -- a viewBox
    scaled to the card's own width, never a fixed pixel size that would clip
    on a narrow phone. */

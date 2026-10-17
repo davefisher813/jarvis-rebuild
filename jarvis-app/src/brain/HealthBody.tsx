@@ -64,7 +64,7 @@ export type RecordsOpen =
 export default function HealthBody({
   program, libraryPrograms, workouts, overview, today, isEvening, gymEvent, findings,
   live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding,
-  logActions, onOpenSettings, sections, more, view, onView, onOpenExercises, onOpenHistory, onOpenWorkout,
+  logActions, onOpenSettings, sections, more, view, onView, onOpenExercises, onOpenHistory, onOpenWorkout, onSameAsLastTime, onLogPast,
 }: {
   program: Program | null;
   /** Every program, archived ones too: what the Exercises page builds from.
@@ -81,6 +81,12 @@ export default function HealthBody({
   onResume?: () => void;
   /** Start a day by id (SCRATCH_DAY_ID for an empty session). */
   onStart: (dayId: string) => void;
+  /** TWO MORE WAYS TO LOG, FROM THE CARD WHERE START LIVES (Dave 2026-10-16,
+   *  T): Same as Last Time repeats the last workout; Log a Past Workout
+   *  backdates one. Both sit behind the card head's Quick Log capsule, two
+   *  taps from Health. Absent, the capsule is not drawn. */
+  onSameAsLastTime?: () => void;
+  onLogPast?: () => void;
   /** Adjust Time: the fit sheet, which previews the changes before the start. */
   onAdjustTime: (dayId: string) => void;
   onOpenGym: () => void;
@@ -106,6 +112,7 @@ export default function HealthBody({
   onView: (v: HealthView) => void;
 }) {
   const [logOpen, setLogOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
   const [nextOpen, setNextOpen] = useState(false);
   const dow = todayDow();
@@ -164,6 +171,10 @@ export default function HealthBody({
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
         <div className="h-hero-head">
           <span className="h-eyebrow">{live ? "Workout in Progress" : "Ready to Train"}</span>
+          {/* The section-level actions live on the head, never alone in a card (catalog rule 12). */}
+          {!live && (onSameAsLastTime || onLogPast) && (
+            <button type="button" className="see-all pill-action" onClick={() => setQuickOpen(true)}>Quick Log</button>
+          )}
         </div>
         {live ? (
           <>
@@ -172,7 +183,8 @@ export default function HealthBody({
               <div className="h-hero-b">
                 <div className="h-hero-t">{workoutTitle(live.dayName)}</div>
                 <div className="facts h-hero-facts">
-                  {live.nextExercise && <span className="fact cyan">{`Next: ${live.nextExercise}`}</span>}
+                  {/* The next lift is a plan, not last time: the row's one grey (the colour code, 2026-10-16). */}
+                  {live.nextExercise && <span className="fact">{`Next: ${live.nextExercise}`}</span>}
                   <span className="fact lime">{lineCase(`${live.logged} logged`)}</span>
                 </div>
               </div>
@@ -409,6 +421,16 @@ export default function HealthBody({
 
       {logOpen && (
         <ActionSheet title="Log Something" actions={logActions.map((a) => ({ label: a.label, onClick: a.onPick }))} onClose={() => setLogOpen(false)} />
+      )}
+      {quickOpen && (
+        <ActionSheet
+          title="Log a Workout"
+          actions={[
+            ...(onSameAsLastTime ? [{ label: "Same as Last Time", onClick: onSameAsLastTime }] : []),
+            ...(onLogPast ? [{ label: "Log a Past Workout", onClick: onLogPast }] : []),
+          ]}
+          onClose={() => setQuickOpen(false)}
+        />
       )}
       {nextOpen && next && createPortal(
         <div className="sheet-scrim" onClick={() => setNextOpen(false)}>

@@ -12,11 +12,12 @@
 import { shortDate } from "../shared/dateFormat";
 import { titleCase } from "../shared/casing";
 import type { HubOverview } from "./hubClient";
+import { clock12 } from "../shared/clock";
 
 export function timeOf(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return clock12(d);
 }
 
 export function dayLabel(iso: string, now: Date = new Date()): string {

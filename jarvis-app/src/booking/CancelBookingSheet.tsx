@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { FormSheet, Group, TextRow, Note, ErrorLine } from "../shared/FormSheet";
 import { mapBooking, type BookingFace } from "./bookedEvents";
+import { clock12 } from "../shared/clock";
 
 const dayWords = (ms: number): string =>
   new Date(ms).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 const timeWords = (ms: number): string =>
   // 12-hour with AM or PM whatever the phone's region says (2026-10-05).
-  new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  clock12(ms);
 
 // CALLING A MEETING OFF (Track 3, 2026-09-19).
 //

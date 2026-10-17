@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Exercise, Workout } from "./types";
 import type { LibraryEntry } from "./library";
-import { classOf, type ClassStore } from "./classify";
+import { classOf, type Classification, type ClassStore } from "./classify";
+import type { CreatedLift } from "./settings";
 import { EQUIPMENT_LABEL, loadStyleOf } from "./equipment";
 import { MUSCLE_LABEL } from "./muscles";
 import { readGymSettings } from "./settings";
@@ -31,7 +32,7 @@ const SUGGESTIONS = 4;
  * Logged", and a control that cannot work is not drawn. The first exercise he
  * adds turns this into the normal session screen.
  */
-export default function EmptyWorkoutScreen({ library, classStore, history, onAddEntry, onAddDraft, onCancel }: {
+export default function EmptyWorkoutScreen({ library, classStore, history, onAddEntry, onAddDraft, onAdopt, onCancel }: {
   library: LibraryEntry[];
   classStore: ClassStore;
   history: Workout[];
@@ -39,14 +40,17 @@ export default function EmptyWorkoutScreen({ library, classStore, history, onAdd
   onAddEntry: (entry: LibraryEntry) => void;
   /** A new exercise made on the Add Exercise sheet. */
   onAddDraft: (draft: Omit<Exercise, "id">) => void;
+  /** A catalog entry picked from the list, adopted (LibraryPickSheet.onAdopt). */
+  onAdopt?: (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => void;
   onCancel: () => void;
 }) {
   const [pickOpen, setPickOpen] = useState(false);
   const [newName, setNewName] = useState<string | null>(null);
-  // Hidden exercises are not offered (UP-ATH-21), the same as every picker.
+  // Hidden exercises are not offered (UP-ATH-21), and neither are archived
+  // ones (2026-10-16): the same default view every picker lists.
   const hidden = new Set(readGymSettings().hiddenKeys ?? []);
   const recent = library
-    .filter((e) => e.lastUsed > 0 && !hidden.has(e.key))
+    .filter((e) => e.lastUsed > 0 && !hidden.has(e.key) && !classOf(classStore, e).archived)
     .sort((a, b) => b.lastUsed - a.lastUsed)
     .slice(0, SUGGESTIONS);
   // With nothing in the library yet the list would be empty, so Add Exercise
@@ -106,6 +110,7 @@ export default function EmptyWorkoutScreen({ library, classStore, history, onAdd
           title="Add Exercise"
           library={library}
           onPick={(entry) => { setPickOpen(false); onAddEntry(entry); }}
+          onAdopt={onAdopt}
           onFreeText={(q) => { setPickOpen(false); setNewName(q); }}
           onCancel={() => setPickOpen(false)}
         />

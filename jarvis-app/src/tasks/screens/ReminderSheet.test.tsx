@@ -15,6 +15,12 @@ describe("ReminderSheet", () => {
   const base = { today: TUE, nowHHMM: "09:00", now: NOW, onCancel: () => {} };
   const cats = [{ id: "c-bridge", name: "Bridge", color: "teal" }];
 
+  // THE PRIMARY FIELD OPENS FOCUSED (the Logging Standard, 2026-10-17).
+  it("a new reminder opens on its words, keyboard up", () => {
+    render(<ReminderSheet {...base} onSave={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByLabelText("Reminder"));
+  });
+
   it("needs words and a time, says which at the field, and writes the explicit schedule", () => {
     const onSave = vi.fn();
     render(<ReminderSheet {...base} onSave={onSave} />);

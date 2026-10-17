@@ -639,13 +639,26 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
   });
 });
 
-describe("BROWSER-F-17: the inline time editor never covers the row it edits", () => {
-  it(".time-pop anchors below the row, with an up variant for the bottom of a list", () => {
-    const down = ruleBody(css(), ".time-pop")!;
-    expect(down, "the popover rule is still there").toBeTruthy();
-    expect(down, "centring on the row is what hid the row").not.toMatch(/top:\s*50%/);
-    expect(down).toMatch(/top:\s*calc\(100% \+/);
-    expect(ruleBody(css(), ".time-pop.time-pop-up")).toMatch(/bottom:\s*calc\(100% \+/);
+// BROWSER-F-17 (2026-09-05) kept the inline time popover from covering the row
+// it edited. AMENDED 2026-10-17: the popover is gone from its last home
+// (LockedRow; DayRow lost it on 2026-10-01). It hung inside the list's clip
+// and its clock input WROTE on the first change, so Escape only closed a panel
+// that had already saved. The time tap is the Change Time sheet on every row.
+describe("the inline time editor is a sheet, not a popover", () => {
+  it("no .time-pop rule remains, and no row draws one", () => {
+    expect(ruleBody(css(), ".time-pop"), "the popover rule").toBeNull();
+    expect(ruleBody(css(), ".time-pop-scrim"), "its scrim").toBeNull();
+    expect(css(), "nor any variant").not.toMatch(/\.time-pop(?![\w-])/);
+    const rows = ["schedule/screens/LockedRow.tsx", "schedule/screens/DayRow.tsx"].map((f) => readFileSync(join(SRC, f), "utf8"));
+    for (const src of rows) {
+      expect(src).not.toMatch(/time-pop/);
+      expect(src, "the time tap opens the draft-holding sheet").toMatch(/<RetimeSheet/);
+    }
+  });
+
+  it("the Until connective is one casing whether or not it can be tapped", () => {
+    expect(ruleBody(css(), ".sched-rep, .sched-until:not(.sched-until-btn)")).toMatch(/text-transform:\s*uppercase/);
+    expect(ruleBody(css(), ".sched-until-btn"), "the tappable one too").toMatch(/text-transform:\s*uppercase/);
   });
 });
 

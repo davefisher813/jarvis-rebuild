@@ -59,7 +59,7 @@ export default function QuickCreateSheet({
     <FormSheet title={meta.title} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label={meta.group}>
         <FieldRow tone={meta.tone} glyph={meta.glyph} value={title} onChange={setTitle} placeholder={meta.placeholder}
-          ariaLabel={meta.title} error={touched && !valid} right={false} onEnter={save} />
+          ariaLabel={meta.title} error={touched && !valid} right={false} onEnter={save} autoFocus />
       </Group>
       <ErrorLine text={touched && !valid ? "Add a name." : null} />
       <Note>Links to this note the moment you save.</Note>

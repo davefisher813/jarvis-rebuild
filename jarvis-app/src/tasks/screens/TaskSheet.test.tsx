@@ -20,6 +20,17 @@ describe("TaskSheet", () => {
     expect(screen.queryByText("Delete Task")).not.toBeInTheDocument();
   });
 
+  // THE PRIMARY FIELD OPENS FOCUSED (the Logging Standard, 2026-10-17): a new
+  // task opens on its name with the keyboard up; an edit opens quiet.
+  it("new mode opens on the task's name; edit mode does not steal focus", () => {
+    const { unmount } = render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByLabelText("Task"));
+    expect(screen.getByLabelText("Task")).toHaveAttribute("data-autofocus");
+    unmount();
+    render(<TaskSheet mode="edit" initial={{ text: "Send Invoice", category: "c2" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Task"));
+  });
+
   // THE CATALOG HARD GATE (Dave 2026-10-05: the grey rectangle round "Add a
   // Reminder"), and his locked row-action model: a section-level action lives
   // in the section head. Add Item is the Checklist group's label row capsule,
@@ -369,7 +380,7 @@ describe("TaskSheet", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
-  it("edit mode: prefilled, delete present and fires", () => {
+  it("edit mode: prefilled, delete present and armed: the first tap asks, the second fires", () => {
     const onDelete = vi.fn();
     render(
       <TaskSheet
@@ -383,8 +394,12 @@ describe("TaskSheet", () => {
     );
     expect(screen.getByText("Edit Task")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Send Invoice")).toBeInTheDocument();
+    // A destructive delete asks first (2026-10-17): one tap arms the row and
+    // writes nothing; the same row, tapped again, deletes once.
     fireEvent.click(screen.getByText("Delete Task"));
-    expect(onDelete).toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Tap Again to Delete"));
+    expect(onDelete).toHaveBeenCalledTimes(1);
   });
 });
 

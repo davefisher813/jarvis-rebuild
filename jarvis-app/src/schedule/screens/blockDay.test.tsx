@@ -37,7 +37,7 @@ describe("the day timeline", () => {
   it("shows the block at its usual time when the day has no exception", () => {
     const { container } = render(page(DAY, rule));
     const row = container.querySelector(".sched-locked")!;
-    expect(row.querySelector(".sched-time")!.textContent).toBe("9:30AM");
+    expect(row.querySelector(".sched-time")!.textContent).toBe("9:30\u00a0AM");
     expect(row.textContent).not.toContain("Just Today");
   });
 
@@ -45,11 +45,11 @@ describe("the day timeline", () => {
     const moved = retimeBlockOn(rule, "bf", DAY, 11 * 60, 12 * 60)!;
     const here = render(page(DAY, moved));
     const row = here.container.querySelector(".sched-locked")!;
-    expect(row.querySelector(".sched-time")!.textContent).toBe("11:00AM");
+    expect(row.querySelector(".sched-time")!.textContent).toBe("11:00\u00a0AM") /* digits, a no-break space, the meridiem (2026-10-17) */;
     expect(row.textContent).toContain("Just Today");
     here.unmount();
     const there = render(page(OTHER, moved));
-    expect(there.container.querySelector(".sched-locked .sched-time")!.textContent).toBe("9:30AM");
+    expect(there.container.querySelector(".sched-locked .sched-time")!.textContent).toBe("9:30\u00a0AM");
     expect(there.container.textContent).not.toContain("Just Today");
   });
 

@@ -43,6 +43,13 @@ export interface LibraryEntry {
   /** Only on a created seed (withCreated): what its sheet planned, for the
    *  picker to pre-fill. A real sighting carries lastSets instead. */
   plan?: CreatedPlan;
+  /** ONLY ON A STARTER ROW (S9, 2026-10-16): an entry from the preloaded
+   *  catalog that the athlete has not made their own yet. It is offered in
+   *  the picker beside their exercises and never exists anywhere else;
+   *  picking it adopts it (libraryView.adoptStarter) and the adopted entry
+   *  carries no `starter`. The muscles ride along so the adoption can write
+   *  them as the exercise's classification. */
+  starter?: { primary: import("./muscles").MuscleGroup; secondary: import("./muscles").MuscleGroup | null };
 }
 
 /** UP-ATH-21 (2026-09-06): exported, so Your Lifts asks the same question
@@ -220,11 +227,9 @@ export function withAliases(library: LibraryEntry[], aliases: Record<string, str
   });
 }
 
-/** Same search, restricted to one measure kind -- the Swap picker only ever
- *  offers a substitute that logs the same way as what it replaces. */
-export function searchLibraryByKind(library: LibraryEntry[], query: string, kind: MeasureKind, limit = 8, hiddenKeys: string[] = []): LibraryEntry[] {
-  return searchLibrary(library.filter((e) => e.kind === kind), query, limit, hiddenKeys);
-}
+// searchLibraryByKind lived here until 2026-10-16: the Swap picker's
+// kind-restricted search. Every picker reads libraryView.pickerRows now, which
+// takes the kind as an option, so there is one search for the pickers.
 
 let seq = 0;
 /** A fresh, opaque identity for a brand-new exercise -- never derived from

@@ -14,8 +14,23 @@ describe("LightsOutScreen: Edit Time", () => {
     // CLEAN ROW (Dave 2026-10-05): no Edit Time capsule; the row itself is the door to the time.
     expect(screen.queryByRole("button", { name: "Edit Time" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText(/^Sat/).closest(".row")!);
+    // A DRAFT, WRITTEN BY SAVE (2026-10-17): a time wheel fires change while it
+    // is still turning, so the change itself is never the write.
     fireEvent.change(screen.getByLabelText("Bedtime time"), { target: { value: "23:15" } });
+    expect(onEditTime).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onEditTime).toHaveBeenCalledTimes(1);
     expect(onEditTime).toHaveBeenCalledWith("l1", new Date("2026-09-12T23:15:00").getTime());
+  });
+
+  it("Cancel on the draft writes nothing and closes the editor", () => {
+    const onEditTime = vi.fn();
+    render(<LightsOutScreen last={{ id: "l1", data: { category: "sleep", at: AT } }} onLog={() => {}} onEditTime={onEditTime} onBack={() => {}} />);
+    fireEvent.click(screen.getByText(/^Sat/).closest(".row")!);
+    fireEvent.change(screen.getByLabelText("Bedtime time"), { target: { value: "22:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onEditTime).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Bedtime time")).toBeNull();
   });
 
   it("offers no way to edit a row still on its way to the store, or without a seam", () => {

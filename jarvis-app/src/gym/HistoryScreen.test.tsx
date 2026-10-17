@@ -89,3 +89,30 @@ describe("History before the workouts have loaded", () => {
     expect(screen.getByText("No Numbers Yet")).toBeInTheDocument();
   });
 });
+
+// TWO WAYS TO LOG, FROM HISTORY (Dave 2026-10-16, T): Same as Last Time and
+// Log a Past Workout were reachable only inside a program day. Two taps here.
+describe("History's Log action", () => {
+  const ws = [workout("w1", "2026-09-12", "Push Day", 47, 12)];
+  it("opens a sheet with both, and each is one more tap", () => {
+    const onSame = vi.fn(), onPast = vi.fn();
+    render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} onSameAsLastTime={onSame} onLogPast={onPast} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log" }));
+    expect(screen.getByText("Log a Workout")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Same as Last Time" }));
+    expect(onSame).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Log" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log a Past Workout" }));
+    expect(onPast).toHaveBeenCalledTimes(1);
+  });
+  it("draws no Log action when the caller offers neither", () => {
+    render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Log" })).toBeNull();
+  });
+  it("the session count is the key's white, never the done green (the colour code)", () => {
+    render(<HistoryScreen workouts={ws} onBack={() => {}} onOpenLift={() => {}} />);
+    expect(document.querySelector(".pill-good")).toBeNull();
+    const count = screen.getByText("1", { selector: ".row-value .fact b" });
+    expect(count).toBeInTheDocument();
+  });
+});

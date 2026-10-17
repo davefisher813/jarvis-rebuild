@@ -84,7 +84,9 @@ describe("populating a day, and the one thing the sheet will not let you do", ()
     expect(lifts, "and the picker comes first").toBeLessThan(author);
     // No row at the foot of the card any more: the doors are not in-list creates.
     expect(flow).not.toContain('<button className="row-create" onClick={() => setSheet({ kind: "fillDay"');
-    expect(flow, "the past-workout editor keeps its own Add Exercise, on its head").toContain("onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>");
+    // AMENDED 2026-10-16 (Dave, K): the past-workout editor's Add Exercise opens the library first and the authoring
+    // sheet only when there is no library to pick from.
+    expect(flow, "the past-workout editor keeps its own Add Exercise, on its head").toContain("onClick={() => (library.length > 0 ? setWorkoutPickOpen(true) : setWorkoutAddOpen(true))}>Add Exercise</button>");
   });
 
   it("the picker still hides on an empty library, where it would open onto nothing", () => {

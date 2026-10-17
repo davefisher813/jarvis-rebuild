@@ -16,6 +16,7 @@ import { agoPhrase } from "./summary";
 import { todayISO } from "../tasks/grouping";
 import { shortDate } from "../shared/dateFormat";
 import InsightEvidence from "../brain/InsightEvidence";
+import { comparableGain, gainLine } from "../insights/findings";
 import { own, rowDoor } from "../shared/rowDoor";
 
 const CHEV = <div className="chev" />;
@@ -174,19 +175,18 @@ export default function LiftDetailScreen({
     return hardSetRows(workouts, new Map([[name, [muscleGroup]]]), now)[0]?.sets ?? 0;
   }, [muscleGroup, name, workouts, now]);
 
-  // WHAT THE ESTIMATE DID OVER THE CHART'S WINDOW (pass-off item 7,
-  // 2026-09-26). The FIRST session's chart value against the LATEST, in the
-  // unit this screen is showing. It used to be an unlabelled "Change" cell
-  // on the Best card, where a reader could not tell it was the change in an
-  // ESTIMATE; it reads under the Trend card's headline now, in the estimate
-  // ink, next to the chart whose two ends produced it.
-  const change = useMemo(() => {
-    if (chartVals.length < 2) return null;
-    const first = chartVals[0]!;
-    const latestV = chartVals[chartVals.length - 1]!;
-    const delta = latestV - first;
-    return { delta, from: first, to: latestV };
-  }, [chartVals]);
+  // WHAT CHANGED, THE ONE NUMBER (Dave 2026-10-16, V). This line used to be
+  // the change in the chart's ESTIMATE between its two ends ("Up 161 Lb")
+  // while the Health hub's finding on the same lift said "+140 Lb", the
+  // comparable gain at one rep count. Two series, two numbers, one lift. The
+  // line reads the hub's series now (insights/findings.comparableGain: same
+  // lift, same rep count, same equipment, same unit) and names the rep count,
+  // so the page and the hub say the same thing in the same words. The
+  // estimate stays the headline above it and is labelled as one.
+  const gain = useMemo(
+    () => (kind === "weight_reps" ? comparableGain(workouts, { name, exerciseKey, kind, unit, timeUnit }) : null),
+    [workouts, name, exerciseKey, kind, unit, timeUnit],
+  );
 
   const goalState = goal?.data.measure?.kind === "lift" ? liftMeasureState(goal.data.measure as LiftMeasure, workouts) : null;
 
@@ -228,11 +228,8 @@ export default function LiftDetailScreen({
   /** The set, cased for display ("185 Lb × 5"); formatSet itself stays
    *  lowercase for the strip's own chips and the receipts that read it. */
   const setLine = (x: import("./types").SetLog) => lineCase(formatSet({ kind, unit, timeUnit }, x));
-  /** The estimate's move over the chart's window, in words. */
-  const moved = change == null ? null
-    : change.delta > 0 ? `Up ${withUnit(Math.round(change.delta * 10) / 10)}`
-    : change.delta < 0 ? `Down ${withUnit(Math.round(-change.delta * 10) / 10)}`
-    : "No Change";
+  /** The comparable gain, in words ("Up 10 Lb at 5 Reps Since Aug 31"). */
+  const moved = gain && gain.delta !== 0 ? gainLine(gain, "word") : null;
 
   return (
     <div className="screen ruled health-ruled">
@@ -309,7 +306,8 @@ export default function LiftDetailScreen({
               <div className="row"><div className="row-grow"><div className="conn-meta">Trend Starts at Workout 2</div></div></div>
             </div></div>
           ) : (
-            <div className="pad-x"><div className="card pad banner-blue">
+            // The card is plain (2026-10-16): its teal wash said last time about a trend.
+            <div className="pad-x"><div className="card pad">
               <div className="row-stack">
                 {/* THE INSIGHT, CLEAN (pass-off item 7, 2026-09-26; Dave:
                     "rendered nice and clean and simple"). An 11px caps
@@ -326,11 +324,11 @@ export default function LiftDetailScreen({
                   : kind === "weight_reps"
                     ? <span className="fact est">{withUnit(latest)}</span>
                     : withUnit(latest)}</div>
-                {/* What it did over the chart's window, in the same ink: one
-                    fact, no goal read, no prompt (the no-predicted-max rule
-                    stands). */}
-                {kind === "weight_reps" && moved && (
-                  <div className="facts"><span className="fact est">{moved}</span></div>
+                {/* The comparable gain, a recorded fact and not an estimate, so
+                    the row's one grey: one fact, no goal read, no prompt (the
+                    no-predicted-max rule stands). */}
+                {moved && (
+                  <div className="facts"><span className="fact">{moved}</span></div>
                 )}
               </div>
               <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
@@ -340,8 +338,8 @@ export default function LiftDetailScreen({
                 {pts.map((p, i) => prs.has(i) ? (
                   <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--good)" />
                 ) : null)}
-                {/* H-34: the tapped point, in the reading hue. */}
-                {sel != null && pts[sel] && <circle cx={pts[sel]!.x} cy={pts[sel]!.y} r={4.5} fill="var(--hl-cyan)" />}
+                {/* H-34: the tapped point, in the key's white (a selection, not last time). */}
+                {sel != null && pts[sel] && <circle cx={pts[sel]!.x} cy={pts[sel]!.y} r={4.5} fill="var(--tx-1)" />}
                 {/* Each point has a hit area wider than its dot, and answers
                     the keyboard; no axes are drawn (H-34). */}
                 {pts.map((p, i) => (
@@ -366,13 +364,14 @@ export default function LiftDetailScreen({
               )}
               {/* Three facts in one grey run-on, and the two that matter --
                   how many sessions and how many bests -- were at the end of
-                  it. Chips, aligned, the PR count in the ramp's lime. */}
+                  it. Chips, aligned: the count neutral (it wore the teal that
+                  means last time), the PR count gold (Dave 2026-10-16). */}
               <div className="se-chips">
                 {/* Both ends as dates, the way the Best card states the
                     same span, so the page says one range one way. */}
                 <span className="se-chip se-chip-when">{shortDate(sessions[0]!.date)} to {shortDate(sessions[sessions.length - 1]!.date)}</span>
-                <span className="se-chip se-chip-last">{sessions.length}<em>Workouts</em></span>
-                {prs.size > 0 && readHealthSettings().celebrations && <span className="se-chip se-chip-best">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
+                <span className="se-chip se-chip-when">{sessions.length}<em>Workouts</em></span>
+                {prs.size > 0 && readHealthSettings().celebrations && <span className="se-chip se-chip-pr">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
               </div>
               {/* Epley, and what the number is not, one tap away: the same
                   receipt every finding opens (polish rule 3, 2026-09-16:
@@ -716,7 +715,8 @@ export default function LiftDetailScreen({
                   <div className="conn-name">{setLine(shownTop(s))}</div>
                   <div className="conn-meta">{agoPhrase(s.date, todayIso)}</div>
                 </div>
-                {prs.has(sessions.indexOf(s)) && <span className="pill pill-good">PR</span>}
+                {/* Gold is a PR and nothing else (Dave 2026-10-16); it wore the done green. */}
+                {prs.has(sessions.indexOf(s)) && <span className="se-pr">PR</span>}
               </div>
             ))}
           </div></div>

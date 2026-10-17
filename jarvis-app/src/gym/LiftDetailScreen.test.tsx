@@ -183,15 +183,17 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
   const two = [workout("2026-08-26", [{ name: "Incline Press", sets: 3 }]), workout("2026-09-02", [{ name: "Incline Press", sets: 3 }])];
 
   // AMENDED 2026-09-26 (pass-off item 7): the card is the insight, clean.
-  // A caps kicker names the number, the estimate and its move over the
-  // window wear the estimate ink, and Epley with the caveat sit behind
-  // Evidence. The second capsule and the unlabelled Change cell are gone.
-  it("names the estimate with a kicker, states its move, and keeps Epley behind Evidence", () => {
+  // A caps kicker names the number, the estimate wears the estimate ink, and
+  // Epley with the caveat sit behind Evidence. The second capsule and the
+  // unlabelled Change cell are gone.
+  // AMENDED 2026-10-16 (Dave, V): the estimate's own move ("Up 161 Lb") is
+  // not said any more; the one change line is the comparable gain at its rep
+  // count, the hub's number, and two equal sessions have none to state.
+  it("names the estimate with a kicker, says no move when nothing changed, and keeps Epley behind Evidence", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
     expect(screen.queryByText(/not a tested max/)).not.toBeInTheDocument();
     expect(screen.getByText("Estimated Max")).toHaveClass("eyebrow");
-    const move = screen.getByText(/^(Up|Down) \d+(\.\d+)? Lb$|^No Change$/);
-    expect(move).toHaveClass("fact", "est");
+    expect(screen.queryByText(/^(Up|Down) \d+(\.\d+)? Lb$|^No Change$/)).toBeNull();
     expect(screen.queryByText("Estimated One-Rep Max")).not.toBeInTheDocument();
     expect(screen.queryByText("Change")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
@@ -246,5 +248,26 @@ describe("LiftDetailScreen: best recorded set and milestones", () => {
     expect(screen.queryByText("Estimated One-Rep Max")).not.toBeInTheDocument();
     expect(screen.getByText("158 Lb")).toHaveClass("fact", "est");
     expect(screen.getByText("First Workout")).toBeInTheDocument();
+  });
+});
+
+// ONE NUMBER (Dave 2026-10-16, V). The Health hub said "+140 Lb" (the top
+// weight at one rep count) and this page said "Up 161 Lb" (the change in the
+// chart's estimate) about one lift. Both read the comparable gain now and both
+// name the rep count; the estimate stays the headline and is labelled as one.
+describe("LiftDetailScreen says the hub's gain, not the estimate's change", () => {
+  it("reads the comparable gain at its rep count, in the hub's own words", async () => {
+    const { comparableGain, gainLine } = await import("../insights/findings");
+    const ws: Workout[] = [
+      { id: "a", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-08-24", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Incline Press", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 125, r: 2 }] }] } },
+      { id: "b", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-08-31", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Incline Press", kind: "weight_reps", unit: "lb", sets: [{ id: "s2", w: 265, r: 2 }] }] } },
+    ];
+    render(<LiftDetailScreen {...base} workouts={ws} />);
+    const g = comparableGain(ws, { name: "Incline Press", kind: "weight_reps", unit: "lb" })!;
+    expect(screen.getByText(gainLine(g, "word"))).toBeInTheDocument();
+    expect(screen.getByText("Up 140 Lb at 2 Reps Since Aug 24")).toBeInTheDocument();
+    // The estimate's own change (Epley: 133 to 283, "Up 150 Lb") is no longer said.
+    expect(screen.queryByText(/^Up 150 Lb/)).toBeNull();
+    expect(screen.queryByText(/^Up \d+ Lb$/)).toBeNull();
   });
 });

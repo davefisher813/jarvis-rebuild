@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { clock12 } from "../shared/clock";
 
 // GIVING THE HOUR BACK (Track 3, 2026-09-19). The second screen with no session
 // behind it, reached only from the link in a visitor's own confirmation email.
@@ -36,7 +37,7 @@ type Phase =
 const dayLabel = (ms: number): string =>
   new Date(ms).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 const timeLabel = (ms: number): string =>
-  new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  clock12(ms);
 
 /** The meeting in one line, on the visitor's clock, or null when the times did
  *  not survive the trip. A screen with no time on it is still honest; a screen

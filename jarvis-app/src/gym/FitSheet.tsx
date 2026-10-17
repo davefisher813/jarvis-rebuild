@@ -98,16 +98,19 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
               {doable.map((e) => {
                 const on = !(plan.skip ?? []).includes(e.id);
                 return (
-                  <div className="row" key={e.id} onClick={() => toggleEx(e.id)}>
-                    <div className="task-check-tap" role="checkbox" aria-checked={on}
-                      aria-label={`${liftTitle(e.name)}, ${on ? "doing today" : "not today"}`}
-                      onClick={own(() => toggleEx(e.id))}>
-                      <div className={"task-check" + (on ? " done" : "")} />
-                    </div>
+                  // A PICK, NOT A COMPLETION (Dave 2026-10-16, the colour code: green is
+                  // done). This row wore the task checkbox and its done green before a
+                  // single set was logged. The mark is the picker's own, the neutral
+                  // Picked chip PickSheet draws, and green waits for the work.
+                  <div className="row" key={e.id} role="checkbox" aria-checked={on} tabIndex={0}
+                    aria-label={`${liftTitle(e.name)}, ${on ? "doing today" : "not today"}`}
+                    onClick={() => toggleEx(e.id)}
+                    onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggleEx(e.id); } }}>
                     <div className="row-grow">
                       <div className={"conn-name truncate" + (on ? "" : " fit-off")}>{liftTitle(e.name)}</div>
                     </div>
                     <span className="conn-meta">{e.cond ? "Clock" : `${e.sets.length} \u00d7 ${e.sets[0]?.r ?? ""}`}</span>
+                    <span className={"chip" + (on ? " active" : "")} aria-hidden="true">{on ? "Picked" : "Pick"}</span>
                   </div>
                 );
               })}

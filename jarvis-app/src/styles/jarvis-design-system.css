@@ -440,6 +440,16 @@
      4.67/4.71). The vivid six above are untouched and still wear every
      numeral, which is what Dave picked. */
   --hl-pink-ink: #FF537B; --hl-violet-ink: #D179FF; --hl-blue-ink: #1E98FF;
+  /* THE WORKOUT COLOUR CODE (Dave 2026-10-16, like Apple Health: every colour
+     has ONE fixed meaning on every workout screen, never decoration). Two
+     meanings the six-hue ramp had no slot for: BEST (a standing best number)
+     is purple, distinct from --hl-violet, which stays equipment, pair and
+     budget; PR (a personal record, and nothing else) is gold. Ink on its own
+     tint over the card and on the raised surface, measured: best 6.48 / 7.42,
+     gold 7.98 / 10.46. Black on the gold fill 14.9, so the PR pill keeps
+     --on-fill-dark. */
+  --hl-best: #B48CFF; --hl-best-tint: rgba(180,140,255,0.16); --hl-best-ink: #C7A9FF;
+  --hl-gold: #FFD60A; --hl-gold-tint: rgba(255,214,10,0.16); --hl-gold-ink: #FFD60A;
   /* --tint is the colour of things that are tappable but are not buttons: the
      nav "+", back chevrons, links, sliders, steppers, action-sheet items.
      It was blue here and red in light theme, so the same control changed
@@ -720,6 +730,12 @@
      that before a screenshot did. */
   --hl-lime-ink: #4A6E02; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
   --hl-amber-ink: #995300; --hl-violet-ink: #7E22CE; --hl-blue-ink: #0A5DC2;
+  /* BEST and PR in light (the 2026-10-16 colour code): the same two meanings,
+     shaded for white. Ink on its own tint over white and on the raised
+     surface, measured: best 6.43 / 6.35, gold 6.60 / 6.05; black on the gold
+     fill 9.77. */
+  --hl-best: #7C3AED; --hl-best-tint: rgba(124,58,237,0.14); --hl-best-ink: #6428C4;
+  --hl-gold: #E0A800; --hl-gold-tint: rgba(224,168,0,0.18); --hl-gold-ink: #6B5000;
   --good-fill: #26A153; --warn-fill: #FF8D0A;
   --yellow: #FAC800; --teal: #27CEC8; --mint: #00C7BE; --pink: #FF6682;
   /* JARVIS RED, LIGHT (Dave 2026-09-27, catalog §AQ): "I hate it. Make all
@@ -1150,7 +1166,11 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    same shape of bug as the military-time one: a shared span whose styling
    only existed under one parent. It is now the class's own rule, so a new
    surface that prints a time gets it for free. */
-.ampm { font-size: var(--t-micro); color: var(--tx-3); font-weight: var(--w-regular); margin-left: var(--s-1); letter-spacing: 0.3px; }
+/* THE GAP IS A CHARACTER, NOT A MARGIN (2026-10-17). The markup puts a no-break
+   space between the digits and the span, so the text reads "8:32 PM" when it is
+   copied, read aloud or asserted on; the margin that drew the same gap went,
+   or the time would have shown two. */
+.ampm { font-size: var(--t-micro); color: var(--tx-3); font-weight: var(--w-regular); letter-spacing: 0.3px; }
 /* min-width:0 is load-bearing, not tidiness (2026-08-21). A flex item will
    not shrink below its content's min-content width without it, so a long
    title or a nested row pushed .sched-body past the card and everything

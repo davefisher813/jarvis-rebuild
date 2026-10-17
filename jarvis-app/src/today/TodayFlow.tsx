@@ -1155,9 +1155,9 @@ export default function TodayFlow({
     });
   };
 
-  const onRetimeBlock = async (id: string, startMin: number) => {
+  const onRetimeBlock = async (id: string, startMin: number, endMin?: number) => {
     const before = routineData;
-    const after = retimeBlockForDate(before, id, planDate, startMin);
+    const after = retimeBlockForDate(before, id, planDate, startMin, endMin);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;

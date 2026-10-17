@@ -331,8 +331,10 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     // AMENDED 2026-09-16: the count leads the line and the noun wears the
     // quiet ink, so the chip is drawn from parts instead of one string. The
     // string survives as the label a screen reader speaks.
-    expect(rendered).toMatch(/<span className="fact cyan" aria-label=\{planChipText\(exercise\)\}>/);
-    expect(rendered).toMatch(/\{plan\.count\}<em className="fw">\{plan\.noun\}<\/em>\{plan\.target\}/);
+    // AMENDED 2026-10-16 (the workout colour code): a plan is a number with no state, so the key's white <b>, not the
+    // teal that now means last time.
+    expect(rendered).toMatch(/<span className="fact" aria-label=\{planChipText\(exercise\)\}>/);
+    expect(rendered).toMatch(/<b>\{plan\.count\}<em className="fw">\{plan\.noun\}<\/em>\{plan\.target\}<\/b>/);
     // AMENDED 2026-09-26 (§AK, sweep #265/#619, settled by the lead): the
     // athlete's quoted note is the row's one grey, so the rest cannot be a
     // second plain grey run. "1:30 rest" is a length with no state that

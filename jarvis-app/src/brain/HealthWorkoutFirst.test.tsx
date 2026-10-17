@@ -123,3 +123,28 @@ describe("Recent Workouts", () => {
     expect(screen.queryByText("Recent Workouts")).toBeNull();
   });
 });
+
+// QUICK LOG (Dave 2026-10-16, T): Same as Last Time and Log a Past Workout,
+// two taps from the card where Start lives, on its head and never alone in a
+// card (catalog rule 12).
+describe("the Start card's Quick Log", () => {
+  it("is a head capsule that opens both, each one more tap", () => {
+    const onSame = vi.fn(), onPast = vi.fn();
+    render(<HealthBody {...base} onSameAsLastTime={onSame} onLogPast={onPast} />);
+    const quick = screen.getByRole("button", { name: "Quick Log" });
+    expect(quick.closest(".h-hero-head"), "on the card's head").not.toBeNull();
+    fireEvent.click(quick);
+    fireEvent.click(screen.getByRole("button", { name: "Same as Last Time" }));
+    expect(onSame).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Quick Log" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log a Past Workout" }));
+    expect(onPast).toHaveBeenCalledTimes(1);
+  });
+  it("is not drawn without the wiring, nor while a workout is open", () => {
+    const { unmount } = render(<HealthBody {...base} />);
+    expect(screen.queryByRole("button", { name: "Quick Log" })).toBeNull();
+    unmount();
+    render(<HealthBody {...base} onSameAsLastTime={() => {}} live={{ dayName: "push", logged: 2, nextExercise: null, setNo: 1, setTotal: 3 }} />);
+    expect(screen.queryByRole("button", { name: "Quick Log" })).toBeNull();
+  });
+});

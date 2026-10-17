@@ -11,6 +11,12 @@ describe("QuickCreateSheet", () => {
     expect(screen.getByPlaceholderText("What needs doing?")).toBeInTheDocument();
   });
 
+  // THE PRIMARY FIELD OPENS FOCUSED (the Logging Standard, 2026-10-17).
+  it("opens on its one field, keyboard up", () => {
+    render(<QuickCreateSheet kind="task" onCreate={() => {}} onCancel={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByPlaceholderText("What needs doing?"));
+  });
+
   it("blocks save on an empty name, shows the error, then creates trimmed", () => {
     const onCreate = vi.fn();
     render(<QuickCreateSheet kind="event" onCreate={onCreate} onCancel={() => {}} />);

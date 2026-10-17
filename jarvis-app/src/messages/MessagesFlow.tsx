@@ -195,6 +195,7 @@ import { useOptionalLedger, useOptionalTasks, useOptionalSchedule, useOptionalPe
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
 import { clockLabel, minutesLabel, secondsLabel, spanLabel } from "../shared/duration";
+import { clock12 } from "../shared/clock";
 
 // sourceRevision and overrides are REPLY COVERAGE'S: the conversation revision a
 // reply was started against (with threadId and account, the source it answers),
@@ -286,7 +287,7 @@ function fmtWhen(ms: number): string {
   const d = new Date(ms);
   const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    return clock12(d);
   }
   return shortDateFromMs(ms);
 }
@@ -796,6 +797,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [composeKey, setComposeKey] = useState(0);
   // Speak targets the editor surface itself: focus lands where the words go.
   const dictateTarget = useMemo<React.RefObject<HTMLElement | null>>(() => ({ get current() { return composeEditor.current?.getDom() ?? null; } }), []);
+  // DICTATION INTO THE COMPOSE BODY (2026-10-17). The phrase being said is one
+  // range in the document, replaced as it changes and left where it is when it
+  // settles; a range the person has since edited is not touched, and the next
+  // phrase goes in at the caret. Nothing here sends: Send is still the tap.
+  const spokenRange = useRef<{ from: number; to: number; text: string } | null>(null);
+  const speakInto = (words: string, final: boolean) => {
+    const h = composeEditor.current;
+    const ed = h?.editor;
+    if (!h || !ed) return;
+    const r = spokenRange.current;
+    const atRange = !!r && h.textAt(r.from, r.to) === r.text;
+    const from = atRange ? r.from : ed.state.selection.to;
+    const before = ed.state.doc.textBetween(Math.max(1, from - 1), from, "\n", " ");
+    const text = before && !/\s$/.test(before) ? " " + words : words;
+    const content = [{ type: "paragraph", content: [{ type: "text", text }] }];
+    if (atRange) h.replaceRange(r.from, r.to, content); else h.insertAtCaret(content);
+    spokenRange.current = final ? null : { from, to: from + text.length, text };
+  };
   const beginCompose = (d: Draft) => { setDraft(d); setComposeKey((k) => k + 1); };
   const [thread, setThread] = useState<ThreadFull | null>(null);
   // UP-MIND-12: the message an evidence chip sent us to, for one open.
@@ -3963,7 +3982,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* UP-MIND-26 (2026-09-05): speak it instead of thumbing it. The
               words land in this box and go out on the same tap they always
               did. */}
-          <div className="row mail-chips"><Dictate target={dictateTarget} /></div>
+          <div className="row mail-chips"><Dictate target={dictateTarget} onText={speakInto} /></div>
 
           {/* REPLY COVERAGE: "Answered 3 of 4", a checklist behind a tap. It
               reads the words already typed, locally, and never blocks Send. */}

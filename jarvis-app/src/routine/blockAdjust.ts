@@ -55,12 +55,14 @@ export function shiftBlock(routine: RoutineData, id: string, mins: number): Rout
 }
 
 // Retime to an exact start (the time tap): length is preserved, same as an
-// event's move-to-exact-time.
-export function retimeBlock(routine: RoutineData, id: string, startMin: number): RoutineData | null {
+// event's move-to-exact-time. With `endMin` (the Change Time sheet changed
+// the length too, 2026-10-17) both ends land in the same write, so the move
+// is one Undo.
+export function retimeBlock(routine: RoutineData, id: string, startMin: number, endMin?: number): RoutineData | null {
   return withBlock(routine, id, (b) => {
     const dur = b.endMin - b.startMin;
     const s = clamp(startMin);
-    return { ...b, startMin: s, endMin: clamp(s + dur) };
+    return { ...b, startMin: s, endMin: clamp(endMin ?? s + dur) };
   });
 }
 
@@ -171,12 +173,12 @@ export function shiftBlockForDate(routine: RoutineData, id: string, date: string
   return r === undefined ? shiftBlock(routine, id, mins) : r;
 }
 
-export function retimeBlockForDate(routine: RoutineData, id: string, date: string, startMin: number): RoutineData | null {
+export function retimeBlockForDate(routine: RoutineData, id: string, date: string, startMin: number, endMin?: number): RoutineData | null {
   const r = dayEdit(routine, id, date, (cur) => {
     const s = clamp(startMin);
-    return { startMin: s, endMin: clamp(s + (cur.endMin - cur.startMin)) };
+    return { startMin: s, endMin: clamp(endMin ?? s + (cur.endMin - cur.startMin)) };
   });
-  return r === undefined ? retimeBlock(routine, id, startMin) : r;
+  return r === undefined ? retimeBlock(routine, id, startMin, endMin) : r;
 }
 
 export function resizeBlockForDate(routine: RoutineData, id: string, date: string, endMin: number): RoutineData | null {

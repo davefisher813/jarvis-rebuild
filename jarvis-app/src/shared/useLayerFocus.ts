@@ -30,6 +30,14 @@ import { LAYER_SELECTOR } from "./useSheetEscape";
 //
 // An input the sheet itself autofocuses wins: if focus is already inside the
 // layer when this notices it, it is left alone.
+//
+// WHICH CONTROL, WHEN NOTHING HAS IT YET (the Logging Standard, 2026-10-17):
+// the first focusable in every sheet is the bar's Cancel, so a sheet that
+// opened without its own autofocus (or whose autofocus fired before the layer
+// was in the DOM) put the keyboard nowhere and the focus ring on the one
+// control nobody opened the sheet for. The order is now: the control the sheet
+// marked `[data-autofocus]`, else the first typed field (an input or textarea),
+// else the first focusable.
 
 const FOCUSABLE = [
   "a[href]", "button:not([disabled])", "input:not([disabled]):not([type=hidden])",
@@ -46,6 +54,9 @@ function visibleFocusables(root: HTMLElement): HTMLElement[] {
     return cs.visibility !== "hidden" && cs.display !== "none";
   });
 }
+
+/** An input that takes typing, as opposed to a checkbox, a radio or a button. */
+const TYPED = /^(text|search|email|url|tel|password|number|date|time|datetime-local|month)$/;
 
 /** The topmost open layer, by the same roster Escape uses. */
 function topLayer(): HTMLElement | null {
@@ -66,7 +77,10 @@ export function useLayerFocus(): void {
       // Only remember something that can be focused again later.
       returnTo = active && active !== document.body ? active : null;
       if (active && layer.contains(active)) return; // the sheet autofocused; leave it
-      const first = visibleFocusables(layer)[0];
+      const items = visibleFocusables(layer);
+      const first = items.find((e) => e.hasAttribute("data-autofocus"))
+        ?? items.find((e) => e instanceof HTMLTextAreaElement || (e instanceof HTMLInputElement && TYPED.test(e.type)))
+        ?? items[0];
       first?.focus();
     };
 

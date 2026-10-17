@@ -81,7 +81,10 @@ describe("§AN: one logging flow", () => {
   it("the warm-up is a side of the Now card: no ramp rows, a Work | Warm-Up pill, one flag", () => {
     const screen = read("gym/SessionScreen.tsx");
     expect(screen, "the ramp is not counted off by how many warm-ups are logged").not.toMatch(/rampLeft|rampLogged/);
-    expect(screen, "the session decides the side through the ramp module").toMatch(/startsInWarmUp\(ramp, logged\)/);
+    // AMENDED 2026-10-17 (Dave 2026-10-15, defect I): the ramp module also
+    // reads his own prior warm-ups, so the call carries them; the session
+    // still decides the side through that one module.
+    expect(screen, "the session decides the side through the ramp module").toMatch(/startsInWarmUp\(ramp, logged, priorWarmups\)/);
     expect(screen, "the pill flips the side").toMatch(/onNowMode=\{flipMode\}/);
     expect(screen, "and the button and the write follow it").toMatch(/logButtonLabel\([^)]*pending, warm\)/);
     expect(screen).toMatch(/\.\.\.\(warm \? \{ warmup: true \} : \{\}\)/);

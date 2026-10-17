@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { clock12 } from "../shared/clock";
 
 // THE BOOKING PAGE (Track 3, 2026-09-19). What a stranger sees.
 //
@@ -37,7 +38,7 @@ const localZone = (): string => {
 const dayLabel = (ms: number): string =>
   new Date(ms).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 const timeLabel = (ms: number): string =>
-  new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  clock12(ms);
 
 /** The slots grouped into the visitor's own days, because a slot's date on
  *  the owner's calendar can be yesterday or tomorrow on the visitor's. */

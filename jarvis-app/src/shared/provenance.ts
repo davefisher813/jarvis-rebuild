@@ -11,6 +11,7 @@
 // (same precedent as projectId and bill on TaskData).
 
 import { shortDateFromMs } from "./dateFormat";
+import { clock12 } from "./clock";
 
 export type SourceType =
   | "paste"
@@ -235,7 +236,7 @@ export function sourceWhen(source: Source | undefined, now: () => number = Date.
   if (!sourceLabel(source) || !source) return null;
   const d = new Date(source.ts);
   return sameDay(d, new Date(now()))
-    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    ? clock12(d)
     : shortDateFromMs(source.ts);
 }
 

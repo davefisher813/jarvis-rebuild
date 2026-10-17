@@ -225,6 +225,7 @@ export default function TaskSheet({
   // a task, so two taps created two. The first valid tap latches; every tap
   // after that, while this sheet is still mounted, is a no-op.
   const [saving, setSaving] = useState(false);
+  const [delArmed, setDelArmed] = useState(false);
   // SHOWN IN TITLE CASE, SAVED IN TITLE CASE (Dave 2026-10-05): a title typed months ago in whatever case the keyboard felt
   // like reads right here, and Save writes it cased (the write door).
   const [text, setText] = useState(initial?.text ? titleCase(initial.text) : "");
@@ -529,6 +530,9 @@ export default function TaskSheet({
                 placeholder="What needs doing?"
                 aria-label="Task"
                 value={text}
+                /* A new task opens on its name, keyboard up (the Logging Standard, 2026-10-17); an edit opens quiet. */
+                autoFocus={mode === "new"}
+                data-autofocus={mode === "new" || undefined}
                 onChange={(e) => { setText(e.target.value); if (err) setErr(false); }}
               />
             </div>
@@ -898,10 +902,16 @@ export default function TaskSheet({
             </>)}
           </div></div>
           {/* THE DESTRUCTIVE ROW IS ITS OWN CARD (2026-10-05): it sat as the last row of the navigation card, so the one verb that
-              cannot be undone read as another door. */}
+              cannot be undone without a second thought read as another door. ARMED, LIKE EVERY OTHER DELETE (2026-10-17): a
+              destructive delete asks first, and here one tap deleted the task outright; the flow's Undo toast was the only net.
+              Same two-tap pattern as Delete Area and Delete Goal: the first tap turns the row into "Tap Again to Delete", the
+              second deletes, and the toast with Undo stays. The swipe on the list row stays Undo-only; that is a deliberate
+              gesture, not a tap that may have missed. */}
           {mode === "edit" && onDelete && (
             <div className="pad-x xs-actions xs-del-card"><div className="card xs-group">
-              <button className="row xs-row xs-del" onClick={onDelete}>Delete Task</button>
+              <button className="row xs-row xs-del" onClick={() => { if (delArmed) onDelete(); else setDelArmed(true); }}>
+                {delArmed ? "Tap Again to Delete" : "Delete Task"}
+              </button>
             </div></div>
           )}
           <div className="xs-foot" />

@@ -9,6 +9,7 @@ import { spanLabel } from "../shared/duration";
 import { durationOf } from "../insights/analytics";
 import { todayISO } from "../tasks/grouping";
 import SkeletonRows from "../shared/SkeletonRows";
+import ActionSheet from "./ActionSheet";
 
 const CHEV = <div className="chev" />;
 
@@ -61,7 +62,7 @@ export function GymLoadState({ status, what, onRetry }: { status: "loading" | "f
   );
 }
 
-export default function HistoryScreen({ workouts, status = "ready", onRetry, onBack, onOpenLift, onOpenWorkout, mode: modeProp, onMode }: {
+export default function HistoryScreen({ workouts, status = "ready", onRetry, onBack, onOpenLift, onOpenWorkout, onSameAsLastTime, onLogPast, mode: modeProp, onMode }: {
   workouts: Workout[]; onBack: () => void;
   /** Whether `workouts` is the answer yet (see GymLoadState). Defaults to
    *  ready for callers that hand in a list they already hold. */
@@ -78,7 +79,14 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
    *  from a workout opened under Sessions lands on Sessions. */
   mode?: "lifts" | "sessions";
   onMode?: (mode: "lifts" | "sessions") => void;
+  /** TWO WAYS TO LOG, FROM HISTORY (Dave 2026-10-16, T): Same as Last Time
+   *  and Log a Past Workout were reachable only from inside a program day.
+   *  Both sit behind the nav bar's one Log action here, two taps from the
+   *  screen that lists what was logged. Absent, the action is not drawn. */
+  onSameAsLastTime?: () => void;
+  onLogPast?: () => void;
 }) {
+  const [logOpen, setLogOpen] = useState(false);
   const [modeState, setModeState] = useState<"lifts" | "sessions">(modeProp ?? "lifts");
   const mode = modeProp ?? modeState;
   const setMode = (m: "lifts" | "sessions") => { setModeState(m); onMode?.(m); };
@@ -111,7 +119,20 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">History</div>
+        {(onSameAsLastTime || onLogPast) && (
+          <button type="button" className="nav-action-text" onClick={() => setLogOpen(true)}>Log</button>
+        )}
       </div>
+      {logOpen && (
+        <ActionSheet
+          title="Log a Workout"
+          actions={[
+            ...(onSameAsLastTime ? [{ label: "Same as Last Time", onClick: onSameAsLastTime }] : []),
+            ...(onLogPast ? [{ label: "Log a Past Workout", onClick: onLogPast }] : []),
+          ]}
+          onClose={() => setLogOpen(false)}
+        />
+      )}
 
       <div className="pad-x">
         <div className="segmented">
@@ -187,8 +208,9 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
                 <div className="facts"><span className="fact cyan">{trendLine(r)}</span></div>
               </div>
               <Sparkline workouts={workouts} name={r.name} exerciseKey={r.exerciseKey} kind={r.kind} />
-              {/* V2 anatomy: the session count is a pill, not prose. */}
-              <span className="pill pill-good">{r.sessions}</span>
+              {/* The session count is a number with no state, so it is the key's white (§AM);
+                  it wore the done green, which means done (Dave 2026-10-16). */}
+              <div className="row-value"><span className="fact"><b>{r.sessions}</b></span></div>
               {CHEV}
             </div>
           ))}

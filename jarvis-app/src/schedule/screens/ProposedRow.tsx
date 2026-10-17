@@ -153,7 +153,7 @@ export default function ProposedRow({
               times. One left edge for all times, one event column; that is the established schedule geometry."). This
               replaces the 2026-10-05 two-line shape that led the details line with the time. The row is an event row now:
               the check in the star's slot, the time, then the title with "PROPOSED · 30 Min" under it. */}
-          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+          <div className="sched-time">{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></div>
           <div className="sched-body">
             <div className="sched-title"><span className="sched-t">{title}</span></div>
             {!plain && (
