@@ -53,21 +53,38 @@ describe("Start Workout leads the Health page", () => {
     expect(screen.getByText("Ready to Train")).toBeInTheDocument();
   });
 
-  it("with a program, still starts an empty workout, and offers the program's next day as a row under it", () => {
+  // THE START SURFACE IS ONE ACTION (Dave 2026-10-17: "Log It as You Go" and "Up Next" are the same thing; the card IS the
+  // one action and must be advertised, full prominent button treatment, not a quiet subtext line under a heading; everything
+  // else gets the standard small treatment). The board's grey next-day line (2026-10-16, screen 6) is overridden by his words.
+  it("with a program, the next day IS the red button, two lines in white, and one tap starts that day", () => {
     const onStart = vi.fn();
-    render(<HealthBody {...base} program={program} onStart={onStart} />);
-    fireEvent.click(screen.getByRole("button", { name: "Start Workout" }));
+    const { container } = render(<HealthBody {...base} program={program} onStart={onStart} />);
+    const go = screen.getByRole("button", { name: /^Start Push/ });
+    expect(go).toHaveClass("btn", "btn-primary", "btn-launch", "btn-lg", "btn-block", "h-hero-go");
+    expect(go.querySelector(".h-hero-go-t")!.textContent).toBe("Start Push");
+    // The facts ride inside the button as facts spans (the dots are the CSS's), never a grey line under a heading.
+    const facts = [...go.querySelectorAll(".facts > .fact")].map((f) => f.textContent);
+    expect(facts[0]).toBe("Next in Your Program");
+    expect(facts).toContain("1 Exercise");
+    for (const f of go.querySelectorAll(".fact")) expect(f.className).toBe("fact");
+    expect(container.querySelector(".h-hero-next")).toBeNull();
+    expect(screen.queryByText("Log It as You Go"), "the button says it; the words are not said twice").toBeNull();
+    fireEvent.click(go);
+    expect(onStart).toHaveBeenLastCalledWith("d1");
+    // Under it, the standard small capsules: Log a New Workout (the empty session) and Change Workout (the next-day sheet).
+    const acts = container.querySelector(".h-hero-cta .day-acts") as HTMLElement;
+    const small = [...acts.querySelectorAll(".btn")] as HTMLElement[];
+    expect(small.map((b) => b.textContent)).toEqual(["Log a New Workout", "Change Workout"]);
+    for (const b of small) expect(b).toHaveClass("btn-secondary", "btn-sm");
+    fireEvent.click(small[0]!);
     expect(onStart).toHaveBeenLastCalledWith(SCRATCH_DAY_ID);
-    // THE BOARD (2026-10-16, screen 6): one grey line names the next day, under the big line and above Start.
-    const next = screen.getByText(/^Next in Your Program: /);
-    expect(next).toHaveClass("fact");
-    expect(next.closest(".h-hero-next")).not.toBeNull();
-    const row = screen.getByText(/^Next in Your Program: Push/).closest('[role="button"]') as HTMLElement;
-    expect(row.querySelector(".chev")).not.toBeNull();
-    fireEvent.click(row);
+    fireEvent.click(small[1]!);
     const sheet = document.querySelector(".sheet-scrim") as HTMLElement;
+    expect(within(sheet).getByRole("button", { name: "Change Workout" })).toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole("button", { name: "Start Workout" }));
     expect(onStart).toHaveBeenLastCalledWith("d1");
+    // No second filled red beside it.
+    expect(container.querySelectorAll(".btn-primary")).toHaveLength(1);
   });
 
   it("while a workout is open, says so and resumes it, with no second start", () => {
@@ -156,20 +173,25 @@ describe("the Start card's Quick Log", () => {
 // THE BOARD, SCREEN 6 (Dave's approved mockup board, 2026-10-16): the order of
 // the cards and the colour each thing wears on the Health hub.
 describe("the Health hub's board order and colours", () => {
-  it("Ready to Train (eyebrow, big line, grey next line, red Start), This Week (white stats, green bars), the three doors", () => {
+  // (Dave 2026-10-17 overrides the board's Ready to Train card: with a program the next day is the red button itself, no
+  // heading and no grey line above it; the rest of the order is the board's.)
+  it("Ready to Train (eyebrow, the next day's red button, its small capsules), This Week (white stats, green bars), the three doors", () => {
     const ws = [workout("w1", "2026-10-09", "Push", 47, ["Bench Press"]), workout("w2", "2026-10-07", "Pull", 38, ["Row"])];
     const withWeek = { ...base, program, workouts: ws, overview: periodOverview(ws, null, [], periodFor("7d", today)) };
     const { container } = render(<HealthBody {...withWeek} onOpenExercises={() => {}} onOpenHistory={() => {}} />);
     const html = container.innerHTML;
     const at = (needle: string) => { const i = html.indexOf(needle); expect(i, needle).toBeGreaterThan(-1); return i; };
-    expect(at(">Ready to Train<")).toBeLessThan(at(">Log It as You Go<"));
-    expect(at(">Log It as You Go<")).toBeLessThan(at("Next in Your Program: "));
-    expect(at("Next in Your Program: ")).toBeLessThan(at(">Start Workout<"));
-    expect(at(">Start Workout<")).toBeLessThan(at(">This Week<"));
+    expect(html).not.toContain(">Log It as You Go<");
+    expect(html).not.toContain("Next in Your Program: ");
+    expect(at(">Ready to Train<")).toBeLessThan(at(">Start Push<"));
+    expect(at(">Start Push<")).toBeLessThan(at(">Next in Your Program<"));
+    expect(at(">Next in Your Program<")).toBeLessThan(at(">Log a New Workout<"));
+    expect(at(">Log a New Workout<")).toBeLessThan(at(">Change Workout<"));
+    expect(at(">Change Workout<")).toBeLessThan(at(">This Week<"));
     expect(at(">This Week<")).toBeLessThan(at('class="h-bars"'));
     expect(at('class="h-bars"')).toBeLessThan(at('class="card list-card-ruled h-doors"'));
-    // The only red on the page is Start Workout.
-    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.textContent)).toEqual(["Start Workout"]);
+    // The only red on the page is the next day's Start.
+    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.querySelector(".h-hero-go-t")!.textContent)).toEqual(["Start Push"]);
     // Three white stats with grey labels, in the board's order.
     expect([...container.querySelectorAll(".h-stat span")].map((e) => e.textContent)).toEqual(["Workouts", "Working Sets", "Training Time"]);
     for (const s of container.querySelectorAll(".h-stat")) expect(s).not.toHaveClass("lime");

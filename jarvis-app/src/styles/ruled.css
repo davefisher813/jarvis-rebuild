@@ -3944,3 +3944,32 @@
    is 56 tall at any card width instead of scaling with it (61.2 at 328 wide). */
 .ruled.health-ruled.wo-screen .card.pad > .eyebrow:has(+ .lift-bars) { margin-bottom: 0; }
 .ruled.health-ruled.wo-screen .lift-bars { height: 64px; padding-top: var(--s-2); margin-top: 0; }
+/* ---- THE ALL DATA ROWS SHARE ONE ANCHOR (Dave's screenshot, 2026-10-17): on an exercise row carrying The Sets
+   expander, the dot and the chevron were centred on the whole taller block and floated under the name line, so the rows
+   had no rhythm beside the Push Day row above them. The row is a grid now: three columns (the dot, the words, the chevron
+   or the menu) by three rows (the name, the facts, the expander). The dot and the chevron span the name and the facts and
+   centre on them; the expander takes the third row under the words alone and pulls nothing down; a row without one is the
+   same grid two rows deep, so both wear the same padding and the same rhythm. Nothing else about the row moves: the words,
+   the expander, its colour, the dot's hue and the chevron are as they were. ---- */
+.ruled.health-ruled.wo-screen .row.h-log-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto auto;
+  align-items: center; row-gap: 0; column-gap: var(--s-2h); } /* .row.h-log-row: outranks the row rule's 12 gap, which a grid would read as 24 of empty track gap */
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow { display: contents; }
+.ruled.health-ruled.wo-screen .h-log-row > .h-log-ico { grid-column: 1; grid-row: 1 / 3; align-self: center; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow > .conn-name { grid-column: 2; grid-row: 1; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow > .facts { grid-column: 2; grid-row: 2; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow > .ad-sets { grid-column: 2; grid-row: 3; }
+.ruled.health-ruled.wo-screen .h-log-row > .row-grow ~ * { grid-column: 3; grid-row: 1 / 3; align-self: center; }
+/* ---- THE START SURFACE IS ONE ACTION (Dave, 2026-10-17: "Log It as You Go" and "Up Next" are the same thing; the card,
+   heading plus the next-day line, IS the action and must be advertised, full prominent button treatment, not a quiet
+   subtext line under a heading). The next program day is the red button itself: two lines in the button's own white, the
+   day as the verb ("Start Leg Day") over the facts at the small size, the dots drawn by the CSS as on any facts line.
+   Under it the standard small capsules, the day page's own .day-acts pills. The board (screen 6) drew a heading, a grey
+   line and a red Start; Dave's words override the board here. With no program the card keeps its Start Workout. ---- */
+.ruled.health-ruled.wo-screen .h-hero-cta .h-hero-go { flex-direction: column; gap: var(--s-0h); line-height: 1.2; }
+.ruled.health-ruled.wo-screen .h-hero-go-t { display: block; }
+.ruled.health-ruled.wo-screen .h-hero-acts { justify-content: flex-start; }
+.ruled.health-ruled.wo-screen .h-hero-go > .facts { color: inherit; font-size: var(--t-sub); line-height: 1.3; justify-content: center;
+  flex-wrap: wrap; white-space: normal; overflow: visible; max-width: 100%; margin: 0; }
+.ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact, .ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact + .fact::before {
+  color: inherit; white-space: normal; overflow: visible; }
+.ruled.health-ruled.wo-screen .h-hero-cta .day-acts { margin-top: 0; }

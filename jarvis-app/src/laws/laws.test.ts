@@ -1020,7 +1020,7 @@ describe("LAW: one filled red per screen", () => {
       "messages/MessagesFlow.tsx": "sweep / toss / autoOffer are one if-else chain; the rest are separate views",
       "upnext/FocusScreen.tsx": "Start Now and Done are the two arms of one ternary; only one is ever mounted",
       "gym/GymFlow.tsx": "Create a Program and Start are gated on !program vs program",
-      "brain/HealthBody.tsx": "Resume Workout renders only while a session is live, Start Workout only while none is; one ternary (2026-09-14, the approved Health design: no competing start beside Resume)",
+      "brain/HealthBody.tsx": "Resume Workout renders only while a session is live; while none is, the next day's Start renders only with a program's next day and Start Workout only without one: two nested ternaries, one slot (2026-09-14, the approved Health design: no competing start beside Resume; 2026-10-17, Dave: the next day IS the button)",
       "notes/screens/AISheet.tsx": "Apply, Insert After the Caret and Retry are one slot on three exclusive branches: a reply that fits, a reply over words that changed, a failed call (2026-09-14, the writing system, wave 4)",
       "connections/ConnectionsPage.tsx": "one per connection state",
       "schedule/screens/SchedulePage.tsx": "the empty-day branch and the populated list never both render",

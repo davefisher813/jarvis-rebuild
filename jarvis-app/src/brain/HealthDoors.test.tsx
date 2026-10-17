@@ -293,24 +293,31 @@ describe("the Exercises badge is the page's opening list, archived and hidden le
 describe("the Health page wears the row-action model (2026-10-05)", () => {
   const withNext = { ...base, onOpenExercises: () => {}, onOpenHistory: () => {}, onOpenSettings: () => {} };
 
-  it("draws no capsule, and no capsule-shaped button, inside any card on the page", () => {
+  // THE START CARD IS THE ONE EXCEPTION (Dave 2026-10-17: the card IS the one action, advertised as a full button; "everything
+  // else on the surface gets the standard small treatment", pills). Change Workout and Log a New Workout are the day page's
+  // own small capsules under the red button there; every other label on the page keeps the 2026-10-05 row model.
+  it("draws no capsule, and no capsule-shaped button, inside any card on the page but the Start card's own", () => {
     const { container } = render(<HealthBody {...withNext} />);
-    for (const label of ["Adjust Time", "Change Workout", "All Data", "Log Something", "Customize", "View Insights"]) {
+    for (const label of ["Adjust Time", "All Data", "Log Something", "Customize", "View Insights"]) {
       // Each is a row, a sheet action or a head capsule now; none is a pill or a button sitting in a card.
       const hits = screen.queryAllByText(label).filter((e) => e.closest(".card"));
       for (const h of hits) expect(h.closest(".pill-act, .row-act, .btn-sm, .quiet-action, .btn"), label).toBeNull();
     }
+    const change = screen.getByText("Change Workout");
+    expect(change.closest(".h-hero-cta .day-acts"), "the Start card's small capsule").not.toBeNull();
     expect(container.querySelector(".h-next-acts")).toBeNull();
-    // The one filled primary on the screen is Start Workout.
-    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.textContent)).toEqual(["Start Workout"]);
+    // The one filled primary on the screen is the next day's Start.
+    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.querySelector(".h-hero-go-t")?.textContent)).toEqual(["Start Pull"]);
   });
 
-  it("the next workout is a row whose sheet holds Start (filled), Adjust Time and Change Workout", () => {
+  it("the Start card's Change Workout capsule opens the next-day sheet, which holds Start (filled), Adjust Time and Change Workout", () => {
     const onStart = vi.fn();
     const onAdjustTime = vi.fn();
     render(<HealthBody {...withNext} onStart={onStart} onAdjustTime={onAdjustTime} />);
     expect(screen.queryByText("Adjust Time")).toBeNull();
-    fireEvent.click(document.querySelector('.h-hero[role="button"]')!);
+    // (2026-10-17: the grey next-day row is gone; the day is the red button and the sheet opens from its small capsule.)
+    expect(document.querySelector(".h-hero-next")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Change Workout" }));
     const sheet = document.querySelector(".sheet-scrim")!;
     expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Start Workout");
     const rest = [...sheet.querySelectorAll(".btn-secondary")].map((b) => b.textContent);
@@ -374,11 +381,13 @@ describe("the Health week card's numbers wear a state only when they have one", 
     expect(state.querySelector(".empty-icon")).not.toBeNull();
   });
 
-  it("the Next Workout card's Today or Tomorrow is amber text and a gym block's time is never split from AM or PM", () => {
+  // AMENDED 2026-10-17 (Dave: the next day IS the red button; its facts are the button's own white, never amber or grey):
+  // the gym block's time still rides the facts, unsplit from AM or PM, wearing no tone inside the button.
+  it("the Start button's Today rides its facts in the button's own white, and a gym block's time is never split from AM or PM", () => {
     render(<HealthBody {...base} gymEvent={{ start: "15:30" }} />);
-    const when = document.querySelector(".h-hero-facts .fact.warn, .h-hero-facts .fact.date") as HTMLElement;
-    expect(when).toHaveClass("warn");
-    expect(when).not.toHaveClass("date");
+    const when = [...document.querySelectorAll(".h-hero-go .facts .fact")].find((f) => /^Today/.test(f.textContent ?? "")) as HTMLElement;
+    expect(when).toBeTruthy();
+    expect(when.className).toBe("fact");
     expect(when.textContent).toMatch(/^Today 3:30\u00a0PM$/);
   });
 });

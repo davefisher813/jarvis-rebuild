@@ -29,19 +29,19 @@ const base = {
   view: "health" as const, onView: () => {},
 };
 
+// AMENDED 2026-10-17 (Dave: the next day IS the red button): the count rides the button's facts in the button's own white.
 describe("the Next Workout's exercise count", () => {
-  it("is a plain white fact on the hero, never the lime one", () => {
+  it("is a plain fact inside the Start button, never the lime one", () => {
     const { container } = render(<HealthBody {...base} />);
-    const fact = [...container.querySelectorAll(".h-hero-facts .fact")].find((f) => /Exercises/.test(f.textContent ?? ""))!;
+    const fact = [...container.querySelectorAll(".h-hero-go .facts .fact")].find((f) => /Exercises/.test(f.textContent ?? ""))!;
     expect(fact.textContent).toBe("2 Exercises");
     expect(fact).not.toHaveClass("lime");
-    // AMENDED 2026-10-16 (the board, screen 6): the next day's line is one grey run, so the count rides it in grey.
     expect(fact.querySelector("b")).toBeNull();
   });
 
-  it("is the same plain fact on the sheet the hero opens", () => {
+  it("is the same plain fact on the sheet the Change Workout capsule opens", () => {
     const { container } = render(<HealthBody {...base} />);
-    fireEvent.click(container.querySelector('.h-hero[role="button"]')!);
+    fireEvent.click([...container.querySelectorAll(".h-hero-cta .day-acts .btn")].find((b) => b.textContent === "Change Workout")!);
     const facts = [...document.querySelectorAll(".sheet-scrim .facts .fact")];
     const fact = facts.find((f) => /Exercises/.test(f.textContent ?? ""))!;
     expect(fact).toBeTruthy();

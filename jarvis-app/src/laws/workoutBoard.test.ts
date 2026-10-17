@@ -202,6 +202,42 @@ describe("LAW: the workout board's geometry", () => {
     expect(body(RULED, `${SCOPE} .se-pr`)).toMatch(/font-size:\s*calc\(10\.5px \* var\(--type-scale\)\)/);
   });
 
+  // THE ALL DATA ROWS SHARE ONE ANCHOR (Dave's screenshot, 2026-10-17: on an exercise row carrying The Sets expander the
+  // dot and the chevron floated under the name line). CSS only: the row is a grid, the dot and the chevron span the name
+  // and the facts and centre on them, the expander takes its own row under the words.
+  it("an All Data row anchors its dot and its chevron on the name-plus-facts block, the expander on its own row beneath", () => {
+    const row = body(RULED, `${SCOPE} .row.h-log-row`);
+    expect(row).toMatch(/display:\s*grid/);
+    expect(row).toMatch(/grid-template-columns:\s*auto minmax\(0, 1fr\) auto/);
+    expect(row).toMatch(/grid-template-rows:\s*auto auto auto/);
+    expect(row).toMatch(/row-gap:\s*0/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .row-grow`)).toMatch(/display:\s*contents/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .h-log-ico`)).toMatch(/grid-row:\s*1 \/ 3; align-self:\s*center/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .row-grow ~ *`)).toMatch(/grid-row:\s*1 \/ 3; align-self:\s*center/);
+    expect(body(RULED, `${SCOPE} .h-log-row > .row-grow > .ad-sets`)).toMatch(/grid-row:\s*3/);
+    // The row's markup is as it was: the dot, the words with the expander inside them, the chevron or the menu.
+    const page = read("insights/AllDataPage.tsx");
+    expect(page).toContain('className="row h-log-row"');
+    expect(page).toContain('<span className="h-log-ico ad-dot" data-hue={r.hue} aria-hidden="true"><i /></span>');
+    expect(page).toMatch(/<details className="exp-more ad-sets"/);
+  });
+
+  // THE START SURFACE IS ONE ACTION (Dave 2026-10-17; overrides the board's heading, grey line and red Start on screen 6).
+  it("the hub's next day is the red button itself: two lines, the facts in the button's own white at the small size, the small capsules under it", () => {
+    const hub = read("brain/HealthBody.tsx");
+    expect(hub).toContain('className="btn btn-primary btn-launch btn-lg btn-block h-hero-go" onClick={() => onStart(next.day.id)}');
+    expect(hub).toContain('<span className="h-hero-go-t">{`Start ${workoutTitle(next.day.name)}`}</span>');
+    expect(hub).toContain('<div className="day-acts h-hero-acts">');
+    expect(body(RULED, `${SCOPE} .h-hero-cta .h-hero-go`)).toMatch(/flex-direction:\s*column/);
+    const facts = body(RULED, `${SCOPE} .h-hero-go > .facts`);
+    expect(facts).toMatch(/color:\s*inherit/);
+    expect(facts).toMatch(/font-size:\s*var\(--t-sub\)/);
+    expect(facts, "weight is the facts' own (the type law)").not.toMatch(/font-weight/);
+    expect(body(RULED, `${SCOPE} .h-hero-go > .facts > .fact`)).toMatch(/color:\s*inherit/);
+    // The capsules are the day page's: 12 / 600 at 7 by 11 with the 44 reach by ::after (pinned above).
+    expect(body(RULED, `${SCOPE} .h-hero-cta .day-acts`)).toMatch(/margin-top:\s*0/);
+  });
+
   it("and nothing in the block names a colour of its own", () => {
     const at = RULED.indexOf(".ruled.health-ruled.wo-screen, .sheet-scrim > .card.wo-sheet {");
     expect(at).toBeGreaterThan(-1);
