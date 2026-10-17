@@ -196,4 +196,17 @@ describe("LAW: the workout colour code, on Health Insights", () => {
     // The best hue the fact wears is the one the colour code defines, in the scope these cards render in.
     expect(colour(RULED, ".ruled.health-ruled .fact.best")).toBe("var(--hl-best-ink)");
   });
+
+  // Alfred's verification of 7fa0e64 (2026-10-17): the facts went purple but the big value above them ("360 Lb × 3") and the
+  // chart line were still lime. The value is the biggest gain, a standing best: purple. The line is the sessions behind it,
+  // the exercise page's teal. Lime draws nothing on this card.
+  it("PURPLE is the biggest gain's own value, and the trend line is the exercise page's teal, never lime", () => {
+    const page = read("insights/InsightsPage.tsx");
+    expect(page, "the headline value wears best").toMatch(/<div className="ins-big best">\{lineCase\(`\$\{headline\.to\.w\}/);
+    expect(page, "no big value on the gain card is lime").not.toMatch(/ins-big lime">\{lineCase\(`\$\{headline/);
+    expect(page, "the trend line is teal").toMatch(/<path d=\{path\} fill="none" stroke="var\(--hl-cyan\)"/);
+    expect(page, "the trend line is never lime").not.toMatch(/stroke="var\(--hl-lime\)"/);
+    expect(colour(RULED, ".ruled.health-ruled .ins-big.best")).toBe("var(--hl-best)");
+    expect(colour(RULED, '[data-theme="light"] .ruled.health-ruled .ins-big.best')).toBe("var(--hl-best-ink)");
+  });
 });

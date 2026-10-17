@@ -195,7 +195,9 @@ export default function InsightsPage({
     return (
       <svg viewBox={`0 0 ${CW} ${CH + 16}`} className="ins-chart" role="img" aria-label={`Best set at this rep count over ${pts.length} workouts, in ${unit}`}>
         <line x1={PAD} y1={CH - PAD} x2={CW - PAD} y2={CH - PAD} stroke="currentColor" opacity={0.12} />
-        <path d={path} fill="none" stroke="var(--hl-lime)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        {/* The line is the sessions behind the best, the exercise page's own teal; lime on these screens means logged or
+            done, so it never draws a trend (Alfred's verification of 7fa0e64, 2026-10-17). */}
+        <path d={path} fill="none" stroke="var(--hl-cyan)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         {xy.map((p, i) => (
           <g key={pts[i]!.workoutId}>
             <circle cx={p.x} cy={p.y} r={4} fill="var(--hl-lime)" />
@@ -373,7 +375,8 @@ const musclesCard = breakdown.total === 0 ? null : (
             grey fact on this line. */}
         <span className="fact date">All History</span>
       </div>
-      <div className="ins-big lime">{lineCase(`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`)}</div>
+      {/* The biggest gain's value is a standing best, so it wears the best purple, never the done green (Dave 2026-10-17). */}
+      <div className="ins-big best">{lineCase(`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`)}</div>
       <div className="facts">
         {/* One number, said the hub's way (Dave 2026-10-16, V): the gain names the rep count it was measured at.
             A gain is a standing best, so it wears the colour code's best purple (workoutColourCode.test.ts); the lime
