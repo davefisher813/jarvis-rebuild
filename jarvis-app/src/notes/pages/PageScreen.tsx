@@ -419,6 +419,11 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     { label: "Delete Page", icon: <Trash2 className="ic" />, danger: true, run: () => setConfirmDelete(true) },
   ];
 
+  // FINISHING KEEPS A DATED SNAPSHOT (2026-10-17, the 2026-10-13 spec's "stays alive": completed records preserved as dated
+  // snapshots). Golf's Finish Round and the scoreboard's Finish keep the page as it stands, so a later edit never loses the finished
+  // card. Not undoable: it adds to the page's history and changes nothing drawn on it.
+  const keepFinished = () => { const cur = noteRef.current; if (cur) void commit(takeSnapshot(cur.page, "finish", Date.now()), { undoable: false }); };
+
   // ---- the score screen of a scoreboard: one column at a time, the Golf Scorecard's hole screen for every other game
   const sc = page.score;
   if (view === "score" && sc) {
@@ -439,7 +444,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <div className="pad-x exp-acts">
           {!single && (at < last || sc.mode === "countdown")
             ? <button type="button" className="btn btn-primary btn-block" onClick={() => setAt(at + 1)}>{`Next: ${columnName(sc, at + 1)}`}</button>
-            : <button type="button" className="btn btn-primary btn-block" onClick={() => setView("page")}>{single ? "Done" : "Finish"}</button>}
+            : <button type="button" className="btn btn-primary btn-block" onClick={() => { if (!single) keepFinished(); setView("page"); }}>{single ? "Done" : "Finish"}</button>}
           {sc.mode === "periods" && at >= last && <button type="button" className="btn btn-secondary btn-block" onClick={() => { void commit(addPeriod(noteRef.current!.page)); setAt(at + 1); }}>{`Add Another ${sc.unit}`}</button>}
           {at > 1 && !single && <button type="button" className="btn btn-secondary btn-block" onClick={() => setAt(at - 1)}>{`Back to ${columnName(sc, at - 1)}`}</button>}
         </div>
@@ -470,7 +475,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
             void commit(next);
           }} />
         <div className="pad-x exp-acts">
-          <button type="button" className="btn btn-primary btn-block" onClick={() => (hole < last ? setHole(hole + 1) : setView("page"))}>
+          <button type="button" className="btn btn-primary btn-block" onClick={() => { if (hole < last) { setHole(hole + 1); return; } keepFinished(); setView("page"); }}>
             {hole < last ? `Next: Hole ${hole + 1}` : "Finish Round"}
           </button>
           {hole > 1 && <button type="button" className="btn btn-secondary btn-block" onClick={() => setHole(hole - 1)}>Back to Hole {hole - 1}</button>}

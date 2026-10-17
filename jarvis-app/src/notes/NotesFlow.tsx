@@ -497,10 +497,12 @@ export default function NotesFlow({
     if (!found) { showToast({ message: "Couldn't Open That Note" }); return false; }
     await flushDoc();
     // A TEMPLATE PAGE (issue #115) opens on its own screen: it has records, not a document.
+    // THROUGH THE PAGE'S ONE DOOR (2026-10-17, issue #115: a Team Sheet opened from the list came up on New Lineup). This
+    // branch set the screen itself and kept whatever the last page left behind: the Lineup Card's "lineup" start and its
+    // "New Note" Back, so the team the lineup was made from reopened on the builder. openPage resets both every time.
     if (found.page) {
       setSaveState("idle");
-      openCurrentId(id);
-      setScreen("page");
+      openPage(id);
       return true;
     }
     setSaveState("idle");
