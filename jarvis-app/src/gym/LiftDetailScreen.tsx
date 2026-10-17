@@ -58,7 +58,7 @@ function Bars({ vals, now = false }: { vals: number[]; now?: boolean }) {
   const max = Math.max(1, ...vals);
   const H = 56;
   return (
-    <svg className="lift-bars" viewBox={`0 0 ${CHART_W} ${H}`} role="img" aria-label="Weekly bars">
+    <svg className="lift-bars" viewBox={`0 0 ${CHART_W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Weekly bars">
       <line x1={PAD} y1={H - 1.5} x2={CHART_W - PAD} y2={H - 1.5} stroke="currentColor" opacity={0.1} />
       {vals.map((v, i) => {
         const w = (CHART_W - 2 * PAD) / vals.length;

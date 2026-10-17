@@ -166,7 +166,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
               const f = leverFace(o);
               return (
                 // The whole lever row flips its switch (Dave 2026-09-15: "I want all rows clickable").
-                <div className="row" key={o.key} onClick={() => toggle(o.key)}>
+                <div className="row fit-lever" key={o.key} onClick={() => toggle(o.key)}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{f.name}</div>
                     <div className="conn-meta">
