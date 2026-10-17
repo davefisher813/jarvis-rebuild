@@ -2787,6 +2787,8 @@
 .ruled.health-ruled .ins-big { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05;
   margin: var(--s-1h) 0 var(--s-1); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .ins-big.lime { color: var(--hl-lime); }
+/* The biggest gain's value: a standing best wears the best purple (Dave 2026-10-17, "best = purple; green is done only"). */
+.ruled.health-ruled .ins-big.best { color: var(--hl-best); }
 .ruled.health-ruled .ins-chart { display: block; width: 100%; height: auto; margin: var(--s-2h) 0 var(--s-0h); color: var(--tx-1); }
 .ruled.health-ruled .ins-axis { font-size: var(--t-micro); fill: var(--tx-2); font-family: var(--f); }
 /* The table's fold label is a tap, so it is the tap red like every fold
@@ -3420,6 +3422,7 @@
 [data-theme="light"] .ruled.health-ruled .se-chip em { color: var(--tx-2); }
 [data-theme="light"] .ruled.health-ruled .stat-tile .stat-num,
 [data-theme="light"] .ruled.health-ruled .ins-big.lime { color: var(--hl-lime-ink); }
+[data-theme="light"] .ruled.health-ruled .ins-big.best { color: var(--hl-best-ink); }
 [data-theme="light"] .chip.active.chip-lime,
 [data-theme="light"] .chip.chip-half.chip-lime { color: var(--hl-lime-ink); }
 [data-theme="light"] .ruled.health-ruled .ins-bar-track { background: var(--surface-3); }
