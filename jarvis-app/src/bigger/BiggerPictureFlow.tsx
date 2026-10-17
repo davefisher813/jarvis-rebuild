@@ -720,25 +720,25 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           project={detail}
           estimateFor={estimateFor}
           today={today}
-          onAddNote={onOpenNote ? () => void (async () => {
-            // PICK 27: born connected, then opened. The title is the project's
-            // own, because a note you have to name before you can write it is
-            // a note that does not get written; renaming it is one tap in the
-            // editor he is already looking at.
-            // BROWSER-F-01 (2026-09-05): attemptWrite resolves a BOOLEAN
-            // (guard.ts:21), so the `typeof id === "string"` gate here never
-            // passed: Add a Note on a project made the note and left you on
-            // the project page with no sign anything had happened.
-            let noteId: string | null = null;
-            await attemptWrite(async () => {
-              noteId = await notesSvc.createNote(
-                detail.data.title,
+          onAddNote={async (text) => {
+            // PICK 27, born connected: the same link the head's capsule made
+            // since 2026-08-22. THE WORDS ARE THE TITLE (Dave 2026-10-17: the
+            // field is on the detail surface, and what he typed into it is
+            // the note). The page stays and the new row appears under the
+            // field (the Logging Standard, rule 4); the row opens it, as
+            // every note row does. The capsule used to open the editor
+            // instead; createNote refuses a blank title, and a null id is a
+            // failed write here, so the standard toast says so.
+            const ok = await attemptWrite(async () => {
+              const id = await notesSvc.createNote(
+                text,
                 detail.data.category ?? "",
                 [{ id: "proj-" + detail.id, kind: "project", label: detail.data.title, targetId: detail.id }],
               );
+              if (!id) throw new Error("note not created");
             });
-            if (noteId) onOpenNote(noteId);
-          })() : undefined}
+            if (ok) setLinkedNotes(await notesSvc.notesLinkedTo(detail.id));
+          }}
           firstStep={ai.available ? (
             <div className="pad-x">
               <div className="promo-card">
