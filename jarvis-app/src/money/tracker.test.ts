@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { TrackerService } from "./TrackerService";
-import { SEED_TXS, SEED_SUBS } from "./trackerSeed";
+import { SEED_FEES, SEED_TXS, SEED_SUBS, feeRef, isUnlabelledImportFee } from "./trackerSeed";
+import { findDuplicate } from "./ledger/fingerprint";
 import {
-  byCategory, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth, incomeCents,
+  ENTITY_MONEY_TX, byCategory, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth, incomeCents,
   knownCategories, monthLabel, monthlyCents, monthlySubTotal, monthOf, shiftMonth,
   spentCents, topMerchants, type TrackerSub, type TrackerTx, type TrackerTxData,
 } from "./tracker";
@@ -136,39 +137,76 @@ describe("category colours", () => {
   });
 });
 
-// THE ACCEPTANCE NUMBERS (PASSOFF: "dashboard totals match the seed, Spent
-// $1,145.68 across 31 transactions"). These are the figures on the handoff's
-// own screenshot, so they are the check that the port did not quietly lose
-// or double a row on the way in.
+// THE ACCEPTANCE NUMBERS. The passoff's own screenshot read "Spent $1,145.68
+// across 31 transactions", with three identical Overdraft Fee rows on Sep 1.
+// RE-PINNED 2026-10-17 to the bank's record, which Alfred pulled from Wells
+// Fargo through Plaid for Dave: "The bank charged multiple DISTINCT $35
+// overdraft fees, each with its own transaction ID and its own underlying
+// purchase: four dated Sep 1, 2026 (underlying purchases: MTA $19.00, MTA
+// $10.25, ShopRite $23.51, MTA $14.25, all posted 08/31), one dated Sep 2
+// (Wienery $13.94 purchase on 09/01), and one dated Aug 26 (the Ally
+// payment)." Five fees fall inside the seed's window (Sep 1 to 15), so the
+// seed is 33 rows and $1,215.68; the Aug 26 fee is outside it and is not
+// added. These numbers are the check that the port neither lost nor doubled
+// a row, and now that it carries the bank's count, not the handoff's.
 describe("the September seed", () => {
   const txs: TrackerTx[] = SEED_TXS.map((d, i) => ({ id: "s" + i, data: d }));
 
-  it("is 31 transactions totalling $1,145.68 across 11 categories", () => {
-    expect(txs).toHaveLength(31);
-    expect(spentCents(txs)).toBe(114568);
-    expect(fmtCents(spentCents(txs))).toBe("$1,145.68");
+  it("is 33 transactions totalling $1,215.68 across 11 categories", () => {
+    expect(txs).toHaveLength(33);
+    expect(spentCents(txs)).toBe(121568);
+    expect(fmtCents(spentCents(txs))).toBe("$1,215.68");
     expect(byCategory(txs)).toHaveLength(11);
   });
 
-  it("puts the same five categories on top as the approved screenshot", () => {
+  it("puts the same five categories on top, Overdraft now third at the bank's five fees", () => {
     expect(byCategory(txs).slice(0, 5)).toEqual([
       ["Restaurants", 28533],
       ["Digital Purchase", 25394],
+      ["Overdraft", 17500],
       ["Golf", 14899],
       ["Food and Beverage Store", 12669],
-      ["Overdraft", 10500],
     ]);
   });
 
-  it("names Amazon its biggest merchant, and shows eight of them", () => {
+  it("the fees outrank Amazon as a merchant line once the bank's count is in, and eight are shown", () => {
     const top = topMerchants(txs);
     expect(top).toHaveLength(8);
-    expect(top[0]).toEqual(["Amazon", 15568]);
+    expect(top[0]).toEqual(["Overdraft Fee", 17500]);
+    expect(top[1]).toEqual(["Amazon", 15568]);
   });
 
   it("files every row under the month its date falls in", () => {
-    expect(inMonth(txs, "2026-09")).toHaveLength(31);
+    expect(inMonth(txs, "2026-09")).toHaveLength(33);
     expect(txs.every((t) => t.data.month === monthOf(t.data.date))).toBe(true);
+  });
+
+  it("each fee carries the purchase it was charged for and a reference no other fee shares", () => {
+    expect(SEED_FEES.map((f) => [f.date, f.about!.merchant, f.about!.amountCents, f.about!.date])).toEqual([
+      ["2026-09-01", "MTA", 1900, "2026-08-31"],
+      ["2026-09-01", "MTA", 1025, "2026-08-31"],
+      ["2026-09-01", "ShopRite", 2351, "2026-08-31"],
+      ["2026-09-01", "MTA", 1425, "2026-08-31"],
+      ["2026-09-02", "Wienery", 1394, "2026-09-01"],
+    ]);
+    expect(SEED_FEES.every((f) => f.merchant === "Overdraft Fee" && f.amountCents === 3500 && f.account === "BUSINESS CHECKING ...3305" && f.source === "import")).toBe(true);
+    const refs = SEED_FEES.map((f) => f.ref);
+    expect(new Set(refs).size).toBe(5);
+    expect(refs[0]).toBe("wf-3305-2026-09-01-od-mta-1900");
+    // The reference is minted, never random: the same fee is the same row on every phone.
+    expect(feeRef("BUSINESS CHECKING ...3305", "2026-09-02", { merchant: "Wienery", amountCents: 1394, date: "2026-09-01" })).toBe("wf-3305-2026-09-02-od-wienery-1394");
+    // No dot baked into any string the row will draw (the catalog gate, F3).
+    for (const f of SEED_FEES) expect(JSON.stringify(f)).not.toMatch(/[·•]/);
+  });
+
+  it("a hand-typed fee is not an unlabelled import fee, and a labelled one is not either", () => {
+    const d = SEED_FEES[0]!;
+    expect(isUnlabelledImportFee({ ...d, ref: undefined, about: undefined, source: undefined })).toBe(true);
+    expect(isUnlabelledImportFee({ ...d, ref: undefined, about: undefined })).toBe(true);
+    expect(isUnlabelledImportFee(d)).toBe(false);
+    expect(isUnlabelledImportFee({ ...d, ref: undefined, about: undefined, source: "manual" })).toBe(false);
+    expect(isUnlabelledImportFee({ ...d, ref: undefined, about: undefined, source: undefined, date: "2026-09-02" })).toBe(false);
+    expect(isUnlabelledImportFee({ ...d, ref: undefined, about: undefined, source: undefined, account: "EVERYDAY CHECKING ...0860" })).toBe(false);
   });
 });
 
@@ -179,15 +217,24 @@ describe("TrackerService", () => {
     const s = svc();
     expect(await s.seedIfEmpty()).toBe(true);
     const first = await s.load();
-    expect(first.txs).toHaveLength(31);
+    expect(first.txs).toHaveLength(33);
     expect(first.accounts).toHaveLength(4);
     expect(first.subs).toHaveLength(3);
+    // An imported row says so and carries a fingerprint, like a typed one (2026-10-17).
+    expect(first.txs.every((t) => t.data.source === "import" && !!t.data.fingerprint)).toBe(true);
+    // Five fees, five fingerprints: the reference keeps them apart.
+    const fees = first.txs.filter((t) => t.data.merchant === "Overdraft Fee");
+    expect(fees).toHaveLength(5);
+    expect(new Set(fees.map((t) => t.data.fingerprint)).size).toBe(5);
 
     // The guard is the whole point: a double tap must not double the ledger.
     expect(await s.seedIfEmpty()).toBe(false);
     const second = await s.load();
-    expect(second.txs).toHaveLength(31);
+    expect(second.txs).toHaveLength(33);
     expect(second.accounts).toHaveLength(4);
+    // A fresh import is already labelled: there is nothing to reconcile.
+    expect(await s.reconcileImportFees()).toBe(false);
+    expect((await s.load()).txs).toHaveLength(33);
   });
 
   it("subscriptions take the same guard as accounts: an import that stopped after them does not write them twice (2026-10-17)", async () => {
@@ -265,6 +312,106 @@ describe("TrackerService", () => {
     const { accounts } = await s.load();
     expect(accounts.filter((a) => a.data.name === "PLATINUM CARD ...4975")).toHaveLength(1);
     expect(accounts).toHaveLength(4);
+  });
+});
+
+// THE BANK'S COUNT OF THE SEPTEMBER FEES (Dave, via Alfred, 2026-10-17). Dave's
+// phone holds the first import: three identical "Overdraft Fee · Sep 1 · $35.00"
+// rows, written with no source, no fingerprint and no label. The bank has five
+// distinct fees in the window, each for its own purchase. The reconciliation
+// replaces the unlabelled seed rows with the bank's own count and labels, once,
+// and touches nothing else.
+describe("TrackerService.reconcileImportFees", () => {
+  const OLD_FEE = {
+    date: "2026-09-01", month: "2026-09", merchant: "Overdraft Fee", name: "Overdraft fee business checking",
+    amountCents: 3500, category: "Overdraft", account: "BUSINESS CHECKING ...3305",
+  };
+  const make = () => {
+    const store = new Store(new InMemoryAdapter());
+    return { store, s: new TrackerService(store, "u") };
+  };
+  /** The store as the 2026-09-19 import left it: the seed written straight through, the three fee rows unlabelled. */
+  const importedBefore = async (store: Store) => {
+    for (const t of SEED_TXS) {
+      if (t.merchant === "Overdraft Fee") continue;
+      await store.create("u", ENTITY_MONEY_TX, { ...t } as never);
+    }
+    for (let i = 0; i < 3; i++) await store.create("u", ENTITY_MONEY_TX, { ...OLD_FEE } as never);
+  };
+
+  it("the three unlabelled Sep 1 fees become the bank's five, each labelled with its purchase; nothing else moves", async () => {
+    const { store, s } = make();
+    await importedBefore(store);
+    const before = await s.load();
+    expect(before.txs).toHaveLength(31);
+    const others = before.txs.filter((t) => t.data.merchant !== "Overdraft Fee").map((t) => t.id).sort();
+
+    expect(await s.reconcileImportFees()).toBe(true);
+    const after = await s.load();
+    expect(after.txs).toHaveLength(33);
+    expect(after.txs.filter((t) => t.data.merchant !== "Overdraft Fee").map((t) => t.id).sort()).toEqual(others);
+    const fees = after.txs.filter((t) => t.data.merchant === "Overdraft Fee").sort((a, b) => a.data.ref!.localeCompare(b.data.ref!));
+    expect(fees).toHaveLength(5);
+    expect(fees.filter((f) => f.data.date === "2026-09-01")).toHaveLength(4);
+    expect(fees.filter((f) => f.data.date === "2026-09-02")).toHaveLength(1);
+    expect(fees.map((f) => [f.data.about!.merchant, f.data.about!.amountCents, f.data.about!.date]).sort()).toEqual([
+      ["MTA", 1025, "2026-08-31"], ["MTA", 1425, "2026-08-31"], ["MTA", 1900, "2026-08-31"], ["ShopRite", 2351, "2026-08-31"], ["Wienery", 1394, "2026-09-01"],
+    ].sort());
+    expect(fees.every((f) => f.data.source === "import" && !!f.data.ref && !!f.data.fingerprint)).toBe(true);
+    // Five distinct fingerprints: no fee is another's duplicate (the order's point d).
+    expect(new Set(fees.map((f) => f.data.fingerprint)).size).toBe(5);
+    for (const f of fees) expect(findDuplicate(fees.filter((o) => o.id !== f.id), f.data.fingerprint!)).toBeUndefined();
+    expect(spentCents(after.txs)).toBe(121568);
+  });
+
+  it("running it twice changes nothing", async () => {
+    const { store, s } = make();
+    await importedBefore(store);
+    await s.reconcileImportFees();
+    const once = (await s.load()).txs.map((t) => [t.id, JSON.stringify(t.data)]).sort();
+    expect(await s.reconcileImportFees()).toBe(false);
+    expect((await s.load()).txs.map((t) => [t.id, JSON.stringify(t.data)]).sort()).toEqual(once);
+  });
+
+  it("a run cut off after the writes finishes on the next load without doubling a fee", async () => {
+    const { store, s } = make();
+    await importedBefore(store);
+    // The five landed, the three were not yet removed.
+    for (const f of SEED_FEES) await store.create("u", ENTITY_MONEY_TX, { ...f } as never);
+    expect(await s.reconcileImportFees()).toBe(true);
+    const fees = (await s.load()).txs.filter((t) => t.data.merchant === "Overdraft Fee");
+    expect(fees).toHaveLength(5);
+    expect(new Set(fees.map((f) => f.data.ref)).size).toBe(5);
+  });
+
+  it("a fee typed by hand is kept, and a store that never imported is left alone", async () => {
+    const { s } = make();
+    const id = (await s.saveTx(null, { ...OLD_FEE, account: "BUSINESS CHECKING ...3305" }))!;
+    expect(await s.reconcileImportFees()).toBe(false);
+    const { txs } = await s.load();
+    expect(txs).toHaveLength(1);
+    expect(txs[0]!.id).toBe(id);
+    expect(txs[0]!.data.source).toBe("manual");
+    expect(txs[0]!.data.ref).toBeUndefined();
+  });
+
+  it("an edit on the sheet keeps the bank's label and the fingerprint keeps the reference", async () => {
+    const { store, s } = make();
+    await importedBefore(store);
+    await s.reconcileImportFees();
+    const fee = (await s.load()).txs.find((t) => t.data.about?.merchant === "ShopRite")!;
+    // the sheet sends only the fields it owns, with the category changed
+    await s.saveTx(fee.id, { date: fee.data.date, month: fee.data.month, merchant: fee.data.merchant, name: fee.data.name, amountCents: 3500, category: "Bank Fees", account: fee.data.account });
+    const edited = (await s.load()).txs.find((t) => t.id === fee.id)!;
+    expect(edited.data.category).toBe("Bank Fees");
+    expect(edited.data.about).toEqual({ merchant: "ShopRite", amountCents: 2351, date: "2026-08-31" });
+    expect(edited.data.ref).toBe(fee.data.ref);
+    expect(edited.data.fingerprint).toBe("tx|overdraft fee|3500|2026-09-01|import|" + fee.data.ref);
+    // a stale copy carrying another label cannot overwrite the bank's
+    await s.saveTx(fee.id, { ...edited.data, about: { merchant: "Nope", amountCents: 1, date: "2026-01-01" }, ref: "forged" });
+    const again = (await s.load()).txs.find((t) => t.id === fee.id)!;
+    expect(again.data.about!.merchant).toBe("ShopRite");
+    expect(again.data.ref).toBe(fee.data.ref);
   });
 });
 

@@ -27,8 +27,17 @@ export function fingerprintOf(p: {
   /** due date for a bill, transaction date for a receipt, date for a tx. Empty when there is none. */
   date?: string;
   source: BillSource | ReceiptSource | TxSource;
+  /** A transaction's bank-side reference (TrackerTxData.ref). DISTINCT BANK
+   *  TRANSACTIONS ARE NEVER EACH OTHER'S DUPLICATE (Dave, via Alfred,
+   *  2026-10-17): the bank charged four $35 overdraft fees on one day on one
+   *  account, and vendor|amount|date made them one fingerprint. The reference
+   *  rides on the end, still readable, so two fees on one day stay two rows.
+   *  A row without one keeps exactly the fingerprint it always had. */
+  ref?: string;
 }): string {
-  return [p.kind, normalizeVendor(p.vendor), String(p.amountCents), p.date ?? "", sourceKey(p.source)].join("|");
+  const parts = [p.kind, normalizeVendor(p.vendor), String(p.amountCents), p.date ?? "", sourceKey(p.source)];
+  if (p.kind === "tx" && p.ref) parts.push(p.ref);
+  return parts.join("|");
 }
 
 /** The first existing record with this fingerprint, or undefined. A materially

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import PageHeader from "../../shared/PageHeader";
 import { useOptionalLedger, useTracker } from "../../data/NotesProvider";
 import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Row, tapField } from "../../shared/FormSheet";
-import { Calendar, ChevronLeft, ChevronRight, Clock, FolderKanban, Link2, RotateCcw, Tag, Wallet } from "../../shared/icons";
+import { Calendar, ChevronLeft, ChevronRight, Clock, FileText, FolderKanban, Link2, RotateCcw, Tag, Wallet } from "../../shared/icons";
 import { DollarGlyph, WalletGlyph, RepeatGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
 import MoneyRow from "../MoneyRow";
@@ -19,7 +19,7 @@ import {
 } from "../tracker";
 import MatchesCard from "./MatchesCard";
 import HistoryList from "./HistoryList";
-import { LinkedFacts } from "../MoneyFacts";
+import { FeeAboutFacts, LinkedFacts } from "../MoneyFacts";
 import { categoryChoices, lastCategoryFor } from "../categoryDefault";
 import { allocationsFromRows, discrepancyLines, displayRows, isUncategorized, monthActuals, monthSpend, newRow, rowsForNewMonth, rowsFromAllocations, type BudgetRow } from "../budgetView";
 import { overLine } from "../ledger/actuals";
@@ -81,6 +81,11 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
   const ledger = useOptionalLedger();
   const [recs, setRecs] = useState<{ receipts: Receipt[]; bills: Bill[] }>({ receipts: [], bills: [] });
   const reload = useCallback(async () => {
+    // THE BANK'S COUNT OF THE SEPTEMBER FEES, ONCE (Dave, via Alfred, 2026-10-17): the first import's three unlabelled
+    // Overdraft Fee rows become the five the bank charged, each labelled with its purchase, before the screen reads. It
+    // is a one-time, idempotent correction of imported data, not a user action, so no toast; a failure leaves the rows
+    // as they were and the next load tries again.
+    await svc.reconcileImportFees().catch(() => false);
     const [d, receipts, bills] = await Promise.all([
       svc.load(),
       ledger ? ledger.listReceipts() : Promise.resolve([] as Receipt[]),
@@ -127,7 +132,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
             gives it room under the title's underline (2026-10-05: it sat on it). */}
         <NoticeCard icon={<Wallet className="ic" />} tone="cat-fg-green" offer
           title="Import September Data"
-          sub="Your Accounts, Subscriptions and 31 Transactions"
+          sub="Your Accounts, Subscriptions and 33 Transactions"
           action={{ label: seeding ? "Importing" : "Import", onClick: () => void runSeed() }}
           onOpen={() => void runSeed()} />
         </div>
@@ -511,7 +516,12 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
               <div className="facts">
                 <span className="fact date">{fmtDay(t.data.date)}</span>
                 {(t.data.matchedReceiptId || t.data.paysBillId) && <span className="fact good">Matched</span>}
-                <span className="fact">{lineCase(t.data.category)}</span>
+                {/* A FEE SAYS WHAT IT WAS CHARGED FOR (Dave, via Alfred, 2026-10-17: the bank's four Sep 1 fees
+                    drawn as one label three times). The purchase takes the row's one grey in the category's place;
+                    the dot at the head still carries the category and the merchant already says Overdraft Fee. */}
+                {t.data.about
+                  ? <FeeAboutFacts about={t.data.about} />
+                  : <span className="fact">{lineCase(t.data.category)}</span>}
               </div>
             </div>
             <div className={"mt-amt" + (t.data.amountCents < 0 ? " good" : "")}>{fmtCents(t.data.amountCents)}</div>
@@ -663,6 +673,15 @@ function TxSheet({ initial, accounts, categories, categoryFor, last, links, onUn
             options={accounts.map((a) => ({ value: a, label: a }))} onPick={setAccount} />
         )}
       </Group>
+      {/* THE BANK'S LABEL ON A FEE (Dave, via Alfred, 2026-10-17): the purchase the fee was charged for, as the
+          statement carries it. The same facts the Match rows draw: a white amount, a small-caps day, and the
+          merchant last as the row's one grey. Read only: the bank wrote it, not the sheet. */}
+      {initial.about && (
+        <Group label="Fee">
+          <Row tone="orange" glyph={<FileText className="ic" />} label="Charged For"
+            meta={<LinkedFacts name={initial.about.merchant} cents={initial.about.amountCents} day={initial.about.date} />} />
+        </Group>
+      )}
       {links && (links.receipt || links.bill || initial.matchedReceiptId || initial.paysBillId) && (
         <Group label="Match">
           {(links.receipt || initial.matchedReceiptId) && (

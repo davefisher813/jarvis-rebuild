@@ -5,7 +5,7 @@ import {
   type TrackerAccount, type TrackerAccountData, type TrackerBudget, type TrackerBudgetData,
   type TrackerAccountType, type TrackerData, type TrackerSub, type TrackerSubData, type TrackerTx, type TrackerTxData,
 } from "./tracker";
-import { SEED_ACCOUNTS, SEED_SUBS, SEED_TXS } from "./trackerSeed";
+import { SEED_ACCOUNTS, SEED_FEES, SEED_SUBS, SEED_TXS, isUnlabelledImportFee } from "./trackerSeed";
 import { fingerprintOf } from "./ledger/fingerprint";
 import { appended, diffFields, entry, isoNow, type Clock } from "./ledger/history";
 
@@ -83,7 +83,7 @@ export class TrackerService {
       name: (data.name || data.merchant).trim(),
     };
     if (!clean.merchant || !clean.date || !clean.amountCents) return null;
-    const stamp = (d: TrackerTxData): string => fingerprintOf({ kind: "tx", vendor: d.merchant, amountCents: d.amountCents, date: d.date, source: d.source ?? "manual" });
+    const stamp = (d: TrackerTxData): string => fingerprintOf({ kind: "tx", vendor: d.merchant, amountCents: d.amountCents, date: d.date, source: d.source ?? "manual", ref: d.ref });
     if (!id) {
       const source = clean.source ?? "manual";
       return this.write(ENTITY_MONEY_TX, null, {
@@ -96,9 +96,10 @@ export class TrackerService {
     }
     const before = (await this.store.read(this.ownerId, id))?.data as unknown as TrackerTxData | undefined;
     // The ledger owns these: an edit never writes them, so a stale copy in
-    // the caller's hand cannot undo a link made since it was read.
+    // the caller's hand cannot undo a link made since it was read. The bank's
+    // label on a fee (about, ref) is the bank's, not the sheet's (2026-10-17).
     const patch: TrackerTxData = { ...clean };
-    for (const k of ["history", "fingerprint", "matchedReceiptId", "paysBillId", "source", "currency"] as const) delete patch[k];
+    for (const k of ["history", "fingerprint", "matchedReceiptId", "paysBillId", "source", "currency", "about", "ref"] as const) delete patch[k];
     if (before) {
       const changes = diffFields(before, clean, ["date", "merchant", "amountCents", "category", "account"]);
       if (Object.keys(changes).length) {
@@ -155,7 +156,45 @@ export class TrackerService {
     // the first transaction left the Import card up, and the second tap wrote Amazon Prime and SiriusXM again.
     const haveSubs = new Set((await this.listOf<TrackerSubData>(ENTITY_MONEY_SUB)).map((x) => x.data.merchantName));
     for (const s of SEED_SUBS) if (!haveSubs.has(s.merchantName)) await this.write(ENTITY_MONEY_SUB, null, s);
-    for (const t of SEED_TXS) await this.write(ENTITY_MONEY_TX, null, t);
+    for (const t of SEED_TXS) await this.write(ENTITY_MONEY_TX, null, this.importRow(t));
+    return true;
+  }
+
+  /** An imported row says so, and carries its fingerprint, the way a typed
+   *  row does through saveTx (2026-10-17; the first import wrote neither, so
+   *  a seed row on the phone has no `source` at all). */
+  private importRow(t: TrackerTxData): TrackerTxData {
+    const source = t.source ?? "import";
+    return { ...t, source, fingerprint: fingerprintOf({ kind: "tx", vendor: t.merchant, amountCents: t.amountCents, date: t.date, source, ref: t.ref }) };
+  }
+
+  /**
+   * THE BANK'S OWN COUNT OF SEPTEMBER'S OVERDRAFT FEES (Dave, via Alfred,
+   * 2026-10-17). The first import wrote three identical "Overdraft Fee, Sep 1,
+   * $35.00" rows on BUSINESS CHECKING ...3305. Wells Fargo's record, read
+   * through Plaid, has five distinct fees inside the import's window, each for
+   * its own purchase (four dated Sep 1, one Sep 2), and the import card is gone
+   * for good once a transaction exists, so a seed change alone would never
+   * reach his phone. This replaces those seed rows with the bank's own count
+   * and labels, under Dave's order: "do NOT dedupe or delete real fees;
+   * reconcile the app's fee count and dates against the bank's; label each fee
+   * row with the underlying transaction it belongs to."
+   *
+   * One time and idempotent: it acts only while an unlabelled import fee is
+   * still there, writes whichever of the five labelled fees is missing (by
+   * ref), then removes the unlabelled rows, so a run cut off halfway finishes
+   * on the next load and a finished store is left alone. It never touches a
+   * row that is not an unlabelled import fee: a fee typed by hand carries
+   * "manual" and stays. Runs on the Tracker's load (TrackerScreen).
+   * Returns true when it changed something.
+   */
+  async reconcileImportFees(): Promise<boolean> {
+    const txs = await this.listOf<TrackerTxData>(ENTITY_MONEY_TX);
+    const unlabelled = txs.filter((t) => isUnlabelledImportFee(t.data));
+    if (unlabelled.length === 0) return false;
+    const have = new Set(txs.map((t) => t.data.ref).filter((r): r is string => !!r));
+    for (const fee of SEED_FEES) if (!have.has(fee.ref!)) await this.write(ENTITY_MONEY_TX, null, this.importRow(fee));
+    for (const t of unlabelled) await this.drop(ENTITY_MONEY_TX, t.id);
     return true;
   }
 }

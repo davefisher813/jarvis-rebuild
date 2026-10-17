@@ -418,6 +418,41 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
     expect(catalogViolations(container)).toEqual([]);
   });
 
+  it("a fee says what it was charged for: the purchase is the row's one grey with a white amount, the posted day small caps, and the sheet draws it as facts (2026-10-17)", async () => {
+    // The bank's record: four $35 overdraft fees on Sep 1 for separate purchases. Two of them, in this month, so the rows sort beside each other.
+    const about1 = { merchant: "MTA", amountCents: 1900, date: mday(1) };
+    const about2 = { merchant: "ShopRite", amountCents: 2351, date: mday(1) };
+    const fee = (over: Partial<TrackerTxData>): TrackerTxData => txData({
+      date: mday(2), merchant: "Overdraft Fee", name: "Overdraft fee business checking", amountCents: 3500, category: "Overdraft",
+      account: "BUSINESS CHECKING ...3305", source: "import", ...over,
+    });
+    const { container } = mount("cat-fee", async (h) => {
+      await h.tracker.saveTx(null, fee({ about: about1, ref: "wf-3305-x-od-mta-1900" }));
+      await h.tracker.saveTx(null, fee({ about: about2, ref: "wf-3305-x-od-shoprite-2351" }));
+    }, <TrackerScreen onBack={() => {}} />);
+    await tab("Activity");
+    const rows = (await screen.findAllByText("Overdraft Fee", { selector: ".task-name" })).map((n) => n.closest(".task-row") as HTMLElement);
+    expect(rows).toHaveLength(2);
+    const texts = rows.map((row) => [...row.querySelectorAll(".fact")].map((f) => f.textContent));
+    expect(texts).toContainEqual([`${MON} 2`, "For MTA $19.00", `${MON} 1`]);
+    expect(texts).toContainEqual([`${MON} 2`, "For ShopRite $23.51", `${MON} 1`]);
+    for (const row of rows) {
+      // one grey (the purchase), its amount a white number inside it, the posted day a small-caps date, no category fact beside it
+      expect([...row.querySelectorAll(".fact")].filter(isGrey).map((f) => f.textContent)).toEqual([expect.stringMatching(/^For /)]);
+      expect(row.querySelector(".fact > b")).toHaveTextContent(/^\$\d/);
+      expect(row.querySelectorAll(".fact.date")).toHaveLength(2);
+    }
+    expect(catalogViolations(container)).toEqual([]);
+
+    fireEvent.click(rows.find((r) => r.textContent!.includes("ShopRite"))!);
+    await screen.findByText("Edit Transaction");
+    const feeRow = (await screen.findByText("Charged For")).closest(".row") as HTMLElement;
+    expect([...feeRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["$23.51", `${MON} 1`, "ShopRite"]);
+    expect(feeRow.querySelector(".conn-meta > .fact > b")).toHaveTextContent("$23.51");
+    expect(feeRow.querySelector(".conn-meta > .fact.date")).toBeTruthy();
+    expect(catalogViolations(document.body)).toEqual([]);
+  });
+
   it("a payment's sheet names what it is matched to as separate facts, for a receipt and for a bill", async () => {
     mount("cat-tx-sheet", async (h) => {
       const txId = (await h.tracker.saveTx(null, txData()))!;

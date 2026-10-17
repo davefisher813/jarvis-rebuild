@@ -8,7 +8,7 @@
 // AMOUNTS ARE INTEGER CENTS HERE, and only here. The rest of the Money page
 // stores dollars (types.ts, AccountData.balance) because a self-entered
 // balance is a round number a person typed. A ledger is not: $23.19 and
-// $50.09 have to add up to the cent across 31 rows, and float dollars do not
+// $50.09 have to add up to the cent across 33 rows, and float dollars do not
 // survive that. The two never mix -- a Tracker record is never read as an
 // account balance and vice versa -- so there is no boundary to get wrong.
 //
@@ -57,6 +57,24 @@ export interface TrackerTxData {
   paysBillId?: string;
   fingerprint?: string;
   history?: HistoryEntry[];
+  // THE BANK'S OWN LABEL ON A FEE (Dave, via Alfred, 2026-10-17). Wells Fargo
+  // charged separate $35 overdraft fees, each for its own purchase, and the
+  // app labelled them identically. Both optional, so every row stored before
+  // this reads exactly as it did.
+  /** The transaction a fee was charged for, the way the statement names it
+   *  ("for a transaction posted on 08/31, $19.00 purchase, MTA"). */
+  about?: TxAbout;
+  /** A bank-side reference that tells this row from every other, including one
+   *  with the same merchant, amount and day. We have no Plaid ids, so an import
+   *  mints a stable synthetic one (trackerSeed.ts, feeRef). */
+  ref?: string;
+}
+/** The underlying transaction a fee belongs to. */
+export interface TxAbout {
+  merchant: string;
+  amountCents: number;
+  /** ISO day the purchase posted. */
+  date: string;
 }
 export interface TrackerBudgetData {
   month: string;

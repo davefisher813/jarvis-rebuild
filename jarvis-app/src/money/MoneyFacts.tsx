@@ -1,6 +1,6 @@
 import { lineCase } from "../shared/casing";
 import { normalizeVendor } from "./ledger/fingerprint";
-import { fmtCents, fmtDay } from "./tracker";
+import { fmtCents, fmtDay, type TxAbout } from "./tracker";
 
 // THE MONEY MODULE'S FACT PRIMITIVES (2026-10-05, Dave's visual catalog gate).
 //
@@ -32,6 +32,23 @@ export function LinkedFacts({ name, sameAs, cents, day }: { name?: string; sameA
       <span className="fact"><b>{fmtCents(cents)}</b></span>
       {day && <span className="fact date">{fmtDay(day)}</span>}
       {showName && <span className="fact">{lineCase(name!)}</span>}
+    </>
+  );
+}
+
+/** What a fee was charged FOR, the way the bank statement labels it (Dave,
+ *  via Alfred, 2026-10-17: four $35 overdraft fees on one day, each for its
+ *  own purchase, drawn identically). Two facts: "For MTA $19.00", the words the
+ *  row's one grey and the amount a white number inside it (§AM F1), then the
+ *  day the purchase posted as a small-caps date (F5). On an Activity row this
+ *  stands where the category fact stood: the dot at the row's head already
+ *  carries the category's colour and the merchant already says Overdraft Fee,
+ *  so the row keeps one grey. The dot between them is the CSS's (F3). */
+export function FeeAboutFacts({ about }: { about: TxAbout }) {
+  return (
+    <>
+      <span className="fact">{lineCase("For " + about.merchant)} <b>{fmtCents(about.amountCents)}</b></span>
+      {about.date && <span className="fact date">{fmtDay(about.date)}</span>}
     </>
   );
 }

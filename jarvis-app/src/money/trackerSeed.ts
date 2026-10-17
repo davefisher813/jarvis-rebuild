@@ -1,4 +1,4 @@
-import type { TrackerAccountData, TrackerSubData, TrackerTxData } from "./tracker";
+import type { TrackerAccountData, TrackerSubData, TrackerTxData, TxAbout } from "./tracker";
 import { monthOf } from "./tracker";
 
 // SEPTEMBER 2026, AS THE STATEMENTS READ IT (PASSOFF 2026-09-19). Written
@@ -56,11 +56,68 @@ const SEED_TX: SeedTx[] = [
   ["2026-09-03", "Chick-fil-A", "Chick-fil-A", 3410, "Fast Food", "BUSINESS CHECKING ...3305"],
   ["2026-09-02", "Amazon", "Amazon Mktpl", 6329, "Digital Purchase", "PLATINUM CARD ...4975"],
   ["2026-09-02", "Apple", "Apple.com/bill", 1487, "Digital Purchase", "PLATINUM CARD ...4975"],
-  ["2026-09-01", "Overdraft Fee", "Overdraft fee business checking", 3500, "Overdraft", "BUSINESS CHECKING ...3305"],
-  ["2026-09-01", "Overdraft Fee", "Overdraft fee business checking", 3500, "Overdraft", "BUSINESS CHECKING ...3305"],
-  ["2026-09-01", "Overdraft Fee", "Overdraft fee business checking", 3500, "Overdraft", "BUSINESS CHECKING ...3305"],
 ];
 
-export const SEED_TXS: TrackerTxData[] = SEED_TX.map(([date, merchant, name, amountCents, category, account]) => ({
-  date, month: monthOf(date), merchant, name, amountCents, category, account,
-}));
+// THE OVERDRAFT FEES, AS THE BANK CHARGED THEM (Dave, via Alfred, 2026-10-17).
+//
+// The first import carried three identical lines: "2026-09-01, Overdraft Fee,
+// $35.00, BUSINESS CHECKING ...3305". Alfred pulled the account from Wells
+// Fargo through Plaid and the bank's own record reads, verbatim: "The bank
+// charged multiple DISTINCT $35 overdraft fees, each with its own transaction
+// ID and its own underlying purchase: four dated Sep 1, 2026 (underlying
+// purchases: MTA $19.00, MTA $10.25, ShopRite $23.51, MTA $14.25, all posted
+// 08/31), one dated Sep 2 (Wienery $13.94 purchase on 09/01), and one dated
+// Aug 26 (the Ally payment)."
+//
+// So the three rows were not one fee drawn three times; they were an
+// undercount (the bank has five inside this window) wearing one label. Each
+// fee here carries the purchase it was charged for (`about`), the way the
+// statement itself labels it, and a reference (`ref`) that tells it from the
+// fee beside it. The Aug 26 fee is outside this seed's window (September 1 to
+// 15) and is NOT added here; it is reported, not invented into the month.
+export const FEE_ACCOUNT = "BUSINESS CHECKING ...3305";
+export const FEE_MERCHANT = "Overdraft Fee";
+export const FEE_CENTS = 3500;
+
+/** [fee date, underlying merchant, underlying cents, posted date] */
+type SeedFee = [string, string, number, string];
+const SEED_FEE: SeedFee[] = [
+  ["2026-09-01", "MTA", 1900, "2026-08-31"],
+  ["2026-09-01", "MTA", 1025, "2026-08-31"],
+  ["2026-09-01", "ShopRite", 2351, "2026-08-31"],
+  ["2026-09-01", "MTA", 1425, "2026-08-31"],
+  ["2026-09-02", "Wienery", 1394, "2026-09-01"],
+];
+
+/** The stable synthetic reference for a fee we have no bank id for: the
+ *  account's last digits, the fee's day, "od" and the purchase it was for.
+ *  Deterministic, so the same fee on two phones is the same row. */
+export function feeRef(account: string, date: string, about: TxAbout): string {
+  const digits = account.match(/(\d{2,6})\s*$/)?.[1] ?? "acct";
+  const slug = about.merchant.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `wf-${digits}-${date}-od-${slug}-${about.amountCents}`;
+}
+
+export const SEED_FEES: TrackerTxData[] = SEED_FEE.map(([date, merchant, amountCents, posted]) => {
+  const about: TxAbout = { merchant, amountCents, date: posted };
+  return {
+    date, month: monthOf(date), merchant: FEE_MERCHANT, name: "Overdraft fee business checking",
+    amountCents: FEE_CENTS, category: "Overdraft", account: FEE_ACCOUNT,
+    source: "import", about, ref: feeRef(FEE_ACCOUNT, date, about),
+  };
+});
+
+/** A fee row from the first import: the bank's label missing, the three rows
+ *  indistinguishable. Only ever an import row (a row typed by hand carries
+ *  "manual"; a seed row before 2026-10-17 carried no source at all). */
+export function isUnlabelledImportFee(d: TrackerTxData): boolean {
+  return d.merchant === FEE_MERCHANT && d.date === "2026-09-01" && d.amountCents === FEE_CENTS && d.account === FEE_ACCOUNT
+    && !d.ref && (d.source === undefined || d.source === "import");
+}
+
+export const SEED_TXS: TrackerTxData[] = [
+  ...SEED_TX.map(([date, merchant, name, amountCents, category, account]): TrackerTxData => ({
+    date, month: monthOf(date), merchant, name, amountCents, category, account,
+  })),
+  ...SEED_FEES,
+];
