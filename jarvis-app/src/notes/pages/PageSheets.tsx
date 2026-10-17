@@ -26,12 +26,16 @@ const noun = (page: PageData) => templateDef(page.kind)?.noun ?? (page.kind === 
 /** One record, every field it has, typed in place. A value the import was not sure of is named under its group with
  *  the reason, and can be kept as it is in one tap. Nothing here makes a task, an event or a share: Outreach's Make a
  *  Task is its own row and runs only when tapped. */
-export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord, defaultSection }: {
+export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord, defaultSection, initial, carried }: {
   page: PageData;
   record: PageRecord | null;
   isNew: boolean;
   /** The heading whose Add opened this sheet: a new row starts under it. */
   defaultSection?: string;
+  /** Values a new row starts with (a 1:1's follow-ups carried from the last meeting). Prefilled, so typing replaces them. */
+  initial?: Record<string, string>;
+  /** The line that says where a prefilled value came from. */
+  carried?: string;
   /** The values changed (all of them for a new row) and, when the page has headings, the heading it was put under (null: above every heading). */
   onSave: (values: Record<string, string>, section?: string | null) => void;
   onCancel: () => void;
@@ -45,7 +49,7 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   confirmedWord?: string;
 }) {
   const fields = editableFields(page);
-  const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? ""])));
+  const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? (isNew ? initial?.[f.key] : undefined) ?? ""])));
   const set = (k: string, v: string) => setDraft((d) => ({ ...d, [k]: v }));
   const changed = () => Object.fromEntries(Object.entries(draft).filter(([k, v]) => (record?.v[k] ?? "") !== v));
   const sections = page.sections ?? [];
@@ -75,6 +79,7 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
       <Group label={page.kind === "lineup" ? "Player" : noun(page)}>
         {(page.kind === "lineup" ? fields.filter((f) => f.key === "position") : fields).map(fieldRow)}
       </Group>
+      {isNew && carried && <Note>{carried}</Note>}
       {sections.length > 0 && (
         <Group label="Heading">
           <MenuRow tone="" glyph={null} label="Under" value={sec} word={sec ? undefined : "Above Every Heading"}
@@ -426,6 +431,29 @@ export function GameSheet({ page, game, onSave, onCancel, onRemove }: {
       </Group>
       {a && a === b && <Note>Pick Two Different Teams</Note>}
       {onRemove && <Group><DeleteRow label="Remove Game" onClick={onRemove} /></Group>}
+    </FormSheet>
+  );
+}
+
+/** POKER NIGHT'S BLINDS, three numbers: the schedule climbs the usual ladder from them (templateLogic.blindSchedule). */
+export function BlindsSheet({ start, minutes, levels, onSave, onCancel }: {
+  start: string; minutes: string; levels: string;
+  onSave: (start: string, minutes: string, levels: string) => void;
+  onCancel: () => void;
+}) {
+  const [s, setS] = useState(start);
+  const [m, setM] = useState(minutes || "15");
+  const [l, setL] = useState(levels || "8");
+  const okNum = (v: string, min: number) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= min;
+  const ok = okNum(s, 1) && okNum(m, 0) && okNum(l, 1);
+  return (
+    <FormSheet title="Blinds" onCancel={onCancel} saveDisabled={!ok} onSave={() => { if (ok) onSave(s.trim(), m.trim(), l.trim()); }}>
+      <Group label="Schedule">
+        <FieldRow label="Starting Small Blind" ariaLabel="Starting small blind" value={s} onChange={setS} inputMode="numeric" autoFocus error={!!s.trim() && !okNum(s, 1)} />
+        <FieldRow label="Minutes a Level" ariaLabel="Minutes a level" value={m} onChange={setM} inputMode="numeric" error={!!m.trim() && !okNum(m, 0)} />
+        <FieldRow label="Levels" ariaLabel="Levels" value={l} onChange={setL} inputMode="numeric" error={!!l.trim() && !okNum(l, 1)} />
+      </Group>
+      <Note>The Levels Climb the Usual Ladder From the Starting Blind: 25/50, 50/100, 75/150, 100/200 and On</Note>
     </FormSheet>
   );
 }

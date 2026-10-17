@@ -12,7 +12,7 @@ import { type PageData, type PageRecord, golfTotals, scoreOf, toParLabel, editab
 import { ID_HEADER } from "./importMap";
 import { standingsOf } from "./templateLogic";
 import { templateDef } from "./templateDefs";
-import { bowlingFrames, dartTurns, dKey, periodScore, sideTotal } from "./scoreboard";
+import { bowlingFrames, dartTurns, dKey, periodScore, sideTotal, diceTotals, phaseOf, DICE_BOXES } from "./scoreboard";
 import { toCsv, writeXlsx, XLSX_MIME } from "./tabular";
 
 export type PageFormat = "csv" | "xlsx" | "pdf";
@@ -55,8 +55,13 @@ function scoreTable(page: PageData, withId: boolean): string[][] {
       ...page.records.map((r) => [...id(r), r.v.name ?? "", ...Array.from({ length: turns }, (_, i) => r.v[dKey(i + 1)] ?? ""), String(sideTotal(page, r))])];
   }
   if (sc.mode === "target") return [[...idH, name, "Score"], ...page.records.map((r) => [...id(r), r.v.name ?? "", String(periodScore(r, 1) ?? 0)])];
-  return [[...idH, name, ...Array.from({ length: sc.periods }, (_, i) => String(i + 1)), "Total"],
-    ...page.records.map((r) => [...id(r), r.v.name ?? "", ...Array.from({ length: sc.periods }, (_, i) => { const v = periodScore(r, i + 1); return v === null ? "" : String(v); }), String(sideTotal(page, r))])];
+  // The dice sheet: a column per box, the upper bonus worked out, the total.
+  if (sc.mode === "dice") {
+    return [[...idH, name, ...DICE_BOXES.map((b) => b.name), "Upper Bonus", "Total"],
+      ...page.records.map((r) => { const t = diceTotals(r); return [...id(r), r.v.name ?? "", ...DICE_BOXES.map((b) => r.v[b.key] ?? ""), t.bonus ? String(t.bonus) : "", String(t.total)]; })];
+  }
+  return [[...idH, name, ...Array.from({ length: sc.periods }, (_, i) => String(i + 1)), ...(sc.phase ? ["Phase"] : []), "Total"],
+    ...page.records.map((r) => [...id(r), r.v.name ?? "", ...Array.from({ length: sc.periods }, (_, i) => { const v = periodScore(r, i + 1); return v === null ? "" : String(v); }), ...(sc.phase ? [String(phaseOf(r))] : []), String(sideTotal(page, r))])];
 }
 
 /** League standings, worked out from the games. */
@@ -84,7 +89,8 @@ function golfTable(page: PageData, withId: boolean): string[][] {
 /** Columns a spreadsheet should read as numbers (scores), by index in pageTable's rows. */
 function numericColumns(page: PageData, table: string[][]): Set<number> {
   const out = new Set<number>();
-  if (page.kind === "scoreboard" || page.kind === "standings") { (table[0] ?? []).forEach((h, i) => { if (/^\d+$/.test(h) || ["Total", "Score", "Left", "Played", "W", "L", "T", "PF", "PA", "Pts"].includes(h)) out.add(i); }); return out; }
+  // A scoreboard or a standings table is numbers after the name: every column past it, whatever the box or column is called.
+  if (page.kind === "scoreboard" || page.kind === "standings") { const nameAt = table[0]?.[0] === ID_HEADER ? 1 : 0; (table[0] ?? []).forEach((_, i) => { if (i > nameAt) out.add(i); }); return out; }
   if (page.kind !== "scorecard") return out;
   const head = table[0] ?? [];
   head.forEach((h, i) => { if (/^\d+$/.test(h) || h === "Out" || h === "In" || h === "Total") out.add(i); });

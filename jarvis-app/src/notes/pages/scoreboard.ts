@@ -21,11 +21,44 @@ export interface SportPreset {
   target?: number;
   /** Starting names for the sides. */
   sides: string[];
+  /** The Game Night rules, as ScoreInfo carries them. */
+  lowWins?: boolean;
+  endAt?: number;
+  step?: number;
+  min?: number;
+  max?: number;
+  phase?: boolean;
 }
 
 const two = ["Home", "Away"];
+const four = ["Player 1", "Player 2", "Player 3", "Player 4"];
 const P = (key: string, name: string, group: SportPreset["group"], periods: number, unit: string, winBy: SportPreset["winBy"] = "total", sides = two): SportPreset =>
   ({ key, name, group, mode: "periods", periods, unit, winBy, sides });
+
+// THE DICE SHEET: thirteen boxes, each scored its own way (Ones count ones, a Full House is 25 or nothing, a Yahtzee 50), the upper
+// six earn 35 when they reach 63, and every Yahtzee after the first is a 100 bonus. The step is how a box moves on the entry screen.
+export interface DiceBox { key: string; name: string; step: number; max: number; upper: boolean }
+export const DICE_BOXES: DiceBox[] = [
+  { key: "y1", name: "Ones", step: 1, max: 5, upper: true },
+  { key: "y2", name: "Twos", step: 2, max: 10, upper: true },
+  { key: "y3", name: "Threes", step: 3, max: 15, upper: true },
+  { key: "y4", name: "Fours", step: 4, max: 20, upper: true },
+  { key: "y5", name: "Fives", step: 5, max: 25, upper: true },
+  { key: "y6", name: "Sixes", step: 6, max: 30, upper: true },
+  { key: "y7", name: "Three of a Kind", step: 1, max: 30, upper: false },
+  { key: "y8", name: "Four of a Kind", step: 1, max: 30, upper: false },
+  { key: "y9", name: "Full House", step: 25, max: 25, upper: false },
+  { key: "y10", name: "Small Straight", step: 30, max: 30, upper: false },
+  { key: "y11", name: "Large Straight", step: 40, max: 40, upper: false },
+  { key: "y12", name: "Yahtzee", step: 50, max: 50, upper: false },
+  { key: "y13", name: "Chance", step: 1, max: 30, upper: false },
+  { key: "y14", name: "Yahtzee Bonus", step: 100, max: 300, upper: false },
+];
+export const UPPER_BONUS_AT = 63;
+export const UPPER_BONUS = 35;
+/** Phase 10: the phase a side has completed, 0 to 10. */
+export const PHASE_KEY = "ph";
+export const PHASES = 10;
 
 export const SPORTS: SportPreset[] = [
   P("basketball", "Basketball", "Team Sports", 4, "Quarter"),
@@ -45,9 +78,36 @@ export const SPORTS: SportPreset[] = [
   { key: "bowling", name: "Bowling", group: "Target Games", mode: "bowling", periods: 10, unit: "Frame", winBy: "total", sides: ["Player 1"] },
   { key: "darts501", name: "Darts 501", group: "Target Games", mode: "countdown", periods: 1, unit: "Turn", winBy: "total", target: 501, sides: ["Player 1", "Player 2"] },
   { key: "darts301", name: "Darts 301", group: "Target Games", mode: "countdown", periods: 1, unit: "Turn", winBy: "total", target: 301, sides: ["Player 1", "Player 2"] },
-  P("gamenight", "Game Night", "Game Night", 5, "Round", "total", ["Player 1", "Player 2", "Player 3", "Player 4"]),
+  P("gamenight", "Game Night", "Game Night", 5, "Round", "total", four),
+  // The named Game Night sheets (the 2026-10-13 spec), each scored the way its players score it.
+  { key: "hearts", name: "Hearts", group: "Game Night", mode: "periods", periods: 4, unit: "Hand", winBy: "total", sides: four, lowWins: true, endAt: 100, max: 26 },
+  { key: "spades", name: "Spades", group: "Game Night", mode: "periods", periods: 4, unit: "Hand", winBy: "total", sides: ["Us", "Them"], endAt: 500, min: -500, max: 500 },
+  { key: "euchre", name: "Euchre", group: "Game Night", mode: "target", periods: 1, unit: "Game", winBy: "total", target: 10, sides: ["Us", "Them"] },
+  { key: "rummy", name: "Rummy", group: "Game Night", mode: "periods", periods: 4, unit: "Hand", winBy: "total", sides: four, endAt: 500, step: 5, min: -500, max: 500 },
+  { key: "phase10", name: "Phase 10", group: "Game Night", mode: "periods", periods: 4, unit: "Round", winBy: "total", sides: four, lowWins: true, step: 5, max: 500, phase: true },
+  { key: "dice", name: "Yahtzee", group: "Game Night", mode: "dice", periods: DICE_BOXES.length, unit: "Box", winBy: "total", sides: ["Player 1", "Player 2"] },
+  { key: "farkle", name: "Farkle", group: "Game Night", mode: "target", periods: 1, unit: "Game", winBy: "total", target: 10000, step: 50, max: 20000, sides: four },
   P("trivia", "Trivia", "Game Night", 6, "Round", "total", ["Team 1", "Team 2", "Team 3"]),
 ];
+
+/** The rules a preset carries onto a page's ScoreInfo, present or absent as the preset has them. */
+function rulesOf(sp: SportPreset): Pick<ScoreInfo, "target" | "lowWins" | "endAt" | "step" | "min" | "max" | "phase"> {
+  return {
+    ...(sp.target !== undefined ? { target: sp.target } : {}),
+    ...(sp.lowWins ? { lowWins: true } : {}),
+    ...(sp.endAt !== undefined ? { endAt: sp.endAt } : {}),
+    ...(sp.step !== undefined ? { step: sp.step } : {}),
+    ...(sp.min !== undefined ? { min: sp.min } : {}),
+    ...(sp.max !== undefined ? { max: sp.max } : {}),
+    ...(sp.phase ? { phase: true } : {}),
+  };
+}
+
+/** What the entry screen's column is called: "Quarter 3", "Hand 2", or the dice box's own name. */
+export function columnName(sc: ScoreInfo, at: number): string {
+  if (sc.mode === "dice") return DICE_BOXES[at - 1]?.name ?? `Box ${at}`;
+  return `${sc.unit} ${at}`;
+}
 
 export const SPORT_GROUPS: SportPreset["group"][] = ["Team Sports", "Racquet and Net", "Target Games", "Game Night"];
 
@@ -68,7 +128,7 @@ export function newScoreboardPage(sportKey: string, sides: string[] | undefined,
     kind: "scoreboard",
     fields: [{ key: "name", label: sp.mode === "bowling" || sp.winBy === "periodsWon" || /Player/.test(sp.sides[0] ?? "") ? "Player" : "Team", type: "text" }],
     records: use.map((name) => ({ id: newId("r"), v: { name } })),
-    score: { sport: sp.key, label: sp.name, mode: sp.mode, periods: sp.periods, unit: sp.unit, winBy: sp.winBy, ...(sp.target ? { target: sp.target } : {}), date },
+    score: { sport: sp.key, label: sp.name, mode: sp.mode, periods: sp.periods, unit: sp.unit, winBy: sp.winBy, ...rulesOf(sp), date },
   };
 }
 
@@ -157,15 +217,48 @@ export function dartsLeft(page: PageData, r: PageRecord): number {
   return t.length ? t[t.length - 1]!.remaining : page.score?.target ?? 501;
 }
 
+// ---- The dice sheet.
+
+export interface DiceTotals { upper: number; bonus: number; lower: number; total: number; filled: number; done: boolean }
+
+/** The sheet added up the real way: the upper six, 35 more when they reach 63, then the lower boxes and any Yahtzee bonus.
+ *  An empty box is not yet played; a zero is a scratch. Done when the thirteen scoring boxes are all filled. */
+export function diceTotals(r: PageRecord): DiceTotals {
+  let upper = 0, lower = 0, filled = 0;
+  for (const b of DICE_BOXES) {
+    const v = n(r.v[b.key]);
+    if (v === null) continue;
+    if (b.key !== "y14") filled++;
+    if (b.upper) upper += v; else lower += v;
+  }
+  const bonus = upper >= UPPER_BONUS_AT ? UPPER_BONUS : 0;
+  return { upper, bonus, lower, total: upper + bonus + lower, filled, done: filled >= DICE_BOXES.length - 1 };
+}
+
+/** Phase 10: the phase this side has completed. */
+export const phaseOf = (r: PageRecord): number => Math.min(PHASES, Math.max(0, n(r.v[PHASE_KEY]) ?? 0));
+
 /** A side's total in the page's own way of counting. For countdown, what is left. */
 export function sideTotal(page: PageData, r: PageRecord): number {
   const sc = page.score!;
   if (sc.mode === "bowling") return bowlingFrames(r).reduce((last, f) => (f.total !== null ? f.total : last), 0);
   if (sc.mode === "countdown") return dartsLeft(page, r);
+  if (sc.mode === "dice") return diceTotals(r).total;
   if (sc.mode === "target") return periodScore(r, 1) ?? 0;
   let t = 0;
   for (let p = 1; p <= sc.periods; p++) t += periodScore(r, p) ?? 0;
   return t;
+}
+
+/** True once a side has any score on the page at all, in the page's own mode. */
+export function sideScored(page: PageData, r: PageRecord): boolean {
+  const sc = page.score!;
+  if (sc.mode === "bowling") return bowlingFrames(r).some((f) => f.rolls.length > 0);
+  if (sc.mode === "countdown") return dartTurns(page, r).length > 0;
+  if (sc.mode === "dice") return diceTotals(r).filled > 0 || n(r.v.y14) !== null;
+  if (sc.mode === "target") return periodScore(r, 1) !== null;
+  for (let p = 1; p <= sc.periods; p++) if (periodScore(r, p) !== null) return true;
+  return false;
 }
 
 /** Columns a side has taken (sets won): one point per column it led, ties to nobody. */
@@ -187,22 +280,42 @@ export function headline(page: PageData, r: PageRecord): number {
   return sc.winBy === "periodsWon" && sc.mode === "periods" ? periodsWon(page, r) : sideTotal(page, r);
 }
 
-export interface Standing { id: string; name: string; value: number; secondary: number | null; leading: boolean; done: boolean }
+export interface Standing {
+  id: string; name: string; value: number; secondary: number | null; leading: boolean;
+  /** This side has finished (a target reached, zero hit, ten frames bowled, every box filled). */
+  done: boolean;
+  /** The game is over and this side won it (a Game Night sheet: the hand a total reaches the end, the tenth phase, every box filled). */
+  won: boolean;
+  /** Phase 10: the phase completed. */
+  phase: number | null;
+}
 
-/** Who is ahead, and whether the game is over (a target reached, zero hit, ten frames done, every column played). */
+/** Who is ahead, and whether the game is over (a target reached, zero hit, ten frames done, every column played). In a game where the
+ *  lowest total wins, a side with no score yet is not ahead for having none. */
 export function scoreStanding(page: PageData): Standing[] {
   const sc = page.score!;
-  const rows = page.records.map((r) => ({ r, v: headline(page, r), s: sc.winBy === "periodsWon" ? sideTotal(page, r) : null }));
-  const lowWins = sc.mode === "countdown";
-  const best = rows.length ? (lowWins ? Math.min(...rows.map((x) => x.v)) : Math.max(...rows.map((x) => x.v))) : 0;
-  const anyScore = rows.some((x) => (sc.mode === "countdown" ? x.v < (sc.target ?? 501) : x.v > 0));
-  return rows.map(({ r, v, s }) => ({
+  const rows = page.records.map((r) => ({ r, v: headline(page, r), s: sc.winBy === "periodsWon" ? sideTotal(page, r) : null, scored: sideScored(page, r), ph: sc.phase ? phaseOf(r) : null }));
+  const lowWins = sc.mode === "countdown" || !!sc.lowWins;
+  const inPlay = lowWins ? rows.filter((x) => x.scored) : rows;
+  const best = inPlay.length ? (lowWins ? Math.min(...inPlay.map((x) => x.v)) : Math.max(...inPlay.map((x) => x.v))) : 0;
+  const anyScore = rows.some((x) => x.scored);
+  // The game is over when a side has reached the end, finished the tenth phase or filled the sheet.
+  const over = sc.mode === "periods" && sc.endAt !== undefined ? rows.some((x) => x.v >= sc.endAt!)
+    : sc.phase ? rows.some((x) => (x.ph ?? 0) >= PHASES)
+      : sc.mode === "dice" ? rows.length > 0 && rows.every((x) => diceTotals(x.r).done)
+        : false;
+  // The winner of an over game: among those who finished the phases (Phase 10), or everyone, the best total, alone.
+  const finalists = sc.phase ? rows.filter((x) => (x.ph ?? 0) >= PHASES) : rows;
+  const finalBest = finalists.length ? (lowWins ? Math.min(...finalists.map((x) => x.v)) : Math.max(...finalists.map((x) => x.v))) : null;
+  return rows.map(({ r, v, s, ph }) => ({
     id: r.id,
     name: (r.v.name ?? "").trim() || "Side",
     value: v,
     secondary: s,
-    leading: anyScore && v === best && rows.filter((x) => x.v === best).length === 1,
-    done: sc.mode === "target" ? v >= (sc.target ?? 11) : sc.mode === "countdown" ? v === 0 : sc.mode === "bowling" ? bowlingFrames(r)[9]!.total !== null : false,
+    phase: ph,
+    leading: !over && anyScore && (!lowWins || sideScored(page, r)) && v === best && inPlay.filter((x) => x.v === best).length === 1,
+    done: sc.mode === "target" ? v >= (sc.target ?? 11) : sc.mode === "countdown" ? v === 0 : sc.mode === "bowling" ? bowlingFrames(r)[9]!.total !== null : sc.mode === "dice" ? diceTotals(r).done : false,
+    won: over && finalBest !== null && finalists.some((x) => x.r.id === r.id) && v === finalBest && finalists.filter((x) => x.v === finalBest).length === 1,
   }));
 }
 
@@ -214,14 +327,19 @@ export function nextPeriod(page: PageData): number {
     return 10;
   }
   if (sc.mode === "countdown") return Math.max(1, ...page.records.map((r) => dartTurns(page, r).length + 1));
+  if (sc.mode === "dice") {
+    for (let b = 1; b < DICE_BOXES.length; b++) if (page.records.some((r) => n(r.v[DICE_BOXES[b - 1]!.key]) === null)) return b;
+    return DICE_BOXES.length;
+  }
   for (let p = 1; p <= sc.periods; p++) if (page.records.some((r) => periodScore(r, p) === null)) return p;
   return sc.periods;
 }
 
 export function setPeriodScore(page: PageData, recordId: string, p: number, score: number | null): PageData {
+  const floor = page.score?.min ?? 0;
   return {
     ...page,
-    records: page.records.map((r) => (r.id === recordId ? { ...r, v: { ...r.v, [pKey(p)]: score === null ? "" : String(Math.max(0, Math.round(score))) } } : r)),
+    records: page.records.map((r) => (r.id === recordId ? { ...r, v: { ...r.v, [pKey(p)]: score === null ? "" : String(Math.max(floor, Math.round(score))) } } : r)),
   };
 }
 
@@ -243,17 +361,20 @@ export function addPeriod(page: PageData): PageData {
 export function setSport(page: PageData, sportKey: string): PageData {
   const sp = sportOf(sportKey);
   if (!sp || !page.score) return page;
-  return { ...page, score: { ...page.score, sport: sp.key, label: sp.name, mode: sp.mode, periods: Math.max(sp.periods, 1), unit: sp.unit, winBy: sp.winBy, ...(sp.target ? { target: sp.target } : { target: undefined }) } };
+  const { target: _t, lowWins: _l, endAt: _e, step: _s, min: _mn, max: _mx, phase: _p, ...kept } = page.score;
+  void _t; void _l; void _e; void _s; void _mn; void _mx; void _p;
+  return { ...page, score: { ...kept, sport: sp.key, label: sp.name, mode: sp.mode, periods: Math.max(sp.periods, 1), unit: sp.unit, winBy: sp.winBy, ...rulesOf(sp) } };
 }
 
 /** How many entered scores a change of sport would stop drawing, said before it happens. */
 export function sportChangeImpact(page: PageData, sportKey: string): number {
   const sp = sportOf(sportKey);
-  if (!sp || !page.score || sp.mode === page.score.mode && sp.periods >= page.score.periods) return 0;
+  if (!sp || !page.score || (sp.mode === page.score.mode && sp.periods >= page.score.periods && !(page.score.phase && !sp.phase))) return 0;
   let hidden = 0;
   for (const r of page.records) for (const [k, v] of Object.entries(r.v)) {
     if (!(v ?? "").trim()) continue;
-    if (sp.mode !== page.score.mode && /^(p\d+|b\d+[abc]|d\d+)$/.test(k)) hidden++;
+    if (sp.mode !== page.score.mode && /^(p\d+|b\d+[abc]|d\d+|y\d+)$/.test(k)) hidden++;
+    else if (k === PHASE_KEY && !sp.phase && page.score.phase) hidden++;
     else if (sp.mode === page.score.mode && sp.mode === "periods") { const m = /^p(\d+)$/.exec(k); if (m && Number(m[1]) > sp.periods) hidden++; }
   }
   return hidden;
