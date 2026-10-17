@@ -22,7 +22,10 @@ import {
   classOf, needsMuscles, rowChips, valueLine, type Chip, type ClassStore, type Classification,
   type MovementPattern, type MuscleScope, MOVEMENTS, MOVEMENT_LABEL,
 } from "./classify";
-import { DEFAULT_SORT, defaultView, filterCount, floorLine, NO_FILTER, SORT_LABEL, viewRows, type LibraryFilter, type SortKey } from "./libraryView";
+import {
+  adoptStarter, DEFAULT_SORT, defaultView, filterCount, floorLine, NO_FILTER, pickerSections, SORT_LABEL, viewRows,
+  type Adoption, type LibraryFilter, type SortKey,
+} from "./libraryView";
 
 // EXERCISES (was "Your Lifts", renamed 2026-09-14 on Dave's word: "Rename
 // 'Your Lifts' to 'Exercises' so the library covers all exercise types").
@@ -60,9 +63,18 @@ function chipTone(ch: Chip): string {
 
 export default function LibraryPage({
   rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
-  onToggleFavorite, onSetGoal, onCreate, onDelete, dismissedDupes, onDismissDuplicate, onBack,
+  onToggleFavorite, onSetGoal, onCreate, onDelete, dismissedDupes, onDismissDuplicate, onBack, stock,
 }: {
+  /** The athlete's own exercises: made, logged or planned. */
   rows: LibraryRow[];
+  /** STOCK AND CUSTOM, ONE PAGE (Dave 2026-10-17: "It should be all exercises.
+   *  Stock and custom"). The preloaded catalog's entries he has not got
+   *  (libraryView.stockRows, the same entries every picker offers), and the
+   *  flow's one door for making one his. They come as a pair on purpose: a
+   *  page that lists starters with no way to adopt them through the flow
+   *  would have to write GymSettings itself, which is the second writer the
+   *  pickers lost on 2026-10-17. Absent, the page lists his own alone. */
+  stock?: { rows: LibraryRow[]; onAdopt: (adopted: Adoption[]) => void };
   /** Every exercise's classification, by library key. */
   store: ClassStore;
   todayIso: string;
@@ -129,12 +141,15 @@ export default function LibraryPage({
   const openCreate = () => setCreating(true);
   /** The rows as the exercise sheet's autocomplete reads them. No history
    *  attached: this list exists to stop a duplicate being typed, not to
-   *  prefill last week's numbers. */
+   *  prefill last week's numbers. The aliases ride along (2026-10-17) so the
+   *  sheet's catalog suggestions leave out a name merged away into one of
+   *  these, as every picker does. */
   const pickables = useMemo(
     () => rows.map((r) => ({
       key: r.key, name: r.name, kind: r.kind,
       ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}),
       ...(r.unit ? { unit: r.unit } : {}),
+      ...(r.aliases?.length ? { aliases: r.aliases } : {}),
       lastUsed: 0, lastSets: [],
     })),
     [rows],
@@ -176,6 +191,35 @@ export default function LibraryPage({
   }, [view.rows, justSaved, rows, store, sort, dupeKeys]);
   const missingCount = useMemo(() => rows.filter((r) => needsMuscles(classOf(store, r))).length, [rows, store]);
 
+  // THE STOCK ROWS, through the same search, filters and order as his own
+  // (they have no history, so every order lists them by name), grouped under
+  // the twelve muscle heads the pickers draw them under. Not while selecting:
+  // Select classifies his own exercises, and a starter already says what it
+  // trains. A filter only his own can pass (Favorites, Missing Muscles,
+  // Possible Duplicates) leaves no stock row, and a muscle with no row left
+  // draws no head.
+  const stockSections = useMemo(
+    () => (stock && !selecting
+      ? pickerSections(viewRows(stock.rows, store, filter, sort).rows.map((r) => ({ row: r, primary: r.starter?.primary ?? null })))
+      : []),
+    [stock, selecting, store, filter, sort],
+  );
+
+  /** A STARTER BECOMES HIS THE MOMENT HE TOUCHES IT (2026-10-17), never by
+   *  being listed: opening it, starring it, hiding it, setting a goal on it or
+   *  saving its details adopts it through the flow's one door, exactly as a
+   *  picker does (libraryView.adoptStarter), and the action then runs on the
+   *  adopted exercise. His own rows pass through untouched. `cls` is the
+   *  classification to adopt it with when the athlete has just edited it. */
+  const own = (r: LibraryRow, cls?: Classification): LibraryRow => {
+    if (!r.starter || !stock) return r;
+    const a = adoptStarter({ key: r.key, name: r.name, kind: r.kind, lastUsed: 0, lastSets: [], starter: r.starter });
+    stock.onAdopt([cls ? { ...a, cls } : a]);
+    const { starter: _starter, ...rest } = r;
+    void _starter;
+    return { ...rest, key: a.seed.key, exerciseKey: a.seed.key };
+  };
+
   const pickedRows = useMemo(() => shown.filter((r) => picked.includes(r.key)), [shown, picked]);
   const mergeItems: PickItem[] = merging
     ? rows
@@ -187,7 +231,19 @@ export default function LibraryPage({
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
 
-  const menuActions = (r: LibraryRow): SheetAction[] => [
+  // A STOCK ROW'S MENU holds what makes sense for an exercise that is not his
+  // yet, each adopting it first. No Rename: renamed, it would no longer match
+  // the catalog's name and the stock row would come back beside it (he can
+  // open it and rename his own). No Merge and no Delete: there is no history
+  // to fold or to delete, and leaving a starter alone is how to not have it.
+  const stockMenu = (r: LibraryRow): SheetAction[] => [
+    { label: "Edit Details", onClick: () => setClassing({ row: r, open: "muscles" }) },
+    ...(onSetGoal ? [{ label: "Set Goal", onClick: () => onSetGoal(own(r)) }] : []),
+    ...(onToggleFavorite ? [{ label: "Add to Favorites", onClick: () => onToggleFavorite(own(r)) }] : []),
+    { label: "Hide From Suggestions", onClick: () => onToggleHidden(own(r)) },
+  ];
+
+  const menuActions = (r: LibraryRow): SheetAction[] => r.starter ? stockMenu(r) : [
     { label: "Edit Details", onClick: () => setClassing({ row: r, open: "muscles" }) },
     { label: "Rename", onClick: () => { setRenaming(r); setDraft(liftTitle(r.name)); } },
     ...(onSetGoal ? [{ label: "Set Goal", onClick: () => onSetGoal(r) }] : []),
@@ -196,6 +252,102 @@ export default function LibraryPage({
     { label: r.hidden ? "Offer It Again" : "Hide From Suggestions", onClick: () => onToggleHidden(r) },
     ...(onDelete ? [{ label: "Delete Exercise", onClick: () => onDelete(r), destructive: true }] : []),
   ];
+
+  /** One exercise's row: his own, or a stock one, the same anatomy. */
+  const drawRow = (r: LibraryRow) => {
+    const c = classFor(r);
+    const chips = rowChips(c);
+    const on = picked.includes(r.key);
+    // The row's flags are ONE fact, the line's one grey (§AK): side
+    // by side they were up to four runs of the same grey.
+    const flags = [r.favorite && "Favorite", r.hidden && "Hidden", c.archived && "Archived", justSaved.includes(r.key) && "Saved"]
+      .filter(Boolean).join(", ");
+    const nag = needsMuscles(c);
+    const assign = () => setClassing({ row: r, open: "muscles" });
+    // THE ROW'S ONE QUICK VERB (Dave 2026-10-05, locked): the moment's action when the row has one (muscles still to
+    // assign), Favorite otherwise; Delete behind it. A stock row is starred as his once adopted (own), and has no Delete:
+    // there is nothing of his to delete.
+    const verb = nag
+      ? { label: "Assign", name: "Assign Muscles", icon: <Tag className="ic" />, run: assign }
+      : onToggleFavorite
+        ? { label: r.favorite ? "Unfavorite" : "Favorite", icon: STAR, run: () => onToggleFavorite(own(r)) }
+        : null;
+    return (
+      // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+      // clickable"). Only the name used to open the exercise; the
+      // facts, the gaps and the padding were dead. Selecting, the row
+      // picks instead. Muscles, equipment and movement are FACTS now
+      // (Dave 2026-10-05, locked: no pill in a row); the details sheet
+      // that edits them is in the row's menu, and a row with no muscle
+      // yet surfaces its one action in the key colour.
+      <GymSwipeRow key={r.key} name={liftTitle(r.name)} enabled={!selecting}
+        verb={verb} onDelete={onDelete && !r.starter ? () => onDelete(r) : undefined}
+        menu={menuActions(r).map((a) => ({ label: a.label, destructive: a.destructive, onPick: a.onClick }))}>
+      <div className={"row ex-row" + (on ? " on" : "")}
+        {...rowDoor(selecting
+          ? () => setPicked(on ? picked.filter((k) => k !== r.key) : [...picked, r.key])
+          : () => onOpen(own(r)))}>
+        <div className="row-grow">
+          {/* The name wraps rather than clipping. */}
+          <div className="ex-name">{liftTitle(r.name)}</div>
+          {/* §7: "2 sessions · Last yesterday" was one grey line
+              doing two jobs. Two compact fields. */}
+          {(r.sessions > 0 || r.lastDate || flags) && (
+            <div className="facts">
+              {/* A count leads this line, so the word behind it takes
+                  the capital (shared/casing.ts). Health polish 2026-09-16:
+                  the mockup printed "1 sessions" on every row of this
+                  list; the app has always had the singular right, and
+                  now it has the capital too. The count is logged
+                  work, so it wears the logged hue -- the same lime
+                  the Day row's "done" word wears (§AM). When it last
+                  happened is a neutral past date, so it is small
+                  caps, as it is one tap deeper on the lift's own
+                  page and on every other "last trained" in the app
+                  (§AM F5). A lift never done says nothing here. */}
+              {r.sessions > 0 && <span className="fact lime">{lineCase(`${r.sessions} ${r.sessions === 1 ? "workout" : "workouts"}`)}</span>}
+              {r.lastDate && <span className="fact date">{agoPhrase(r.lastDate, todayIso)}</span>}
+              {flags && <span className="fact">{flags}</span>}
+            </div>
+          )}
+          {(chips.length > 0 || nag) && (
+            <div className="facts">
+              {chips.map((ch, i) => (
+                // EACH AXIS ITS OWN COLOUR (2026-09-16, Dave: "too
+                // much of the same color"). A muscle is what the
+                // lift trains and takes the lime the app already
+                // spends on work done; equipment takes the violet
+                // the session header's own equipment chip has always
+                // worn; the movement pattern is the least
+                // load-bearing axis and stays quiet. (Whether these
+                // axis hues stand under the 2026-09-22 Colour Key is
+                // Dave's call, queue #317.)
+                <span key={ch.label + i} className={"fact" + chipTone(ch)}>{ch.label}</span>
+              ))}
+              {/* THE ONE NAG, AS A STATE (Dave 2026-10-05, locked: no pill and no action text on a row that is not
+                  yet due). A library with nothing classified would draw an action on every row, so the row says what
+                  is missing in the amber a state wears; the action itself is the swipe's Assign Muscles. */}
+              {nag && <span className="fact warn">No Muscles Yet</span>}
+            </div>
+          )}
+          {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also
+              (other title) needs to be deleted and never
+              render"). A merged-away name is history, not an
+              attribute of the exercise, and it read as a second
+              name for a row whose whole job is to carry one. */}
+        </div>
+        {selecting
+          ? <span className={"ex-check" + (on ? " on" : "")} aria-hidden="true" />
+          : (
+            <button type="button" className="ex-more" aria-label={`More for ${liftTitle(r.name)}`}
+              onClick={(e) => { e.stopPropagation(); setMenu(r); }}>
+              <span aria-hidden="true">···</span>
+            </button>
+          )}
+      </div>
+      </GymSwipeRow>
+    );
+  };
 
   return (
     <div className="screen ruled health-ruled">
@@ -209,11 +361,17 @@ export default function LibraryPage({
             is a verb you can press; this is a count of what is on the page,
             which is LAW L1's other half -- red is a verb, never a status.
             It reads in the quiet ink a fact wears, like every other count
-            in the app's section heads. */}
+            in the app's section heads.
+            HIS, NOT THE CATALOG'S (2026-10-17): with the stock rows listed
+            under his own, this stays the count of Your Exercises, the number
+            the Health badge and the gym's Your Exercises door show. Counting
+            the catalog would put 111 on the badge of a library nobody has
+            started, and "with nothing at all it says 0" is the badge's own
+            rule (brain/HealthDoors.test.tsx). */}
         <span className="nav-action nav-count">{openingCount}</span>
       </div>
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && !stock?.rows.length ? (
         <div className="empty-state">
           <div className="empty-title">No Exercises Yet</div>
           <div className="empty-sub">Every Exercise You Add to a Program or Log in a Workout Lands Here</div>
@@ -333,106 +491,23 @@ export default function LibraryPage({
           <div className="sh2 sh2-quiet"><span className="t">Your Exercises</span>
             {onCreate && !selecting && <button type="button" className="see-all pill-action" onClick={openCreate}>Add Exercise</button>}
           </div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {shown.map((r) => {
-              const c = classFor(r);
-              const chips = rowChips(c);
-              const on = picked.includes(r.key);
-              // The row's flags are ONE fact, the line's one grey (§AK): side
-              // by side they were up to four runs of the same grey.
-              const flags = [r.favorite && "Favorite", r.hidden && "Hidden", c.archived && "Archived", justSaved.includes(r.key) && "Saved"]
-                .filter(Boolean).join(", ");
-              const nag = needsMuscles(c);
-              const assign = () => setClassing({ row: r, open: "muscles" });
-              // THE ROW'S ONE QUICK VERB (Dave 2026-10-05, locked): the moment's action when the row has one (muscles still to
-              // assign), Favorite otherwise; Delete behind it.
-              const verb = nag
-                ? { label: "Assign", name: "Assign Muscles", icon: <Tag className="ic" />, run: assign }
-                : onToggleFavorite
-                  ? { label: r.favorite ? "Unfavorite" : "Favorite", icon: STAR, run: () => onToggleFavorite(r) }
-                  : null;
-              return (
-                // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
-                // clickable"). Only the name used to open the exercise; the
-                // facts, the gaps and the padding were dead. Selecting, the row
-                // picks instead. Muscles, equipment and movement are FACTS now
-                // (Dave 2026-10-05, locked: no pill in a row); the details sheet
-                // that edits them is in the row's menu, and a row with no muscle
-                // yet surfaces its one action in the key colour.
-                <GymSwipeRow key={r.key} name={liftTitle(r.name)} enabled={!selecting}
-                  verb={verb} onDelete={onDelete ? () => onDelete(r) : undefined}
-                  menu={menuActions(r).map((a) => ({ label: a.label, destructive: a.destructive, onPick: a.onClick }))}>
-                <div className={"row ex-row" + (on ? " on" : "")}
-                  {...rowDoor(selecting
-                    ? () => setPicked(on ? picked.filter((k) => k !== r.key) : [...picked, r.key])
-                    : () => onOpen(r))}>
-                  <div className="row-grow">
-                    {/* The name wraps rather than clipping. */}
-                    <div className="ex-name">{liftTitle(r.name)}</div>
-                    {/* §7: "2 sessions · Last yesterday" was one grey line
-                        doing two jobs. Two compact fields. */}
-                    {(r.sessions > 0 || r.lastDate || flags) && (
-                      <div className="facts">
-                        {/* A count leads this line, so the word behind it takes
-                            the capital (shared/casing.ts). Health polish 2026-09-16:
-                            the mockup printed "1 sessions" on every row of this
-                            list; the app has always had the singular right, and
-                            now it has the capital too. The count is logged
-                            work, so it wears the logged hue -- the same lime
-                            the Day row's "done" word wears (§AM). When it last
-                            happened is a neutral past date, so it is small
-                            caps, as it is one tap deeper on the lift's own
-                            page and on every other "last trained" in the app
-                            (§AM F5). A lift never done says nothing here. */}
-                        {r.sessions > 0 && <span className="fact lime">{lineCase(`${r.sessions} ${r.sessions === 1 ? "workout" : "workouts"}`)}</span>}
-                        {r.lastDate && <span className="fact date">{agoPhrase(r.lastDate, todayIso)}</span>}
-                        {flags && <span className="fact">{flags}</span>}
-                      </div>
-                    )}
-                    {(chips.length > 0 || nag) && (
-                      <div className="facts">
-                        {chips.map((ch, i) => (
-                          // EACH AXIS ITS OWN COLOUR (2026-09-16, Dave: "too
-                          // much of the same color"). A muscle is what the
-                          // lift trains and takes the lime the app already
-                          // spends on work done; equipment takes the violet
-                          // the session header's own equipment chip has always
-                          // worn; the movement pattern is the least
-                          // load-bearing axis and stays quiet. (Whether these
-                          // axis hues stand under the 2026-09-22 Colour Key is
-                          // Dave's call, queue #317.)
-                          <span key={ch.label + i} className={"fact" + chipTone(ch)}>{ch.label}</span>
-                        ))}
-                        {/* THE ONE NAG, AS A STATE (Dave 2026-10-05, locked: no pill and no action text on a row that is not
-                            yet due). A library with nothing classified would draw an action on every row, so the row says what
-                            is missing in the amber a state wears; the action itself is the swipe's Assign Muscles. */}
-                        {nag && <span className="fact warn">No Muscles Yet</span>}
-                      </div>
-                    )}
-                    {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also
-                        (other title) needs to be deleted and never
-                        render"). A merged-away name is history, not an
-                        attribute of the exercise, and it read as a second
-                        name for a row whose whole job is to carry one. */}
-                  </div>
-                  {selecting
-                    ? <span className={"ex-check" + (on ? " on" : "")} aria-hidden="true" />
-                    : (
-                      <button type="button" className="ex-more" aria-label={`More for ${liftTitle(r.name)}`}
-                        onClick={(e) => { e.stopPropagation(); setMenu(r); }}>
-                        <span aria-hidden="true">···</span>
-                      </button>
-                    )}
-                </div>
-                </GymSwipeRow>
-              );
-            })}
+          {rows.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
+            {shown.map(drawRow)}
             {shown.length === 0 && (
               <div className="row"><div className="row-grow"><div className="conn-meta">Nothing matches what you are filtering by</div></div></div>
             )}
-          </div></div>
+          </div></div>}
 
-          <div className="pad-x"><div className="bp-sub">{floorLine(view, rows.length, filter)}</div></div>
+          {rows.length > 0 && <div className="pad-x"><div className="bp-sub">{floorLine(view, rows.length, filter)}</div></div>}
+
+          {/* THE CATALOG, UNDER HIS OWN (Dave 2026-10-17, stock and custom on one page): the pickers' entries, under
+              the pickers' twelve muscle heads in the app's order, each row the same anatomy as his. */}
+          {stockSections.map((sec) => (
+            <div key={sec.label}>
+              <div className="sh2 sh2-quiet"><span className="t">{sec.label}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">{sec.rows.map((x) => drawRow(x.row))}</div></div>
+            </div>
+          ))}
         </>
       )}
 
@@ -453,6 +528,9 @@ export default function LibraryPage({
           // is already here: typing a name that exists lands you on that row
           // rather than minting a second one for the merge review to find.
           library={pickables}
+          // The catalog reaches the typeahead too (2026-10-17), adopting
+          // through the same door as the stock rows.
+          {...(stock ? { onAdopt: stock.onAdopt } : {})}
           onSave={(draft) => { setCreating(false); onCreate(draft); }}
           onCancel={() => setCreating(false)}
         />
@@ -500,10 +578,17 @@ export default function LibraryPage({
           initial={classFor(classing.row)}
           open={classing.open}
           todayIso={todayIso}
-          askScope={!needsMuscles(classFor(classing.row))}
+          // A stock row has no records for a scope to reach: its first save is
+          // its adoption, with the details just set as its classification.
+          askScope={!classing.row.starter && !needsMuscles(classFor(classing.row))}
           onSave={(next, scope) => {
             const r = classing.row;
             setClassing(null);
+            if (r.starter) {
+              const mine = own(r, next);
+              if (filterCount(filter) > 0) setJustSaved((k) => (k.includes(mine.key) ? k : [...k, mine.key]));
+              return;
+            }
             // Held only while a filter could drop it. With no filter on, a
             // saved row is simply still there and needs no special case.
             if (filterCount(filter) > 0) setJustSaved((k) => (k.includes(r.key) ? k : [...k, r.key]));

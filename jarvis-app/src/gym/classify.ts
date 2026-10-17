@@ -263,6 +263,18 @@ export function needsMuscles(c: Classification): boolean {
   return c.primary.length === 0;
 }
 
+/** The muscles the preloaded catalog gives a starter (S9). */
+export interface StarterMuscles { primary: MuscleGroup; secondary: readonly MuscleGroup[] }
+
+/** WHAT THE CATALOG SAYS A STARTER IS: its primary, every secondary, and
+ *  weight and reps. One spelling, for the classification an adoption writes
+ *  (libraryView.adoptStarter) and the one a starter shows before it is
+ *  adopted (classOf), so the row cannot say one thing and the adoption write
+ *  another. */
+export function starterClass(s: StarterMuscles): Classification {
+  return { ...EMPTY_CLASS, primary: [s.primary], secondary: [...s.secondary], measure: "weight_reps" };
+}
+
 // --- READING ONE EXERCISE'S ANSWER -----------------------------------------
 
 /** What this exercise is, for display, with the two honest fallbacks.
@@ -274,13 +286,18 @@ export function needsMuscles(c: Classification): boolean {
  *  demanding it all again in a new place. A stored answer always wins. */
 export function classOf(
   store: ClassStore,
-  row: { key: string; exerciseKey?: string; name?: string; kind?: MeasureKind },
+  row: { key: string; exerciseKey?: string; name?: string; kind?: MeasureKind; starter?: StarterMuscles },
   sighting?: LoadStyle,
 ): Classification {
   const found = store[row.key]
     ?? (row.exerciseKey ? store[row.exerciseKey] : undefined)
     ?? (row.name ? store[row.name] : undefined);
-  const base = found ?? EMPTY_CLASS;
+  // A STOCK EXERCISE SAYS WHAT IT TRAINS (Dave 2026-10-17: "It should be all
+  // exercises. Stock and custom"). A starter on the Exercises page has no
+  // stored classification, since nothing is written for one until it is
+  // adopted, and without this every one of the 111 would read No Muscles Yet.
+  // The catalog's muscles are its answer until the athlete gives his own.
+  const base = found ?? (row.starter ? starterClass(row.starter) : EMPTY_CLASS);
   return {
     ...base,
     ...(base.equipment || !sighting?.equipment ? {} : { equipment: sighting.equipment }),

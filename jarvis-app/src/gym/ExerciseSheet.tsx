@@ -19,6 +19,8 @@ import HeadMenu from "../shared/HeadMenu";
 import { Trash2, Dumbbell, Gauge, Timer, PersonStanding, Hourglass, Flame, Shuffle, StickyNote, Link2 } from "../shared/icons";
 import { searchLibrary, newExerciseKey, type LibraryEntry } from "./library";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
+import { adoptStarter, starterEntries, type Adoption } from "./libraryView";
+import { normalizeExerciseName } from "./starterLibrary";
 
 // The count row in the user's language, never "How many" (Dave, 2026-08-15).
 const countLabel = (kind: MeasureKind): string => {
@@ -90,7 +92,7 @@ function Tile({ tone, children }: { tone: string; children: ReactNode }) {
 // In the Session (Rest Timer, Warm-Up Ramp, Filler), Note. The header is
 // the ruled sheet bar (Cancel, the name, Save); Delete sits alone at the
 // very bottom. The set strip keeps its chips, which he approved.
-export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith, alsoOnDay, record }: {
+export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith, alsoOnDay, record, onAdopt }: {
   mode: "new" | "edit";
   initial?: Exercise;
   /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
@@ -127,6 +129,18 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
    *  dropped on save. What the record does keep (the strip, the measure, the
    *  equipment and the muscle) stays. */
   record?: boolean;
+  /** THE CATALOG IN THE TYPEAHEAD (Dave 2026-10-17: the stock exercises in
+   *  search-as-you-type). With it, the name's suggestions reach the preloaded
+   *  catalog after the athlete's own, and a starter picked there is adopted
+   *  the way a picker adopts one: a fresh key, its primary on the Muscle row,
+   *  and its primary and secondaries handed to the flow's one door. The
+   *  adoption goes AFTER onSave, so whatever the caller's save writes for
+   *  the lift (its seed, its equipment) is in the store first and the door
+   *  only fills in what the catalog adds. Never on a pick alone: Cancel
+   *  leaves nothing behind. Absent, the catalog is not offered here, since a
+   *  starter picked with no way back to the flow would be a lift with no
+   *  muscles (the same reason LibraryPickSheet.onAdopt is required). */
+  onAdopt?: (adopted: Adoption[]) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<MeasureKind>(initial?.kind ?? "weight_reps");
@@ -196,9 +210,20 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
     else if (f) { setKind("rounds"); setUnit(undefined); }
   };
 
-  const suggestions = library && nameFocused && name.trim().length > 0
-    ? searchLibrary(library, name, 5, readGymSettings().hiddenKeys ?? []).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
+  // HIS OWN FIRST, THEN THE CATALOG (2026-10-17), five in all. The catalog's
+  // entries are the pickers' own (libraryView.starterEntries: only the ones he
+  // has not got, by name or alias). A starter whose name is exactly what was
+  // typed stays offered, unlike his own: typing "Bench Press" in full is
+  // exactly when the tap that brings its muscles is wanted.
+  const typed = name.trim().toLowerCase();
+  const suggestions = library && nameFocused && typed.length > 0
+    ? [
+      ...searchLibrary(library, name, 5, readGymSettings().hiddenKeys ?? []).filter((s) => s.name.toLowerCase() !== typed),
+      ...(onAdopt ? starterEntries(library).filter((s) => s.name.toLowerCase().includes(typed)) : []),
+    ].slice(0, 5)
     : [];
+  /** The starter the last pick adopted, held until Save. */
+  const pendingAdopt = useRef<Adoption | null>(null);
 
   // ONE EDITOR (D1): the count and target rows write straight into the
   // strip. The strip itself is out only when it has something to show that
@@ -217,7 +242,14 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
 
   // Picking a suggestion carries kind, unit and the last-used target forward
   // (catalog §3.5) -- exactness, not just proximity, is what stops the fork.
-  const pickSuggestion = (entry: LibraryEntry) => {
+  const pickSuggestion = (picked: LibraryEntry) => {
+    // A starter becomes the athlete's exercise here exactly as it does in a
+    // picker (libraryView.adoptStarter): a fresh key the sheet saves under,
+    // and the catalog's primary on the Muscle row. The write waits for Save.
+    const adoption = picked.starter ? adoptStarter(picked) : null;
+    pendingAdopt.current = adoption;
+    const entry = adoption ? adoption.entry : picked;
+    if (adoption) setMuscleGroup(adoption.cls.primary[0]);
     setName(entry.name);
     setKind(entry.kind);
     setUnit(entry.unit ?? defaultUnit(entry.kind));
@@ -335,6 +367,17 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(condBlock ? { cond: condBlock } : {}),
     });
     emit(split.name);
+    // THE ADOPTION, IF THE STARTER IS STILL WHAT IS SAVED. A pick renamed to
+    // something else, or moved off weight and reps, is the athlete's own lift
+    // and no longer the catalog's, so the catalog's muscles do not follow it.
+    // The Muscle row is his answer: it leads, and the catalog's secondaries
+    // fill in behind it.
+    const a = pendingAdopt.current;
+    if (a && onAdopt && kind === "weight_reps" && (exerciseKey === a.seed.key)
+      && normalizeExerciseName(split.name) === normalizeExerciseName(a.seed.name)) {
+      const primary = muscleGroup ? [muscleGroup] : a.cls.primary;
+      onAdopt([{ ...a, cls: { ...a.cls, primary, secondary: a.cls.secondary.filter((m) => !primary.includes(m)) } }]);
+    }
   };
 
   return createPortal(
