@@ -480,7 +480,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       return;
     }
     if (t.done) return;
-    const ok = await attemptWrite(() => tasks.toggleDone(taskId));
+    // A SET, NOT A FLIP (issue 102): finished elsewhere since the banner was
+    // read stays finished, and a refused write never says Completed.
+    const ok = await attemptWrite(async () => { if (!(await tasks.completeTask(taskId)).ok) throw new Error("not written"); });
     if (ok) showToast({ message: `Completed ${t.text}` });
   };
 

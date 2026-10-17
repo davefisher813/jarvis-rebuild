@@ -136,7 +136,8 @@ export default function UpNextFlow({ onClose, onStartNow, onFifteen, fifteen, on
     setTimeout(async () => {
       try {
         const before = await svc.task(t.id);
-        const ok = await attemptWrite(() => svc.toggleDone(t.id));
+        // Done here means finished, never a flip (issue 102), and a refused write is a failure.
+        const ok = await attemptWrite(async () => { if (!(await svc.completeTask(t.id)).ok) throw new Error("not written"); });
         if (!ok) return;
         await reload();
         if (mode === "wins") {

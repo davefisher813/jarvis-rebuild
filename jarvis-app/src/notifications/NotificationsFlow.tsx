@@ -128,7 +128,11 @@ export default function NotificationsFlow({ onOpen, onBack }: { onOpen?: (kind: 
   const finishTask = (n: Nudge) => {
     void (async () => {
       const before = await tasksSvc.task(n.entityId);
-      const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
+      // DONE IS A SET, NOT A FLIP (issue 102): the nudge's Done means "make
+      // this finished", so a task already finished elsewhere is never
+      // reopened by it, and a write the store refused is a failure, never a
+      // "Done" toast over nothing.
+      const ok = await attemptWrite(async () => { if (!(await tasksSvc.completeTask(n.entityId)).ok) throw new Error("not written"); });
       if (!ok) return;
       // No tap here: the completion answers through the bus (encourage/effects playCompletion).
       setFeed((f) => f.filter((x) => !(x.entity === "task" && x.entityId === n.entityId)));

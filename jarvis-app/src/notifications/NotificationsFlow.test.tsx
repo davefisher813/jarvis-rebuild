@@ -129,6 +129,19 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
     expect((await svc!.task(taskId))!.done).toBe(true);
   });
 
+  // ISSUE 102 (D1, "completion writes through from every surface"): the
+  // nudge's Done used to be a flip, so a task finished on another surface
+  // after the feed loaded was REOPENED by tapping Done on its stale nudge.
+  it("Done on a stale nudge never reopens a task finished elsewhere", async () => {
+    render(<NotesProvider userId="u-notif-stale-done"><Seeded /></NotesProvider>);
+    await screen.findAllByText("Water Plants");
+    await act(async () => { await svc!.completeTask(taskId); });
+    expect((await svc!.task(taskId))!.done).toBe(true);
+    fireEvent.click(screen.getAllByRole("button", { name: "Done" })[0]!);
+    await waitFor(() => expect(screen.queryAllByText("Water Plants")).toHaveLength(0));
+    expect((await svc!.task(taskId))!.done, "still finished, not flipped back open").toBe(true);
+  });
+
   it("Undo restores a recurring task as it was, never rolls it forward again", async () => {
     let toast: ToastState | null = null;
     const unsub = subscribeToast((t) => { toast = t; });
