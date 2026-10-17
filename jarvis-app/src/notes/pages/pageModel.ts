@@ -114,7 +114,7 @@ export interface PageOriginal {
   used: boolean;
 }
 
-export type SnapshotWhy = "import" | "reimport" | "export" | "manual" | "change" | "restore";
+export type SnapshotWhy = "import" | "reimport" | "export" | "manual" | "change" | "restore" | "finish";
 
 export interface PageSnapshot {
   at: number;
@@ -488,6 +488,9 @@ export const SNAPSHOT_WHY: Record<SnapshotWhy, string> = {
   manual: "Saved by You",
   change: "Before a Field Change",
   restore: "Before a Restore",
+  // A COMPLETED RECORD IS KEPT AS IT WAS (the 2026-10-13 spec, "stays alive": completed records preserved as dated snapshots). Golf's
+  // Finish Round and the scoreboard's Finish take one, so a round or a game edited later still has its finished state to look back on.
+  finish: "At Finish",
 };
 
 /** Marks every record's current values as the common ancestor for the next reimport. */

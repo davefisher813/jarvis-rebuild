@@ -11,7 +11,8 @@ import NotesFlow from "../NotesFlow";
 import Templates from "../screens/Templates";
 import { setCategoryRegistry } from "../../shared/categories";
 import { MemoryFileStore } from "../../files/FileStore";
-import { addRecord, newTeamPage, newLineupPage, setValues, type PageData } from "./pageModel";
+import { addRecord, newTeamPage, newLineupPage, newScorecardPage, setValues, type PageData } from "./pageModel";
+import { newScoreboardPage } from "./scoreboard";
 import { pageTable } from "./exportPage";
 import { toCsv } from "./tabular";
 
@@ -283,5 +284,88 @@ describe("Outreach Tracker is not Tasks, and every page edit can be undone", () 
     fireEvent.click(screen.getByLabelText("Undo"));
     await waitFor(() => expect(screen.queryByText("Dee Park")).toBeNull());
     await waitFor(async () => expect((await svc().note(id))!.page!.records).toHaveLength(3));
+  });
+});
+
+describe("issue #115: a page opened after a lineup is made opens as itself (2026-10-17)", () => {
+  async function makeLineupThroughTheCard(user: string) {
+    svcRef = null;
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    let id = "";
+    await act(async () => { id = (await svc().createPage("Tigers", team3()))!; });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    expect(await screen.findByText("Tigers", {}, { timeout: 4000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Use a Template"));
+    fireEvent.click(await screen.findByText("Lineup Card"));
+    fireEvent.click(await screen.findByText("Tigers"));
+    expect(await screen.findByText("New Lineup", {}, { timeout: 4000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cal Diaz"));
+    fireEvent.click(screen.getByText("Ava Chen"));
+    fireEvent.click(screen.getByText("Make Lineup of 2"));
+    expect(await screen.findByText("Batting Order", {}, { timeout: 4000 })).toBeInTheDocument();
+    return id;
+  }
+  const back = () => document.querySelector(".nav-back") as HTMLElement;
+
+  it("the Team Sheet opened from the Notes list shows its roster and a Back to Notes", async () => {
+    await makeLineupThroughTheCard("u-lineup-then-list");
+    // The lineup was opened by id, so it is a page from the list, not the template picker.
+    expect(back()).toHaveTextContent(/^Notes$/);
+    fireEvent.click(back());
+    fireEvent.click(await screen.findByText("Tigers", {}, { timeout: 4000 }));
+    expect(await screen.findByText("Make a Lineup", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("Ben Ruiz")).toBeInTheDocument();
+    expect(screen.queryByText("New Lineup")).toBeNull();
+    expect(back()).toHaveTextContent(/^Notes$/);
+  });
+
+  it("the Team Sheet opened from the lineup's own Team Sheet row shows its roster too", async () => {
+    await makeLineupThroughTheCard("u-lineup-then-team");
+    fireEvent.click(await screen.findByText("Team Sheet", {}, { timeout: 4000 }));
+    expect(await screen.findByText("Make a Lineup", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("New Lineup")).toBeNull();
+    expect(back()).toHaveTextContent(/^Notes$/);
+  });
+});
+
+describe("issue #115 stays alive: finishing a record keeps a dated snapshot (2026-10-17)", () => {
+  async function openSeeded(user: string, title: string, page: PageData) {
+    const view = await mount(user);
+    let id = "";
+    await act(async () => { id = (await svc().createPage(title, page))!; });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
+    return id;
+  }
+  async function snapshotsShow(label: string) {
+    fireEvent.click(await screen.findByLabelText("Page options", {}, { timeout: 4000 }));
+    fireEvent.click(screen.getByText("Snapshots"));
+    expect(await screen.findByText(label)).toBeInTheDocument();
+  }
+
+  it("Golf's Finish Round keeps the finished card as an At Finish snapshot", async () => {
+    const id = await openSeeded("u-finish-golf", "Pebble Beach", newScorecardPage({ course: "Pebble Beach", holes: 9, players: ["Dave"], date: "2026-10-17" }));
+    fireEvent.click(await screen.findByText("Start Hole 1", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByLabelText("More Strokes for Dave"));
+    for (let h = 2; h <= 9; h++) fireEvent.click(await screen.findByText(`Next: Hole ${h}`));
+    expect((await svc().note(id))!.page!.snapshots ?? []).toHaveLength(0);
+    fireEvent.click(screen.getByText("Finish Round"));
+    await waitFor(async () => {
+      const p = (await svc().note(id))!.page!;
+      expect(p.snapshots!.map((s) => s.why)).toEqual(["finish"]);
+      expect(p.snapshots![0]!.at).toBeGreaterThan(0);
+      expect(p.snapshots![0]!.records[0]!.v.h1).toBe("5");
+    });
+    await snapshotsShow("At Finish");
+  });
+
+  it("the scoreboard's Finish keeps the finished game as an At Finish snapshot", async () => {
+    const id = await openSeeded("u-finish-game", "Scoreboard", newScoreboardPage("basketball", ["Tigers", "Lions"], "2026-10-17"));
+    fireEvent.click(await screen.findByText("Start Quarter 1", {}, { timeout: 4000 }));
+    for (let q = 2; q <= 4; q++) fireEvent.click(await screen.findByText(`Next: Quarter ${q}`));
+    expect((await svc().note(id))!.page!.snapshots ?? []).toHaveLength(0);
+    fireEvent.click(screen.getByText("Finish"));
+    await waitFor(async () => expect((await svc().note(id))!.page!.snapshots!.map((s) => s.why)).toEqual(["finish"]));
+    await snapshotsShow("At Finish");
   });
 });

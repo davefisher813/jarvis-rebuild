@@ -4,6 +4,7 @@
 
 import { type PageData, type PageRecord, type PageField, type PageSection, type GameRow, newId } from "./pageModel";
 import { templateDef, newTemplatePage, isTemplateKey } from "./templateDefs";
+import { titleCase } from "../../shared/casing";
 
 // ---------------------------------------------------------------------------
 // Sections: headings the rows sit under. Named, added, removed and ordered by the person. On the page every heading is drawn,
@@ -420,6 +421,28 @@ export function orderedRecords(page: PageData, today: string = todayLocal()): Pa
     return c || a.i - b.i;
   });
   return withIdx.map((x) => x.r);
+}
+
+/** WHAT STOPS WORKING WITHOUT THIS FIELD, said before Remove (2026-10-17, the 2026-10-13 spec's Customization: a structural change
+ *  with consequences, a field a calculation needs, explains what stops working BEFORE applying, Astra's boundary). Read from the
+ *  template's definition alone: its `needs`, its `totals`, its `due` field and the date its `sort` reads. A field nothing reads
+ *  says nothing here. */
+export function fieldConsequences(page: PageData, key: string): string[] {
+  const d = templateDef(page.kind);
+  const field = page.fields.find((x) => x.key === key);
+  if (!d || !field) return [];
+  const label = titleCase(field.label);
+  const out: string[] = [];
+  const need = d.needs?.[key];
+  if (need) out.push(need);
+  if (d.totals?.some((t) => t.key === key)) out.push(`The ${label} Total Stops Adding Up`);
+  if (d.due?.key === key) out.push(`${d.plural} Stop Saying When They Are Due`);
+  if (d.sort && dateKeyOf(page) === key) {
+    // With no due field the order falls to the next date field, if the page has one.
+    const then = d.due ? undefined : page.fields.find((x) => x.type === "date" && x.key !== key);
+    out.push(then ? `${d.plural} Sort by ${titleCase(then.label)} Instead` : `${d.plural} Stop Sorting by ${label}`);
+  }
+  return [...new Set(out)];
 }
 
 // ---------------------------------------------------------------------------

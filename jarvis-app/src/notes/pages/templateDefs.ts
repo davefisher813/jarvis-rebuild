@@ -43,6 +43,10 @@ export interface TemplateDef {
   suggested?: PageField[];
   /** Sums drawn beside the page's count. */
   totals?: { key: string; label: string; money?: boolean }[];
+  /** WHAT A FIELD KEEPS WORKING (2026-10-17, the 2026-10-13 spec: a structural change with consequences says what stops working
+   *  BEFORE it is applied). The fields this template's own arithmetic reads beyond its totals, due date and sort (those are read
+   *  from `totals`, `due` and `sort`), each with the line the Remove sheet says first. Taken from the code that reads them. */
+  needs?: Record<string, string>;
   view: TemplateView;
   /** A running record: choosing the template again asks (open it, or make another) rather than quietly making a second. */
   one?: boolean;
@@ -95,6 +99,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Outing", plural: "Outings", headline: "name", show: ["date", "pitches", "notes"],
     fields: [f("name", "Pitcher"), f("date", "Date", "date"), f("pitches", "Pitches", "number"), f("notes", "Notes")],
     view: "pitching", one: true, wave: 2, meta: { limit: "85" },
+    // pitcherStatuses: rest follows from the last outing's date and pitches; the view checks the pitches against the limit.
+    needs: { date: "Rest Days and Who Is Available Stop Working", pitches: "Pitch Counts, Rest Days and the Limit Stop Working" },
   },
   session: {
     key: "session", name: "Session Plan", shelf: "Sports", desc: "Warm-Up, Drills, Scrimmage, Minutes Add Up", cat: "blue", icon: "timer",
@@ -103,6 +109,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     sections: ["Warm-Up", "Drills", "Scrimmage", "Cool-Down"], totals: [{ key: "min", label: "Min" }],
     starter: [{ sec: "Warm-Up", v: { act: "Warm-Up", min: "10" } }, { sec: "Cool-Down", v: { act: "Cool-Down", min: "5" } }],
     suggested: [f("coach", "Coach"), f("equip", "Equipment")], view: "session", wave: 2, meta: { start: "" },
+    // sessionClock: each activity's clock time is the start plus the minutes before it.
+    needs: { min: "Clock Times From the Start Stop Working" },
   },
   eventday: {
     key: "eventday", name: "Event Day Pack", shelf: "Sports", desc: "Arrive, Bring, People, Schedule, Checked Off", cat: "yellow", icon: "checks",
@@ -128,6 +136,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "traininglog", name: "Training Log", shelf: "Sports", desc: "Your Workouts From Health, Plus Your Notes", cat: "teal", icon: "dumbbell",
     noun: "Note", plural: "Notes", headline: "note", show: ["date", "coach"],
     fields: [f("date", "Date", "date"), f("note", "Note"), f("coach", "Coach")], view: "traininglog", one: true, wave: 2,
+    // TrainingLogView: the notes are drawn newest first by their date.
+    needs: { date: "Notes Stop Sorting by Date" },
   },
   trainingplan: {
     key: "trainingplan", name: "Training Plan", shelf: "Sports", desc: "Weeks and Days, From a Program or Your Own", cat: "sky", icon: "calendar",
@@ -168,6 +178,12 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Debt", plural: "Debts", headline: "name", show: ["apr", "min"],
     fields: [f("name", "Debt"), f("apr", "APR %", "number"), f("min", "Minimum", "money"), f("balance", "Balance If Not in Money", "money")],
     view: "debt", one: true, wave: 3, meta: { method: "avalanche", extra: "0" },
+    // debtsOf: the plan reads each debt's rate, minimum, and (for a debt not linked to Money) its own balance.
+    needs: {
+      apr: "The Payoff Order and Interest Stop Working",
+      min: "The Payoff Plan Stops Counting Minimum Payments",
+      balance: "Debts Not in Money Drop Out of the Payoff Plan",
+    },
   },
   giving: {
     key: "giving", name: "Giving Log", shelf: "Finance", desc: "Gifts of Money, Time and Goods, Totalled", cat: "pink", icon: "sparkles",
@@ -269,6 +285,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Meeting", plural: "Meetings", headline: "date", show: ["topics", "actions", "next"],
     fields: [f("date", "Date", "date"), f("topics", "Topics"), f("notes", "Notes"), f("actions", "Follow-Ups"), f("next", "Next 1:1", "date")],
     view: "sheet", one: true, wave: 3, sort: "dateDesc", due: { key: "next" },
+    // carriedForward: a new meeting starts with the last one's follow-ups.
+    needs: { actions: "Follow-Ups Stop Carrying Forward to the Next 1:1" },
   },
   projtracker: {
     key: "projtracker", name: "Project Tracker", shelf: "Professional", desc: "Work Items by Status: Owner, Due, Blocked", cat: "purple", icon: "kanban",
@@ -316,12 +334,16 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     sections: ["Before", "Show", "After"], totals: [{ key: "min", label: "Min" }],
     starter: [{ sec: "Before", v: { item: "Doors Open" } }, { sec: "Show", v: { item: "Opening" } }, { sec: "After", v: { item: "Strike" } }],
     suggested: [f("cue", "Cue"), f("where", "Where")], view: "session", wave: 4, meta: { start: "" },
+    // sessionClock, as the Session Plan.
+    needs: { min: "Clock Times From the Start Stop Working" },
   },
   poker: {
     key: "poker", name: "Poker Night", shelf: "Entertainment", desc: "Buy-Ins, Cash-Outs, Who Owes Whom", cat: "red", icon: "dollar",
     noun: "Player", plural: "Players", headline: "name", show: ["buyin", "cashout"],
     fields: [f("name", "Player"), f("buyin", "Buy-In", "money"), f("rebuy", "Rebuys", "money"), f("cashout", "Cash-Out", "money")],
     suggested: [f("notes", "Notes")], view: "poker", wave: 4,
+    // pokerRows: each player's net is the cash-out less the buy-in and rebuys.
+    needs: { buyin: "Who Owes Whom Stops Adding Up", rebuy: "Who Owes Whom Stops Adding Up", cashout: "Who Owes Whom Stops Adding Up" },
   },
 };
 
