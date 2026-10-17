@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EQUIPMENT_LABEL, loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, weightStep, type LoadStyle } from "./equipment";
 import { MUSCLE_LABEL } from "./muscles";
 import MusclePickSheet, { type MusclePick } from "./MusclePickSheet";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
+import { nowDraftStore, readNowDraft, writeNowDraft } from "./sessionDrafts";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
@@ -280,7 +281,17 @@ export default function SessionScreen({
    *  hold, or null before a key is pressed (then the seed stands). Cleared on
    *  every write, and by the effect below when the athlete moves to another
    *  exercise. See nextSet.ts, SetDraft. */
-  const [draft, setDraft] = useState<SetDraft | null>(null);
+  //
+  // AND IT SURVIVES THE APP (the Logging Standard, rule 8, 2026-10-17:
+  // "No entry is ever lost. Drafts persist per keystroke"). Every change to
+  // the draft is also written to this session's store for this exercise
+  // (sessionDrafts.ts), and a remount opens on what was typed. The log that
+  // spends it clears it; clearLive sweeps the rest when the session ends. A
+  // restored draft sits in the fields unselected: he was mid-typing, and
+  // nothing here pretends otherwise.
+  const nowStore = nowDraftStore(live.startedAt, current.exerciseId);
+  const [draft, setDraft] = useState<SetDraft | null>(() => readNowDraft(nowStore));
+  const putDraft = (d: SetDraft | null) => { setDraft(d); writeNowDraft(nowStore, d); };
   // LAST TIME, ALWAYS IN SIGHT -- D2 (Training Catalog V2, approved
   // 2026-08-31). One header line (whole last session, date, all-time best)
   // plus a per-position reference under every chip, with tap-to-match on
@@ -748,7 +759,16 @@ export default function SessionScreen({
   // onGhostDraft). One draft, for the set he is ON, and both doors write it.
   // A draft belongs to ONE open set. Moving exercise leaves it behind rather
   // than carrying last exercise's numbers onto the next one's button.
-  useEffect(() => { setDraft(null); setExtraOpen(false); }, [exercise.name, exercise.kind, workLogged]);
+  // Moving to another exercise opens ITS stored draft, if one was left
+  // mid-typing (rule 8); a set landing on this one spent the draft, so the
+  // fields fall back to the seed.
+  const draftOwner = useRef<string | null>(null);
+  useEffect(() => {
+    const owner = `${current.exerciseId}\u0000${exercise.name}\u0000${exercise.kind}`;
+    if (draftOwner.current === owner) putDraft(null);
+    else { draftOwner.current = owner; setDraft(readNowDraft(nowStore)); }
+    setExtraOpen(false);
+  }, [current.exerciseId, exercise.name, exercise.kind, workLogged]);
 
   /** THE WORK | WARM-UP PILL (2026-09-29). One tap, and the fields open at the
    *  new side's own numbers: the plan's working set for Work, the next ramp
@@ -756,7 +776,7 @@ export default function SessionScreen({
    *  being left is dropped; the choice itself survives typing on this one. */
   const flipMode = (toWarm: boolean) => {
     if (toWarm === warm) return;
-    setDraft({ ...fieldsOf(toWarm ? warmSeed : workSeed), warm: toWarm });
+    putDraft({ ...fieldsOf(toWarm ? warmSeed : workSeed), warm: toWarm });
   };
 
   /** THE ONE WRITER (2026-09-26). The big red button and the tick on the
@@ -766,11 +786,12 @@ export default function SessionScreen({
    *  disables the button and guards the write, so an empty set never lands. */
   const loggable = isLoggable(exercise.kind, style, pending);
   const log = () => {
-    if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
+    if (exercise.kind === "done") { const e: SetEntry = { id: newSetId(), done: true, state: "reported" }; onLog(e); receiptForLog(e); return; }
     if (!loggable) return;
     // THE PILL DECIDES THE FLAG (2026-09-29): what the button names is what is
     // written, warm-up or work.
-    const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId(), ...(warm ? { warmup: true } : {}) };
+    // Logged by his hand, so reported (Logging Standard addendum 1).
+    const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId(), ...(warm ? { warmup: true } : {}), state: "reported" };
     // D6-A, the accept (2026-09-26): the program's plan moves only when the
     // first working set is logged AT the suggested numbers. Use puts them in
     // the fields; this is the one explicit accept, and nothing else writes.
@@ -779,7 +800,7 @@ export default function SessionScreen({
       ? onAcceptSuggestion?.(suggestion) ?? null
       : null;
     onLog(e);
-    setDraft(null);
+    putDraft(null);
     if (warm) {
       // A warm-up is not a turn in a superset and not a round: it rests like
       // the old ramp row did on a single lift, and hands nothing over.
@@ -809,7 +830,7 @@ export default function SessionScreen({
   const lastWorkForDrop = exercise.kind === "weight_reps" ? [...logged].reverse().find((x) => !x.warmup && !x.drop && !x.skipped) : undefined;
   const logDrop = () => {
     if (!lastWorkForDrop) return;
-    const e: SetEntry = { ...duplicateEntry(lastWorkForDrop), drop: true };
+    const e: SetEntry = { ...duplicateEntry(lastWorkForDrop), drop: true, state: "reported" };
     onLog(e);
     const before = logged;
     showToast({ message: "Logged a Drop \u00b7 Tap It to Set the Weight", actionLabel: "Undo", onAction: () => onSetLogged(before, idx) });
@@ -888,7 +909,7 @@ export default function SessionScreen({
       <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, suggestion.next))}`}</span>
       {suggests && (
         <button type="button" className="set-last-act se-sugg-act" aria-label={`Use ${lineCase(formatSet(exercise, suggestion.next))}, the suggested set`}
-          onClick={(e) => { e.stopPropagation(); setDraft({ ...fieldsOf({ id: "", ...suggestion.next }), warm: false }); }}><span className="act">Use</span></button>
+          onClick={(e) => { e.stopPropagation(); putDraft({ ...fieldsOf({ id: "", ...suggestion.next }), warm: false }); }}><span className="act">Use</span></button>
       )}
       <button type="button" className="set-last-act se-sugg-act" aria-expanded={whyOpen} onClick={(e) => { e.stopPropagation(); setWhyOpen((o) => !o); }}><span className="act">{whyOpen ? "Hide Why" : "Why"}</span></button>
       {whyOpen && suggestion.basis && (
@@ -1096,7 +1117,9 @@ export default function SessionScreen({
             // of its own (2026-09-29).
             editableGhosts
             nowDraft={fields}
-            onNowDraft={(d) => setDraft({ ...d, warm })}
+            onNowDraft={(d) => putDraft({ ...d, warm })}
+            // Return in a field is the Log button (Logging Standard rule 4).
+            onNowLog={log}
             nowWarm={warm}
             onNowMode={flipMode}
             nowNo={count.nowNo}
@@ -1113,7 +1136,7 @@ export default function SessionScreen({
             // Match puts last time's numbers IN THE FIELDS (2026-09-26); the
             // tick or the bar then logs them like any other set, so there is
             // one door that writes and it always shows its number first.
-            onMatchLast={lastHit ? (i) => { const src = lastAt(i); if (src) setDraft({ ...fieldsOf(entryFrom(src)), warm: false }); } : undefined}
+            onMatchLast={lastHit ? (i) => { const src = lastAt(i); if (src) putDraft({ ...fieldsOf(entryFrom(src)), warm: false }); } : undefined}
           />
         )}
       </div>
@@ -1519,8 +1542,11 @@ export default function SessionScreen({
           library={library}
           kindFilter={exercise.kind}
           onAdopt={onAdopt}
-          onPick={(entry) => { onSwap({ exerciseKey: entry.exerciseKey, name: entry.name, kind: entry.kind, unit: entry.unit, timeUnit: entry.timeUnit }); setSwapOpen(false); }}
-          onFreeText={(text) => { onSwap({ exerciseKey: newExerciseKey(), name: text, kind: exercise.kind, unit: exercise.unit, timeUnit: exercise.timeUnit }); setSwapOpen(false); }}
+          // The sheet closes BEFORE the swap writes: its receipt carries an
+          // Undo, and a toast raised under an open sheet is painted behind
+          // the scrim where the Undo cannot be tapped.
+          onPick={(entry) => { setSwapOpen(false); onSwap({ exerciseKey: entry.exerciseKey, name: entry.name, kind: entry.kind, unit: entry.unit, timeUnit: entry.timeUnit }); }}
+          onFreeText={(text) => { setSwapOpen(false); onSwap({ exerciseKey: newExerciseKey(), name: text, kind: exercise.kind, unit: exercise.unit, timeUnit: exercise.timeUnit }); }}
           onCancel={() => setSwapOpen(false)}
         />
       )}

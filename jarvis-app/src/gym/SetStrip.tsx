@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
@@ -38,7 +38,7 @@ import { Trash2, Check, Forward } from "../shared/icons";
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, style, rack: rackIn, entries, onChange, ghost, nowDraft, onNowDraft, nowWarm = false, onNowMode, nowNo, nowExtra, nowMatchesLast = false, onOpenSet, onOpenGhost, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
+  kind, unit, timeUnit, style, rack: rackIn, entries, onChange, ghost, nowDraft, onNowDraft, nowWarm = false, onNowMode, nowNo, nowExtra, nowMatchesLast = false, onNowLog, onOpenSet, onOpenGhost, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -105,6 +105,12 @@ export default function SetStrip({
    *  the caller's editor on the planned set at that strip position, to change
    *  this session's plan; the Now row keeps its fields and is not a door. */
   onOpenGhost?: (pos: number) => void;
+  /** RETURN ACCEPTS AND LOGS (the Logging Standard, rule 4, 2026-10-17: Enter
+   *  saves; changing a weight is tap, type, Return, the 2-action budget).
+   *  Pressing Return in one of the Now row's fields does what the Log button
+   *  does. Given by the live session only; the planning strip has nothing to
+   *  log and its fields keep the plain keyboard. */
+  onNowLog?: () => void;
   /** VALUES READY TO EDIT (2026-09-14, the reference's set grid): with this
    *  on, the Now row carries the two fields. */
   editableGhosts?: boolean;
@@ -306,7 +312,7 @@ export default function SetStrip({
                   {grid
                     ? <GhostGrid entry={g} fields={fields} unit={unit} timeUnit={timeUnit} repWord={style ? repLabel(style) : "Reps"}
                         side={warmNow ? "Warm-Up" : `Set ${nowNo ?? workNoAt(pos)}`}
-                        value={nowDraft} onDraft={onNowDraft} />
+                        value={nowDraft} onDraft={onNowDraft} onEnter={onNowLog} />
                     : kind === "done"
                       ? <div className="conn-name">Mark Done</div>
                       // A PLANNED ROW READS "Target 275 Lb × 5 · Last 275 Lb × 1"
@@ -547,7 +553,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
 // what the button now logs and what its label now reads. The fields stay
 // uncontrolled -- the local state is still the source of truth for the input,
 // so nothing re-renders under the thumb mid-keystroke.
-function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraft }: {
+function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraft, onEnter }: {
   entry: SetEntry;
   /** The kind's fields (measures.fieldsFor), with the equipment's own
    *  increment on the weight, so the arrows move by what the rack can do. */
@@ -563,6 +569,11 @@ function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraf
   /** The session's own strings for these fields, when it owns them. */
   value?: SetDraft;
   onDraft?: (draft: SetDraft) => void;
+  /** Return in any field: the same write as the Log button (rule 4). The
+   *  keyboard's return key says Go when it is wired, and nothing when the
+   *  strip has no log to make, so the hint never promises a write that will
+   *  not happen. */
+  onEnter?: () => void;
 }) {
   // A ZERO IS NOT A NUMBER SOMEBODY TYPED (Dave 2026-09-17: "a new exercise
   // renders a buggy and weird looking log box. The typing is all off too").
@@ -627,6 +638,7 @@ function GhostGrid({ entry, fields, unit, timeUnit, repWord, side, value, onDraf
           <span className="se-field">
           <input className="set-field" type="number" inputMode={f.key === "r" ? "numeric" : "decimal"} min={0} step={f.step} value={vals[f.key] ?? ""}
             onFocus={selectAll} aria-label={`${side} ${nameFor(f)}`}
+            {...(onEnter ? { enterKeyHint: "go" as const, onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } } : {})}
             onChange={(e) => { const next = { ...vals, [f.key]: e.target.value }; setVals(next); report(next); }} />
           <span className="se-grid-u">{wordFor(f)}</span>
           </span>

@@ -2,6 +2,7 @@ import type { AddedExerciseFields, Exercise, WorkoutData, WorkoutExercise, SetEn
 import { newClientId } from "../shared/clientId";
 import { entryFrom } from "./strip";
 import { loadFields, type Counted } from "./equipment";
+import { clearSessionDrafts } from "./sessionDrafts";
 
 // OFFLINE-FIRST, and not optionally (2026-08-03 recon): the core Store only
 // queues UPDATES when offline, creates fail outright. Gyms are concrete boxes.
@@ -117,6 +118,10 @@ export function writeLive(s: LiveSession, store: Storage2 = browserStorage()): v
 
 export function clearLive(store: Storage2 = browserStorage()): void {
   store.remove(LIVE_KEY);
+  // A session that is over has nothing left to type into: the Now card's and
+  // the receipt's unsaved drafts (sessionDrafts.ts) go with it, on every
+  // exit, so no door has to remember to clear them (Logging Standard rule 8).
+  clearSessionDrafts();
 }
 
 /** H-52: park the session, stamping when its clock stopped. Idempotent. */
@@ -169,10 +174,16 @@ export function isStillActive(s: LiveSession, todayIso: string, now: number = Da
  *  the way in -- this and setLoggedSets are the only two doors into the live
  *  log, so pacing data accrues from every logged set with no UI knowing. */
 export function logSet(s: LiveSession, idx: number, set: SetEntry, now: number = Date.now()): LiveSession {
-  const stamped = set.at ? set : { ...set, at: now };
+  const stamped = reported(set.at ? set : { ...set, at: now });
   const exercises = s.exercises.map((ex, i) => (i === idx ? { ...ex, sets: [...ex.sets, stamped] } : ex));
   return { ...s, exercises };
 }
+
+/** THE STATE STAMP (Logging Standard addendum 1, 2026-10-17). Every entry
+ *  that comes through a live door was logged by the person's own hand, so
+ *  it is "reported" unless the caller already said what it is (an importer
+ *  says "observed"). Never overwrites a state that is already there. */
+const reported = (e: SetEntry): SetEntry => (e.state ? e : { ...e, state: "reported" });
 
 /** Replace the whole logged strip for one exercise in a single write: the
  *  set strip (catalog §3.1) owns add / duplicate / delete / reorder / edit
@@ -187,7 +198,10 @@ export function setLoggedSets(s: LiveSession, idx: number, sets: SetEntry[], now
   const exercises = s.exercises.map((ex, i) => {
     if (i !== idx) return ex;
     const prior = new Set(ex.sets.map((e) => e.id));
-    return { ...ex, sets: sets.map((e) => (e.at || prior.has(e.id) ? e : { ...e, at: now })) };
+    // A chip new to the strip is stamped with its time and its state; a
+    // survivor keeps both as they were (an edit that changes the state says
+    // so itself, through the patch it carries).
+    return { ...ex, sets: sets.map((e) => (prior.has(e.id) ? e : reported(e.at ? e : { ...e, at: now }))) };
   });
   return { ...s, exercises };
 }
@@ -202,6 +216,15 @@ export function skipExercise(s: LiveSession, idx: number): LiveSession {
   return { ...s, exercises };
 }
 
+/** UNDO ON SKIP (Logging Standard rule 5, 2026-10-17: no confirmation inside
+ *  a logging flow, an Undo instead). The one flag the skip set comes off,
+ *  and the athlete is put back on the exercise the skip moved him past.
+ *  Nothing else about the session is touched. */
+export function unskipExercise(s: LiveSession, idx: number): LiveSession {
+  const exercises = s.exercises.map((ex, i) => (i === idx ? { ...ex, skipped: false } : ex));
+  return { ...s, exercises, idx };
+}
+
 /**
  * SWAP (catalog §3.9). The rack is taken, the shoulder is cranky: substitute
  * a different exercise at `idx` for THIS session only. Whatever was already
@@ -209,6 +232,10 @@ export function skipExercise(s: LiveSession, idx: number): LiveSession {
  * so it does not carry over. The program day is never touched.
  */
 let midSeq = 0;
+/** The id prefix a swap mints for a substitute it INSERTS (sets were logged
+ *  on the original). Its Undo recognises the substitute by it, so a late or
+ *  second tap never removes anything else that stands behind the original. */
+const SWAP_ID = "swap";
 
 export function swapExercise(
   s: LiveSession,
@@ -221,9 +248,9 @@ export function swapExercise(
   // keeps the original's records where they are and starts the replacement
   // as its own entry right after, with its own identity. Before any set,
   // the slot is simply retaken, as it always was.
-  const logged = cur.sets.some((x) => !x.skipped);
+  const logged = swapInserts(cur);
   const fresh = {
-    exerciseId: logged ? "swap" + Date.now().toString(36) + (midSeq++) : cur.exerciseId,
+    exerciseId: logged ? SWAP_ID + Date.now().toString(36) + (midSeq++) : cur.exerciseId,
     name: sub.name, kind: sub.kind,
     ...(sub.unit ? { unit: sub.unit } : {}),
     ...(sub.timeUnit ? { timeUnit: sub.timeUnit } : {}),
@@ -233,6 +260,28 @@ export function swapExercise(
   if (!logged) return { ...s, exercises: s.exercises.map((ex, i) => (i === idx ? fresh : ex)) };
   const exercises = [...s.exercises.slice(0, idx + 1), fresh, ...s.exercises.slice(idx + 1)];
   return { ...s, exercises, idx: idx + 1 };
+}
+
+/** Whether a swap of this exercise INSERTS the substitute after it (sets were
+ *  logged, so the original keeps its records) or retakes its slot. The one
+ *  predicate, read by the swap and by its Undo. */
+export function swapInserts(cur: WorkoutExercise): boolean {
+  return cur.sets.some((x) => !x.skipped);
+}
+
+/** UNDO ON SWAP (Logging Standard rule 5, 2026-10-17). Reverses exactly what
+ *  swapExercise did to the exercise that stood at `at`: the original back in
+ *  its slot with its sets and plan, or the inserted substitute taken out
+ *  from behind it, and the athlete back on it. The snapshot rule
+ *  (SHARED-F-03): a late or second tap lands on the same answer. */
+export function unswapExercise(s: LiveSession, original: WorkoutExercise, at: number): LiveSession {
+  if (!s.exercises[at]) return s;
+  if (!swapInserts(original)) return { ...s, exercises: s.exercises.map((ex, i) => (i === at ? original : ex)), idx: at };
+  const sub = s.exercises[at + 1];
+  const exercises = sub?.custom && sub.exerciseId.startsWith(SWAP_ID)
+    ? [...s.exercises.slice(0, at + 1), ...s.exercises.slice(at + 2)]
+    : s.exercises;
+  return { ...s, exercises, idx: at };
 }
 
 

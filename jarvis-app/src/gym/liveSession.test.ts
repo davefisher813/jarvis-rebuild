@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, twinWorkout, type LiveSession, type Storage2 } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, unskipExercise, swapExercise, unswapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, twinWorkout, type LiveSession, type Storage2 } from "./liveSession";
 import type { ProgramDay, SetEntry, WorkoutData, WorkoutExercise } from "./types";
 
 // The offline contract: a set logged in a basement is never lost, and a
@@ -51,10 +51,11 @@ describe("live session survives with no network", () => {
     l = logSet(l, 0, mkSet({ w: 135, r: 8 }));
     const reordered = [mkSet({ w: 145, r: 5 }), ...l.exercises[0]!.sets];
     l = setLoggedSets(l, 0, reordered);
-    // Since D7 the new chip gains an `at` stamp on the way in; everything
-    // else about the array is exactly what was handed over.
-    expect(l.exercises[0]!.sets.map(({ at: _, ...rest }) => rest)).toEqual(
-      reordered.map(({ at: _, ...rest }) => rest));
+    // Since D7 the new chip gains an `at` stamp on the way in, and since the
+    // Logging Standard's addendum 1 (2026-10-17) its state; everything else
+    // about the array is exactly what was handed over.
+    expect(l.exercises[0]!.sets.map(({ at: _, state: _s, ...rest }) => rest)).toEqual(
+      reordered.map(({ at: _, state: _s, ...rest }) => rest));
     expect(l.exercises[1]!.sets).toHaveLength(0); // the other exercise is untouched
 
     // Deleting a chip (swipe) is just a shorter array through the same call.
@@ -467,5 +468,64 @@ describe("swapExercise keeps logged records", () => {
     expect(kept.exercises[1]!.name).toBe("DB Press");
     expect(kept.exercises[1]!.exerciseId).not.toBe(kept.exercises[0]!.exerciseId);
     expect(kept.idx).toBe(1);
+  });
+});
+
+// THE STATE STAMP (the Logging Standard, addendum 1, 2026-10-17: planned is
+// not done; a record carries one of four states). The two live doors stamp
+// what comes through them as reported, because every door into them today is
+// the person's own hand. An entry already carrying a state keeps it, a
+// survivor of an edit keeps whatever it had, and an old entry with no field
+// stays without one: absent is unknown, never reported.
+describe("the live doors stamp the state", () => {
+  it("logSet stamps a bare entry reported, beside its time", () => {
+    const s = logSet(live(), 0, mkSet({ w: 225, r: 5 }), 1000);
+    expect(s.exercises[0]!.sets[0]).toMatchObject({ w: 225, r: 5, at: 1000, state: "reported" });
+  });
+  it("logSet never overwrites a state the caller already said", () => {
+    const s = logSet(live(), 0, mkSet({ done: true, state: "observed" }), 1000);
+    expect(s.exercises[0]!.sets[0]!.state).toBe("observed");
+  });
+  it("setLoggedSets stamps only the chips new to the strip; a survivor keeps what it had, including nothing", () => {
+    const legacy = mkSet({ w: 200, r: 8 }); // predates the field: no at, no state
+    const s0 = { ...live(), exercises: [{ ...ex("Row"), sets: [legacy] }, ex("Curl")] };
+    const s = setLoggedSets(s0, 0, [{ ...legacy, r: 9 }, mkSet({ w: 200, r: 8 })], 2000);
+    expect(s.exercises[0]!.sets[0]).toEqual({ ...legacy, r: 9 });
+    expect(s.exercises[0]!.sets[0]!.state, "absent stays absent").toBeUndefined();
+    expect(s.exercises[0]!.sets[1]).toMatchObject({ at: 2000, state: "reported" });
+  });
+});
+
+// UNDO ON SKIP AND SWAP (Logging Standard rule 5, 2026-10-17). Each reverses
+// exactly what its write did and puts the athlete back on the exercise.
+describe("unskipExercise and unswapExercise", () => {
+  it("unskip takes the one flag off and returns to the exercise", () => {
+    const skipped = { ...skipExercise(live(), 0), idx: 1 };
+    expect(skipped.exercises[0]!.skipped).toBe(true);
+    const back = unskipExercise(skipped, 0);
+    expect(back.exercises[0]!.skipped).toBe(false);
+    expect(back.idx).toBe(0);
+    expect(back.exercises[1]).toEqual(live().exercises[1]);
+  });
+  it("unswap before any set puts the original back in its slot, sets and plan included", () => {
+    const original = { ...ex("Row"), plan: [mkSet({ w: 100, r: 10 })] };
+    const s0 = { ...live(), exercises: [original, ex("Curl")] };
+    const swapped = swapExercise(s0, 0, { name: "Chest-Supported Row", kind: "weight_reps", unit: "lb" });
+    expect(swapped.exercises[0]!.name).toBe("Chest-Supported Row");
+    const back = unswapExercise(swapped, original, 0);
+    expect(back.exercises).toEqual(s0.exercises);
+    expect(back.idx).toBe(0);
+  });
+  it("unswap after logged sets removes the inserted substitute and leaves the original's records alone", () => {
+    const original = { ...ex("Row"), sets: [mkSet({ w: 100, r: 10 })] };
+    const s0 = { ...live(), exercises: [original, ex("Curl")] };
+    const swapped = swapExercise(s0, 0, { name: "Chest-Supported Row", kind: "weight_reps", unit: "lb" });
+    expect(swapped.exercises).toHaveLength(3);
+    expect(swapped.idx).toBe(1);
+    const back = unswapExercise(swapped, original, 0);
+    expect(back.exercises).toEqual(s0.exercises);
+    expect(back.idx).toBe(0);
+    // A second tap lands on the same answer (SHARED-F-03): nothing left to remove.
+    expect(unswapExercise(back, original, 0).exercises, "already undone").toEqual(s0.exercises);
   });
 });

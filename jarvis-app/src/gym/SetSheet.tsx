@@ -67,7 +67,9 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
   const [warm, setWarm] = useState(!!entry.warmup);
   const save = () => {
     // A planned set has not happened: no mark and no warm-up flag to write.
-    const patch: Partial<SetEntry> = planned ? {} : { moved: warm ? undefined : moved, warmup: warm ? true : undefined };
+    // A logged set saved here was reported by hand (Logging Standard
+    // addendum 1); a planned one has not happened and carries no state.
+    const patch: Partial<SetEntry> = planned ? {} : { moved: warm ? undefined : moved, warmup: warm ? true : undefined, state: "reported" };
     for (const f of ordered) {
       const n = Number(vals[f.key]);
       (patch as Record<string, unknown>)[f.key] = vals[f.key]?.trim() !== "" && Number.isFinite(n) && n > 0 ? n : undefined;
@@ -94,8 +96,13 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
       ) : (
         <Group>
           {ordered.map((f) => (
+            // RETURN SAVES (the Logging Standard, rule 4, 2026-10-17): Return
+            // in either field is the Save button, so a corrected weight is
+            // tap, type, Return. The key says Go, as the app's other
+            // save-on-Return fields do.
             <FieldRow key={f.key} label={f.label} value={vals[f.key] ?? ""} inputMode={f.key === "r" ? "numeric" : "decimal"}
-              onChange={(v) => setVals((s) => ({ ...s, [f.key]: v }))} ariaLabel={`${title} ${f.label.toLowerCase()}`} />
+              onChange={(v) => setVals((s) => ({ ...s, [f.key]: v }))} ariaLabel={`${title} ${f.label.toLowerCase()}`}
+              enterKeyHint="go" onEnter={save} />
           ))}
         </Group>
       )}

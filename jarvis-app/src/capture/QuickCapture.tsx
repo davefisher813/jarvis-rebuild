@@ -277,7 +277,8 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
       const filled = hit.entry.w === undefined && last?.w !== undefined ? { ...hit.entry, w: last.w } : hit.entry;
       set = { id: newSetId(), ...filled };
     }
-    writeLive(logSet(live, live.idx, set));
+    // Typed by hand, so reported (Logging Standard addendum 1, 2026-10-17).
+    writeLive(logSet(live, live.idx, { ...set, state: "reported" }));
     showToast({
       message: lineCase(`Logged ${formatSet(entry, set)}`),
       actionLabel: "Undo",

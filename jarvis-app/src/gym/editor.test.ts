@@ -65,7 +65,9 @@ describe("D2: last time is wired everywhere sets render", () => {
     // Match puts last time's numbers IN THE FIELDS, and the bar writes them.
     // AMENDED 2026-09-29: and lands the card on the Work side (warm: false),
     // since last time's numbers are working sets.
-    expect(s).toContain("setDraft({ ...fieldsOf(entryFrom(src)), warm: false })");
+    // AMENDED 2026-10-17 (Logging Standard rule 8): the draft's one writer is
+    // putDraft, which also stores it so a kill loses nothing.
+    expect(s).toContain("putDraft({ ...fieldsOf(entryFrom(src)), warm: false })");
     expect(s, "Match no longer writes a set on its own").not.toContain("onLog(entryFrom(src))");
   });
 

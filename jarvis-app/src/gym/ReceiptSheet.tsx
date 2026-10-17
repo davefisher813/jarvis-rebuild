@@ -8,6 +8,7 @@ import { doneCount } from "./history";
 import { pressable } from "../shared/pressable";
 import { CalendarDays, Check, FileText, RotateCcw } from "../shared/icons";
 import { Tile } from "../shared/FormSheet";
+import type { DraftStore } from "../shared/draftStore";
 
 const CHEV = <div className="chev" />;
 
@@ -22,7 +23,7 @@ const CHEV = <div className="chev" />;
 // names the done-kind work instead of folding it into a number. Each name
 // also gets a plain count fact ("done N times") pulled from history plus this
 // session -- a count, never a streak, never red, never a target.
-export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onFinish, keep, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot, celebrations = true }: {
+export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onFinish, keep, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot, celebrations = true, noteDraft }: {
   dayName: string;
   receipt: Receipt;
   workouts: Workout[];
@@ -53,9 +54,16 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onFin
    *  receipt on the way, because each opens a full screen. */
   onRateSession?: () => void;
   onLogSoreSpot?: () => void;
+  /** NOTHING TYPED IS LOST (Logging Standard rule 8, 2026-10-17): the note
+   *  is written here on every keystroke and read back when the receipt
+   *  opens again, so a kill between typing and Done loses no words. The gym
+   *  hands in the session's own store (gym/sessionDrafts.ts) and clearLive
+   *  spends it when the session is saved or let go. */
+  noteDraft?: DraftStore;
 }) {
   const [closed, setClosed] = useState<string[]>([]);
-  const [note, setNote] = useState("");
+  const [note, setNoteState] = useState(() => noteDraft?.read() ?? "");
+  const setNote = (v: string) => { setNoteState(v); noteDraft?.write(v); };
   const tiles: { num: string; label: string }[] = [
     { num: String(receipt.minutes), label: receipt.minutes === 1 ? "Minute" : "Minutes" },
     { num: String(receipt.exercises), label: receipt.exercises === 1 ? "Exercise" : "Exercises" },

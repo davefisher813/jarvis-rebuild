@@ -124,6 +124,17 @@ export interface SetEntry extends SetLog {
    *  this field existed, and a legacy chip is never back-stamped with a
    *  guess. */
   at?: number;
+  /** WHICH STATE THE VALUE CAME FROM (the Logging Standard, addendum 1,
+   *  2026-10-17: "planned is not done"; a record carries one of four states
+   *  and they never blur). Two are written today: "reported", Dave logged it
+   *  by hand (the Log button, the set sheet, the capture box's "225 for 5"),
+   *  stamped by every door that writes a logged entry; "observed", a trusted
+   *  source recorded it (the Apple Health importer). The other two, planned
+   *  and suggested, are NOT written yet: what logging an untouched prefill
+   *  records is Dave's open question, and nothing here pre-empts it. Absent
+   *  on everything logged before the field existed, and absent means
+   *  unknown, never reported. */
+  state?: "reported" | "observed";
 }
 
 // EQUIPMENT lives in its own file now (gym/equipment.ts, 2026-09-14), because
