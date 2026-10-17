@@ -24,6 +24,16 @@ import { createHash } from "node:crypto";
 // visit only and is the one way to reach the actionable view; the loop is a
 // 40s -50% translate inside a 252px window; nothing else on the page decides
 // any of that.
+//
+// AMENDED ONCE, 2026-10-17. The copies that make the loop seamless read as
+// the whole day twice to a screen reader and to the accessibility text a
+// verifier extracts. Asked to choose between hiding the loop copies from
+// that layer and changing the loop, Dave said: "Whatever you think is best."
+// Alfred's ruling under that delegation: hide the loop copies from the text
+// layer, the mechanism and every pixel unchanged. The region gained a ref
+// and a data-copies count on the moving track and nothing else; the effect
+// that marks the copies aria-hidden lives above the region. Hash updated
+// with his quote in the same commit, as this law requires.
 const SRC = join(__dirname, "..");
 const read = (f: string) => readFileSync(join(SRC, f), "utf8");
 const region = (text: string, start: string, end: string) => {
@@ -34,7 +44,7 @@ const region = (text: string, start: string, end: string) => {
 };
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
-const FROZEN_YOURDAY = "4e4592d6dd98b6b0c871cf34f712f7a0d684db6a2b1d8730d87e2bed5202dbf2";
+const FROZEN_YOURDAY = "686d58ccb810789074faa4695c76d91a3a2e638d0080b73bd7a317cea825bd7f";
 const FROZEN_CSS = "ec91a5ab96d0cb14100775aba84ca97ac7901fedeb334438038c2c5c0a9c6ac6";
 
 describe("THE TODAY TV GUIDE IS FROZEN (Dave 2026-09-27)", () => {
@@ -51,6 +61,9 @@ describe("THE TODAY TV GUIDE IS FROZEN (Dave 2026-09-27)", () => {
     expect(y).toMatch(/const moving = !paused;/);
     expect(y).toMatch(/const copies = Math\.max\(2, 2 \* Math\.ceil\(WINDOW \/ Math\.max\(1, dayH \|\| WINDOW\)\)\);/);
     expect(y).toMatch(/const WINDOW = 252;/);
+    // The 2026-10-17 amendment, in words: the moving track hands its copy count to the effect that hides the copies.
+    expect(y).toMatch(/<div className="ticker-track" ref=\{trackRef\} data-copies=\{copies\}>/);
+    expect(y).toMatch(/if \(i >= perCopy\) el\.setAttribute\("aria-hidden", "true"\);/);
     const c = read("styles/components.css");
     expect(c).toMatch(/\.sched-ticker \{ position: relative; height: 252px; overflow: hidden; \}/);
     expect(c).toMatch(/\.ticker-track \{ animation: tickerScroll 40s linear infinite;/);

@@ -169,3 +169,36 @@ describe("the ticker holds still under a finger", () => {
     expect(localStorage.getItem(TICKER_KEY), "and nothing is written down").toBeNull();
   });
 });
+
+// THE LOOP COPIES ARE HIDDEN FROM THE TEXT LAYER (Dave 2026-10-17, "Whatever
+// you think is best"; Alfred's ruling under that delegation: hide the loop
+// copies from the text layer). The DOM still holds the day at least twice,
+// because the loop needs two windows; a screen reader meets it once.
+describe("the loop copies are hidden from the text layer", () => {
+  it("every row after the first copy carries aria-hidden and the first copy carries none, so the day is spoken once", () => {
+    const { container } = render(
+      <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+    );
+    const track = container.querySelector(".ticker-track:not(.day-measure)") as HTMLElement;
+    const copies = Number(track.dataset.copies);
+    expect(copies, "the track says how many copies it holds").toBeGreaterThanOrEqual(2);
+    const kids = Array.from(track.children);
+    expect(kids.length % copies, "whole copies").toBe(0);
+    const per = kids.length / copies;
+    kids.forEach((el, i) => expect(el.getAttribute("aria-hidden") === "true", `child ${i} of ${kids.length}`).toBe(i >= per));
+    // What a reader of the accessibility layer meets is one copy; the DOM holds that copy `copies` times.
+    const spoken = kids.filter((el) => el.getAttribute("aria-hidden") !== "true").map((el) => el.textContent ?? "").join("|");
+    const all = kids.map((el) => el.textContent ?? "").join("|");
+    expect(spoken.length).toBeGreaterThan(0);
+    expect(all).toBe(Array.from({ length: copies }, () => spoken).join("|"));
+  });
+  it("paused, the one copy carries no aria-hidden", () => {
+    const { container } = render(
+      <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+    );
+    fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
+    const track = container.querySelector(".ticker-track") as HTMLElement;
+    expect(container.querySelector(".sched-ticker")!.className).toContain("ticker-still");
+    expect(Array.from(track.children).every((el) => el.getAttribute("aria-hidden") !== "true")).toBe(true);
+  });
+});

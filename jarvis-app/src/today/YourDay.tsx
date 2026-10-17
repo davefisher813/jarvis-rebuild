@@ -516,6 +516,28 @@ export default function YourDay({
     setMeasuring(false);
   }, [measuring]);
 
+  // HIDDEN FROM THE TEXT LAYER, NOT FROM THE EYE (Dave 2026-10-17: "Whatever
+  // you think is best", delegating the choice; Alfred's ruling under it: hide
+  // the loop copies from the text layer). The loop needs two windows of rows
+  // to be seamless, so the DOM holds the day at least twice; a screen reader,
+  // and the accessibility text a verifier reads, must meet it once. After
+  // every render the rows of every copy after the first carry aria-hidden.
+  // An attribute, nothing more: no row is restyled, nothing moves, and the
+  // frozen loop below is unchanged but for the ref and the count it hands
+  // this effect.
+  const trackRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const kids = Array.from(track.children);
+    const loopCopies = Number(track.dataset.copies) || 1;
+    const perCopy = Math.floor(kids.length / loopCopies);
+    kids.forEach((el, i) => {
+      if (i >= perCopy) el.setAttribute("aria-hidden", "true");
+      else if (el.getAttribute("aria-hidden") === "true") el.removeAttribute("aria-hidden");
+    });
+  });
+
   // Running Late on Today (2026-08-09): the plan lives here, so recovering
   // from a slipped morning cannot require a tab switch. Armed chip row, same
   // vocabulary as the Schedule tab's. Offered only while something ahead can
@@ -690,7 +712,12 @@ export default function YourDay({
                   <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
                 </div>
               )}
-              <div className="ticker-track">
+              {/* UNFROZEN FOR ONE ATTRIBUTE (Dave 2026-10-17, "Whatever you think
+                  is best"; Alfred's ruling: hide the loop copies from the text
+                  layer). The ref and the count let the effect above mark every
+                  copy after the first aria-hidden. The loop, the copies and
+                  every pixel are as they were. */}
+              <div className="ticker-track" ref={trackRef} data-copies={copies}>
                 {Array.from({ length: copies }, (_, i) => (
                   <DaySet key={i} events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
                 ))}
