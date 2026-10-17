@@ -141,6 +141,16 @@ describe("NoticeCard, the card every Today notice is drawn in", () => {
     expect(text(sub)).not.toMatch(LOOSE);
     expect(Array.from(sub!.querySelectorAll(".qd")).map((e) => e.textContent)).toEqual(["2:00"]);
   });
+  // The swipe tray's snooze read "Back at 9" over "AM" in a 88px button (issue 106 V1, found by the Oct 17 audit at 390).
+  it("binds a clock in the tray's revealed actions and in the card's own buttons", () => {
+    const alt = { label: "Back at 9 AM", onClick: () => {} };
+    const row = render(<NoticeCard {...base} form="row" title="Reply to Maya" onOpen={() => {}} alt={alt} />);
+    const labels = Array.from(row.container.querySelectorAll(".notice-alt")).map(text);
+    expect(labels).toContain("Back at 9\u00a0AM");
+    row.unmount();
+    const card = render(<NoticeCard {...base} uniform={false} title="Reply to Maya" action={{ label: "Back at 6:30 PM", onClick: () => {} }} alt={alt} />);
+    for (const b of Array.from(card.container.querySelectorAll("button"))) expect(text(b)).not.toMatch(LOOSE);
+  });
   it("leaves a title that is not a string to draw its own times", () => {
     const { container } = render(<NoticeCard {...base} title={<span className="mine">Booked 8:15 AM</span>} />);
     expect(text(container.querySelector(".mine"))).toBe("Booked 8:15 AM");

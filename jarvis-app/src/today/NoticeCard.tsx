@@ -403,10 +403,10 @@ export default function NoticeCard({
             exception: it is the question, and its capsule is the answer. */}
         {offer && action ? (
           <button className={"pill-act" + (action.go ? " pill-go" : "")} onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
-            {action.label}
+            {bindMeridiem(action.label)}
           </button>
         ) : due && action ? (
-          <RowCtxAction when label={action.label} onAct={action.onClick} />
+          <RowCtxAction when label={bindMeridiem(action.label)} onAct={action.onClick} />
         ) : rowDoor || offer ? (
           <div className="chev" />
         ) : null}
@@ -434,10 +434,10 @@ export default function NoticeCard({
               className={"pill-act" + (action.go ? " pill-go" : "")}
               onClick={(e) => { e.stopPropagation(); action.onClick(); }}
             >
-              {action.label}
+              {bindMeridiem(action.label)}
             </button>
           ) : verbRow && due && action ? (
-            <RowCtxAction when label={action.label} onAct={action.onClick} />
+            <RowCtxAction when label={bindMeridiem(action.label)} onAct={action.onClick} />
           ) : cardDoor && !twoVerbs && !xButton && !(stack && action) ? (
             <div className="chev" />
           ) : null}
@@ -450,7 +450,7 @@ export default function NoticeCard({
           <div className="notice-stack">
             <div className="row-glyph" aria-hidden="true" />
             <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
-              {action.label}
+              {bindMeridiem(action.label)}
             </button>
             {xButton}
           </div>
@@ -473,12 +473,12 @@ export default function NoticeCard({
             <div className="row-glyph" aria-hidden="true" />
             <div className="hl-acts">
               {action && !stack && (
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>{action.label}</button>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>{bindMeridiem(action.label)}</button>
               )}
               {/* The same capsule as the primary, one rung quieter: two
                   shapes on one line read as two kinds of thing, and these
                   are two choices of the same kind. */}
-              <button className="pill-act pill-quiet" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>{alt.label}</button>
+              <button className="pill-act pill-quiet" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>{bindMeridiem(alt.label)}</button>
             </div>
           </div>
         )}
@@ -511,7 +511,7 @@ export default function NoticeCard({
             data-reveal
             onClick={() => swipe.closeThen(rowAction.onClick)}
           >
-            {rowAction.label}
+            {bindMeridiem(rowAction.label)}
           </button>
         )}
         {altOnReveal && (
@@ -521,7 +521,7 @@ export default function NoticeCard({
             style={altRight ? { right: altRight } : undefined}
             onClick={() => swipe.closeThen(altOnReveal.onClick)}
           >
-            {altOnReveal.label}
+            {bindMeridiem(altOnReveal.label)}
           </button>
         )}
         {revealDismiss && (
