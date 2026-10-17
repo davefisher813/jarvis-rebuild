@@ -25,6 +25,13 @@ hashes both regions and fails the build on any edit. Do not touch it, do
 not "improve" it, do not restyle the rows it contains through it, unless
 Dave says so in his own words, and then update the hash with his quote.
 
+Amended once (2026-10-17): the loop copies are hidden from the text layer.
+Asked to choose between hiding the copies from assistive technology and
+changing the loop, Dave said "Whatever you think is best"; Alfred ruled: hide
+them. The moving track carries a ref and its copy count, an effect above the
+region marks every copy after the first `aria-hidden`, and the hash was
+updated with his quote. The loop, the copies and every pixel are as they were.
+
 
 
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
