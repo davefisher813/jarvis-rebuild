@@ -550,7 +550,8 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
       showToast({ message: "Already Paid · Next Rolls In" });
       return;
     }
-    if (!(await attemptWrite(() => tasksSvc.toggleDone(b.id)))) return;
+    // The paid check is a flip by design; a flip the store refused is a failure (issue 102).
+    if (!(await attemptWrite(async () => { if (!(await tasksSvc.toggleDone(b.id))) throw new Error("not written"); }))) return;
     await reload();
   };
 
@@ -1129,7 +1130,7 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
                     item={t}
                     today={today}
                     onToggle={(id) => void (async () => {
-                      if (!(await attemptWrite(() => tasksSvc.toggleDone(id)))) return;
+                      if (!(await attemptWrite(async () => { if (!(await tasksSvc.toggleDone(id))) throw new Error("not written"); }))) return;
                       await reload();
                     })()}
                     onOpen={onOpenTask}

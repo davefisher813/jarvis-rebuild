@@ -776,7 +776,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           steps={tasks
             .filter((t) => t.data.projectId === detail.id)
             .map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category }))}
-          onToggleStep={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
+          onToggleStep={async (id) => { await attemptWrite(async () => { if (!(await tasksSvc.toggleDone(id))) throw new Error("not written"); }); await reload(); }}
           onOpenStep={(id) => setSheet({ kind: "editStep", id })}
           onDeleteStep={(id) => void deleteStep(id, false)}
           onAddStep={() => setSheet({ kind: "newStep", projectId: detail.id })}

@@ -351,7 +351,8 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       // flips whatever the row is NOW and rolls a recurring task forward
       // again. The state before the tick is read here and put back on Undo.
       const before = await tasksSvc.task(target.id);
-      const ok = await attemptWrite(() => tasksSvc.toggleDone(target.id));
+      // "Complete" is a set, not a flip (issue 102), and a refused write is a failure.
+      const ok = await attemptWrite(async () => { if (!(await tasksSvc.completeTask(target.id)).ok) throw new Error("not written"); });
       if (!ok) return;
       await say("jarvis", `Done: ${target.text}`, { kind: "action", refs: [{ kind: "task", id: target.id, label: target.text }] });
       if (before) showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.restoreCompletion(target.id, before)); } });

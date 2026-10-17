@@ -388,7 +388,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     // Back On Track: completing a recurring task after a real gap gets the
     // comeback line instead of the stock toast. The old run still counts.
     const comeback = before ? backOnTrackMessage(before, today) : null;
-    const ok = await attemptWrite(() => svc.toggleDone(id));
+    // The ring is a flip by design; a flip the store refused (false) is a
+    // failure, said once, never a success toast over nothing (issue 102).
+    const ok = await attemptWrite(async () => { if (!(await svc.toggleDone(id))) throw new Error("not written"); });
     await reload();
     if (!ok) return;
     touchActivity(); // completing things is being HERE (Where You Were)
@@ -680,7 +682,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       if (t && !t.done) targets.push(id);
     }
     if (targets.length === 0) { showToast({ message: "Already Done" }); return; }
-    const ok = await attemptWrite(async () => { for (const id of targets) await svc.toggleDone(id); });
+    // Mark Done on a selection is a SET (issue 102): each one is made
+    // finished, never flipped, and one the store refused fails the batch's
+    // toast instead of claiming it.
+    const ok = await attemptWrite(async () => { for (const id of targets) if (!(await svc.completeTask(id)).ok) throw new Error("not written"); });
     await reload();
     if (ok) showToast({ message: targets.length === 1 ? "Done" : lineCase(targets.length + " marked done") });
   };
