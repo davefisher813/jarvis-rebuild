@@ -56,12 +56,14 @@ describe("GymFlow: a session named on the way in goes back to its caller", () =>
     const { rerender } = await seeded("gym-back-origin-history");
     const onBack = vi.fn();
     rerender(<GymFlow startHistory="sessions" onBack={onBack} />);
+    // History folds a month older than last week to its summary row (the board, 2026-10-16); open it first.
+    fireEvent.click(await screen.findByText("1 Workout", undefined, { timeout: 4000 }));
     const row = await screen.findByText("Push Day", undefined, { timeout: 4000 });
     await act(async () => { fireEvent.click(row); });
     const back = await screen.findByRole("button", { name: "Back" });
     await act(async () => { fireEvent.click(back); });
     expect(onBack).not.toHaveBeenCalled();
-    expect(await screen.findByText("Push Day")).toBeInTheDocument();
+    expect(await screen.findByText("1 Workout")).toBeInTheDocument();
   });
 
   it("Back on a lift opened from Insights leaves the flow", async () => {

@@ -121,11 +121,14 @@ describe("the goal card on a lift's page", () => {
   // the card's white trailing value, the line under the title reads the
   // current best in white against the target, the rep floor is named only
   // above 1, the card is plain in flight and green once hit.
+  // AMENDED 2026-10-16 (the board, screen 5): the goal is a row in the goal-and-milestones card; the row stays plain
+  // and a hit goal says Done in the key's green at the row's end.
   it("leads with the amount left, names the rep floor only above 1, and turns green when hit", () => {
     render(<LiftDetailScreen {...base} workouts={history} goal={goal as never} />);
     const card = screen.getByLabelText("Edit Goal");
     expect(card).not.toHaveClass("banner-yellow");
     expect(card).not.toHaveClass("banner-good");
+    expect(card.closest(".lift-goals")).not.toBeNull();
     // best set is 135 × 8, so 90 Lb to go toward 225 at 5+
     const left = screen.getByText("90 Lb to Go");
     expect(left.tagName).toBe("B");
@@ -140,9 +143,9 @@ describe("the goal card on a lift's page", () => {
     const one = { ...goal, data: { ...goal.data, measure: { ...goal.data.measure, target: { w: 135, r: 1 } } } };
     render(<LiftDetailScreen {...base} workouts={history} goal={one as never} />);
     const card = screen.getByLabelText("Edit Goal");
-    expect(card).toHaveClass("banner-good");
-    expect(screen.getByText("Hit").tagName).toBe("B");
-    expect(screen.getByText("Hit").closest(".fact")).not.toHaveClass("lime");
+    expect(card).not.toHaveClass("banner-good");
+    expect(screen.getByText("Done")).toHaveClass("fact", "lime");
+    expect(screen.getByText("Done").closest(".row-value")).not.toBeNull();
     expect(card.textContent).not.toContain("×");
     expect(screen.queryByText(/to Go/)).toBeNull();
   });
@@ -200,8 +203,8 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
     expect(screen.getByText("Does Not Show")).toBeInTheDocument();
     expect(screen.getByText("A tested max, or a weight to attempt")).toBeInTheDocument();
     expect(screen.getByText(/^Epley/)).toBeInTheDocument();
-    // The range chip states both ends as dates, like the Best card.
-    expect(screen.getAllByText("Aug 26 to Sep 2").length).toBeGreaterThanOrEqual(2);
+    // The range pill states both ends as dates.
+    expect(screen.getAllByText("Aug 26 to Sep 2").length).toBeGreaterThanOrEqual(1);
   });
 
   // AMENDED 2026-09-16 (Dave: "uniform everything"). The three readings were
@@ -237,16 +240,17 @@ describe("LiftDetailScreen: best recorded set and milestones", () => {
       { id: "w2", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-07", startedAt: 1, endedAt: 2, exercises: [{ exerciseId: "e", name: "Incline Bench", kind: "weight_reps", unit: "lb", sets: [{ id: "b", w: 135, r: 5 }] }] } },
     ] as never;
     render(<LiftDetailScreen name="Incline Bench" kind="weight_reps" unit="lb" workouts={workouts} defs={[]} logs={[]} onSetGoal={() => {}} onBack={() => {}} />);
-    // 2026-09-14: the sentence became three labelled cells (§7), under one
-    // Performance and History head.
-    expect(screen.getByText("Performance and History")).toBeInTheDocument();
-    expect(screen.getByText("Best Set")).toBeInTheDocument();
-    expect(screen.getAllByText("135 Lb × 5").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Workouts").length).toBeGreaterThan(0);
-    // The estimate has one home: the Trend headline (pass-off item 7).
+    // AMENDED 2026-10-16 (Dave's approved board, screen 5): the best in purple on the left, the estimate in white on
+    // the right, the workout count a pill under them; no section head over the card.
+    expect(screen.queryByText("Performance and History")).toBeNull();
+    expect(screen.getByText("Best")).toHaveClass("eyebrow", "eyebrow-best");
+    expect(screen.getAllByText("135 Lb × 5")[0]).toHaveClass("lift-big", "lift-big-best");
+    expect(screen.getByText("2 Workouts")).toHaveClass("se-chip");
     expect(screen.queryByText("Change")).not.toBeInTheDocument();
     expect(screen.queryByText("Estimated One-Rep Max")).not.toBeInTheDocument();
-    expect(screen.getByText("158 Lb")).toHaveClass("fact", "est");
+    expect(screen.getByText("Estimated Max")).toHaveClass("eyebrow");
+    expect(screen.getByText("158 Lb")).toHaveClass("lift-big");
+    expect(screen.getByText("158 Lb")).not.toHaveClass("lift-big-best");
     expect(screen.getByText("First Workout")).toBeInTheDocument();
   });
 });
@@ -269,5 +273,53 @@ describe("LiftDetailScreen says the hub's gain, not the estimate's change", () =
     // The estimate's own change (Epley: 133 to 283, "Up 150 Lb") is no longer said.
     expect(screen.queryByText(/^Up 150 Lb/)).toBeNull();
     expect(screen.queryByText(/^Up \d+ Lb$/)).toBeNull();
+  });
+});
+
+// THE BOARD, SCREEN 5 (Dave's approved mockup board, 2026-10-16): the order of
+// the cards and the colour each thing wears.
+describe("LiftDetailScreen: the board's order and colours", () => {
+  const ws: Workout[] = [
+    { id: "a", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-08-24", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Lat Pull Down", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 300, r: 3 }] }] } },
+    { id: "b", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-07", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Lat Pull Down", kind: "weight_reps", unit: "lb", sets: [{ id: "s2", w: 330, r: 3 }] }] } },
+    { id: "c", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-10-15", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "x", name: "Lat Pull Down", kind: "weight_reps", unit: "lb", sets: [{ id: "s3", w: 360, r: 3 }] }] } },
+  ];
+  it("name, Best card, Progress, Weekly Work, then the goal card; best purple, line teal, PR dot gold, this week red", () => {
+    const { container } = render(<LiftDetailScreen {...base} name="Lat Pull Down" workouts={ws} />);
+    const html = container.innerHTML;
+    const at = (needle: string) => { const i = html.indexOf(needle); expect(i, needle).toBeGreaterThan(-1); return i; };
+    expect(at('class="lift-title"')).toBeLessThan(at('class="card pad lift-top"'));
+    expect(at('class="card pad lift-top"')).toBeLessThan(at(">Progress<"));
+    expect(at(">Progress<")).toBeLessThan(at(">Weekly Work<"));
+    expect(at(">Weekly Work<")).toBeLessThan(at('class="card list-card-ruled lift-goals"'));
+    // Dave's own name, cased, never renamed.
+    expect(screen.getByText("Lat Pull Down", { selector: ".lift-title" })).toBeInTheDocument();
+    // Best equals the milestone's figure: one read (prs.bestBefore) on both.
+    expect(screen.getByText("360 Lb × 3", { selector: ".lift-big-best" })).toBeInTheDocument();
+    expect(screen.getByText("360 Lb × 3", { selector: ".lift-goals .fact" })).toBeInTheDocument();
+    // The pills: workouts, PRs in gold, the span.
+    expect(screen.getByText("3 Workouts")).toHaveClass("se-chip");
+    expect(screen.getByText("3 PRs")).toHaveClass("se-chip", "se-chip-pr");
+    expect(screen.getByText("Aug 24 to Oct 15")).toHaveClass("se-chip");
+    // The line is teal, the PR points gold, the axis grey facts.
+    const chart = container.querySelector(".lift-progress .lift-chart")!;
+    expect(chart.querySelector("path")).toHaveAttribute("stroke", "var(--hl-cyan)");
+    const gold = [...chart.querySelectorAll("circle")].filter((c) => c.getAttribute("fill") === "var(--hl-gold)");
+    expect(gold.length).toBe(3);
+    const axis = container.querySelector(".lift-axis")!;
+    expect(axis.textContent).toContain("Aug 24");
+    expect(axis.textContent).toContain("Oct 15");
+    expect(axis.textContent).toContain("360 Lb × 3");
+    // Weekly Work: six past weeks grey, this week red, labelled W1 to W6 and Now.
+    const bars = container.querySelectorAll(".lift-bars")[0]!;
+    const rects = [...bars.querySelectorAll("rect")];
+    expect(rects).toHaveLength(7);
+    expect(rects[6]).toHaveAttribute("fill", "var(--sys-red)");
+    for (const r of rects.slice(0, 6)) expect(r).toHaveAttribute("fill", "var(--tx-4)");
+    expect([...container.querySelectorAll(".lift-bar-labels span")].map((e) => e.textContent)).toEqual(["W1", "W2", "W3", "W4", "W5", "W6", "Now"]);
+    // The milestone row carries the gold PR mark.
+    expect(container.querySelector(".lift-goals .se-pr")).toHaveTextContent("PR");
+    // Nothing on the page is lime but the goal's Done, and nothing wears the retired teal wash.
+    expect(container.querySelector(".banner-blue")).toBeNull();
   });
 });

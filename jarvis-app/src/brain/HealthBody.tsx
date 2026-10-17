@@ -196,98 +196,63 @@ export default function HealthBody({
           </>
         ) : (
           <>
-            <div className="h-hero">
+            {/* THE CARD AS THE BOARD DRAWS IT (Dave's approved board 2026-10-16,
+                screen 6): the eyebrow, the big line, ONE grey line naming the
+                program's next day with its count and its length, and the red
+                Start Workout last, the only red on the page. The grey line is
+                still the next day's door: it opens the sheet with Start, Adjust
+                Time and Change Workout (the next-workout row, 2026-10-10). */}
+            <div className="h-hero h-hero-static">
               <div className="h-hero-b"><div className="h-hero-t">Log It as You Go</div></div>
             </div>
+            {next && (
+              <div {...pressable(() => setNextOpen(true))} className="h-hero h-hero-next">
+                <div className="facts h-hero-facts">
+                  <span className="fact">{`Next in Your Program: ${workoutTitle(next.day.name)}`}</span>
+                  {when && <span className={"fact " + whenTone}>{when}</span>}
+                  <span className="fact">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
+                  {est > 0 && <span className="fact">{spanLabel(est)}</span>}
+                </div>
+                {CHEV}
+              </div>
+            )}
             <div className="h-hero-cta">
               {/* No glyph: the session's Log button carries none, and the two are one weight. */}
               <button type="button" className="btn btn-primary btn-launch btn-lg btn-block" onClick={() => onStart(SCRATCH_DAY_ID)}>Start Workout</button>
             </div>
-            {/* The program's next day, under its own eyebrow so its title is
-                only the day's name and fits the row at every text size. */}
-            {next && (<>
-              <div className="h-hero-head"><span className="h-eyebrow">Next in Your Program</span></div>
-              <div {...pressable(() => setNextOpen(true))} className="h-hero">
-                <span className="h-hero-ico"><BarbellGlyph /></span>
-                <div className="h-hero-b">
-                  <div className="h-hero-t">{workoutTitle(next.day.name)}</div>
-                  <div className="facts h-hero-facts">
-                    {when && <span className={"fact " + whenTone}>{when}</span>}
-                    {/* A PLAIN COUNT IS WHITE, NEVER LIME (the ship-blocker review): lime is
-                        "what is logged" in the Colour Key, and an exercise count on a
-                        workout that has not started logs nothing. A measured number with
-                        no state is the one white, the same in both themes (§AM). */}
-                    <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
-                    {/* The sky ink already says estimate, so no "About"
-                        (2026-09-26): with it, the line cut the number away
-                        at type scale 1.4 ("Abo..."). */}
-                    {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
-                  </div>
-                </div>
-                {CHEV}
-              </div>
-            </>)}
           </>
         )}
       </div></div>
 
-      {/* THE WEEK, IN VIEW. One period for every number on the card. */}
+      {/* THIS WEEK (the board, screen 6): three stats in white with grey labels,
+          then the seven days, a trained day's bar in the done green and a
+          rest day's in the warm grey. One period for every number on the
+          card (the last seven days; the range says which). */}
       <div className="pad-x"><div className="card h-week-card">
         <div className="h-week-top">
-          <span className="h-eyebrow">Last 7 Days</span>
+          <span className="h-eyebrow">This Week</span>
           <span className="fact date">{range}</span>
         </div>
-        <div className="h-week-main">
-          <button type="button" className={"h-week-count" + (overview.workouts === 0 ? " zero" : "")} aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
-            {/* TITLE CASE, LIKE EVERY OTHER LABEL ON THIS CARD (Dave
-                2026-09-17: "workouts doesn't follow title case rules").
-                Working Sets and Training Time sit two rows below in the same
-                type at the same size; this one word was lowercase, which read
-                as a typo rather than as a different kind of thing. */}
+        <div className="h-stats">
+          <button type="button" className="h-stat" aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
             <b>{overview.workouts}</b><span>{overview.workouts === 1 ? "Workout" : "Workouts"}</span>
           </button>
-          <div className="h-bars" role="group" aria-label="Workouts by day">
-            {overview.days.map((d) => (
-              <button type="button" key={d.date} className={"h-bar" + (d.workouts > 0 ? " on" : "") + (d.date === today ? " today" : "")}
-                aria-label={`${weekdayShort(d.date)} ${monthDay(d.date)}${d.workouts > 0 ? `, ${d.workouts} ${d.workouts === 1 ? "workout" : "workouts"}` : ""}`}
-                onClick={() => onOpenRecords({ kind: "day", date: d.date })}>
-                <i style={{ height: d.workouts > 0 ? `${Math.max(12, Math.round((d.activeMin / maxMin) * 36))}px` : undefined }} />
-                {weekdayShort(d.date)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="h-stats">
-          <button type="button" className={"h-stat" + (overview.workingSets > 0 ? " lime" : "")} onClick={() => onOpenRecords({ kind: "sets" })}>
+          <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "sets" })}>
             <b>{overview.workingSets}</b><span>Working Sets</span>
           </button>
           <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "workouts" })}>
             <b>{overview.trainingMin < 60 ? <>{overview.trainingMin}<small> Min</small></> : spanLabel(overview.trainingMin)}</b><span>Training Time</span>
           </button>
-          {/* NOTHING LOGGED IS NOT A READING (polish pass 2026-09-16; the
-              handoff names this one: "show a dash with Sleep not logged; never
-              zero or the large purple word None").
-
-              "None" sat at the same 28px in the same violet as a real average,
-              so an empty tile shouted louder than seven hours of sleep and the
-              eye read it as a value. A dash is the app saying it has nothing,
-              at the weight that deserves, and the label under it says which
-              nothing. A dash is not a datum, so it steps down to the grey.
-              (The average itself is white since 2026-09-26: a measured number
-              with no state, which is the Colour Key's white, not violet.)
-
-              AN EN DASH, NOT AN EM DASH (Dave's pick, polish conflict 1). The
-              app bans U+2014 outright (laws.test.ts:63) and the two files that
-              may carry one are both about quoting somebody else's punctuation.
-              At this size the two are all but indistinguishable. */}
-          <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "sleep" })}>
-            {overview.sleep.avgHours != null ? (
-              <b>{hoursLabel(overview.sleep.avgHours)}</b>
-            ) : (
-              <b className="h-stat-none" aria-label="No sleep logged">{"\u2013"}</b>
-            )}
-            <span>{overview.sleep.nights > 0 ? `Sleep Across ${overview.sleep.nights} ${overview.sleep.nights === 1 ? "Night" : "Nights"}` : "Sleep Not Logged"}</span>
-          </button>
+        </div>
+        <div className="h-bars" role="group" aria-label="Workouts by day">
+          {overview.days.map((d) => (
+            <button type="button" key={d.date} className={"h-bar" + (d.workouts > 0 ? " on" : "") + (d.date === today ? " today" : "")}
+              aria-label={`${weekdayShort(d.date)} ${monthDay(d.date)}${d.workouts > 0 ? `, ${d.workouts} ${d.workouts === 1 ? "workout" : "workouts"}` : ""}`}
+              onClick={() => onOpenRecords({ kind: "day", date: d.date })}>
+              <i style={{ height: d.workouts > 0 ? `${Math.max(16, Math.round((d.activeMin / maxMin) * 40))}px` : undefined }} />
+              {weekdayShort(d.date).slice(0, 1)}
+            </button>
+          ))}
         </div>
       </div></div>
 
@@ -309,15 +274,10 @@ export default function HealthBody({
           "Your Health" head. That was declined: on a phone it lands about
           600px down past two cards, which is the burying the 09-14 note was
           written against. Position is his; the row treatment is the mockup's. */}
+      {/* THE BOARD'S ORDER (screen 6): Program, History, Exercises; the exercise count is the bare number, by the
+          one count rule (gym/libraryView.shownLibraryCount, the Exercises page's default view). */}
       {(onOpenExercises || onOpenHistory || onOpenSettings) && (
         <div className="pad-x"><div className="card list-card-ruled h-doors">
-          {onOpenExercises && (
-            <button type="button" className="h-door" onClick={onOpenExercises}>
-              <span className="h-door-k">Exercises</span>
-              <span className="h-door-n">{lineCase(`${exerciseCount} ${exerciseCount === 1 ? "exercise" : "exercises"}`)}</span>
-              {CHEV}
-            </button>
-          )}
           <button type="button" className="h-door" onClick={onOpenGym}>
             <span className="h-door-k">Program</span>
             <span className="h-door-n">{lineCase(`${days.length} ${days.length === 1 ? "day" : "days"}`)}</span>
@@ -327,6 +287,13 @@ export default function HealthBody({
             <button type="button" className="h-door" onClick={onOpenHistory}>
               <span className="h-door-k">History</span>
               <span className="h-door-n">{lineCase(`${workouts.length} ${workouts.length === 1 ? "workout" : "workouts"}`)}</span>
+              {CHEV}
+            </button>
+          )}
+          {onOpenExercises && (
+            <button type="button" className="h-door" onClick={onOpenExercises}>
+              <span className="h-door-k">Exercises</span>
+              <span className="h-door-n">{exerciseCount}</span>
               {CHEV}
             </button>
           )}
@@ -360,7 +327,8 @@ export default function HealthBody({
                     <div className="facts">
                       <span className="fact date">{monthDay(w.data.date)}</span>
                       {/* Lime is what is logged (§AM). */}
-                      {n > 0 && <span className="fact lime">{lineCase(`${n} ${n === 1 ? "exercise" : "exercises"}`)}</span>}
+                      {/* A count with no state is the key's white (the board, screen 6: nothing lime on the page). */}
+                      {n > 0 && <span className="fact"><b>{lineCase(`${n} ${n === 1 ? "exercise" : "exercises"}`)}</b></span>}
                       {/* A length that needs review is not stated as a fact. */}
                       {!d.flagged && <span className="fact">{spanLabel(d.activeMin)}</span>}
                     </div>

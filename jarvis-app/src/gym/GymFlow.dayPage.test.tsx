@@ -30,7 +30,7 @@ const PROGRAM: ProgramData = {
   weeks: [{ id: "w1", label: "Week 1", days: [{
     id: "d1", name: "Push",
     exercises: [
-      { id: "e1", name: "Bench Press", kind: "weight_reps", exerciseKey: "ek-bench", sets: [{ id: "s1", w: 185, r: 5 }] },
+      { id: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", exerciseKey: "ek-bench", sets: [{ id: "s1", w: 185, r: 5 }] },
       { id: "e2", name: "Cable Curls", kind: "weight_reps", exerciseKey: "ek-curl", sets: [{ id: "s2", w: 40, r: 12 }] },
       { id: "e3", name: "Dips", kind: "weight_reps", exerciseKey: "ek-dips", sets: [{ id: "s3", r: 12 }] },
     ],
@@ -117,16 +117,28 @@ describe("T: the day page's blocks and its log actions", () => {
     // The same action in the same place on both.
     expect(warm.querySelector(".row .see-all")).toHaveTextContent("Add");
     expect(cool.querySelector(".row .see-all")).toHaveTextContent("Add");
-    // Order: warm-up, the Exercises head, the list, the cool-down, then the disclosure and the rest.
+    // THE BOARD'S ORDER (Dave's approved board 2026-10-16, screen 2): warm-up, the list, its three pills, the cool-down,
+    // Start with the two buttons, then the rest (the pins, the disclosure). No Exercises head.
     const all = Array.from(document.body.querySelectorAll("*"));
     const at = (el: Element) => all.indexOf(el);
     const list = screen.getByText("Bench Press", { selector: ".conn-name" }).closest(".list-card")!;
-    const head = screen.getByText("Exercises", { selector: ".sh2 .t" });
+    const acts = document.querySelector(".day-acts")!;
     const about = screen.getByText("About Changes to This Workout");
-    expect(at(warm)).toBeLessThan(at(head));
-    expect(at(head)).toBeLessThan(at(list));
-    expect(at(list)).toBeLessThan(at(cool));
-    expect(at(cool)).toBeLessThan(at(about));
+    const start = screen.getByRole("button", { name: "Start Push" });
+    expect(screen.queryByText("Exercises", { selector: ".sh2 .t" })).toBeNull();
+    expect(at(warm)).toBeLessThan(at(list));
+    expect(at(list)).toBeLessThan(at(acts));
+    expect(at(acts)).toBeLessThan(at(cool));
+    expect(at(cool)).toBeLessThan(at(start));
+    expect(at(start)).toBeLessThan(at(about));
+    // Three neutral pills, none red.
+    expect([...acts.querySelectorAll(".btn")].map((b) => b.textContent)).toEqual(["Superset", "Reorder", "Add Exercise"]);
+    for (const b of acts.querySelectorAll(".btn")) expect(b).toHaveClass("btn-secondary");
+    // Prescriptions in grey, never teal: the plan line is two plain facts.
+    const row = screen.getByText("Bench Press", { selector: ".conn-name" }).closest(".row-press")!;
+    expect([...row.querySelectorAll(".facts .fact")].map((f) => f.textContent)).toEqual(["1 Set", "185 Lb × 5"]);
+    expect(row.querySelector(".fact.cyan")).toBeNull();
+    expect(row.querySelector(".chev"), "a chevron ends the row").not.toBeNull();
   });
 
   it("a block with content wears its wash", async () => {
@@ -146,9 +158,11 @@ describe("T: the day page's blocks and its log actions", () => {
     const same = await screen.findByRole("button", { name: "Same as Last Time" });
     const past = screen.getByRole("button", { name: "Log a Past Workout" });
     for (const b of [same, past]) {
-      expect(b).toHaveClass("btn", "btn-secondary", "btn-block");
+      expect(b).toHaveClass("btn", "btn-secondary");
       expect(b).not.toHaveClass("row-create");
     }
+    // Side by side under Start (the board).
+    expect(same.closest(".btn-row")).toBe(past.closest(".btn-row"));
     expect(same.closest(".gym-log")).toBe(past.closest(".gym-log"));
     expect(screen.getByRole("button", { name: "Start Push" }).closest(".gym-log")).toBe(same.closest(".gym-log"));
   });

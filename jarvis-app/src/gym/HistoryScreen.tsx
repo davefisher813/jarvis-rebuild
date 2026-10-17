@@ -10,6 +10,8 @@ import { durationOf } from "../insights/analytics";
 import { todayISO } from "../tasks/grouping";
 import SkeletonRows from "../shared/SkeletonRows";
 import ActionSheet from "./ActionSheet";
+import { isSessionPR } from "./prs";
+import { Check } from "../shared/icons";
 
 const CHEV = <div className="chev" />;
 
@@ -92,6 +94,24 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
   const setMode = (m: "lifts" | "sessions") => { setModeState(m); onMode?.(m); };
   const rows = exerciseHistory(workouts);
   const groups = useMemo(() => sessionGroups(workouts, todayISO()), [workouts]);
+  /** GOLD MEANS A RECORD (the board, screen 4): the workouts in which a set
+   *  beat every earlier session of its lift, judged against the history
+   *  before that workout, the same read the session's PR mark makes. */
+  const prWorkouts = useMemo(() => {
+    const sorted = [...workouts].sort((a, b) => a.data.date.localeCompare(b.data.date) || a.data.startedAt - b.data.startedAt);
+    const out = new Set<string>();
+    sorted.forEach((w, i) => {
+      const before = sorted.slice(0, i);
+      for (const ex of w.data.exercises) {
+        if (ex.skipped) continue;
+        if (ex.sets.some((_, k) => isSessionPR(before, ex, ex.kind, ex.sets, k))) { out.add(w.id); break; }
+      }
+    });
+    return out;
+  }, [workouts]);
+  /** Older months fold into one summary row until tapped (the board: "October · 29 Workouts"). */
+  const [openMonths, setOpenMonths] = useState<Set<string>>(() => new Set());
+  const toggleMonth = (label: string) => setOpenMonths((m) => { const n = new Set(m); if (n.has(label)) n.delete(label); else n.add(label); return n; });
 
   // THE `done` BLIND SPOT FIX (catalog §4.8): exerciseHistory skips done-kind
   // work entirely (it produces no number to rank), so without this a whole
@@ -148,38 +168,48 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
           <div className="empty-state"><div className="empty-title">No Workouts Yet</div>
             <div className="empty-sub">Finish a Workout and It Shows Up Here</div></div>
         ) : (
-          groups.map((g) => (
+          groups.map((g) => {
+            const week = g.label === "This Week" || g.label === "Last Week";
+            const open = week || openMonths.has(g.label);
+            return (
             <div key={g.label}>
-              <div className="sh2 sh2-quiet"><span className="t">{g.label}</span><span className="n">{g.rows.length}</span></div>
+              {/* A grey eyebrow over each group (the board, screen 4); the count is the month's own row. */}
+              <div className="sh2 sh2-quiet"><span className="t">{g.label}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                {g.rows.map((r) => (
+                {!week && (
+                  <div className="row" role="button" tabIndex={0} aria-expanded={open} onClick={() => toggleMonth(g.label)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleMonth(g.label); } }}>
+                    <div className="row-grow"><div className="conn-name">{lineCase(`${g.rows.length} ${g.rows.length === 1 ? "workout" : "workouts"}`)}</div></div>
+                    {CHEV}
+                  </div>
+                )}
+                {open && g.rows.map((r) => (
                   <div className="row" role="button" tabIndex={0} key={r.workout.id} aria-label={"Open " + workoutTitle(r.workout.data.dayName) + " " + monthDay(r.date)}
                     onClick={() => onOpenWorkout?.(r.workout)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout?.(r.workout); } }}>
                     <div className="row-grow">
-                      <div className="conn-name truncate">{workoutTitle(r.workout.data.dayName)}</div>
-                      {/* The date in small caps and the working sets in the
-                          logged-work hue. Pass-off item 11 (2026-09-26):
-                          the length is the row's right-hand column, the same
-                          layout the Program page's Recent rows wear, so the
-                          two lists one tap apart read alike and the lengths
-                          line up down the list. A length worth a look is
-                          amber there and says so here, the row's one grey. */}
+                      {/* ONE ROW SHAPE (the board): a green check (done), the name, a gold PR mark where a record fell,
+                          then the date and the set count in the one grey, the length white on the right, the chevron. */}
+                      <div className="conn-name truncate">
+                        <Check className="ic hist-done" aria-label="Done" />
+                        {workoutTitle(r.workout.data.dayName)}
+                        {prWorkouts.has(r.workout.id) && <span className="se-pr">PR</span>}
+                      </div>
                       <div className="facts">
                         <span className="fact date">{monthDay(r.date)}</span>
-                        <span className="fact lime">{lineCase(`${r.sets} ${r.sets === 1 ? "set" : "sets"}`)}</span>
+                        <span className="fact">{lineCase(`${r.sets} ${r.sets === 1 ? "set" : "sets"}`)}</span>
                         {durationOf(r.workout.data).flagged && <span className="fact">Worth Reviewing</span>}
                       </div>
                     </div>
-                    {durationOf(r.workout.data).flagged
-                      ? <div className="row-value"><span className="fact amber">{spanLabel(durationOf(r.workout.data).activeMin)}</span></div>
-                      : <div className="row-value"><span className="fact"><b>{spanLabel(r.minutes)}</b></span></div>}
+                    {/* The length is a number with no state: white, flagged or not; the word for a flag is on the line (2026-10-16). */}
+                    <div className="row-value"><span className="fact"><b>{spanLabel(durationOf(r.workout.data).flagged ? durationOf(r.workout.data).activeMin : r.minutes)}</b></span></div>
                     {onOpenWorkout && CHEV}
                   </div>
                 ))}
               </div></div>
             </div>
-          ))
+            );
+          })
         )
       ) : rows.length === 0 ? (
         <div className="empty-state"><div className="empty-title">No Numbers Yet</div>

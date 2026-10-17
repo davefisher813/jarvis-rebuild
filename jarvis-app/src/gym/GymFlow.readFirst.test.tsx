@@ -43,7 +43,8 @@ describe("GymFlow reads before it uploads", () => {
         <GymFlow startHistory="sessions" onBack={() => {}} />
       </NotesProvider>,
     );
-    expect(await screen.findByText("Push Day", {}, { timeout: 4000 })).toBeInTheDocument();
+    // The saved workout, counted in its month's summary row (History folds older months, the board 2026-10-16).
+    expect(await screen.findByText("1 Workout", {}, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.queryByText("No Sessions Yet")).toBeNull();
   });
 });

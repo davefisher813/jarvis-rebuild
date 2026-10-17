@@ -58,8 +58,11 @@ describe("Start Workout leads the Health page", () => {
     render(<HealthBody {...base} program={program} onStart={onStart} />);
     fireEvent.click(screen.getByRole("button", { name: "Start Workout" }));
     expect(onStart).toHaveBeenLastCalledWith(SCRATCH_DAY_ID);
-    expect(screen.getByText("Next in Your Program")).toHaveClass("h-eyebrow");
-    const row = screen.getByText("Push").closest('[role="button"]') as HTMLElement;
+    // THE BOARD (2026-10-16, screen 6): one grey line names the next day, under the big line and above Start.
+    const next = screen.getByText(/^Next in Your Program: /);
+    expect(next).toHaveClass("fact");
+    expect(next.closest(".h-hero-next")).not.toBeNull();
+    const row = screen.getByText(/^Next in Your Program: Push/).closest('[role="button"]') as HTMLElement;
     expect(row.querySelector(".chev")).not.toBeNull();
     fireEvent.click(row);
     const sheet = document.querySelector(".sheet-scrim") as HTMLElement;
@@ -97,9 +100,10 @@ describe("Recent Workouts", () => {
     const facts = [...rows[0]!.querySelectorAll(".fact")];
     expect(facts.map((f) => f.textContent)).toEqual(["Oct 9", "3 Exercises", "52 Min"]);
     expect(facts[0]).toHaveClass("date");
-    expect(facts[1]).toHaveClass("lime");
-    // One grey per row: only the length is an untoned fact, and no fact carries a typed dot.
-    expect(facts.filter((f) => f.className === "fact")).toHaveLength(1);
+    // The count is the key's white (the board, 2026-10-16: nothing lime on the page), the length the row's one grey.
+    expect(facts[1]).not.toHaveClass("lime");
+    expect(facts[1]!.querySelector("b")).not.toBeNull();
+    expect(facts.filter((f) => f.className === "fact" && !f.querySelector("b"))).toHaveLength(1);
     for (const f of facts) expect(f.textContent).not.toMatch(/[·•]/);
     fireEvent.click(rows[0]!);
     expect(onOpenWorkout).toHaveBeenCalledWith("b");
@@ -146,5 +150,35 @@ describe("the Start card's Quick Log", () => {
     unmount();
     render(<HealthBody {...base} onSameAsLastTime={() => {}} live={{ dayName: "push", logged: 2, nextExercise: null, setNo: 1, setTotal: 3 }} />);
     expect(screen.queryByRole("button", { name: "Quick Log" })).toBeNull();
+  });
+});
+
+// THE BOARD, SCREEN 6 (Dave's approved mockup board, 2026-10-16): the order of
+// the cards and the colour each thing wears on the Health hub.
+describe("the Health hub's board order and colours", () => {
+  it("Ready to Train (eyebrow, big line, grey next line, red Start), This Week (white stats, green bars), the three doors", () => {
+    const ws = [workout("w1", "2026-10-09", "Push", 47, ["Bench Press"]), workout("w2", "2026-10-07", "Pull", 38, ["Row"])];
+    const withWeek = { ...base, program, workouts: ws, overview: periodOverview(ws, null, [], periodFor("7d", today)) };
+    const { container } = render(<HealthBody {...withWeek} onOpenExercises={() => {}} onOpenHistory={() => {}} />);
+    const html = container.innerHTML;
+    const at = (needle: string) => { const i = html.indexOf(needle); expect(i, needle).toBeGreaterThan(-1); return i; };
+    expect(at(">Ready to Train<")).toBeLessThan(at(">Log It as You Go<"));
+    expect(at(">Log It as You Go<")).toBeLessThan(at("Next in Your Program: "));
+    expect(at("Next in Your Program: ")).toBeLessThan(at(">Start Workout<"));
+    expect(at(">Start Workout<")).toBeLessThan(at(">This Week<"));
+    expect(at(">This Week<")).toBeLessThan(at('class="h-bars"'));
+    expect(at('class="h-bars"')).toBeLessThan(at('class="card list-card-ruled h-doors"'));
+    // The only red on the page is Start Workout.
+    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.textContent)).toEqual(["Start Workout"]);
+    // Three white stats with grey labels, in the board's order.
+    expect([...container.querySelectorAll(".h-stat span")].map((e) => e.textContent)).toEqual(["Workouts", "Working Sets", "Training Time"]);
+    for (const s of container.querySelectorAll(".h-stat")) expect(s).not.toHaveClass("lime");
+    // Seven day bars, the trained ones green (.on), labelled by one letter.
+    const bars = [...container.querySelectorAll(".h-bar")];
+    expect(bars).toHaveLength(7);
+    expect(bars.filter((b) => b.classList.contains("on"))).toHaveLength(2);
+    for (const b of bars) expect(b.textContent).toMatch(/^[MTWFS]$/);
+    // The doors: Program, History, Exercises.
+    expect([...container.querySelectorAll(".h-door-k")].map((e) => e.textContent)).toEqual(["Program", "History", "Exercises"]);
   });
 });

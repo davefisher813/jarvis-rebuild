@@ -35,7 +35,8 @@ describe("the Next Workout's exercise count", () => {
     const fact = [...container.querySelectorAll(".h-hero-facts .fact")].find((f) => /Exercises/.test(f.textContent ?? ""))!;
     expect(fact.textContent).toBe("2 Exercises");
     expect(fact).not.toHaveClass("lime");
-    expect(fact.querySelector("b"), "the key's white for a stateless number").not.toBeNull();
+    // AMENDED 2026-10-16 (the board, screen 6): the next day's line is one grey run, so the count rides it in grey.
+    expect(fact.querySelector("b")).toBeNull();
   });
 
   it("is the same plain fact on the sheet the hero opens", () => {

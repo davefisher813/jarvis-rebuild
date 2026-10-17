@@ -65,11 +65,13 @@ describe("the program page", () => {
     expect(capsulesInCards(container)).toEqual([]);
   });
 
-  it("a day with exercises opens its screen, where Add is the Exercises head's capsule and the card holds only rows", async () => {
+  // AMENDED 2026-10-16 (Dave's approved board, screen 2): Add Exercise is one of the three neutral pills in the row
+  // under the exercise card, never a row in the card.
+  it("a day with exercises opens its screen, where Add is a pill under the card and the card holds only rows", async () => {
     const { container } = await mountFlow();
     fireEvent.click(screen.getByText("Push", { selector: ".conn-name.truncate" }));
     const add = await screen.findByRole("button", { name: "Add Exercise" });
-    expect(add.closest(".sh2"), "Add Exercise lives in the head").not.toBeNull();
+    expect(add.closest(".day-acts"), "Add Exercise lives in the pill row under the card").not.toBeNull();
     expect(add.closest(".card")).toBeNull();
     expect(container.querySelector(".row-create:not(.row-create-bare)"), "the two doors are not rows in the card").toBeNull();
     expect(capsulesInCards(container)).toEqual([]);

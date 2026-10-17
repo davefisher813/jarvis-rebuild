@@ -1984,6 +1984,11 @@
 .ruled.health-ruled .card.banner-warn:has(.eyebrow-warn) { box-shadow: inset 0 0 0 1px var(--hl-amber-tint);
   background: linear-gradient(180deg, var(--hl-amber-tint), transparent 90%); }
 .ruled.health-ruled .eyebrow.eyebrow-warn { color: var(--hl-amber-ink); }
+/* THE NOW CARD'S WARM-UP SEGMENT (Dave's board 2026-10-16, screen 1): the
+   "Warm-Up" label of the Work | Warm-Up control wears the warm-up amber while
+   it is not the active segment; the active one keeps the control's own face.
+   The amber ink on the segment ground: 8.6:1 dark, 5.0:1 light. */
+.ruled.health-ruled .se-mode .seg:not(.active):last-child { color: var(--hl-amber-ink); }
 
 /* The big one-tap loggers inside the health module (Lights Out, Took It)
    are the same "commit it" move as Start, so they read the same way. */
@@ -2341,6 +2346,69 @@
    fallback is what the bar measures at the default text size on a phone with
    an indicator, for the one frame before the measurement lands. */
 .ruled.health-ruled .se-foot { height: var(--logbar-clear, 92px); }
+
+/* ---------- THE BOARD'S FIVE SCREENS (Dave's approved mockup board, 2026-10-16)
+   Layout, order and spacing as the board renders them, in the app's own
+   tokens, cards and face; dark and light differ in colour only. */
+/* Screen 2, the program day: the three neutral pills under the list, and the
+   two secondary buttons side by side under Start. */
+.ruled.health-ruled .day-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2h); }
+.ruled.health-ruled .day-acts .btn { position: relative; min-width: 0; flex: 0 1 auto; }
+.ruled.health-ruled .day-acts .btn::after { content: ""; position: absolute; inset: -5px 0; } /* 44pt reach on a 34px pill */
+.ruled.health-ruled .btn-row { display: flex; gap: var(--s-2); }
+.ruled.health-ruled .btn-row > .btn { flex: 1 1 0; min-width: 0; padding-left: var(--s-3); padding-right: var(--s-3); white-space: nowrap; font-size: var(--t-body); }
+/* Screen 3, Doing Today: the title, the number badge, the struck row, the
+   red-outlined length, the plain fit line. */
+.sheet-scrim > .card .fit-head { padding-top: var(--s-2); padding-bottom: var(--s-1); }
+.sheet-scrim > .card .fit-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); line-height: 1.15; color: var(--tx-1); }
+.sheet-scrim > .card .fit-no { flex-shrink: 0; width: 26px; height: 26px; border-radius: var(--r-circle); display: inline-flex;
+  align-items: center; justify-content: center; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--tx-1);
+  background: var(--press-3); box-shadow: inset 0 0 0 1px var(--tx-4); font-variant-numeric: tabular-nums; }
+/* An unticked lift: the badge struck and its ring faded, the name struck (.fit-off); the words keep the one legible grey. */
+.sheet-scrim > .card .fit-no.off { color: var(--tx-3); text-decoration: line-through; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tx-4) 50%, transparent); background: transparent; }
+.sheet-scrim > .card .fit-time { margin-top: var(--s-2); }
+.sheet-scrim > .card .fit-time .chip.active { background: transparent; color: var(--tx-1); box-shadow: inset 0 0 0 1.5px var(--sys-red); }
+/* The fit line reads like a sentence, because it is one: the facts flow inline after "Fits:", the CSS's dot between
+   them, the values bold white, the rest the grey. */
+.sheet-scrim > .card .fit-line { display: block; font-size: var(--t-sub); font-weight: var(--w-regular); color: var(--tx-3); margin-top: var(--s-2); line-height: 1.5; }
+.sheet-scrim > .card .fit-line .fit-k { color: var(--tx-1); font-weight: var(--w-semi); margin-right: var(--s-1); }
+.sheet-scrim > .card .fit-line .facts, .sheet-scrim > .card .fit-line .fact { display: inline; white-space: normal; overflow: visible; margin: 0; }
+.sheet-scrim > .card .fit-line .fact b { color: var(--tx-1); }
+/* Screen 4, History: the done check on the name, the PR mark beside it. */
+.ruled.health-ruled .hist-done { width: 14px; height: 14px; color: var(--good); vertical-align: -2px; margin-right: var(--s-1h); stroke-width: 3; }
+.ruled.health-ruled .conn-name .se-pr { margin-left: var(--s-1h); vertical-align: 2px; }
+/* Screen 5, the exercise page: the big name, the best and the estimate side by
+   side, the axis under the line, the week labels under the bars, the goal row. */
+.ruled.health-ruled .lift-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: var(--track-h1); line-height: 1.15; color: var(--tx-1); padding: var(--s-1) 0 var(--s-2); overflow-wrap: anywhere; }
+.ruled.health-ruled .lift-cells { display: flex; justify-content: space-between; gap: var(--s-3); }
+.ruled.health-ruled .lift-cell { min-width: 0; }
+.ruled.health-ruled .lift-cell-r { text-align: right; }
+.ruled.health-ruled .lift-big { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1; margin-top: var(--s-1); color: var(--tx-1); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ruled.health-ruled .lift-big-best { color: var(--hl-best-ink); }
+.ruled.health-ruled .eyebrow.eyebrow-best { color: var(--hl-best-ink); }
+.ruled.health-ruled .lift-top .se-chips { margin-top: var(--s-3); }
+/* A PR count is a gold outline (the board). */
+.ruled.health-ruled .se-chip-pr { background: transparent; box-shadow: inset 0 0 0 1px var(--hl-gold-ink); }
+.ruled.health-ruled .lift-progress .lift-chart { margin-top: var(--s-2h); }
+.ruled.health-ruled .lift-axis { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-1); }
+.ruled.health-ruled .lift-axis .facts { margin-top: 0; }
+.ruled.health-ruled .lift-bar-labels { display: flex; gap: var(--s-1h); margin-top: var(--s-1); }
+.ruled.health-ruled .lift-bar-labels span { flex: 1; text-align: center; font-size: var(--t-micro); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0.04em; }
+.ruled.health-ruled .lift-bar-labels + .conn-meta { margin-top: var(--s-2); }
+/* The goal-and-milestones card: a goal's bar sits under its facts, the card's own step above the rest of the page. */
+.ruled.health-ruled .lift-goals { margin-bottom: var(--s-2); }
+.ruled.health-ruled .lift-goals .bp-bar { margin-top: var(--s-2); }
+/* Screen 6, the Health hub: the big line and the next-day line under the
+   eyebrow, three white stats, seven day bars (trained days green; the bar
+   rules themselves sit with the week card's, further down). */
+.ruled.health-ruled .h-hero-static { cursor: default; padding-bottom: var(--s-1); }
+.ruled.health-ruled .h-hero-next { padding-top: 0; padding-bottom: var(--s-2h); align-items: center; }
+.ruled.health-ruled .h-hero-next .h-hero-facts { margin-top: 0; flex: 1; min-width: 0; flex-wrap: wrap; white-space: normal; overflow: visible; row-gap: 0; }
+.ruled.health-ruled .h-hero-next .h-hero-facts .fact { white-space: normal; overflow: visible; text-overflow: clip; }
+/* The goal bars stay neutral on the training screens (the board, screens 5 and 6): the one green is Done. */
+.ruled.health-ruled .bp-bar-fill { background: var(--tx-4); }
+.ruled.health-ruled .gym-log { margin-bottom: var(--s-4); }
+.ruled.health-ruled .h-stats { margin-top: var(--s-3); }
 /* THE DAY'S LOG BLOCK (Dave 2026-10-16, T): Start, then Same as Last Time and
    Log a Past Workout as real secondary buttons, stacked on the grid's step. */
 .ruled.health-ruled .gym-log { display: flex; flex-direction: column; gap: var(--s-2); }
@@ -2666,7 +2734,7 @@
    done tick, so the one green is the key's. */
 .ruled.health-ruled .h-week-count.zero b { color: var(--tx-1); }
 .ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
-.ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1); min-width: 0; }
+.ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1h); min-width: 0; margin-top: var(--s-3h); }
 /* ONE HEIGHT, WHATEVER THE WEEK DID (2026-09-21, the first audit ever run on
    this screen). The bar's height is the datum, so on a quiet week all seven
    buttons collapsed to 43x27 and the whole strip changed height as the data
@@ -2677,8 +2745,10 @@
 .ruled.health-ruled .h-bar { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--s-1h);
   background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
-.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: var(--r-xs); background: color-mix(in srgb, var(--tx-4) 55%, transparent); }
-.ruled.health-ruled .h-bar.on i { background: var(--hl-lime); }
+/* THE BOARD'S BARS (Dave's approved board 2026-10-16, screen 6): wide, a trained day in the done green, a rest day in the
+   warm grey; they were 10px lime pips. */
+.ruled.health-ruled .h-bar i { display: block; width: 100%; max-width: 40px; height: 10px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--tx-4) 45%, transparent); }
+.ruled.health-ruled .h-bar.on i { background: var(--good-fill); }
 .ruled.health-ruled .h-bar.today { color: var(--tx-1); }
 .ruled.health-ruled .h-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: var(--s-3h); }
 /* THE TILES ARE THE SAME HEIGHT WHATEVER THEIR LABELS DO (2026-09-21, seen

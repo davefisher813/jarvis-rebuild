@@ -126,6 +126,13 @@ describe("LAW: the workout colour code", () => {
     expect(body(COMPONENTS, ".sheet-scrim > .card .fit-under"), "nor its under-budget read in the done green").not.toMatch(/--hl-lime/);
   });
 
+  it("AMBER on the Now card's Warm-Up segment label, and the active segment keeps its face", () => {
+    expect(colour(RULED, ".ruled.health-ruled .se-mode .seg:not(.active):last-child")).toBe("var(--hl-amber-ink)");
+    const strip = read("gym/SetStrip.tsx");
+    expect(strip, "the control the rule names").toContain('className="segmented se-mode"');
+    expect(strip, "and Warm-Up is its last segment").toMatch(/className=\{"seg" \+ \(nowWarm \? " active" : ""\)\}[^\n]*>Warm-Up<\/button>/);
+  });
+
   it("BLUE is cool-down: the cool-down card and its eyebrow", () => {
     expect(body(RULED, ".ruled.health-ruled .banner-cool")).toMatch(/--hl-blue-tint/);
     expect(colour(RULED, ".ruled.health-ruled .eyebrow.eyebrow-cool")).toBe("var(--hl-blue-ink)");

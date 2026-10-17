@@ -560,19 +560,22 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
             this weight for this many. The first is a word now, in the ink a
             label wears, so the two numbers a person scans for are the two
             things in colour. */}
-        <div className="facts">
-          {/* A plan is a number with no state, so it is the key's white (the colour code, 2026-10-16: teal is last time). */}
-          <span className="fact" aria-label={planChipText(exercise)}>
-            <b>{plan.count}<em className="fw">{plan.noun}</em>{plan.target}</b>
-          </span>
+        {/* PRESCRIPTIONS IN GREY, NEVER TEAL (Dave's approved board 2026-10-16,
+            screen 2): "3 Sets · 275 Lb × 5" is the row's one grey line, the
+            count and the target as two facts with the CSS's dot between them.
+            A rest stays a white length beside it, when there is one. */}
+        <div className="facts" aria-label={planChipText(exercise)}>
+          <span className="fact">{lineCase(`${plan.count} ${plan.noun}`)}</span>
+          {plan.target && <span className="fact">{lineCase(plan.target)}</span>}
           {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} Rest`}</b></span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
-      {/* One trailing control, same as the day row above. */}
-      <RowMenuButton onMenu={onMenu} what={liftTitle(exercise.name)} />
+      {/* The chevron (the board): the row opens the exercise; its menu is the long-press, and a screen reader reaches
+          the same moves through the exercise sheet. */}
+      {CHEV}
     </div>
   );
 }
@@ -3735,38 +3738,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               minutes={openDay.warmUpMin}
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "warmUp" })}
             />
-            {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add from Your Lifts and New Exercise were two rows at the foot
-                of the card. They are one capsule on the head now, beside Superset and Reorder, and it opens the two doors
-                (the fast one first, 2026-09-21) or goes straight to a new exercise when there is no library to pick from. */}
-            <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
-              <span className="sec-left">
-                {openDay.exercises.length > 1 && (
-                  <>
-                    {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN
-                        SEE (Dave, 2026-09-21). It was a long-press menu item
-                        called "Group With...", which is a hidden gesture under
-                        a word he does not use, and he could not find it: "no
-                        superset buttons anywhere in the workout pages". It
-                        sits beside Reorder because they are the same kind of
-                        move -- both rearrange the day rather than change a
-                        lift -- and it is hidden for a day with one exercise
-                        in it, which has nothing to pair. */}
-                    <button className="see-all pill-action" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
-                      Superset
-                    </button>
-                    <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
-                      {reorderTarget === "exercises" ? "Done" : "Reorder"}
-                    </button>
-                  </>
-                )}
-                {/* "Add Exercise" on the face (Dave 2026-10-09, pass-off item 11: "Add" alone did not say what it adds). */}
-                <button className="see-all pill-action"
-                  onClick={() => (library.length > 0 ? setAddExOpen(true) : setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }))}>
-                  Add Exercise
-                </button>
-              </span>
-            </div>
-            {/* A day with no exercise yet draws its head and the Add only: no empty plate (rule 12). */}
+            {/* THE LIST, THEN ITS THREE PILLS (Dave's approved board 2026-10-16,
+                screen 2): one card of exercise rows under the warm-up, with
+                Superset, Reorder and Add Exercise as a row of neutral pills
+                beneath it, not a head above it. The doors behind Add Exercise
+                are the two of 2026-10-05 (the picker first, then New
+                Exercise), or straight to a new exercise when there is no
+                library to pick from. */}
             {openDay.exercises.length > 0 && <div className="pad-x list-card"><div className="card list-card-ruled">
               <ReorderList
                 ids={openDay.exercises.map((e) => e.id)}
@@ -3786,6 +3764,25 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 }}
               />
             </div></div>}
+            <div className="pad-x day-acts">
+              {openDay.exercises.length > 1 && (
+                <>
+                  {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN SEE (Dave, 2026-09-21). Beside Reorder because they
+                      are the same kind of move; hidden for a day with one exercise, which has nothing to pair. */}
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
+                    Superset
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
+                    {reorderTarget === "exercises" ? "Done" : "Reorder"}
+                  </button>
+                </>
+              )}
+              {/* "Add Exercise" on the face (Dave 2026-10-09, pass-off item 11: "Add" alone did not say what it adds). */}
+              <button type="button" className="btn btn-secondary btn-sm"
+                onClick={() => (library.length > 0 ? setAddExOpen(true) : setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }))}>
+                Add Exercise
+              </button>
+            </div>
             {/* THE COOL-DOWN SITS RIGHT UNDER THE EXERCISES (Dave 2026-10-16, T),
                 mirroring the warm-up above them: the two blocks frame the
                 list, and the disclosure, the return and the pins come after. */}
@@ -3796,6 +3793,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               minutes={openDay.coolDownMin}
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "coolDown" })}
             />
+            {(live ?? parkedLive) && (
+              <div className="pad-x">
+                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Workout</button>
+              </div>
+            )}
+            {openDay.exercises.length > 0 && (
+              <div className="pad-x gym-log">
+                <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
+                {/* REAL BUTTONS, SIDE BY SIDE (the board): Same as Last Time (catalog §3.13, the fastest possible entry,
+                    pre-filled with what happened last time) and Log a Past Workout (catalog §3.8: the phone was in a locker). */}
+                <div className="btn-row">
+                  {lastForDay && (
+                    <button className="btn btn-secondary" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same as Last Time</button>
+                  )}
+                  <button className="btn btn-secondary" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>
+                </div>
+              </div>
+            )}
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
                 next session; a logged session keeps the numbers it logged.
                 BEHIND A LABELLED DISCLOSURE since the health polish pass
@@ -3810,11 +3825,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               <summary>About Changes to This Workout</summary>
               <div className="input-hint">Edits apply to future workouts {"\u00b7"} Logged sessions keep their own numbers</div>
             </details></div>
-            {(live ?? parkedLive) && (
-              <div className="pad-x">
-                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Workout</button>
-              </div>
-            )}
             {/* PINS, D4: where this day lives in the week. The row is the
                 editor's door; no pin is a legal, honest state, and the row
                 says what it means (rotation keeps its job) rather than
@@ -3829,20 +3839,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 {CHEV}
               </div>
             </div></div>
-            {openDay.exercises.length > 0 && (
-              <div className="pad-x gym-log">
-                <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
-                {lastForDay && (
-                  // SAME AS LAST TIME (catalog §3.13): the fastest possible
-                  // entry, pre-filled with what actually happened last time.
-                  // A real secondary button, 44px (Dave 2026-10-16, T): it was
-                  // bare red text under the primary.
-                  <button className="btn btn-secondary btn-block" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same as Last Time</button>
-                )}
-                {/* LOG IT LATER (catalog §3.8): the phone was in a locker. */}
-                <button className="btn btn-secondary btn-block" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>
-              </div>
-            )}
             <div className="screen-foot" />
           </div>
           {addExOpen && (

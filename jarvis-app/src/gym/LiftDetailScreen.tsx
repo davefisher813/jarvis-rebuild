@@ -30,7 +30,8 @@ const CHEV = <div className="chev" />;
 // published range row for this lift's own muscle, and the dated receipts.
 
 const CHART_W = 300, CHART_H = 100, PAD = 10;
-const WEEKS = 8;
+// Six past weeks and the one you are in (the board's W1 to W6 and Now).
+const WEEKS = 7;
 
 function linePath(vals: number[]): { path: string; pts: { x: number; y: number }[] } {
   if (vals.length === 0) return { path: "", pts: [] };
@@ -53,17 +54,21 @@ function linePath(vals: number[]): { path: string; pts: { x: number; y: number }
 // card. Empty weeks now draw their own faint baseline tick, and a hairline
 // base runs under all eight, so one logged week still reads as one week out
 // of eight rather than as a rendering accident.
-function Bars({ vals, tint }: { vals: number[]; tint: "blue" | "warn" }) {
+function Bars({ vals, now = false }: { vals: number[]; now?: boolean }) {
   const max = Math.max(1, ...vals);
+  const H = 56;
   return (
-    <svg className="lift-bars" viewBox={`0 0 ${CHART_W} 36`} role="img" aria-label="Weekly bars">
-      <line x1={PAD} y1={34.5} x2={CHART_W - PAD} y2={34.5} stroke="currentColor" opacity={0.1} />
+    <svg className="lift-bars" viewBox={`0 0 ${CHART_W} ${H}`} role="img" aria-label="Weekly bars">
+      <line x1={PAD} y1={H - 1.5} x2={CHART_W - PAD} y2={H - 1.5} stroke="currentColor" opacity={0.1} />
       {vals.map((v, i) => {
         const w = (CHART_W - 2 * PAD) / vals.length;
-        const h = v <= 0 ? 2 : Math.max(3, (v / max) * 28);
+        const h = v <= 0 ? 4 : Math.max(5, (v / max) * (H - 8));
+        // THIS WEEK IN RED, PAST WEEKS IN THE WARM GREY (Dave's board 2026-10-16, screen 5):
+        // red is now; a past week is a count with no state.
+        const last = now && i === vals.length - 1;
         return (
-          <rect key={i} x={PAD + i * w + w * 0.15} y={34 - h} width={w * 0.7} height={h} rx={1.5}
-            fill={tint === "blue" ? "var(--blue)" : "var(--warn)"} opacity={v > 0 ? 1 : 0.18} />
+          <rect key={i} x={PAD + i * w + w * 0.12} y={H - 2 - h} width={w * 0.76} height={h} rx={3}
+            fill={last ? "var(--sys-red)" : "var(--tx-4)"} opacity={v > 0 || last ? 1 : 0.35} />
         );
       })}
     </svg>
@@ -251,145 +256,148 @@ export default function LiftDetailScreen({
               e1RM that read as a contradiction of the PR below it. A line
               needs two points; until then the card states the facts and
               says when the chart starts. */}
-          <div className="sh2 sh2-quiet"><span className="t">Performance and History</span></div>
-          {best && bestShown && (
-            <>
-              <div className="pad-x"><div className="card pad">
-                {/* LABELLED FIELDS, NOT A SENTENCE (§7): the best set and
-                    the sessions behind it, then the window, each one
-                    wrapping rather than clipping. Recorded facts only; the
-                    estimate and its change are the Trend card's. */}
-                <div className="row">
-                  <div className="row-grow">
-                    <div className="ex-cells">
-                      <div className="ex-cell">
-                        <div className="ex-cell-n">{setLine(bestShown)}</div>
-                        <div className="ex-cell-k">Best Set</div>
-                      </div>
-                      <div className="ex-cell">
-                        <div className="ex-cell-n">{sessions.length}</div>
-                        <div className="ex-cell-k">{sessions.length === 1 ? "Workout" : "Workouts"}</div>
-                      </div>
-                    </div>
-                    {/* Both dates are the point, so the pair wraps whole in
-                        the unclamped meta line rather than cutting the range
-                        mid-word at type scale 1.4 (2026-09-26). */}
-                    <div className="conn-meta">
-                      <span className="fact date">{`Best on ${shortDate(best.date)}`}</span>
-                      <span className="fact date">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
-                    </div>
-                  </div>
-                  {celebrate && <span className="se-pr">PR</span>}
-                </div>
-              </div></div>
-            </>
-          )}
-          <div className="sh2 sh2-quiet"><span className="t">Trend</span></div>
-          {sessions.length < 2 ? (
-            <div className="pad-x"><div className="card list-card-ruled">
-              <div className="row">
-                <div className="row-grow">
-                  {/* The set is the title, with no dot baked into it
-                      (pass-off item 7, 2026-09-26). */}
-                  <div className="conn-name">{setLine(shownTop(sessions[sessions.length - 1]!))}</div>
-                  {/* §AM (2026-09-26): two facts, not one grey run joined
-                      by baked dots. The estimate is sky; the date is a
-                      neutral date, so small caps. A non-weight kind's "Best"
-                      value is the set in the title again, so it is left
-                      out. The estimate's receipt opens once the chart does. */}
-                  <div className="facts">
-                    {kind === "weight_reps" && latest != null && <span className="fact est">{`Est Max ${withUnit(latest)}`}</span>}
-                    <span className="fact date">{`Logged ${agoPhrase(sessions[sessions.length - 1]!.date, todayIso)}`}</span>
-                  </div>
-                </div>
+          {/* THE PAGE AS THE BOARD DRAWS IT (Dave's approved board, 2026-10-16,
+              screen 5): the name large, then ONE card with the standing best
+              in purple on the left and the estimate in white on the right,
+              with the workout count, the PR count (gold) and the span as pills
+              under them; then Progress (teal line, gold dot on a PR); then
+              Weekly Work (six past weeks grey, this week red); then the goal
+              and the milestones in one card. Best and max agree everywhere:
+              the best is prs.bestBefore, the same read the PR mark and the
+              milestone row use. */}
+          <div className="pad-x"><div className="lift-title">{liftTitle(name)}</div></div>
+          <div className="pad-x"><div className="card pad lift-top">
+            <div className="lift-cells">
+              <div className="lift-cell">
+                <div className="eyebrow eyebrow-best">Best</div>
+                <div className="lift-big lift-big-best">{best && bestShown ? setLine(bestShown) : setLine(shownTop(sessions[sessions.length - 1]!))}</div>
               </div>
-              <div className="row"><div className="row-grow"><div className="conn-meta">Trend Starts at Workout 2</div></div></div>
-            </div></div>
-          ) : (
-            // The card is plain (2026-10-16): its teal wash said last time about a trend.
-            <div className="pad-x"><div className="card pad">
-              <div className="row-stack">
-                {/* THE INSIGHT, CLEAN (pass-off item 7, 2026-09-26; Dave:
-                    "rendered nice and clean and simple"). An 11px caps
-                    kicker names the number, the kicker the Plateau card
-                    already uses; the caption that named Epley and the
-                    caveat is behind Evidence at the card's foot. */}
-                <div className="eyebrow">{label}</div>
-                {/* The latest number is white (§AM: a number with no state).
-                    For weight_reps it is the Epley estimate, so it wears the
-                    estimate primitive (sky); .fact has no size of its own and
-                    takes the headline's. */}
-                <div className="p3-q">{latest == null
-                  ? "--"
-                  : kind === "weight_reps"
-                    ? <span className="fact est">{withUnit(latest)}</span>
-                    : withUnit(latest)}</div>
-                {/* The comparable gain, a recorded fact and not an estimate, so
-                    the row's one grey: one fact, no goal read, no prompt (the
-                    no-predicted-max rule stands). */}
-                {moved && (
-                  <div className="facts"><span className="fact">{moved}</span></div>
-                )}
-              </div>
-              <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
-                aria-label={`${name} ${label} trend over ${sessions.length} workouts`}>
-                <line x1={PAD} y1={CHART_H - PAD} x2={CHART_W - PAD} y2={CHART_H - PAD} stroke="currentColor" opacity={0.12} />
-                {path && <path d={path} fill="none" stroke="var(--blue)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
-                {pts.map((p, i) => prs.has(i) ? (
-                  <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--good)" />
-                ) : null)}
-                {/* H-34: the tapped point, in the key's white (a selection, not last time). */}
-                {sel != null && pts[sel] && <circle cx={pts[sel]!.x} cy={pts[sel]!.y} r={4.5} fill="var(--tx-1)" />}
-                {/* Each point has a hit area wider than its dot, and answers
-                    the keyboard; no axes are drawn (H-34). */}
-                {pts.map((p, i) => (
-                  <circle key={"h" + i} cx={p.x} cy={p.y} r={10} fill="transparent" role="button" tabIndex={0}
-                    aria-label={`Workout ${i + 1} of ${pts.length}`} onClick={() => setSel(i)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }} />
-                ))}
-              </svg>
-              {sel != null && sessions[sel] && (
-                <div className="facts">
-                  {/* THREE FACTS, THREE SPANS (2026-09-16). One span carrying
-                      two middots of its own is a sentence with punctuation in
-                      it; components.css draws the separator so no string has
-                      to. §AM (2026-09-26): the date is a neutral date, so
-                      small caps; the set is the line's one grey; the
-                      estimate is sky. A non-weight kind's chart value is the
-                      set again, so it is not said twice. */}
-                  <span className="fact date">{shortDate(sessions[sel]!.date)}</span>
-                  <span className="fact">{setLine(shownTop(sessions[sel]!))}</span>
-                  {kind === "weight_reps" && <span className="fact est">{`Est ${withUnit(chartVals[sel]!)}`}</span>}
+              {kind === "weight_reps" && latest != null && (
+                <div className="lift-cell lift-cell-r">
+                  <div className="eyebrow">Estimated Max</div>
+                  <div className="lift-big">{withUnit(latest)}</div>
                 </div>
               )}
-              {/* Three facts in one grey run-on, and the two that matter --
-                  how many sessions and how many bests -- were at the end of
-                  it. Chips, aligned: the count neutral (it wore the teal that
-                  means last time), the PR count gold (Dave 2026-10-16). */}
-              <div className="se-chips">
-                {/* Both ends as dates, the way the Best card states the
-                    same span, so the page says one range one way. */}
-                <span className="se-chip se-chip-when">{shortDate(sessions[0]!.date)} to {shortDate(sessions[sessions.length - 1]!.date)}</span>
-                <span className="se-chip se-chip-when">{sessions.length}<em>Workouts</em></span>
-                {prs.size > 0 && readHealthSettings().celebrations && <span className="se-chip se-chip-pr">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
-              </div>
-              {/* Epley, and what the number is not, one tap away: the same
-                  receipt every finding opens (polish rule 3, 2026-09-16:
-                  methodology behind a labelled disclosure). */}
-              {kind === "weight_reps" && <InsightEvidence evidence={estimateEvidence(sessions)} />}
-            </div></div>
-          )}
+            </div>
+            <div className="se-chips">
+              <span className="se-chip se-chip-when">{lineCase(`${sessions.length} ${sessions.length === 1 ? "workout" : "workouts"}`)}</span>
+              {prs.size > 0 && celebrate && <span className="se-chip se-chip-pr">{lineCase(`${prs.size} ${prs.size === 1 ? "PR" : "PRs"}`)}</span>}
+              {sessions.length > 1
+                ? <span className="se-chip se-chip-when">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
+                : <span className="se-chip se-chip-when">{`Logged ${agoPhrase(sessions[0]!.date, todayIso)}`}</span>}
+            </div>
+          </div></div>
 
-          <div className="sh2 sh2-quiet"><span className="t">Weekly Work</span></div>
+          <div className="pad-x"><div className="card pad lift-progress">
+            <div className="eyebrow">Progress</div>
+            {sessions.length < 2 ? (
+              // A line needs two points; until then the card says when the chart starts.
+              <div className="facts"><span className="fact">Trend Starts at Workout 2</span></div>
+            ) : (
+              <>
+                <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
+                  aria-label={`${name} ${label} trend over ${sessions.length} workouts`}>
+                  <line x1={PAD} y1={CHART_H - PAD} x2={CHART_W - PAD} y2={CHART_H - PAD} stroke="currentColor" opacity={0.12} />
+                  {/* Progression in teal (the previous sessions' numbers), the record in gold. */}
+                  {path && <path d={path} fill="none" stroke="var(--hl-cyan)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />}
+                  {pts.map((p, i) => prs.has(i) ? (
+                    <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--hl-gold)" />
+                  ) : null)}
+                  {/* H-34: the tapped point, in the key's white (a selection, not last time). */}
+                  {sel != null && pts[sel] && <circle cx={pts[sel]!.x} cy={pts[sel]!.y} r={4.5} fill="var(--tx-1)" />}
+                  {/* Each point has a hit area wider than its dot, and answers
+                      the keyboard; no axes are drawn (H-34). */}
+                  {pts.map((p, i) => (
+                    <circle key={"h" + i} cx={p.x} cy={p.y} r={10} fill="transparent" role="button" tabIndex={0}
+                      aria-label={`Workout ${i + 1} of ${pts.length}`} onClick={() => setSel(i)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }} />
+                  ))}
+                </svg>
+                {/* The two ends of the line, as the axis: the first date on the left, the latest date and its top set on the right. */}
+                <div className="lift-axis">
+                  <span className="facts"><span className="fact date">{shortDate(sessions[0]!.date)}</span></span>
+                  <span className="facts">
+                    <span className="fact date">{shortDate(sessions[sessions.length - 1]!.date)}</span>
+                    <span className="fact">{setLine(shownTop(sessions[sessions.length - 1]!))}</span>
+                  </span>
+                </div>
+                {sel != null && sessions[sel] && (
+                  <div className="facts">
+                    {/* THREE FACTS, THREE SPANS (2026-09-16). §AM (2026-09-26): the date is a neutral date, so
+                        small caps; the set is the line's one grey; the estimate is sky. A non-weight kind's chart
+                        value is the set again, so it is not said twice. */}
+                    <span className="fact date">{shortDate(sessions[sel]!.date)}</span>
+                    <span className="fact">{setLine(shownTop(sessions[sel]!))}</span>
+                    {kind === "weight_reps" && <span className="fact est">{`Est ${withUnit(chartVals[sel]!)}`}</span>}
+                  </div>
+                )}
+                {/* The comparable gain, a recorded fact and not an estimate, so the row's one grey (Dave 2026-10-16, V). */}
+                {moved && <div className="facts"><span className="fact">{moved}</span></div>}
+                {/* Epley, and what the number is not, one tap away (polish rule 3, 2026-09-16). */}
+                {kind === "weight_reps" && <InsightEvidence evidence={estimateEvidence(sessions)} />}
+              </>
+            )}
+          </div></div>
+
           <div className="pad-x"><div className="card pad">
-            <Bars vals={setBars} tint="blue" />
+            <div className="eyebrow">Weekly Work</div>
+            <Bars vals={setBars} now />
+            <div className="lift-bar-labels" aria-hidden="true">
+              {setBars.map((_, i) => <span key={i}>{i === setBars.length - 1 ? "Now" : `W${i + 1}`}</span>)}
+            </div>
             <div className="conn-meta">{`Working Sets, Last ${WEEKS} Weeks`}</div>
             {volBars && (
               <>
-                <Bars vals={volBars.map((v) => v)} tint="warn" />
+                <Bars vals={volBars} />
                 {/* The unit spelled out as a word, since it leads the line. */}
                 <div className="conn-meta">{`${unit === "kg" ? "Kilograms" : "Pounds"} Moved, Last ${WEEKS} Weeks`}</div>
               </>
+            )}
+          </div></div>
+
+          {/* THE GOAL AND THE MILESTONES, ONE CARD (the board, screen 5). The goal
+              row opens the sheet that made it (GYM-F-28); Done in the key's
+              green once it is hit, the amount left in white until then, the
+              bar neutral. The milestones are the first workout and the best
+              set, dated, the best wearing the gold PR mark. */}
+          <div className="pad-x"><div className="card list-card-ruled lift-goals">
+            {goal && goalState ? (() => {
+              const m = goal.data.measure as LiftMeasure;
+              const wr = m.measureKind === "weight_reps";
+              const r = wr && m.target.r != null && m.target.r > 1 ? ` × ${m.target.r}` : "";
+              const left = Math.max(0, Math.round((goalState.target - goalState.done) * 10) / 10);
+              return (
+                <div className="row" role="button" tabIndex={0} aria-label="Edit Goal" onClick={onSetGoal}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSetGoal(); } }}>
+                  <div className="row-grow">
+                    <div className="conn-name">{goal.data.title}</div>
+                    {wr
+                      ? <div className="facts"><span className="fact"><b>{goalState.done}</b>{` of ${lineCase(`${goalState.target}${m.unit ? " " + m.unit : ""}`)}${r}`}</span></div>
+                      : <div className="conn-meta">{goalState.line}</div>}
+                    <div className="bp-bar"><div className="bp-bar-fill" style={{ width: `${Math.min(100, Math.round((goalState.done / Math.max(1, goalState.target)) * 100))}%` }} /></div>
+                  </div>
+                  {wr && (goalState.met
+                    ? <div className="row-value"><span className="fact st lime">Done</span></div>
+                    : <div className="row-value"><span className="fact"><b>{lineCase(`${left}${m.unit ? " " + m.unit : ""} to go`)}</b></span></div>)}
+                </div>
+              );
+            })() : (
+              // §7: the action is the row, and the type is picked inside the sheet it opens.
+              <div className="row" role="button" tabIndex={0} onClick={onSetGoal}>
+                <div className="row-grow"><div className="conn-name">Set Goal</div></div>
+                {CHEV}
+              </div>
+            )}
+            <div className="row">
+              <div className="row-grow"><div className="conn-name">Milestone</div><div className="facts"><span className="fact">First Workout</span><span className="fact date">{shortDate(sessions[0]!.date)}</span></div></div>
+            </div>
+            {best && bestShown && (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">Milestone{celebrate && <span className="se-pr">PR</span>}</div>
+                  <div className="facts"><span className="fact">{setLine(bestShown)}</span><span className="fact date">{shortDate(best.date)}</span></div>
+                </div>
+              </div>
             )}
           </div></div>
 
@@ -402,7 +410,7 @@ export default function LiftDetailScreen({
                     <div key={d.id} className={"chip" + (i === metricIdx ? " active" : "")} role="button" tabIndex={0} onClick={() => setMetricIdx(i)}>{d.data.name}</div>
                   ))}
                 </div>
-                {lane && <Bars vals={laneVals.map((v) => v ?? 0)} tint="blue" />}
+                {lane && <Bars vals={laneVals.map((v) => v ?? 0)} />}
                 {/* §7: the old caption explained the app's own honesty rule in
                     grey, mid-card. The rule has not changed; it just says the
                     fact instead of the policy, and offers the logs. */}
@@ -430,66 +438,11 @@ export default function LiftDetailScreen({
             </>
           )}
 
-          <div className="sh2 sh2-quiet"><span className="t">Goals</span></div>
-          {goal && goalState ? (
-            /* GYM-F-28 (2026-09-05): the goal card was a flat panel, so a goal
-               set here could only be changed from Bigger Picture. It opens the
-               same sheet that made it, now in edit mode. */
-            /* READABLE AT A GLANCE (pass-off item 8, 2026-09-26). The card
-               is plain while the goal is in flight -- the yellow wash meant
-               "in flight", which is not a meaning in the Colour Key, and
-               light never drew it -- with the bar green for logged progress,
-               and the card turns green once the goal is hit. For a
-               weight_reps goal the amount left leads, white on the right
-               ("15 Lb to Go"), and the line under the title reads "310 of
-               325 Lb" with the current best in white (§AM F1), the rep
-               floor named only when it is above 1 so "205 of 225" never
-               hides a 5-rep floor. Once hit, a white "Hit" on the green card
-               (the card carries the colour; a label never wears a data hue).
-               Hit, not Done: done is Dave's call. */
-            <div className="pad-x"><div className={"card pad" + (goalState.met ? " banner-good" : "")}
-              role="button" tabIndex={0} aria-label="Edit Goal" onClick={onSetGoal}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSetGoal(); } }}>
-              {(() => {
-                const m = goal.data.measure as LiftMeasure;
-                const wr = m.measureKind === "weight_reps";
-                const r = wr && m.target.r != null && m.target.r > 1 ? ` × ${m.target.r}` : "";
-                const left = Math.max(0, Math.round((goalState.target - goalState.done) * 10) / 10);
-                return (
-                  <div className="row">
-                    <div className="row-grow">
-                      <div className="conn-name">{goal.data.title}</div>
-                      {wr
-                        ? <div className="facts"><span className="fact"><b>{goalState.done}</b>{` of ${lineCase(`${goalState.target}${m.unit ? " " + m.unit : ""}`)}${r}`}</span></div>
-                        : <div className="conn-meta">{goalState.line}</div>}
-                    </div>
-                    {wr && (goalState.met
-                      ? <div className="row-value"><span className="fact"><b>Hit</b></span></div>
-                      : <div className="row-value"><span className="fact"><b>{lineCase(`${left}${m.unit ? " " + m.unit : ""} to go`)}</b></span></div>)}
-                  </div>
-                );
-              })()}
-              {/* §AM (2026-09-26): the fill is .bp-bar-fill's own, the
-                  same bar every goal in Bigger Picture draws. A category
-                  colour belongs on a dot, never on progress. */}
-              <div className="bp-bar"><div className="bp-bar-fill" style={{ width: `${goalState.pct}%` }} /></div>
-            </div></div>
-          ) : (
-            <div className="pad-x"><div className="card list-card-ruled">
-              {/* §7: the old sub explained the three goal types in grey on a
-                  row that could not set any of them. The action is the row,
-                  and the type is picked inside the sheet it opens. */}
-              <div className="row" role="button" tabIndex={0} onClick={onSetGoal}>
-                <div className="row-grow"><div className="conn-name">Set Goal</div></div>
-                {CHEV}
-              </div>
-            </div></div>
-          )}
-
           {plateau && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Plateau</span></div>
-              <div className="pad-x"><div className="card list-card-ruled banner-warn">
+              {/* Plain card (2026-10-16): amber means warm-up on a workout screen, and the stalled value is a number with no state. */}
+              <div className="pad-x"><div className="card list-card-ruled">
                 <div className="row">
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(`${plateau.flatSessions} workouts with no new best`)}</div>
@@ -500,7 +453,7 @@ export default function LiftDetailScreen({
                         1.4. The best is the line's one grey, and its date,
                         small caps, is the fact that gives way. */}
                     <div className="facts">
-                      <span className="fact amber">{`Now ${plateau.currentValue}`}</span>
+                      <span className="fact"><b>{`Now ${plateau.currentValue}`}</b></span>
                       <span className="fact">{`Best ${plateau.peakValue}`}</span>
                       <span className="fact date">{shortDate(plateau.peakDate)}</span>
                     </div>
@@ -683,19 +636,6 @@ export default function LiftDetailScreen({
               </div></div>
             </>
           ) : null}
-
-          {/* MILESTONES (2026-09-14): the first session and the best set, dated. */}
-          <div className="sh2 sh2-quiet"><span className="t">Milestones</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            <div className="row">
-              <div className="row-grow"><div className="conn-name">First Workout</div><div className="facts"><span className="fact date">{shortDate(sessions[0]!.date)}</span></div></div>
-            </div>
-            {best && bestShown && (
-              <div className="row">
-                <div className="row-grow"><div className="conn-name">{`Best ${setLine(bestShown)}`}</div><div className="facts"><span className="fact date">{shortDate(best.date)}</span></div></div>
-              </div>
-            )}
-          </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Workouts</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
