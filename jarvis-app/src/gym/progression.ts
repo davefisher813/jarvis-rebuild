@@ -201,10 +201,24 @@ function cutLoad(load: number, share: number, jump: number): number {
 }
 
 /** Rule 1's range from the plan's working sets, or null when the plan names
- *  no reps (no range, no opinion). */
+ *  no reps (no range, no opinion).
+ *
+ *  THE RANGE HOLDS STILL ACROSS STEPS (2026-10-17). A step writes the bottom
+ *  of the range into every working set (rule 2: reps reset to the bottom), so
+ *  a plan read from its reps alone crept down one step per accepted step: 6,
+ *  8, 8 is 6 to 8; after the step 6, 6, 6 read as 4 to 6; the next step read
+ *  4, 4, 4 as 2 to 4. applySuggestion keeps the range it worked inside on the
+ *  plan (Exercise.repRange), and it is read back here while every planned rep
+ *  still sits inside it. A hand edit that leaves it is a new plan and the
+ *  range derives afresh from the reps, as it always did. A fresh object either
+ *  way: rule 2's extend branch widens the range it is handed. */
 function rangeOf(ex: Exercise): { low: number; high: number } | null {
   const planned = ex.sets.filter(isWork).map((s) => s.r).filter((r): r is number => (r ?? 0) > 0);
   if (!planned.length) return null;
+  const kept = ex.repRange;
+  if (kept && kept.low >= 1 && kept.high >= kept.low && planned.every((r) => r >= kept.low && r <= kept.high)) {
+    return { low: kept.low, high: kept.high };
+  }
   const high = Math.max(...planned);
   const low = planned.length > 1 && Math.min(...planned) < high ? Math.min(...planned) : Math.max(1, high - 2);
   return { low, high };
@@ -600,11 +614,17 @@ export function inSessionAdjust(history: Workout[], ex: Exercise, logged: SetEnt
  * exactly as skipped as it was. The set count is never changed here (rule 5:
  * sets move at block level, by the lifter's own hand). Each Set on Its Own
  * writes each working position its own target.
+ *
+ * THE RANGE RIDES WITH IT (2026-10-17): the range the suggestion worked inside
+ * (rule 2's extend branch included, which widened it) is kept on the plan as
+ * Exercise.repRange, so the next read (rangeOf) still sees 6 to 8 under a
+ * strip of 6, 6, 6 and three accepted steps in a row keep the same range.
  */
 export function applySuggestion(ex: Exercise, s: Suggestion): Exercise {
   let pos = 0;
   return {
     ...ex,
+    repRange: { low: s.range.low, high: s.range.high },
     sets: ex.sets.map((entry) => {
       if (entry.warmup || entry.skipped || entry.drop) return entry;
       const own = s.perSet ? s.perSet[pos] ?? s.perSet[s.perSet.length - 1] ?? s.next : s.next;

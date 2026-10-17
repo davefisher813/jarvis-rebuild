@@ -324,9 +324,17 @@ export function pickerSections(rows: PickerRow[]): PickerSection[] {
 /** WHAT PICKING A STARTER MAKES (S9). The athlete's own exercise: a fresh
  *  opaque key (never derived from the name, so a rename cannot fork its
  *  history), the catalog's name, weight and reps, and the classification the
- *  catalog gave it. Pure: the caller writes the seed and the classification
- *  (GymFlow through its own setters, so its in-memory copies stay in step;
- *  the sheet straight to GymSettings when nobody is holding copies). */
+ *  catalog gave it. Pure: GymFlow writes the seed and the classification
+ *  through its own setters (adoptStarters), so its in-memory copies of
+ *  GymSettings stay in step with the store.
+ *
+ *  ONE WRITER (2026-10-17). The sheet used to write GymSettings itself when
+ *  no caller took the adoption, and every picker in the app renders under
+ *  GymFlow, which holds in-memory copies of classByKey and createdLifts and
+ *  writes them whole on its next change. A starter adopted from the live
+ *  session's Swap or Add Exercise landed in the store and was overwritten by
+ *  the next classification saved anywhere: its muscles were gone. There is no
+ *  second writer now; LibraryPickSheet.onAdopt is required. */
 export function adoptStarter(entry: LibraryEntry): { entry: LibraryEntry; seed: CreatedLift; cls: Classification } {
   const key = newExerciseKey();
   const s = entry.starter;
@@ -335,20 +343,4 @@ export function adoptStarter(entry: LibraryEntry): { entry: LibraryEntry; seed: 
   const { starter: _starter, ...rest } = entry;
   void _starter;
   return { entry: { ...rest, key, exerciseKey: key }, seed, cls };
-}
-
-/** The settings write for an adoption when no caller holds in-memory copies
- *  of GymSettings (the Swap picker inside a live session). Both the new
- *  classification shape and the old flat muscle list, the same two writes
- *  GymFlow.saveClassStore makes. */
-export function writeAdopted(adopted: { seed: CreatedLift; cls: Classification }[], read: () => GymSettings, write: (s: GymSettings) => void): void {
-  if (adopted.length === 0) return;
-  const gs = read();
-  const classByKey = { ...(gs.classByKey ?? {}) };
-  const muscleByKey = { ...(gs.muscleByKey ?? {}) };
-  for (const a of adopted) {
-    classByKey[a.seed.key] = a.cls;
-    muscleByKey[a.seed.key] = [...a.cls.primary, ...a.cls.secondary];
-  }
-  write({ ...gs, createdLifts: [...(gs.createdLifts ?? []), ...adopted.map((a) => a.seed)], classByKey, muscleByKey });
 }

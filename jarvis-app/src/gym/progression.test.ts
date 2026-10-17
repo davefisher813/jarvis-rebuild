@@ -221,6 +221,53 @@ describe("applySuggestion", () => {
     expect(out.sets[1]!.skipped).toBe(true);
     expect(out.sets[1]!.w).toBeUndefined();
   });
+
+  // THE RANGE HOLDS STILL ACROSS STEPS (2026-10-17). A step wrote the bottom
+  // of the range into every working set, and rangeOf read a uniform plan of r
+  // as r-2 to r: 6, 8, 8 (6 to 8) became 6, 6, 6 and read as 4 to 6, and the
+  // next step read 4, 4, 4 as 2 to 4. The range crept down one step per
+  // accepted step. The plan keeps its range now, and three steps in a row
+  // keep it at 6 to 8 while the load climbs each time.
+  it("three accepted steps in a row keep the plan's range and climb the load each time", () => {
+    let p = plan(); // 275 for 6, 8, 8: the range is 6 to 8
+    const history: Workout[] = [];
+    const loads = [275, 280, 285];
+    for (const [i, load] of loads.entries()) {
+      history.push(bench(`2026-10-0${i + 1}`, load, [8, 8, 8]));
+      const s = suggestFor(history, p, { smallestJump: 5 })!;
+      expect(s.kind, `step ${i + 1}`).toBe("bump");
+      expect(s.range, `step ${i + 1} reads the plan's own range`).toEqual({ low: 6, high: 8 });
+      expect(s.next, `step ${i + 1}`).toEqual({ w: load + 5, r: 6 });
+      expect(s.reason[1], `step ${i + 1}`).toBe("All at the Top of 6 to 8");
+      p = applySuggestion(p, s);
+      expect(p.sets.map((x) => x.r), "reps reset to the bottom (rule 2)").toEqual([6, 6, 6]);
+      expect(p.repRange).toEqual({ low: 6, high: 8 });
+    }
+    expect(p.sets.map((x) => x.w)).toEqual([290, 290, 290]);
+  });
+
+  it("a hold inside the kept range reads the same range, and the extended range (rule 2) is kept too", () => {
+    // After a step the plan is 280 for 6, 6, 6 with the range kept; a session
+    // of 7, 7, 6 at 280 is below the top of 6 to 8, not of 4 to 6.
+    const stepped = applySuggestion(plan(), suggestFor([bench("2026-10-01", 275, [8, 8, 8])], plan(), { smallestJump: 5 })!);
+    const hold = suggestFor([bench("2026-10-08", 280, [7, 7, 6])], stepped, { smallestJump: 5 })!;
+    expect(hold.kind).toBe("hold");
+    expect(hold.reason).toEqual(["Last Time 280 × 7, 7, 6", "Below the Top of 6 to 8", "Hold 280, Add Reps to 8"]);
+    // A jump over 7 percent of the load widens the range by three instead of
+    // stepping; the widened range is what the plan keeps.
+    const light = plan({ sets: [{ id: "p1", w: 30, r: 6 }, { id: "p2", w: 30, r: 8 }] });
+    const ext = suggestFor([wk("2026-10-01", [wex("Bench", [{ w: 30, r: 8 }, { w: 30, r: 8 }])])], light, { smallestJump: 5 })!;
+    expect(ext.kind).toBe("extend");
+    const widened = applySuggestion(light, ext);
+    expect(widened.repRange).toEqual({ low: 6, high: 11 });
+    expect(suggestFor([wk("2026-10-08", [wex("Bench", [{ w: 30, r: 9 }, { w: 30, r: 9 }])])], widened, { smallestJump: 5 })!.range).toEqual({ low: 6, high: 11 });
+  });
+
+  it("a hand edit that leaves the kept range is a new plan: the range derives from the reps again", () => {
+    const stepped = applySuggestion(plan(), suggestFor([bench("2026-10-01", 275, [8, 8, 8])], plan(), { smallestJump: 5 })!);
+    const edited = { ...stepped, sets: stepped.sets.map((s) => ({ ...s, r: 5 })) };
+    expect(suggestFor([bench("2026-10-08", 280, [5, 5, 5])], edited, { smallestJump: 5 })!.range).toEqual({ low: 3, high: 5 });
+  });
 });
 
 // ---------------------------------------------------------------------------

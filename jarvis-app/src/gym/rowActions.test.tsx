@@ -90,7 +90,7 @@ const workouts: Workout[] = [];
 
 describe("the live session", () => {
   const renderScreen = (over: Partial<Parameters<typeof SessionScreen>[0]> = {}) => render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live([])} exercise={EX} dayExercises={[EX]}
       programDay={{ id: "d1", name: "Auxiliary Day", exercises: [EX], warmUp: [{ id: "b1", name: "Bike, easy" }], warmUpMin: 5 }}
       history={workouts} library={[]}

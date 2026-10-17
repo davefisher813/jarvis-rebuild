@@ -40,8 +40,9 @@ export default function EmptyWorkoutScreen({ library, classStore, history, onAdd
   onAddEntry: (entry: LibraryEntry) => void;
   /** A new exercise made on the Add Exercise sheet. */
   onAddDraft: (draft: Omit<Exercise, "id">) => void;
-  /** A catalog entry picked from the list, adopted (LibraryPickSheet.onAdopt). */
-  onAdopt?: (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => void;
+  /** A catalog entry picked from the list, adopted (LibraryPickSheet.onAdopt).
+   *  Required for the same reason the sheet's is: the flow is the one writer. */
+  onAdopt: (adopted: { entry: LibraryEntry; seed: CreatedLift; cls: Classification }[]) => void;
   onCancel: () => void;
 }) {
   const [pickOpen, setPickOpen] = useState(false);

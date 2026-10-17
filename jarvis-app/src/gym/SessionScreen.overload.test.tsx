@@ -39,7 +39,7 @@ const live = (logged: SetEntry[], exs: Exercise[] = [bench()], idx = 0): LiveSes
 
 function renderScreen(over: Partial<Parameters<typeof SessionScreen>[0]> = {}, ex: Exercise = bench()) {
   return render(
-    <SessionScreen
+    <SessionScreen onAdopt={() => {}}
       live={live([], [ex])}
       exercise={ex}
       dayExercises={[ex]}
@@ -185,7 +185,7 @@ describe("I: the warm-up opens on his own last warm-ups", () => {
     expect(screen.queryByText(/^Suggested/), "his own history is not a suggestion").toBeNull();
     const ex = bench();
     const again = (sets: SetEntry[]) => rerender(
-      <SessionScreen live={live(sets)} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
+      <SessionScreen onAdopt={() => {}} live={live(sets)} exercise={ex} dayExercises={[ex]} programDay={{ id: "d1", name: "Push", exercises: [ex] }}
         history={[withWarmups]} library={[]} onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
         onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,
     );

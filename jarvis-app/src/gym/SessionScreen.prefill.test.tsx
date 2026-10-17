@@ -21,7 +21,7 @@ const live = (sets: LiveSession["exercises"][number]["sets"]): LiveSession => ({
   exercises: [{ exerciseId: "a", name: "Bench Press", kind: "weight_reps", unit: "lb", sets }],
 });
 const renderAt = (l: LiveSession) => render(
-  <SessionScreen live={l} exercise={bench} dayExercises={[bench]} programDay={{ id: "d1", name: "Push Day", exercises: [bench] }}
+  <SessionScreen onAdopt={() => {}} live={l} exercise={bench} dayExercises={[bench]} programDay={{ id: "d1", name: "Push Day", exercises: [bench] }}
     history={[lastWeek]} library={[]} onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}}
     onSwap={() => {}} onAddMidSession={() => {}} onFit={() => {}} onFinish={() => {}} onBack={() => {}} />,
 );

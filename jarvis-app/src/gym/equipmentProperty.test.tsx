@@ -115,7 +115,7 @@ describe("the logging view and its exercise list", () => {
     ? { primary: ["chest" as const], secondary: ["shoulders" as const, "triceps" as const] }
     : { primary: [], secondary: [] });
   const renderScreen = (over: Partial<Parameters<typeof SessionScreen>[0]> = {}) => render(
-    <SessionScreen live={live} exercise={bench} dayExercises={[bench, fly]} programDay={{ id: "d1", name: "Push Day", exercises: [bench, fly] }}
+    <SessionScreen onAdopt={() => {}} live={live} exercise={bench} dayExercises={[bench, fly]} programDay={{ id: "d1", name: "Push Day", exercises: [bench, fly] }}
       history={[]} library={[]} onLog={() => {}} onSetLogged={() => {}} onSkip={() => {}} onMove={() => {}} onSwap={() => {}}
       onSetLoad={() => {}} musclesOf={musclesOf} onSetMuscles={() => {}} onAddMidSession={() => {}} onFit={() => {}}
       onFinish={() => {}} onBack={() => {}} {...over} />,

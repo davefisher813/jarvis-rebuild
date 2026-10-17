@@ -1746,32 +1746,49 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
 
   // D6-A. The suggestion was a ghost until here: accepting writes the new
   // target into the PROGRAM day this exercise belongs to, through the same
-  // saveDays door every other program edit uses, and says so out loud.
-  const acceptSuggestion = async (ex: Exercise, sug: Suggestion) => {
-    if (!program || !live) return;
+  // saveDays door every other program edit uses.
+  //
+  // THE WAY BACK (2026-10-17, Logging Standard rule 5: every write inside a
+  // logging flow has an Undo of five seconds or more). This used to raise its
+  // own "plan moved" toast with no Undo, queued behind the set's receipt, so
+  // the receipt's Undo put the set back and left the plan moved. It hands
+  // back the restore now and raises no toast of its own: the session's one
+  // receipt says the plan moved, and its one Undo reverts the set and this.
+  // The restore is the program exercise exactly as it was before the accept
+  // (the snapshot rule, SHARED-F-03), written back into the day as the
+  // records stand at the moment of the tap (recordsRef), so a late Undo
+  // touches this lift and nothing else on the day. Null means nothing moved.
+  const acceptSuggestion = (ex: Exercise, sug: Suggestion): (() => void) | null => {
+    if (!program || !live) return null;
     const week = program.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId));
     const day = week?.days.find((d) => d.id === live.dayId);
-    if (!week || !day) return;
+    if (!week || !day) return null;
     // GYM-F-16 (2026-09-05): Swap deliberately keeps the ORIGINAL slot's
     // exerciseId so the This Session list stays stable
     // (liveSession.ts:169-177), and this handler trusted that id as a program
     // identity. Swap Bench for DB Press, accept DB Press's suggestion, and the
     // toast said "DB Press plan moved to 55 lb x 10" while the program's BENCH
     // strip was what changed. The set is logged either way (SessionScreen logs
-    // it before calling this); only a lift that really is this program
-    // exercise moves the program's own plan.
+    // it and raises the receipt); only a lift that really is this program
+    // exercise moves the program's own plan. (The "nothing moved" toast this
+    // once raised was never seen: the receipt, an action toast, replaced it
+    // in the same tick.)
     const entry = live.exercises[live.idx];
     const behind = entry ? programExerciseFor(entry, day) : undefined;
-    if (!behind || behind.id !== ex.id) {
-      showToast({ message: `Set logged · ${ex.name} is not in this day's plan, so nothing moved` });
-      return;
-    }
-    const days = week.days.map((d) => (d.id !== day.id ? d : {
+    if (!behind || behind.id !== ex.id) return null;
+    const was = behind;
+    const programId = program.id;
+    void saveDays(week.id, week.days.map((d) => (d.id !== day.id ? d : {
       ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? applySuggestion(e, sug) : e)),
-    }));
-    if (await saveDays(week.id, days)) {
-      showToast({ message: lineCase(`${ex.name} plan moved to ${formatSet(ex, sug.next)}`) });
-    }
+    })));
+    return () => {
+      const now = recordsRef.current.programs.find((p) => p.id === programId) ?? program;
+      const w = now.data.weeks.find((x) => x.id === week.id);
+      if (!w) return;
+      void saveDays(week.id, w.days.map((d) => (d.id !== day.id ? d : {
+        ...d, exercises: d.exercises.map((e) => (e.id === was.id ? was : e)),
+      })));
+    };
   };
 
   // HOW A LIFT LOADS, ANSWERED FROM THE RACK (2026-09-16, Dave: "I don't even
@@ -3173,7 +3190,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             showToast({ message: `Added ${draft.name}` });
           }
         }}
-        onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
+        // A starter picked by Swap or Add Exercise is adopted through this
+        // flow's own setters (2026-10-17), the same door the program and
+        // empty-workout pickers use, so the in-memory classStore and
+        // createdLifts never overwrite it on their next write.
+        onAdopt={adoptStarters}
+        // D6-A, with the way back (2026-10-17): the accept hands the session
+        // a function that restores the plan as it was, so the set's one
+        // receipt undoes the set and the program move together.
+        onAcceptSuggestion={(sug) => acceptSuggestion(exercise, sug)}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
         // AND ONLY UNTIL IT IS THERE (2026-09-26): an added lift the day now
         // holds (by key, or by name and kind) is not offered again, since a
