@@ -1668,6 +1668,9 @@ export default function SessionScreen({
           library={library}
           history={history}
           alsoOnDay={programDay ? { dayName: programDay.name, value: addToDay, onChange: setAddToDay } : undefined}
+          // Starters in its typeahead adopt through the flow's one door (Dave
+          // 2026-10-17: "It should be all exercises. Stock and custom").
+          onAdopt={onAdopt}
           onSave={(draft) => { onAddMidSession(draft, !!programDay && addToDay); setAddName(null); }}
           onCancel={() => setAddName(null)}
         />
