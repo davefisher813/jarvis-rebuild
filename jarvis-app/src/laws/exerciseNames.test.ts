@@ -14,8 +14,9 @@ import { STARTER_EXERCISES, STARTER_MUSCLE_GROUPS, normalizeExerciseName } from 
 // carries an equipment tag, and every muscle a starter names is one of the
 // twelve the app counts by.
 //
-// The list itself is empty until the approved catalog lands; this law holds
-// the shape it must land in, and bites on the first name that breaks it.
+// The list is Dave's catalog of 111 (2026-10-16), loaded verbatim; this law
+// holds the shape it landed in, and bites on the first name that breaks it.
+// A name in his list that trips the word set is REPORTED, never renamed here.
 // ---------------------------------------------------------------------------
 
 const EQUIPMENT_WORDS = /\b(barbell|dumbbell|dumbbells|cable|cables|machine|kettlebell|kettlebells|free weight|free weights|band|bands|smith)\b/i;
@@ -38,8 +39,10 @@ describe("LAW: the starter library's names", () => {
     ]);
     for (const e of STARTER_EXERCISES) {
       expect(MUSCLE_GROUPS, `${e.name}: primary ${e.primary}`).toContain(e.primary);
-      if (e.secondary) expect(MUSCLE_GROUPS, `${e.name}: secondary ${e.secondary}`).toContain(e.secondary);
-      expect(e.secondary, `${e.name}: a muscle is primary or secondary, never both`).not.toBe(e.primary);
+      for (const m of e.secondary) {
+        expect(MUSCLE_GROUPS, `${e.name}: secondary ${m}`).toContain(m);
+        expect(m, `${e.name}: a muscle is primary or secondary, never both`).not.toBe(e.primary);
+      }
     }
   });
 
@@ -55,7 +58,7 @@ describe("LAW: the starter library's names", () => {
   });
 
   it("the law bites: a planted equipment name fails it", () => {
-    const planted = [{ name: "Barbell Bench Press", primary: "chest", secondary: null }, { name: "Cable Curl", primary: "biceps", secondary: null }];
+    const planted = [{ name: "Barbell Bench Press", primary: "chest", secondary: [] }, { name: "Cable Curl", primary: "biceps", secondary: [] }];
     expect(planted.filter((e) => EQUIPMENT_WORDS.test(e.name))).toHaveLength(2);
     expect(normalizeExerciseName("  Bench-Press ")).toBe("bench press");
     expect(normalizeExerciseName("bench press")).toBe(normalizeExerciseName("Bench Press"));

@@ -252,7 +252,7 @@ export interface PickerOptions {
 function starterEntry(s: StarterExercise): LibraryEntry {
   return {
     key: "starter:" + normalizeExerciseName(s.name), name: s.name, kind: "weight_reps", lastUsed: 0, lastSets: [],
-    starter: { primary: s.primary, secondary: s.secondary },
+    starter: { primary: s.primary, secondary: [...s.secondary] },
   };
 }
 
@@ -330,7 +330,7 @@ export function pickerSections(rows: PickerRow[]): PickerSection[] {
 export function adoptStarter(entry: LibraryEntry): { entry: LibraryEntry; seed: CreatedLift; cls: Classification } {
   const key = newExerciseKey();
   const s = entry.starter;
-  const cls: Classification = { ...EMPTY_CLASS, primary: s ? [s.primary] : [], secondary: s?.secondary ? [s.secondary] : [], measure: "weight_reps" };
+  const cls: Classification = { ...EMPTY_CLASS, primary: s ? [s.primary] : [], secondary: s ? [...s.secondary] : [], measure: "weight_reps" };
   const seed: CreatedLift = { key, name: entry.name, kind: "weight_reps" };
   const { starter: _starter, ...rest } = entry;
   void _starter;

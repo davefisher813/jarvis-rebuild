@@ -275,11 +275,12 @@ describe("K: Add Exercise picks from the library first", () => {
   });
 
   it("a name the library does not know falls to the full sheet, prefilled", () => {
+    // Neither his library nor the preloaded catalog (S9, 2026-10-16) knows a Zercher Squat.
     renderScreen({ library: [entry] });
     fireEvent.click(screen.getByRole("button", { name: "Add Exercise" }));
-    fireEvent.change(screen.getByLabelText("Search Exercises"), { target: { value: "Face Pull" } });
-    fireEvent.click(screen.getByRole("button", { name: /Face Pull/ }));
-    expect(screen.getByLabelText("Exercise name")).toHaveValue("Face Pull");
+    fireEvent.change(screen.getByLabelText("Search Exercises"), { target: { value: "Zercher Squat" } });
+    fireEvent.click(screen.getByRole("button", { name: /Zercher Squat/ }));
+    expect(screen.getByLabelText("Exercise name")).toHaveValue("Zercher Squat");
   });
 });
 
