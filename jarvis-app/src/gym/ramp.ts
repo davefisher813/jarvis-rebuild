@@ -133,8 +133,11 @@ export function nextRampStep(ramp: SetEntry[], logged: Pick<SetEntry, "w" | "war
 /** Does the Now card open in Warm-Up mode? Only before the first working set,
  *  and only while the ramp still has a step to offer. After a working set, or
  *  once the ramp is used up, it is Work mode, and one tap flips it either way. */
-export function startsInWarmUp(ramp: SetEntry[], logged: Pick<SetEntry, "w" | "warmup" | "drop">[]): boolean {
+export function startsInWarmUp(ramp: SetEntry[], logged: Pick<SetEntry, "w" | "warmup" | "drop">[], priorWarmups: Pick<SetEntry, "w" | "r">[] = []): boolean {
   if (logged.some((s) => !s.warmup && !s.drop)) return false;
+  // HIS OWN WARM-UPS FIRST (defect I, 2026-10-17): while last session's
+  // warm-ups are not all repeated, the card opens on the next one of them.
+  if (logged.filter((s) => s.warmup).length < priorWarmups.length) return true;
   return nextRampStep(ramp, logged) !== null;
 }
 
@@ -154,9 +157,21 @@ export function warmupSeed(opts: {
   unit?: string;
   /** The weight field's own increment. */
   step: number;
-}): { w?: number; r?: number } {
+  /** WHAT HE WARMED UP WITH LAST TIME (Dave 2026-10-15; prs.lastWarmupsFor).
+   *  The warm-up at the position of the one about to be logged wins over
+   *  every computed answer below; past the last of them the chain runs as
+   *  before. Absent or empty, the ramp is the answer, and the card says so
+   *  (`computed`). */
+  priorWarmups?: Pick<SetEntry, "w" | "r">[];
+}): { w?: number; r?: number; computed?: true } {
+  const prior = opts.priorWarmups ?? [];
+  const at = prior[opts.logged.filter((s) => s.warmup).length];
+  if (at) return { ...((at.w ?? 0) > 0 ? { w: at.w } : {}), ...((at.r ?? 0) > 0 ? { r: at.r } : {}) };
   const next = nextRampStep(opts.ramp, opts.logged);
-  if (next) return { w: next.w, r: next.r };
+  // A SUGGESTION, AND LABELLED ONE (defect I): with no warm-ups of his own
+  // to go on, the ramp's step is the app's guess, and the card says
+  // Suggested over it. His own history never does.
+  if (next) return { w: next.w, r: next.r, ...(prior.length ? {} : { computed: true }) };
   const lastWarm = [...opts.logged].reverse().find((s) => s.warmup && ((s.w ?? 0) > 0 || (s.r ?? 0) > 0));
   if (lastWarm) return { ...((lastWarm.w ?? 0) > 0 ? { w: lastWarm.w } : {}), ...((lastWarm.r ?? 0) > 0 ? { r: lastWarm.r } : {}) };
   const r = rackIn(opts.rack, opts.unit);

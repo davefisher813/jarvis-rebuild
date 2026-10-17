@@ -14,26 +14,30 @@ describe("SetStrip: the Now row's fields", () => {
     const onNowDraft = vi.fn();
     const onChange = vi.fn();
     render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={onChange} ghost={[{ id: "g1", w: 120, r: 10 }, { id: "g2", w: 120, r: 10 }]} editableGhosts onNowDraft={onNowDraft} />);
-    fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "125" } });
-    fireEvent.change(screen.getByLabelText("Set 1 reps"), { target: { value: "8" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "125" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "8" } });
     expect(onNowDraft).toHaveBeenLastCalledWith({ w: "125", r: "8" });
     expect(screen.queryByLabelText("Log set 1"), "no tick on the row").toBeNull();
     fireEvent.click(screen.getByText("Now · Set 1"));
     expect(onChange, "the row's body never logs").not.toHaveBeenCalled();
     // The row after it is the plan, read and not typed into.
-    expect(screen.queryByLabelText("Set 2 weight")).toBeNull();
-    expect(screen.getByText("120 Lb × 10")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Set 2 Weight")).toBeNull();
+    expect(screen.getByText("Target 120 Lb × 10")).toBeInTheDocument();
   });
   it("shows the session's own strings when it owns them, and follows them", () => {
     const { rerender } = render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts nowDraft={{ w: "130", r: "9" }} />);
-    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(130);
+    expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(130);
     rerender(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts nowDraft={{ w: "135", r: "9" }} />);
-    expect(screen.getByLabelText("Set 1 weight"), "a corrected earlier set moves these too").toHaveValue(135);
+    expect(screen.getByLabelText("Set 1 Weight"), "a corrected earlier set moves these too").toHaveValue(135);
   });
-  it("is the plain ghost without the flag, and never on a kind with no weight", () => {
+  // AMENDED 2026-10-17 (defect A): a reps lift's Now card is a reps field,
+  // exactly as a weighted lift's is its two.
+  it("is the plain ghost without the flag; with it, a reps lift gets its reps field", () => {
+    render(<SetStrip kind="reps" entries={[]} onChange={() => {}} ghost={[{ id: "g1", r: 10 }]} />);
+    expect(screen.queryByLabelText("Set 1 Reps")).toBeNull();
+    expect(screen.getByText("Target 10 Reps")).toBeInTheDocument();
     render(<SetStrip kind="reps" entries={[]} onChange={() => {}} ghost={[{ id: "g1", r: 10 }]} editableGhosts />);
-    expect(screen.queryByLabelText("Set 1 reps")).toBeNull();
-    expect(screen.getByText("10 Reps")).toBeInTheDocument();
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveValue(10);
   });
   // 2026-09-29 (the warm-up simplification, Dave: "way too complicated"): the
   // ramp no longer arrives as dashed Warm-Up rows that log on tap. A Warm-Up

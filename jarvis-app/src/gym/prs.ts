@@ -244,6 +244,32 @@ export function lastSessionFor(history: Workout[], lift: LiftLike, kind: Measure
   return null;
 }
 
+/** HIS OWN WARM-UPS, FROM LAST TIME (Dave 2026-10-15; defect I, 2026-10-17).
+ *  The Warm-Up side of the Now card opened on a computed ramp (40, 60, 85
+ *  percent) while the warm-ups he actually did last session sat in history
+ *  with `warmup: true`, dropped by lastSessionFor because they are not the
+ *  work. They are exactly what a warm-up should open at. The same session
+ *  the Last line and the prefill read (this workout day's own first, else the
+ *  newest), its warm-ups in order, skipped ones left out, spoken in the unit
+ *  the lift is in now. Empty when that session logged none, or when nothing
+ *  has ever been logged. */
+export function lastWarmupsFor(history: Workout[], lift: LiftLike, kind: MeasureKind, opts: { preferDayId?: string } = {}): SetEntry[] {
+  if (opts.preferDayId) {
+    const sameDay = history.filter((w) => w.data.dayId === opts.preferDayId);
+    if (sameDay.length && lastSessionFor(sameDay, lift, kind)) return lastWarmupsFor(sameDay, lift, kind);
+  }
+  const ref = liftRef(lift, kind);
+  for (let i = history.length - 1; i >= 0; i--) {
+    const w = history[i]!;
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
+    const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup && !s.drop) ?? [];
+    if (!ex || !logged.length) continue;
+    const to = ref.unit ?? ex.unit;
+    return ex.sets.filter((s) => s.warmup && !s.skipped).map((s) => inUnit(ex.kind, s, ex.unit, to) as SetEntry);
+  }
+  return [];
+}
+
 /**
  * The D2-C header line: the whole last session, compact, plus the all-time
  * best. A same-weight strip compresses to "275 lb × 5, 5, 4"; anything else

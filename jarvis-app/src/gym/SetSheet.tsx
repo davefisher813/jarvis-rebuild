@@ -40,7 +40,7 @@ const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string; hue: 
 
 type Field = ReturnType<typeof fieldsFor>[number];
 
-export default function SetSheet({ title, kind, fields, entry, moveTracking = false, onSave, onSkip, onDuplicate, onDelete, onCancel }: {
+export default function SetSheet({ title, kind, fields, entry, moveTracking = false, planned = false, onSave, onSkip, onDuplicate, onDelete, onCancel }: {
   /** The set's own name: "Set 2", "Warm-Up", "Drop". */
   title: string;
   kind: MeasureKind;
@@ -49,10 +49,15 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
   fields: Field[];
   entry: SetEntry;
   moveTracking?: boolean;
+  /** A PLANNED SET, NOT A LOGGED ONE (2026-10-17, defect C): the dashed Set 2
+   *  and Set 3 rows open here to change this session's plan. Nothing has
+   *  happened yet, so there is no warm-up switch and no How Did It Move; the
+   *  moves offered are whichever of Duplicate and Delete the caller gives. */
+  planned?: boolean;
   onSave: (patch: Partial<SetEntry>) => void;
-  onSkip: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  onSkip?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
   onCancel: () => void;
 }) {
   const ordered = [...fields].sort((a, b) => (a.key === "w" ? -1 : b.key === "w" ? 1 : 0));
@@ -61,7 +66,8 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
   const [moved, setMoved] = useState<SetEntry["moved"]>(entry.moved);
   const [warm, setWarm] = useState(!!entry.warmup);
   const save = () => {
-    const patch: Partial<SetEntry> = { moved: warm ? undefined : moved, warmup: warm ? true : undefined };
+    // A planned set has not happened: no mark and no warm-up flag to write.
+    const patch: Partial<SetEntry> = planned ? {} : { moved: warm ? undefined : moved, warmup: warm ? true : undefined };
     for (const f of ordered) {
       const n = Number(vals[f.key]);
       (patch as Record<string, unknown>)[f.key] = vals[f.key]?.trim() !== "" && Number.isFinite(n) && n > 0 ? n : undefined;
@@ -71,7 +77,7 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
   return (
     <FormSheet title={title} onCancel={onCancel} onSave={save} dirty={moved !== entry.moved || warm !== !!entry.warmup}>
       {/* THE KIND OF SET, FIRST: it changes what the rest of the sheet says. */}
-      {kind !== "done" && !entry.drop && (
+      {kind !== "done" && !entry.drop && !planned && (
         <Group>
           <SwitchRow tone="yellow" glyph={<Flame className="ic" />} label="Warm-Up Set" ariaLabel="Warm-up set"
             // SAYS WHAT IT DOES TO THE COUNT (mockup 5, "clear warm-up
@@ -96,7 +102,7 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
       {/* HOW IT MOVED (catalog §4.5): observable events, never a feelings
           scale. Optional; tapping the active chip clears it. A warm-up and a
           drop are not the work and carry no mark (D6). */}
-      {moveTracking && !entry.skipped && !warm && !entry.drop && (
+      {moveTracking && !planned && !entry.skipped && !warm && !entry.drop && (
         <Group label="How Did It Move?">
           {/* row-tap: the three chips are the row; a tap on the gap between
               them must not pick one for the athlete */}
@@ -113,11 +119,13 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
           </div>
         </Group>
       )}
-      <Group className="xs-actions">
-        <Row label={entry.skipped ? "Unskip This Set" : "Skip This Set"} onClick={onSkip} />
-        <Row label="Duplicate This Set" onClick={onDuplicate} />
-        <DeleteRow label="Delete This Set" onClick={onDelete} />
-      </Group>
+      {(onSkip || onDuplicate || onDelete) && (
+        <Group className="xs-actions">
+          {onSkip && <Row label={entry.skipped ? "Unskip This Set" : "Skip This Set"} onClick={onSkip} />}
+          {onDuplicate && <Row label="Duplicate This Set" onClick={onDuplicate} />}
+          {onDelete && <DeleteRow label="Delete This Set" onClick={onDelete} />}
+        </Group>
+      )}
     </FormSheet>
   );
 }

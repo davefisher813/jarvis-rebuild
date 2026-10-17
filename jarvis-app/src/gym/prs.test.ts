@@ -20,9 +20,13 @@ describe("isPR", () => {
     expect(isPR(history, "Deadlift", "weight_reps", { w: 95, r: 5 })).toBe(true);
   });
 
-  it("beats the heaviest ever for weight work", () => {
+  it("beats the heaviest ever for weight work, or the same weight for more reps", () => {
     expect(isPR(history, "Bench", "weight_reps", { w: 145, r: 3 })).toBe(true);
-    expect(isPR(history, "Bench", "weight_reps", { w: 135, r: 10 })).toBe(false);
+    // AMENDED 2026-10-17: equal weight for more reps is the better set (the
+    // best is 135 x 6, so 135 x 10 is a record and 135 x 5 is not).
+    expect(isPR(history, "Bench", "weight_reps", { w: 135, r: 10 })).toBe(true);
+    expect(isPR(history, "Bench", "weight_reps", { w: 135, r: 5 })).toBe(false);
+    expect(isPR(history, "Bench", "weight_reps", { w: 130, r: 20 })).toBe(false);
   });
 
   it("a faster sprint is the record, a slower one is not", () => {
@@ -166,5 +170,34 @@ describe("lastSessionFor + lastHeader", () => {
     const { lastHeader } = await import("./prs");
     const hist = [wk("2026-08-20", [wex("Tempo Run", "distance_time", [{ v: 1, t: 8 }], "mi")])];
     expect(lastHeader(hist, "Tempo Run", "distance_time")!.best).toBeNull();
+  });
+});
+
+// 2026-10-17: Best disagreed with the milestones. `beats` compared weight
+// alone with a strict greater-than, so an earlier 360 x 2 stayed Best over a
+// later 360 x 3. Equal weight for more reps is the better set.
+describe("bestBefore breaks a tie on weight by reps", () => {
+  const history = [
+    wk("2026-09-01", [wex("Squat", "weight_reps", [{ w: 360, r: 2 }], "lb")]),
+    wk("2026-09-08", [wex("Squat", "weight_reps", [{ w: 360, r: 3 }], "lb")]),
+    wk("2026-09-15", [wex("Squat", "weight_reps", [{ w: 360, r: 3 }], "lb")]),
+  ];
+  it("picks 360 x 3 over 360 x 2, and a repeat of 360 x 3 is not a new record", () => {
+    expect(bestBefore(history, "Squat", "weight_reps")!.set).toMatchObject({ w: 360, r: 3 });
+    expect(bestBefore(history, "Squat", "weight_reps")!.date).toBe("2026-09-08");
+    expect(isPR(history, "Squat", "weight_reps", { w: 360, r: 3 })).toBe(false);
+    expect(isPR(history, "Squat", "weight_reps", { w: 360, r: 4 })).toBe(true);
+    expect(isPR(history, "Squat", "weight_reps", { w: 365, r: 1 }), "more weight still wins outright").toBe(true);
+  });
+
+  // 2026-10-17 (defect B): an empty set has no score, so it can never be a
+  // record, on any kind.
+  it("an empty set earns no PR on a timed, reps or measured lift", () => {
+    expect(isPR([], "Plank", "time_longer", {})).toBe(false);
+    expect(isPR([], "Plank", "time_longer", { v: 0 })).toBe(false);
+    expect(isPR([], "Plank", "time_longer", { v: 30 })).toBe(true);
+    expect(isPR([], "Pull-Ups", "reps", {})).toBe(false);
+    expect(isPR([], "Broad Jump", "distance", {})).toBe(false);
+    expect(isPR([], "Box Jump", "height", {})).toBe(false);
   });
 });

@@ -96,6 +96,22 @@ export interface GymSettings {
    *  with "|" (ProgramSuggestion.signature), so the same workout is not
    *  offered again. Absent reads as none. */
   declinedPatterns?: string[];
+  /** PROGRESSIVE OVERLOAD, SUGGEST OR PREFILL (2026-10-17, section 10; DAVE'S
+   *  OPEN CHOICE). "suggest": the first set's fields open on last session's
+   *  set at that position (or the plan), and the computed step rides the Now
+   *  card as "Suggested ... Use", which is what the screen has done since
+   *  2026-09-26. "prefill": the fields open ON the computed step, and the
+   *  Use line is not needed. No UI sets this yet. THE DEFAULT IS NOT A
+   *  PRODUCT DECISION: absent reads as "suggest" only because that mirrors
+   *  today's behaviour until Dave rules; both paths work. */
+  overloadApply?: OverloadApply;
+}
+
+export type OverloadApply = "suggest" | "prefill";
+
+/** The switch above, read with its interim default. */
+export function overloadApplyOf(s: Pick<GymSettings, "overloadApply">): OverloadApply {
+  return s.overloadApply === "prefill" ? "prefill" : "suggest";
 }
 
 /** A lift the athlete created by hand, before ever doing it. See

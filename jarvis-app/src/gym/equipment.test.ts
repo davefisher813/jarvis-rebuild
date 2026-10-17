@@ -158,3 +158,23 @@ describe("the rest of what the equipment decides", () => {
     expect(styleSummary({})).toBe("Not Set");
   });
 });
+
+// 2026-10-17 (defect G): the stepper moved by the equipment's textbook five
+// whatever plates were in Settings, so the 2.5 plate in the rack could never
+// be reached from the field's arrows.
+describe("weightStep honours the rack on anything plates go on", () => {
+  const rack = { plates: [45, 35, 25, 10, 5, 2.5] };
+  it("a barbell and a plate-loaded machine step by the smallest plate", () => {
+    expect(weightStep({ equipment: "barbell" }, "lb", rack)).toBe(2.5);
+    expect(weightStep({ equipment: "machine" }, "lb", rack)).toBe(2.5);
+    expect(weightStep({ equipment: "smith" }, "lb", { plates: [20, 10, 5, 1.25] })).toBe(1.25);
+  });
+  it("a stack keeps its stack step and a dumbbell its own jump, rack or no rack", () => {
+    expect(weightStep({ equipment: "stack" }, "lb", rack)).toBe(10);
+    expect(weightStep({ equipment: "dumbbell" }, "lb", rack)).toBe(5);
+    expect(weightStep({ equipment: "barbell" }), "no rack, the spec stands").toBe(5);
+  });
+  it("fieldsFor carries the rack to the weight field", () => {
+    expect(fieldsFor("weight_reps", { equipment: "barbell", unit: "lb", rack }).find((f) => f.key === "w")!.step).toBe(2.5);
+  });
+});

@@ -313,9 +313,23 @@ export function asksCount(e: Equipment | undefined): boolean {
 
 /** THE STEPPER'S INCREMENT. The concrete answer to "the weight should adjust
  *  accordingly": a stack steps 10, a dip belt steps 2.5, and neither is 5. */
-export function weightStep(style: LoadStyle, unit?: string): number {
+export function weightStep(
+  style: LoadStyle,
+  unit?: string,
+  /** THE RACK DECIDES ON ANYTHING PLATES GO ON (2026-10-17, defect G). The
+   *  stepper moved by the equipment's textbook five whatever plates the
+   *  athlete owned, so a 2.5 lb plate in Settings could never be reached from
+   *  the field's arrows. Given the rack (its plates already in `unit`), a
+   *  plate-loaded lift steps by its smallest plate; a pinned stack keeps its
+   *  stack step, a dumbbell its rack's jump. Absent, the spec stands. */
+  rack?: { plates: number[] },
+): number {
   const metric = unit === "kg";
   const spec = style.equipment ? SPEC[style.equipment] : null;
+  if (spec?.plates && rack && rack.plates.length) {
+    const smallest = Math.min(...rack.plates.filter((p) => p > 0));
+    if (Number.isFinite(smallest) && smallest > 0) return smallest;
+  }
   if (!spec) return metric ? 2.5 : 5;
   return metric ? spec.step.kg : spec.step.lb;
 }

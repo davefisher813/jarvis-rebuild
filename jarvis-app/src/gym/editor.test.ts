@@ -56,7 +56,10 @@ describe("D2: last time is wired everywhere sets render", () => {
     expect(s).toContain("se-chip-best");
     // AMENDED 2026-09-26 (workout logging): cased by the whole rule.
     expect(s).toMatch(/\{lineCase\(header\.best\)\}/);
-    expect(s).toMatch(/\{lineCase\(header\.last\)\}/);
+    // AMENDED 2026-10-17 (Dave's approved board): last time is its date on
+    // the teal chip, and every set of that session as its own teal chip.
+    expect(s).toMatch(/<em>Last<\/em>\{monthDay\(header\.date\)\}/);
+    expect(s).toMatch(/lastHit\.sets\.map\(\(s\) => <span className="se-chip se-chip-last"/);
     expect(s).toContain("onMatchLast={lastHit");
     // AMENDED 2026-09-26 (workout logging, Dave: only the red button logs):
     // Match puts last time's numbers IN THE FIELDS, and the bar writes them.

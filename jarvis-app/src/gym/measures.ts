@@ -17,6 +17,11 @@ function trim(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
 }
 
+/** ONE REP IS "1 rep" (2026-10-17, defect H): "Log 1 Reps" on the button was
+ *  the app not knowing how to count. The rounds kind has had this since it
+ *  shipped; reps gets the same word. */
+const repWord = (r: number | undefined) => (r === 1 ? "rep" : "reps");
+
 /** A field is present when it carries a real number. Zero and absent both
  *  mean "didn't say" -- the same reading hasTarget, logButtonLabel and
  *  scoreOf have always used, which is what lets a stored zero from the old
@@ -49,12 +54,12 @@ export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { s
       const w = has(s.w) ? `${trim(s.w)} ${u}`.trim() : null;
       const r = has(s.r) ? trim(s.r) : null;
       if (w && r) return `${w} × ${r}${side}`;
-      if (r) return `${r} reps${side}`;
+      if (r) return `${r} ${repWord(s.r)}${side}`;
       if (w) return w;
       return bare;
     }
     case "reps":
-      return has(s.r) ? `${trim(s.r)} reps${side}` : bare;
+      return has(s.r) ? `${trim(s.r)} ${repWord(s.r)}${side}` : bare;
     case "rounds":
       // An AMRAP's reps past the last full round ride the score: "7 rounds + 12".
       return has(s.r) ? `${trim(s.r)} ${s.r === 1 ? "round" : "rounds"}${has(s.extra) ? ` + ${trim(s.extra)}` : ""}` : bare;
@@ -86,7 +91,10 @@ export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { s
  *  behaviour, so every caller that has no exercise in hand still works. */
 export function fieldsFor(
   kind: MeasureKind,
-  ctx?: LoadStyle & { unit?: string },
+  /** `rack` (2026-10-17, defect G): the athlete's plates, already read in the
+   *  exercise's unit (ramp.rackIn), so a plate-loaded lift steps by the
+   *  smallest plate he owns rather than by the equipment's textbook five. */
+  ctx?: LoadStyle & { unit?: string; rack?: { plates: number[] } },
 ): { key: "w" | "r" | "v" | "t"; label: string; step: number }[] {
   switch (kind) {
     case "weight_reps": {
@@ -95,7 +103,7 @@ export function fieldsFor(
       const style: LoadStyle = ctx ? { equipment: ctx.equipment, counted: ctx.counted, sided: ctx.sided } : {};
       return [
         { key: "r", label: ctx ? repLabel(style) : "Reps", step: 1 },
-        { key: "w", label: ctx ? weightLabel(style) : "Weight", step: ctx ? weightStep(style, ctx.unit) : 5 },
+        { key: "w", label: ctx ? weightLabel(style) : "Weight", step: ctx ? weightStep(style, ctx.unit, ctx.rack) : 5 },
       ];
     }
     case "reps":
@@ -143,6 +151,43 @@ export function logButtonLabel(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> 
   const verb = warmup ? "Log Warm-Up" : "Log";
   if (!ready) return warmup ? verb : `Log ${entryNoun(ex.kind, false)}`;
   return `${verb} ${lineCase(formatSet(ex, next!))}`;
+}
+
+/** The equipment whose number is help or nothing, so a set on it is whole
+ *  with reps alone: bodyweight, a band, the assisted machine, and any lift
+ *  counted as added to or taken off the body. */
+function weightOptional(style: LoadStyle | undefined): boolean {
+  if (!style) return false;
+  if (style.equipment === "bodyweight" || style.equipment === "band" || style.equipment === "assisted") return true;
+  return style.counted === "added" || style.counted === "assist";
+}
+
+/** CAN THIS SET BE WRITTEN (2026-10-17, defects B and H)? The Log button
+ *  stayed live over empty fields and wrote an empty set, and on a Plank that
+ *  empty set took the PR pill. A set is loggable when it carries the numbers
+ *  its kind is about: weight AND reps on a loaded lift (reps alone on
+ *  bodyweight, a band or the assisted machine), reps on a reps or rounds
+ *  lift, a value on a timed, measured or height lift, either half of a
+ *  distance-and-time attempt. A done mark needs nothing. The button reads
+ *  it for `disabled`, log() reads it as its guard, and both read the same
+ *  pending entry, so there is one answer. */
+export function isLoggable(kind: MeasureKind, style: LoadStyle | undefined, entry: SetLog | null): boolean {
+  if (kind === "done") return true;
+  if (!entry) return false;
+  switch (kind) {
+    case "weight_reps":
+      return has(entry.r) && (has(entry.w) || weightOptional(style));
+    case "reps":
+    case "rounds":
+      return has(entry.r);
+    case "time_faster":
+    case "time_longer":
+    case "distance":
+    case "height":
+      return has(entry.v);
+    case "distance_time":
+      return has(entry.v) || has(entry.t);
+  }
 }
 
 /** The plan as one line for the program pages: "3 × 135 lb × 8" when every
@@ -310,7 +355,8 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string, style?: Loa
       return { value: toLb(s.w ?? 0, unit), lowerWins: style ? lowerIsStronger(style) : false };
     case "reps":
     case "rounds":
-      return { value: s.r ?? 0, lowerWins: false };
+      // 2026-10-17 (defect B): no reps logged is not a score of zero either.
+      return has(s.r) ? { value: s.r, lowerWins: false } : null;
     case "time_faster":
       // 2026-09-11: no time logged is not a time. A missing v scored 0, and 0
       // beats every real time, so an empty attempt took the PR pill, the
@@ -321,7 +367,10 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string, style?: Loa
     case "time_longer":
     case "distance":
     case "height":
-      return { value: s.v ?? 0, lowerWins: false };
+      // 2026-10-17 (defect B): the same guard time_faster has had since
+      // 2026-09-11. An empty Plank set scored 0, and on a lift with no history
+      // 0 was a first entry and earned the PR pill.
+      return has(s.v) ? { value: s.v, lowerWins: false } : null;
     case "distance_time":
       // Pace, and ONLY against the same distance (see prs.ts): comparing a
       // one-mile pace to a ten-mile pace and calling it a record is a lie.
@@ -354,6 +403,13 @@ export function beats(
   const a = scoreOf(kind, candidate, units.of, styles.of);
   const b = scoreOf(kind, best, units.than, styles.than);
   if (!a || !b) return false;
+  // THE SAME WEIGHT FOR MORE REPS IS THE BETTER SET (2026-10-17). Best
+  // compared weight alone with a strict greater-than, so an earlier 360 x 2
+  // stood as Best over a later 360 x 3 and disagreed with the milestones that
+  // counted the reps. Equal weight (to a tenth, since a kg conversion is not
+  // exact) falls through to the reps; a lower-is-stronger reading keeps its
+  // direction on the weight and breaks its tie the same way.
+  if (kind === "weight_reps" && Math.abs(a.value - b.value) < 0.05) return (candidate.r ?? 0) > (best.r ?? 0);
   // Two readings, two directions: only compare when they agree on which way
   // is up, which after the comparable() gate above they always do.
   return a.lowerWins ? a.value < b.value : a.value > b.value;

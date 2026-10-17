@@ -3614,9 +3614,26 @@
 /* THE SUGGESTION'S REASON IS A FACTS LINE OF ITS OWN (section 10): what he
    did, what it meant, the step, the reps to expect; the Use and Why verbs sit
    under it on the next row of the same block. */
-.ruled.health-ruled .se-sugg .se-sugg-why { flex-basis: 100%; flex-wrap: wrap; overflow: visible; }
-/* Its facts wrap rather than truncate (the .rep-facts precedent): a reason cut to "All at the Top of 6 to.." says nothing. */
-.ruled.health-ruled .se-sugg .se-sugg-why > .fact { flex: 0 1 auto; white-space: normal; overflow: visible; text-overflow: clip; }
 /* THE LIFT'S FACTS CARD UNDER THE STRIP (section 8): its first chip row sits
    on the card's own padding, not a margin of its own. */
 .ruled.health-ruled .se-facts > .se-chips:first-child { margin-top: 0; }
+/* THE LOG BAR IS TWO ROWS (Dave's board, 2026-10-17): the filled Log and its
+   partner on the first, Superset and Add Exercise as equal capsules on the
+   second. The bar's own rule (position, top, translateY) is untouched. */
+.ruled.health-ruled .logbar { flex-direction: column; align-items: stretch; }
+.ruled.health-ruled .logbar-main { display: flex; justify-content: center; gap: var(--s-2); }
+.ruled.health-ruled .logbar-row { display: flex; justify-content: center; gap: var(--s-2); margin-top: var(--s-2); }
+.ruled.health-ruled .logbar-row .pill-act { flex: 1 1 0; max-width: none; align-self: auto; justify-content: center; text-align: center; }
+/* THE NOW CARD'S ONE SMALL LINE (the board): last time, the suggestion and its
+   verbs on one wrapping line; the Why panel takes the whole width under it. */
+.ruled.health-ruled .se-nowline { flex-wrap: wrap; overflow: visible; row-gap: var(--s-0h); margin-top: var(--s-1h); }
+.ruled.health-ruled .se-nowline > .fact { flex: 0 1 auto; white-space: normal; overflow: visible; text-overflow: clip; }
+.ruled.health-ruled .se-nowline > .set-last-act { display: inline; margin-top: 0; }
+.ruled.health-ruled .se-nowline > .se-sugg-why { flex-basis: 100%; }
+.ruled.health-ruled .se-sugg-why > .facts { flex-wrap: wrap; overflow: visible; }
+.ruled.health-ruled .se-sugg-why > .facts > .fact { flex: 0 1 auto; white-space: normal; overflow: visible; text-overflow: clip; }
+/* The one progress line: the facts sit beside the dots. */
+.ruled.health-ruled .se-prog > .se-elapsed { margin: 0; min-width: 0; flex: 1 1 auto; }
+/* The secondary zone's eyebrow and its history card's two chip rows. */
+.ruled.health-ruled .se-details { margin-top: var(--s-4); }
+.ruled.health-ruled .se-hist > .se-chips + .se-chips { margin-top: var(--s-1h); }
