@@ -23,7 +23,7 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
+import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, unskipExercise, swapExercise, unswapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
 import { composeLibrary, newExerciseKey, planOf, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
@@ -52,6 +52,7 @@ import ProgramSuggestSheet from "./ProgramSuggestSheet";
 import { appendWorkoutToDay, dayFromWorkout, isScratch, suggestProgram, workoutOnDay, type ProgramSuggestion } from "./patterns";
 import SessionScreen from "./SessionScreen";
 import ReceiptSheet from "./ReceiptSheet";
+import { receiptDraftStore } from "./sessionDrafts";
 import UploadFlow from "./UploadFlow";
 import HistoryScreen, { GymLoadState } from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
@@ -2093,6 +2094,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         workouts={finishing.current ? [...workouts, { id: "pending", data: finishing.current.data } as Workout] : workouts}
         onDone={(note) => void commitFinish(note)}
         onFinish={finishOrSuggest}
+        // The note survives a kill (Logging Standard rule 8); commitFinish's
+        // clearLive spends it.
+        noteDraft={finishing.current ? receiptDraftStore(finishing.current.data.startedAt) : undefined}
         keep={finishingScratch ? {
           onConnect: programDayItems.length > 0 ? (note) => setKeepFlow({ kind: "connect", note }) : undefined,
           onSaveNew: (note) => setKeepFlow({
@@ -3086,11 +3090,31 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         // about the set itself.
         onLog={(s: SetEntry) => { patchLive((l) => logSet(l, l.idx, s)); emit({ type: "health.logged", props: { kind: "set_logged" } }); }}
         onSetLogged={(sets: SetEntry[], at?: number) => patchLive((l) => setLoggedSets(l, at ?? l.idx, sets))}
-        onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
+        // UNDO ON SKIP AND SWAP (Logging Standard rule 5, 2026-10-17: no
+        // confirmation inside a logging flow, a receipt with an Undo that
+        // lives five seconds). Each Undo reverses exactly what its tap wrote
+        // (liveSession.unskipExercise / unswapExercise) and puts him back on
+        // the exercise. The sheets that offer them close before these run,
+        // so the receipt is never painted under a scrim.
+        onSkip={() => {
+          const at = live.idx;
+          const name = live.exercises[at]?.name ?? "";
+          patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }));
+          showToast({ message: lineCase(`Skipped ${liftTitle(name)}`), actionLabel: "Undo", onAction: () => patchLive((l) => unskipExercise(l, at)) });
+        }}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         // A free-text swap mints a lift the library has never seen, same as
         // an add does, so it is seeded the same way.
-        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: lineCase(`Swapped in ${liftTitle(sub.name)}`) }); }}
+        onSwap={(sub) => {
+          const at = live.idx;
+          const original = live.exercises[at];
+          patchLive((l) => swapExercise(l, l.idx, sub));
+          seedLibrary(sub);
+          showToast({
+            message: lineCase(`Swapped in ${liftTitle(sub.name)}`),
+            ...(original ? { actionLabel: "Undo", onAction: () => patchLive((l) => unswapExercise(l, original, at)) } : {}),
+          });
+        }}
         onSetLoad={(next, at) => { void setLoadStyle(at ?? live.idx, next); }}
         musclesOf={musclesOf}
         onSetMuscles={(next) => setMuscles(exercise, next)}

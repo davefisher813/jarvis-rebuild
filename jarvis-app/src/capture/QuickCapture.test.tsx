@@ -574,6 +574,20 @@ describe("QuickCapture: a set goes to the live session", () => {
     expect(showToast.mock.calls[0]![0].actionLabel).toBe("Undo");
   });
 
+  // Addendum 1 of the Logging Standard (2026-10-17): typed by hand, so reported.
+  it("stamps the set reported: Dave typed it", async () => {
+    liveBench();
+    render(
+      <NotesProvider userId="qc-gym-state">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "225 for 5" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(readLive()!.exercises[0]!.sets).toHaveLength(1));
+    expect(readLive()!.exercises[0]!.sets[0]!.state).toBe("reported");
+  });
+
   it("the Undo puts the strip back exactly as it was", async () => {
     liveBench();
     render(

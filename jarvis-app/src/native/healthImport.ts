@@ -91,7 +91,10 @@ export function workoutFromHealth(w: HealthWorkoutRecord, now: () => number = Da
       exerciseId: "apple-health-" + w.uid,
       name: label,
       kind: "done",
-      sets: [{ id: "apple-health-" + w.uid + "-1", done: true }],
+      // A trusted source recorded it: observed, never reported (Logging
+      // Standard addendum 1, 2026-10-17). The whole-workout `source` below
+      // names which source.
+      sets: [{ id: "apple-health-" + w.uid + "-1", done: true, state: "observed" }],
     }],
     source: healthProvenance(w, now),
   };

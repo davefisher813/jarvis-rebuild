@@ -141,3 +141,27 @@ describe("SetStrip: the chip's editor", () => {
     expect(onChange.mock.calls[0]![0]).toHaveLength(3);
   });
 });
+
+// RETURN ACCEPTS AND LOGS (the Logging Standard, rule 4, 2026-10-17: Enter
+// saves; a changed weight is tap, type, Return). The Now row's fields take
+// Return as the Log button, and the keyboard's return key says Go only when
+// there is a log to make.
+describe("SetStrip: Return in a Now field logs", () => {
+  it("fires the strip's log on Return, from either field, and the return key says Go", () => {
+    const onNowLog = vi.fn();
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts onNowDraft={() => {}} onNowLog={onNowLog} />);
+    const weight = screen.getByLabelText("Set 1 Weight");
+    expect(weight).toHaveAttribute("enterkeyhint", "go");
+    fireEvent.keyDown(weight, { key: "Enter" });
+    fireEvent.keyDown(screen.getByLabelText("Set 1 Reps"), { key: "Enter" });
+    expect(onNowLog).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(weight, { key: "a" });
+    expect(onNowLog, "only Return").toHaveBeenCalledTimes(2);
+  });
+  it("without a log to make, the fields carry no hint and Return does nothing", () => {
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts onNowDraft={() => {}} />);
+    const weight = screen.getByLabelText("Set 1 Weight");
+    expect(weight).not.toHaveAttribute("enterkeyhint");
+    fireEvent.keyDown(weight, { key: "Enter" });
+  });
+});

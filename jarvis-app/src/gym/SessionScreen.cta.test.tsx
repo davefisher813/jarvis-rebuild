@@ -61,7 +61,11 @@ function renderScreen(over: Partial<Parameters<typeof SessionScreen>[0]> = {}) {
 const cta = () => screen.getByRole("button", { name: /^Log / });
 
 describe("the red button names exactly what the fields hold", () => {
-  beforeEach(() => { vi.mocked(showToast).mockClear(); });
+  // Every test here is its own session: since rule 8 of the Logging Standard
+  // (2026-10-17) what is typed into the Now card is stored per session and
+  // exercise, and these share one fixture, so a draft from one test would be
+  // restored, faithfully, into the next.
+  beforeEach(() => { vi.mocked(showToast).mockClear(); localStorage.clear(); });
 
   it("never layers the plan under the fields: reps alone last time is reps alone now", () => {
     // Plan 20 lb x 10; last session logged 10 reps with no weight.

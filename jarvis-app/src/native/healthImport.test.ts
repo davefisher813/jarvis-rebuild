@@ -27,7 +27,9 @@ describe("an imported workout", () => {
     expect(w.date).toBe("2026-09-05");
     expect(w.exercises).toHaveLength(1);
     expect(w.exercises[0]!.kind).toBe("done");
-    expect(w.exercises[0]!.sets).toEqual([{ id: "apple-health-0F2A-1-1", done: true }]);
+    // Addendum 1 of the Logging Standard (2026-10-17): a trusted source
+    // recorded it, so the one entry is observed, never reported.
+    expect(w.exercises[0]!.sets).toEqual([{ id: "apple-health-0F2A-1-1", done: true, state: "observed" }]);
   });
 
   it("belongs to no program and no program day, because it does not", () => {
