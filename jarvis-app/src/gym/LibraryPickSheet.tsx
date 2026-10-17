@@ -185,7 +185,14 @@ export default function LibraryPickSheet({
             typed matches nothing, and it names what it would create. */}
         {onFreeText && q.trim() && (
           <div className="pad-x sheet-actions">
-            <button className="btn btn-secondary btn-block" onClick={() => onFreeText(liftTitle(q.trim()))}>
+            {/* BOTH AT ONCE (Dave 2026-10-17, the day-fill picker: pick from
+                the list AND type your own). In a multi-pick, what is already
+                ticked is handed over before the typed name is, so typing one
+                of your own never throws away the six you just tapped. */}
+            <button className="btn btn-secondary btn-block" onClick={() => {
+              if (multi && picked.length > 0) onPickMany!(resolve(picked));
+              onFreeText(liftTitle(q.trim()));
+            }}>
               Use &ldquo;{q.trim()}&rdquo; Anyway
             </button>
           </div>

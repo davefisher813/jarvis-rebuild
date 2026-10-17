@@ -121,6 +121,9 @@ export default function EmptyWorkoutScreen({ library, classStore, history, onAdd
           mode="new"
           initial={newName ? { id: "", name: newName, kind: "weight_reps", sets: uniformStrip(3, { r: 8 }) } : undefined}
           library={library}
+          // The catalog in the name's typeahead too (2026-10-17), adopted on
+          // Save through the same door as the picker above.
+          onAdopt={onAdopt}
           history={history}
           onSave={(draft) => { setNewName(null); onAddDraft(draft); }}
           onCancel={() => setNewName(null)}
