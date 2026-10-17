@@ -145,54 +145,71 @@ describe("category colours", () => {
 // purchase: four dated Sep 1, 2026 (underlying purchases: MTA $19.00, MTA
 // $10.25, ShopRite $23.51, MTA $14.25, all posted 08/31), one dated Sep 2
 // (Wienery $13.94 purchase on 09/01), and one dated Aug 26 (the Ally
-// payment)." Five fees fall inside the seed's window (Sep 1 to 15), so the
-// seed is 33 rows and $1,215.68; the Aug 26 fee is outside it and is not
-// added. These numbers are the check that the port neither lost nor doubled
-// a row, and now that it carries the bank's count, not the handoff's.
+// payment)." All SIX fees are in the seed (the follow-up order, 2026-10-17: the
+// first pass kept the September statement's window and left Aug 26 out), so
+// the seed is 34 rows. The Dashboard frames by month, so September stays at 33
+// rows and $1,215.68 and August carries the one fee. These numbers are the
+// check that the port neither lost nor doubled a row, and now that it carries
+// the bank's count, not the handoff's.
 describe("the September seed", () => {
   const txs: TrackerTx[] = SEED_TXS.map((d, i) => ({ id: "s" + i, data: d }));
 
-  it("is 33 transactions totalling $1,215.68 across 11 categories", () => {
-    expect(txs).toHaveLength(33);
-    expect(spentCents(txs)).toBe(121568);
-    expect(fmtCents(spentCents(txs))).toBe("$1,215.68");
+  it("is 34 transactions totalling $1,250.68 across 11 categories; September alone is 33 and $1,215.68", () => {
+    expect(txs).toHaveLength(34);
+    expect(spentCents(txs)).toBe(125068);
+    expect(fmtCents(spentCents(txs))).toBe("$1,250.68");
     expect(byCategory(txs)).toHaveLength(11);
+    const sep = inMonth(txs, "2026-09");
+    expect(sep).toHaveLength(33);
+    expect(fmtCents(spentCents(sep))).toBe("$1,215.68");
+    const aug = inMonth(txs, "2026-08");
+    expect(aug).toHaveLength(1);
+    expect(aug[0]!.data.about).toEqual({ merchant: "Ally", amountCents: 77900 });
+    expect(fmtCents(spentCents(aug))).toBe("$35.00");
   });
 
-  it("puts the same five categories on top, Overdraft now third at the bank's five fees", () => {
+  it("puts the same five categories on top, Overdraft now third at the bank's six fees", () => {
     expect(byCategory(txs).slice(0, 5)).toEqual([
       ["Restaurants", 28533],
       ["Digital Purchase", 25394],
-      ["Overdraft", 17500],
+      ["Overdraft", 21000],
       ["Golf", 14899],
       ["Food and Beverage Store", 12669],
     ]);
+    // the month the Dashboard shows by default
+    expect(byCategory(inMonth(txs, "2026-09")).find(([c]) => c === "Overdraft")).toEqual(["Overdraft", 17500]);
   });
 
   it("the fees outrank Amazon as a merchant line once the bank's count is in, and eight are shown", () => {
     const top = topMerchants(txs);
     expect(top).toHaveLength(8);
-    expect(top[0]).toEqual(["Overdraft Fee", 17500]);
+    expect(top[0]).toEqual(["Overdraft Fee", 21000]);
     expect(top[1]).toEqual(["Amazon", 15568]);
   });
 
   it("files every row under the month its date falls in", () => {
     expect(inMonth(txs, "2026-09")).toHaveLength(33);
+    expect(inMonth(txs, "2026-08")).toHaveLength(1);
     expect(txs.every((t) => t.data.month === monthOf(t.data.date))).toBe(true);
   });
 
-  it("each fee carries the purchase it was charged for and a reference no other fee shares", () => {
+  it("each fee carries the purchase it was charged for and a reference no other fee shares; the Ally fee has no posted day because the bank gave none", () => {
     expect(SEED_FEES.map((f) => [f.date, f.about!.merchant, f.about!.amountCents, f.about!.date])).toEqual([
       ["2026-09-01", "MTA", 1900, "2026-08-31"],
       ["2026-09-01", "MTA", 1025, "2026-08-31"],
       ["2026-09-01", "ShopRite", 2351, "2026-08-31"],
       ["2026-09-01", "MTA", 1425, "2026-08-31"],
       ["2026-09-02", "Wienery", 1394, "2026-09-01"],
+      ["2026-08-26", "Ally", 77900, undefined],
     ]);
+    // No invented day: the key is absent, not empty (the server strips nulls; an empty string would draw as a date).
+    expect("date" in SEED_FEES[5]!.about!).toBe(false);
+    expect(SEED_FEES[5]!.month).toBe("2026-08");
     expect(SEED_FEES.every((f) => f.merchant === "Overdraft Fee" && f.amountCents === 3500 && f.account === "BUSINESS CHECKING ...3305" && f.source === "import")).toBe(true);
     const refs = SEED_FEES.map((f) => f.ref);
-    expect(new Set(refs).size).toBe(5);
+    expect(new Set(refs).size).toBe(6);
     expect(refs[0]).toBe("wf-3305-2026-09-01-od-mta-1900");
+    expect(refs[5]).toBe("wf-3305-2026-08-26-od-ally-77900");
     // The reference is minted, never random: the same fee is the same row on every phone.
     expect(feeRef("BUSINESS CHECKING ...3305", "2026-09-02", { merchant: "Wienery", amountCents: 1394, date: "2026-09-01" })).toBe("wf-3305-2026-09-02-od-wienery-1394");
     // No dot baked into any string the row will draw (the catalog gate, F3).
@@ -217,24 +234,24 @@ describe("TrackerService", () => {
     const s = svc();
     expect(await s.seedIfEmpty()).toBe(true);
     const first = await s.load();
-    expect(first.txs).toHaveLength(33);
+    expect(first.txs).toHaveLength(34);
     expect(first.accounts).toHaveLength(4);
     expect(first.subs).toHaveLength(3);
     // An imported row says so and carries a fingerprint, like a typed one (2026-10-17).
     expect(first.txs.every((t) => t.data.source === "import" && !!t.data.fingerprint)).toBe(true);
-    // Five fees, five fingerprints: the reference keeps them apart.
+    // Six fees, six fingerprints: the reference keeps them apart.
     const fees = first.txs.filter((t) => t.data.merchant === "Overdraft Fee");
-    expect(fees).toHaveLength(5);
-    expect(new Set(fees.map((t) => t.data.fingerprint)).size).toBe(5);
+    expect(fees).toHaveLength(6);
+    expect(new Set(fees.map((t) => t.data.fingerprint)).size).toBe(6);
 
     // The guard is the whole point: a double tap must not double the ledger.
     expect(await s.seedIfEmpty()).toBe(false);
     const second = await s.load();
-    expect(second.txs).toHaveLength(33);
+    expect(second.txs).toHaveLength(34);
     expect(second.accounts).toHaveLength(4);
-    // A fresh import is already labelled: there is nothing to reconcile.
+    // A fresh import is already labelled and complete: there is nothing to reconcile.
     expect(await s.reconcileImportFees()).toBe(false);
-    expect((await s.load()).txs).toHaveLength(33);
+    expect((await s.load()).txs).toHaveLength(34);
   });
 
   it("subscriptions take the same guard as accounts: an import that stopped after them does not write them twice (2026-10-17)", async () => {
@@ -317,10 +334,11 @@ describe("TrackerService", () => {
 
 // THE BANK'S COUNT OF THE SEPTEMBER FEES (Dave, via Alfred, 2026-10-17). Dave's
 // phone holds the first import: three identical "Overdraft Fee · Sep 1 · $35.00"
-// rows, written with no source, no fingerprint and no label. The bank has five
-// distinct fees in the window, each for its own purchase. The reconciliation
-// replaces the unlabelled seed rows with the bank's own count and labels, once,
-// and touches nothing else.
+// rows, written with no source, no fingerprint and no label. The bank has six
+// distinct fees, each for its own purchase (the sixth, Aug 26 for the Ally
+// payment, was outside the first pass's September window). The reconciliation
+// replaces the unlabelled seed rows with the bank's own count and labels, adds
+// any labelled fee a phone is missing, and touches nothing else.
 describe("TrackerService.reconcileImportFees", () => {
   const OLD_FEE = {
     date: "2026-09-01", month: "2026-09", merchant: "Overdraft Fee", name: "Overdraft fee business checking",
@@ -339,7 +357,7 @@ describe("TrackerService.reconcileImportFees", () => {
     for (let i = 0; i < 3; i++) await store.create("u", ENTITY_MONEY_TX, { ...OLD_FEE } as never);
   };
 
-  it("the three unlabelled Sep 1 fees become the bank's five, each labelled with its purchase; nothing else moves", async () => {
+  it("the three unlabelled Sep 1 fees become the bank's six, each labelled with its purchase; nothing else moves", async () => {
     const { store, s } = make();
     await importedBefore(store);
     const before = await s.load();
@@ -348,20 +366,50 @@ describe("TrackerService.reconcileImportFees", () => {
 
     expect(await s.reconcileImportFees()).toBe(true);
     const after = await s.load();
-    expect(after.txs).toHaveLength(33);
+    expect(after.txs).toHaveLength(34);
     expect(after.txs.filter((t) => t.data.merchant !== "Overdraft Fee").map((t) => t.id).sort()).toEqual(others);
     const fees = after.txs.filter((t) => t.data.merchant === "Overdraft Fee").sort((a, b) => a.data.ref!.localeCompare(b.data.ref!));
-    expect(fees).toHaveLength(5);
+    expect(fees).toHaveLength(6);
     expect(fees.filter((f) => f.data.date === "2026-09-01")).toHaveLength(4);
     expect(fees.filter((f) => f.data.date === "2026-09-02")).toHaveLength(1);
+    expect(fees.filter((f) => f.data.date === "2026-08-26")).toHaveLength(1);
     expect(fees.map((f) => [f.data.about!.merchant, f.data.about!.amountCents, f.data.about!.date]).sort()).toEqual([
-      ["MTA", 1025, "2026-08-31"], ["MTA", 1425, "2026-08-31"], ["MTA", 1900, "2026-08-31"], ["ShopRite", 2351, "2026-08-31"], ["Wienery", 1394, "2026-09-01"],
+      ["Ally", 77900, undefined], ["MTA", 1025, "2026-08-31"], ["MTA", 1425, "2026-08-31"], ["MTA", 1900, "2026-08-31"], ["ShopRite", 2351, "2026-08-31"], ["Wienery", 1394, "2026-09-01"],
     ].sort());
     expect(fees.every((f) => f.data.source === "import" && !!f.data.ref && !!f.data.fingerprint)).toBe(true);
-    // Five distinct fingerprints: no fee is another's duplicate (the order's point d).
-    expect(new Set(fees.map((f) => f.data.fingerprint)).size).toBe(5);
+    // Six distinct fingerprints: no fee is another's duplicate (the order's point d).
+    expect(new Set(fees.map((f) => f.data.fingerprint)).size).toBe(6);
     for (const f of fees) expect(findDuplicate(fees.filter((o) => o.id !== f.id), f.data.fingerprint!)).toBeUndefined();
-    expect(spentCents(after.txs)).toBe(121568);
+    expect(spentCents(after.txs)).toBe(125068);
+    // the month the Dashboard opens on keeps its own total; the August fee files under August
+    expect(spentCents(inMonth(after.txs, "2026-09"))).toBe(121568);
+    expect(inMonth(after.txs, "2026-08").map((t) => t.data.about!.merchant)).toEqual(["Ally"]);
+  });
+
+  it("a phone that already holds the five labelled fees receives the sixth (Aug 26, Ally) and nothing else; then nothing more", async () => {
+    const { store, s } = make();
+    // PR #142's result on his phone: the 28 purchases and the five labelled September fees, no unlabelled row left.
+    for (const t of SEED_TXS) {
+      if (t.date === "2026-08-26") continue;
+      await store.create("u", ENTITY_MONEY_TX, { ...t } as never);
+    }
+    const before = (await s.load()).txs;
+    expect(before).toHaveLength(33);
+    const ids = before.map((t) => t.id).sort();
+
+    expect(await s.reconcileImportFees()).toBe(true);
+    const after = (await s.load()).txs;
+    expect(after).toHaveLength(34);
+    // every row that was there is still there, untouched
+    expect(after.filter((t) => ids.includes(t.id)).map((t) => t.id).sort()).toEqual(ids);
+    for (const t of before) expect(after.find((a) => a.id === t.id)!.data).toEqual(t.data);
+    const added = after.find((t) => !ids.includes(t.id))!;
+    expect(added.data).toMatchObject({ date: "2026-08-26", month: "2026-08", merchant: "Overdraft Fee", amountCents: 3500, account: "BUSINESS CHECKING ...3305", source: "import", ref: "wf-3305-2026-08-26-od-ally-77900", about: { merchant: "Ally", amountCents: 77900 } });
+    expect(added.data.about!.date).toBeUndefined();
+    expect(added.data.fingerprint).toBe("tx|overdraft fee|3500|2026-08-26|import|wf-3305-2026-08-26-od-ally-77900");
+
+    expect(await s.reconcileImportFees()).toBe(false);
+    expect((await s.load()).txs).toHaveLength(34);
   });
 
   it("running it twice changes nothing", async () => {
@@ -376,12 +424,12 @@ describe("TrackerService.reconcileImportFees", () => {
   it("a run cut off after the writes finishes on the next load without doubling a fee", async () => {
     const { store, s } = make();
     await importedBefore(store);
-    // The five landed, the three were not yet removed.
+    // The six landed, the three were not yet removed.
     for (const f of SEED_FEES) await store.create("u", ENTITY_MONEY_TX, { ...f } as never);
     expect(await s.reconcileImportFees()).toBe(true);
     const fees = (await s.load()).txs.filter((t) => t.data.merchant === "Overdraft Fee");
-    expect(fees).toHaveLength(5);
-    expect(new Set(fees.map((f) => f.data.ref)).size).toBe(5);
+    expect(fees).toHaveLength(6);
+    expect(new Set(fees.map((f) => f.data.ref)).size).toBe(6);
   });
 
   it("a fee typed by hand is kept, and a store that never imported is left alone", async () => {

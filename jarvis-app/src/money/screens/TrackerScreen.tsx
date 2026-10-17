@@ -132,7 +132,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
             gives it room under the title's underline (2026-10-05: it sat on it). */}
         <NoticeCard icon={<Wallet className="ic" />} tone="cat-fg-green" offer
           title="Import September Data"
-          sub="Your Accounts, Subscriptions and 33 Transactions"
+          sub="Your Accounts, Subscriptions and 34 Transactions"
           action={{ label: seeding ? "Importing" : "Import", onClick: () => void runSeed() }}
           onOpen={() => void runSeed()} />
         </div>
