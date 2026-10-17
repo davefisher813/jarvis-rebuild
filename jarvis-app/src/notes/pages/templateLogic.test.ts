@@ -3,7 +3,7 @@ import { newTemplatePage, TEMPLATE_KEYS, TEMPLATES, SHELVES, templateDef } from 
 import { addRecord, type PageData, takeSnapshot, restoreSnapshot, duplicatePage, pageSummary, recordName } from "./pageModel";
 import {
   addSection, renameSection, removeSection, moveSection, setSection, groupedRecords, sectionGroups, untouchedTemplatePage, moveField, suggestedFor, addSuggested, sumOf, totalsLine, asMyTemplate, fromMyTemplate,
-  restDaysFor, pitcherStatuses, clockAfter, sessionClock, standingsOf, addGame, removeTeamAndGames, gamesOfTeam, num,
+  restDaysFor, pitcherStatuses, clockAfter, sessionClock, standingsOf, addGame, removeTeamAndGames, gamesOfTeam, num, fieldConsequences,
 } from "./templateLogic";
 
 describe("the catalog", () => {
@@ -208,5 +208,59 @@ describe("names", () => {
     const r = addRecord(p, { name: "Sam" });
     expect(recordName(r.page, r.page.records[0]!)).toBe("Sam");
     expect(templateDef("pitching")!.noun).toBe("Outing");
+  });
+});
+
+describe("what stops working, said before a field is removed (the 2026-10-13 spec's Customization, 2026-10-17)", () => {
+  const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+  const titleCased = (l: string) => l.split(/\s+/).every((w, i, ws) => !/^[a-z]/.test(w) || (i > 0 && i < ws.length - 1 && SMALL.has(w)));
+
+  it("every field a template's arithmetic reads names what stops; every line is plain Title Case", () => {
+    for (const k of TEMPLATE_KEYS) {
+      const d = TEMPLATES[k];
+      const p = newTemplatePage(k);
+      const reads = new Set([...Object.keys(d.needs ?? {}), ...(d.totals ?? []).map((t) => t.key), ...(d.due ? [d.due.key] : [])]);
+      for (const key of reads) {
+        // A need names a field the template has, never a typo.
+        expect(d.fields.some((f) => f.key === key), `${k}.${key}`).toBe(true);
+        const lines = fieldConsequences(p, key);
+        expect(lines.length, `${k}.${key}`).toBeGreaterThan(0);
+        for (const l of lines) {
+          expect(titleCased(l), `${k}: ${l}`).toBe(true);
+          expect(l, `${k}: ${l}`).not.toMatch(/[—·]|\.$/);
+        }
+      }
+    }
+  });
+
+  it("names the total, the clock, the due date, the payoff plan and the settle-up by what they are", () => {
+    expect(fieldConsequences(newTemplatePage("session"), "min")).toEqual(["Clock Times From the Start Stop Working", "The Minutes Total Stops Adding Up"]);
+    expect(fieldConsequences(newTemplatePage("runorder"), "min")).toEqual(["Clock Times From the Start Stop Working", "The Minutes Total Stops Adding Up"]);
+    expect(fieldConsequences(newTemplatePage("pitching"), "pitches")).toEqual(["Pitch Counts, Rest Days and the Limit Stop Working"]);
+    expect(fieldConsequences(newTemplatePage("pitching"), "date")).toEqual(["Rest Days and Who Is Available Stop Working"]);
+    expect(fieldConsequences(newTemplatePage("debt"), "apr")).toEqual(["The Payoff Order and Interest Stop Working"]);
+    expect(fieldConsequences(newTemplatePage("debt"), "balance")).toEqual(["Debts Not in Money Drop Out of the Payoff Plan"]);
+    expect(fieldConsequences(newTemplatePage("poker"), "cashout")).toEqual(["Who Owes Whom Stops Adding Up"]);
+    expect(fieldConsequences(newTemplatePage("insurance"), "renews")).toEqual(["Policies Stop Saying When They Are Due"]);
+    expect(fieldConsequences(newTemplatePage("insurance"), "premium")).toEqual(["The Premium Total Stops Adding Up"]);
+    expect(fieldConsequences(newTemplatePage("occasions"), "date")).toEqual(["Occasions Stop Saying When They Are Due", "Occasions Stop Sorting by Date"]);
+    expect(fieldConsequences(newTemplatePage("giving"), "date")).toEqual(["Gifts Stop Sorting by Date"]);
+    expect(fieldConsequences(newTemplatePage("giving"), "amount")).toEqual(["The Amount Total Stops Adding Up"]);
+    expect(fieldConsequences(newTemplatePage("oneonone"), "actions")).toEqual(["Follow-Ups Stop Carrying Forward to the Next 1:1"]);
+  });
+
+  it("uses the field's own name as he set it, and a field nothing reads says nothing", () => {
+    const p = newTemplatePage("session");
+    p.fields = p.fields.map((f) => (f.key === "min" ? { ...f, label: "length" } : f));
+    expect(fieldConsequences(p, "min")).toContain("The Length Total Stops Adding Up");
+    expect(fieldConsequences(p, "notes")).toEqual([]);
+    expect(fieldConsequences(newTemplatePage("scouting"), "team")).toEqual([]);
+    expect(fieldConsequences(newTemplatePage("session"), "gone")).toEqual([]);
+  });
+
+  it("a sorted page with another date says its rows sort by that one instead", () => {
+    const p = newTemplatePage("expenses");
+    const more: PageData = { ...p, fields: [...p.fields, { key: "submittedOn", label: "Submitted On", type: "date" }] };
+    expect(fieldConsequences(more, "date")).toEqual(["Expenses Sort by Submitted On Instead"]);
   });
 });

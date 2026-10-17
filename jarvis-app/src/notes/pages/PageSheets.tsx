@@ -12,7 +12,7 @@ import {
 } from "./pageModel";
 import { templateDef } from "./templateDefs";
 import { SPORTS, SPORT_GROUPS } from "./scoreboard";
-import { suggestedFor } from "./templateLogic";
+import { suggestedFor, fieldConsequences } from "./templateLogic";
 import { RowCheck } from "./TemplateViews";
 import RowActionSheet from "../../shared/RowActionSheet";
 import { PAGE_FORMATS, buildPageFile, shareText, type PageFormat } from "./exportPage";
@@ -180,11 +180,15 @@ export function ConfirmChange({ title, lines, action, onApply, onCancel }: {
   );
 }
 
+/** What stops working comes first (a total, a due date, a payoff plan the field feeds), then what the field holds. */
 export function fieldRemovalLines(page: PageData, key: string): string[] {
   const n = fieldImpact(page, key);
-  const who = noun(page) + (n === 1 ? "" : "s");
+  // The definition's own plural ("Activities", never "Activitys"), and one
+  // record HAS a value (2026-10-17, seen in the issue 115 audit).
+  const who = n === 1 ? noun(page) : (templateDef(page.kind)?.plural ?? noun(page) + "s");
   return [
-    n === 0 ? "No Record Has a Value Here" : `${n} ${who} Have a Value Here`,
+    ...fieldConsequences(page, key),
+    n === 0 ? "No Record Has a Value Here" : `${n} ${who} ${n === 1 ? "Has" : "Have"} a Value Here`,
     "A Snapshot Keeps Them First; See Snapshots in the Page Menu",
   ];
 }

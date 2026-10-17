@@ -219,3 +219,34 @@ describe("Save as My Template", () => {
     }, { timeout: 4000 });
   });
 });
+
+describe("removing a field a calculation needs says what stops working first (the 2026-10-13 spec, 2026-10-17)", () => {
+  it("Session Plan's Minutes: the clock and the total are named before Remove, and nothing changes until Remove", async () => {
+    await openPicked("u-w2-remove-min", "Session Plan");
+    fireEvent.click(screen.getByLabelText("Page options"));
+    fireEvent.click(await screen.findByText("Fields"));
+    const head = (await screen.findByText("Remove a Field")).parentElement!;
+    fireEvent.click(within(head.nextElementSibling as HTMLElement).getByText("Minutes"));
+    expect(await screen.findByText("Remove Minutes")).toBeInTheDocument();
+    const notes = [...sheetOf().querySelectorAll(".input-hint")].map((n) => n.textContent);
+    // What stops working comes first, then what the field holds (the two starter rows' minutes) and the snapshot.
+    expect(notes).toHaveLength(4);
+    expect(notes.slice(0, 2)).toEqual(["Clock Times From the Start Stop Working", "The Minutes Total Stops Adding Up"]);
+    // The definition's own plural, never a bolted-on "s".
+    expect(notes[2]).toBe("2 Activities Have a Value Here");
+    expect((await pageOf("session"))!.page.fields.some((f) => f.key === "min")).toBe(true);
+    fireEvent.click(within(sheetOf()).getByText("Remove"));
+    await waitFor(async () => expect((await pageOf("session"))!.page.fields.some((f) => f.key === "min")).toBe(false), { timeout: 4000 });
+  });
+
+  it("a field nothing reads says only what it holds", async () => {
+    await openPicked("u-w2-remove-notes", "Session Plan");
+    fireEvent.click(screen.getByLabelText("Page options"));
+    fireEvent.click(await screen.findByText("Fields"));
+    const head = (await screen.findByText("Remove a Field")).parentElement!;
+    fireEvent.click(within(head.nextElementSibling as HTMLElement).getByText("Notes"));
+    expect(await screen.findByText("Remove Notes")).toBeInTheDocument();
+    const notes = [...sheetOf().querySelectorAll(".input-hint")].map((n) => n.textContent);
+    expect(notes).toEqual(["No Record Has a Value Here", "A Snapshot Keeps Them First; See Snapshots in the Page Menu"]);
+  });
+});
