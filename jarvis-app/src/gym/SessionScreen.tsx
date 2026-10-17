@@ -900,7 +900,9 @@ export default function SessionScreen({
   const nowMatchesLast = !!nowLast && (nowLast.w ?? 0) === (pending?.w ?? 0) && (nowLast.r ?? 0) === (pending?.r ?? 0);
 
   return (
-    <div className="screen ruled health-ruled screen-session">
+    // .wo-screen: the board's geometry (Dave's approved board 2026-10-16; the 2026-10-17 correction "the spacing and
+    // format is all messed up"), scoped to the six workout screens in ruled.css.
+    <div className="screen ruled health-ruled screen-session wo-screen">
       <div className="nav-bar">
         {/* CANCEL WORKOUT IS AS FAR FROM LOG AS THE SCREEN ALLOWS (Dave
             2026-10-09, pass-off item 12: "Cancel Workout sits right above the
@@ -925,7 +927,9 @@ export default function SessionScreen({
         <div className="pad-x"><div className="eyebrow">Logging for {monthDay(live.date)}</div></div>
       )}
 
-      <div className="pad-x"><div className="card pad">
+      {/* .se-head: on the board this is no card at all, the progress line and the name sit on the page (screen 1); the
+          .wo-screen rules take the card's chrome off it. */}
+      <div className="pad-x"><div className="card pad se-head">
         {/* WHERE YOU ARE, AS A PICTURE (Dave 2026-09-10: "you barely added
             color... I also said to kill grey subtext throughout and you did
             none of that"). "Exercise 1 of 7" was a grey caps line doing the

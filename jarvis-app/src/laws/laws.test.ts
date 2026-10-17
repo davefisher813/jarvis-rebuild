@@ -729,8 +729,11 @@ describe("LAW: Apple HIG casing", () => {
     //   13     the header control line, measured from the Unified Headers
     //          mockups rather than derived from the scale;
     //   44     the tap minimum, which is a target and not a gap;
-    //   68, 84, 96  three fixed rails and a ring, measured against artwork.
-    const MEASURED = new Set(["3px", "7px", "13px", "44px", "68px", "84px", "96px"]);
+    //   68, 84, 96  three fixed rails and a ring, measured against artwork;
+    //   5, 11, 16   Dave's approved workout board (2026-10-16), measured from
+    //          its CSS: the dot gap, the row padding and the screen padding of
+    //          the six workout screens (ruled.css, THE BOARD'S GEOMETRY).
+    const MEASURED = new Set(["3px", "5px", "7px", "11px", "13px", "16px", "44px", "68px", "84px", "96px"]);
     const PROPS = /(padding|margin|gap|row-gap|column-gap|padding-(top|bottom|left|right|inline|block)|margin-(top|bottom|left|right|inline|block))\s*:\s*([^;}]+)/g;
     const bad: string[] = [];
     for (const f of files) {

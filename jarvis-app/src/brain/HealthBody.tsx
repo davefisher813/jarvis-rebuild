@@ -155,7 +155,9 @@ export default function HealthBody({
   return (
     <>
       <HealthNav view={view} onView={onView} />
-      <div className="nav-large">Your Week, in View</div>
+      {/* NO HERO (Dave's approved board 2026-10-16, screen 6; his 2026-10-17 correction: "Your Week, in View" was huge).
+          The board's hub opens with the top bar and the Ready to Train card. The large title was this page's own
+          (.nav-large is shared, the line was drawn only here), so it is gone rather than shrunk. */}
 
       {/* START WORKOUT, FIRST (Dave 2026-10-09, items 1 and 2: "Most people
           don't have programs. Stop assuming a Program on the Health screen";
@@ -249,7 +251,9 @@ export default function HealthBody({
             <button type="button" key={d.date} className={"h-bar" + (d.workouts > 0 ? " on" : "") + (d.date === today ? " today" : "")}
               aria-label={`${weekdayShort(d.date)} ${monthDay(d.date)}${d.workouts > 0 ? `, ${d.workouts} ${d.workouts === 1 ? "workout" : "workouts"}` : ""}`}
               onClick={() => onOpenRecords({ kind: "day", date: d.date })}>
-              <i style={{ height: d.workouts > 0 ? `${Math.max(16, Math.round((d.activeMin / maxMin) * 40))}px` : undefined }} />
+              {/* THE BOARD'S BAR HEIGHTS (screen 6; Dave 2026-10-17: the bars were "at wildly uneven heights"): a trained
+                  day stands 30 to 42px by its minutes, a rest day 10px (the CSS), so the week reads as a level row. */}
+              <i style={{ height: d.workouts > 0 ? `${30 + Math.round((d.activeMin / maxMin) * 12)}px` : undefined }} />
               {weekdayShort(d.date).slice(0, 1)}
             </button>
           ))}
