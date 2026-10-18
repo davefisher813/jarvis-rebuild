@@ -333,6 +333,9 @@ describe("BROWSER-F-06: the app's own names and facts are not cut in half", () =
 
   it("the day word never shrinks and the count line is its own whole second line, never an ellipsis", () => {
     expect(ruleBody(ruled(), ".ruled .sc-dayhead .t")).toMatch(/flex-shrink:\s*0/);
+    // A full-width second line needs a head that may wrap (2026-10-18: at 430 wide the count sat on the capsules' line and was cut at the
+    // screen's edge, because the generic head wraps only for capsules inside .sec-left and these are direct children).
+    expect(ruleBody(ruled(), ".ruled .sc-dayhead"), "the day head wraps").toMatch(/flex-wrap:\s*wrap/);
     const fact = ruleBody(ruled(), ".ruled .sc-dayhead .sc-fact")!;
     // Round-1 review (2026-10-05, decision D8): "3h Open, 5 Prop..." read as a typo. The count takes the head's second line.
     expect(fact).toMatch(/flex:\s*1 0 100%/);
