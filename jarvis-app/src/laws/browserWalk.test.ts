@@ -1287,6 +1287,12 @@ describe("FOCUS-AUDIT: the keyboard can be followed, and what it lands on can be
     expect(ruleBody(css(), ".mt-tabrow .segmented .seg, .life-seg .segmented .seg")).toMatch(/scroll-snap-align:\s*start/);
     // Neither may quietly grow a private copy of the rule again.
     expect(ruleBody(css(), ".life-seg .segmented"), "no second Life-only copy").toBeNull();
+    // THE TRACK IS FILLED OUT (issue 154, Dave 2026-10-15 and 2026-10-18): the tabs take an equal share of the room left in the track
+    // (grow 1) on top of their own word, in the shared rule and in the Life rule that wins after it. `flex: 0 0 auto` packed them
+    // left and left a bare stretch of track after "Goals".
+    expect(ruleBody(css(), ".mt-tabrow .segmented .seg, .life-seg .segmented .seg")).toMatch(/flex:\s*1 0 auto/);
+    const lifeSeg = rulesOf("styles/ruled.css").filter(([sel]) => sel === ".life-seg .segmented .seg").map(([, body]) => body).join(" ");
+    expect(lifeSeg, "Life's tabs share the spare track").toMatch(/flex:\s*1 0 auto/);
     // The pattern it was copied from, so deleting one orphans the other.
     // .chip-row is declared twice (the base row at :117, the fade at :1909),
     // so take every rule whose selector IS that, not the first one.
