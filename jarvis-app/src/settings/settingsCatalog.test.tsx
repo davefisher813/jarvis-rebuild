@@ -277,6 +277,7 @@ describe("AI Control", () => {
 
 describe("Advanced, Backup and Brain", () => {
   it("Advanced: every switch line is Title Case, and the delete receipt's unit takes a capital", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));   // the readout asks production for the newest build; never in a test
     vi.spyOn(ChatService.prototype, "clearAll").mockResolvedValue(3);
     const said: string[] = [];
     const stop = subscribeToast((t) => { if (t) said.push(t.message); });

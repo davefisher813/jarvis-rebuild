@@ -798,7 +798,12 @@
    clips if a future label or a larger text size still overruns it. */
 .life-seg .segmented { overflow-x: auto; scrollbar-width: none; }
 .life-seg .segmented::-webkit-scrollbar { display: none; }
-.life-seg .segmented .seg { flex: 0 0 auto; padding-left: var(--s-1h); padding-right: var(--s-1h); white-space: nowrap; }
+/* THE TRACK IS FILLED OUT END TO END (issue 154, Dave 2026-10-15 item 7 and again 2026-10-18: "This bar also isn't filled out and looks
+   weird"). Each tab still takes its own word's width and never less (basis auto, no shrink), and now also takes an equal share of
+   whatever room is left in the track (grow 1), so the five tabs meet both ends of the track and "Goals" is not followed by a bare
+   stretch of it. The Tracker's tabs have done the same since 2026-10-05 (.mt-tabrow). Where the words do not fit there is no room
+   to share and the strip scrolls and fades as before. */
+.life-seg .segmented .seg { flex: 1 0 auto; padding-left: var(--s-1h); padding-right: var(--s-1h); white-space: nowrap; }
 
 /* ---------- SCHEDULE, PORTED (2026-09-02, fourth surface) ------------------
    The block row (contract §4.9, Schedule handoff §5.5): gutter 62, rail 3,

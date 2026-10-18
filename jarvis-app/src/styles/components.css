@@ -7265,7 +7265,7 @@ span.row-star { cursor: default; }
 .mt-tabrow .segmented::-webkit-scrollbar,
 .life-seg .segmented::-webkit-scrollbar { display: none; }
 .mt-tabrow .segmented .seg,
-.life-seg .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
+.life-seg .segmented .seg { flex: 1 0 auto; white-space: nowrap; scroll-snap-align: start; }
 /* THE LIFE STRIP FADES ONLY WHERE IT CONTINUES (2026-10-05): the shared right-edge fade above sat on the strip even when all
    five lenses fit, dimming "Goals" itself. LifeSegments writes data-more ("r", "l", "lr" or "") from its scroll position. */
 .life-seg .segmented[data-more=""],
