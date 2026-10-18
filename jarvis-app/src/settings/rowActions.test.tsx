@@ -144,6 +144,10 @@ describe("Appearance", () => {
 });
 
 describe("Every Settings sub-page is Title Case, in both builds", () => {
+  // The Advanced page asks production which build is newest. The sweep must not: a real answer in CI is a build id the law reads as copy
+  // ("c4f348f" should read "C4f348f"), and a test that depends on the network and on what was last deployed is not a test.
+  beforeEach(() => { vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); })); });
+  afterEach(() => { vi.unstubAllGlobals(); });
   const norm2 = (t: string | null) => (t ?? "").replace(/\s+/g, " ").trim();
   // Somebody's data (a build id, an address, a typed identifier) is not copy the app wrote.
   const isData = (t: string) => /[@/]|\.\w{2,}$|^\d{4}-\d{2}-\d{2}$|^(Build )?dev$/.test(t);
