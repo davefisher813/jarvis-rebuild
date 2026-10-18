@@ -524,10 +524,18 @@ export function buildReplyAll(orig: MailFull, selfEmail: string, body: string): 
 
 const PLACEHOLDER = /^\((no subject|unknown|empty)\)$/i;
 
+// A SUBJECT THE WAY A PERSON WOULD WRITE IT (Dave 2026-10-15, item 3: a reply carried "[EXTERNAL]" and a doubled "Re:"). A gateway's
+// warning tag at the front ("[EXTERNAL]", "[CAUTION]", ...) and every "Re:" already there are dropped, then exactly one "Re:" is put on. A
+// list's own tag ("[Project X]") is the sender's subject and stays.
+const GATEWAY_TAG = /^\[(?:external|caution|warning|spam|suspected spam|unverified|untrusted)\b[^\]]{0,30}\]\s*/i;
 export function replySubject(subject: string): string {
-  const s = (subject || "").trim();
+  let s = (subject || "").trim();
   if (!s || PLACEHOLDER.test(s)) return "Re:";
-  return /^re:/i.test(s) ? s : "Re: " + s;
+  for (let prev = ""; prev !== s;) {
+    prev = s;
+    s = s.replace(GATEWAY_TAG, "").replace(/^re\s*:\s*/i, "").trim();
+  }
+  return s ? "Re: " + s : "Re:";
 }
 
 function escapeHtml(s: string): string {

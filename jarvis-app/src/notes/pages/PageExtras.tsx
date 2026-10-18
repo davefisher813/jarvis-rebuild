@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Head, Card, Row, Foot } from "../../settings/kit";
 import { Check } from "../../shared/icons";
 import { monthDay } from "../../money/bills";
+import { bindMeridiem } from "../../shared/casing";
+import { clock12 } from "../../shared/clock";
 import { type PageData, type PageSnapshot, SNAPSHOT_WHY, recordName } from "./pageModel";
 import { ReadOnlyRecords, U } from "./PageViews";
 
@@ -12,9 +14,7 @@ import { ReadOnlyRecords, U } from "./PageViews";
 const when = (at: number) => {
   const d = new Date(at);
   const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return { day: monthDay(iso), clock: `${h % 12 || 12}:${m} ${h < 12 ? "AM" : "PM"}` };
+  return { day: monthDay(iso), clock: bindMeridiem(clock12(d)) };
 };
 
 /** Every dated snapshot of the page's records, newest first; one opens read-only, with Restore as its only action. */

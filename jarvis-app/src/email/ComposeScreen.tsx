@@ -40,7 +40,7 @@ import type { CoverageOverride, CoverageOverrides } from "../messages/replyCover
 import type { ThreadBriefAI } from "../messages/threadBrief";
 import { replyThreadOf, useEmailReplyRequirements } from "./useEmailReplyRequirements";
 import {
-  withSignature, attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, replaceSignature, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, signatureUntouched, sha256Hex, splitAddresses,
+  withSignature, attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, ownWords, replaceSignature, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, signatureUntouched, sha256Hex, splitAddresses,
   type AttachmentRef, type DraftFields, type DraftRow, type Review, type Saved,
 } from "./drafts";
 
@@ -561,7 +561,7 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       <div className="pad-x" onBlur={commitAddresses} />
       {requirements && (
         <div className="pad-x email-coverage" data-coverage="">
-          <ReplyCoverage quiet requirements={requirements} text={fields.body_text} attachments={fields.attachment_refs.map((r) => ({ filename: r.filename, ...(r.mime_type ? { mime: r.mime_type } : {}) }))} overrides={coverageMarks} onOverride={markCoverage} />
+          <ReplyCoverage quiet requirements={requirements} text={ownWords(fields.body_text)} attachments={fields.attachment_refs.map((r) => ({ filename: r.filename, ...(r.mime_type ? { mime: r.mime_type } : {}) }))} overrides={coverageMarks} onOverride={markCoverage} />
         </div>
       )}
 

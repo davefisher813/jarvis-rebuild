@@ -10,7 +10,8 @@ import { flagOn } from "../../substrate/flags";
 import { heldText, savedToastText } from "../../shared/saved";
 import { attemptWrite } from "../../shared/guard";
 import { showToast } from "../../shared/toast";
-import { lineCase, titleCase } from "../../shared/casing";
+import { bindMeridiem, lineCase, titleCase } from "../../shared/casing";
+import { clock12 } from "../../shared/clock";
 import { usePickFile, PICK_TABLE } from "../../shared/usePickFile";
 import { FormSheet, Group, TextRow, Note } from "../../shared/FormSheet";
 import RowActionSheet from "../../shared/RowActionSheet";
@@ -585,7 +586,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
           timeOf={sessionClock(page)}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined}
-          belowHead={<Card><Row label="Start Time" value={(page.meta?.start ?? "") ? (page.meta!.start!) : "Not Set"} onClick={() => setSheet({ k: "start" })} chev /></Card>} />
+          belowHead={<Card><Row label="Start Time" value={(page.meta?.start ?? "") ? bindMeridiem(clock12(page.meta!.start!) || page.meta!.start!) : "Not Set"} onClick={() => setSheet({ k: "start" })} chev /></Card>} />
       )}
       {def?.view === "trainingplan" && (
         <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}

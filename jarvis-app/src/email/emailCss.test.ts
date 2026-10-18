@@ -209,3 +209,14 @@ describe("mail-rows.css and the swipe shell: a row's text ends inside the card",
     }
   });
 });
+
+describe("the Track This evidence block shows everything the mail said (Dave 2026-10-16, N3/V11)", () => {
+  it("is never clipped or scrolled inside its own box: no max-height, no overflow other than the wrap", () => {
+    const evidence = rules(ALL_SHEETS).filter((r) => r.sel.split(",").some((s) => s.trim() === ".email-evidence"));
+    expect(evidence.length).toBeGreaterThan(0);
+    for (const r of evidence) {
+      expect(r.body, r.sel).not.toMatch(/max-height/);
+      expect(r.body, r.sel).not.toMatch(/(^|[;\s])overflow(-y)?\s*:/);
+    }
+  });
+});

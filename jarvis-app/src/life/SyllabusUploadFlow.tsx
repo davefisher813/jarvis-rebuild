@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { pressable } from "../shared/pressable";
+import { clock12 } from "../shared/clock";
 import { createPortal } from "react-dom";
 import type { AIService } from "../ai/AIService";
 import { buildVisionMessage } from "../ai/AIService";
@@ -225,7 +226,7 @@ export default function SyllabusUploadFlow({
                   {r.noDate
                     ? <span className="fact warn">No Date Found</span>
                     : <span className="fact date">{weekdayShortDate(r.date)}</span>}
-                  {r.kind === "event" && r.start && <span className="fact date">{r.start}</span>}
+                  {r.kind === "event" && r.start && <span className="fact date">{clock12(r.start) || r.start}</span>}
                   {r.weight && <span className="fact"><b>{r.weight}</b></span>}
                 </div>
               </div>

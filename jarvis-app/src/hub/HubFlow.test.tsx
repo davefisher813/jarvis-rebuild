@@ -359,6 +359,36 @@ describe("H3 Activity and H7 receipt", () => {
     expect(toasts.some((t) => t.startsWith("Undone"))).toBe(true);
   });
 
+  it("a receipt says its changes in words: a label for the field, no None, no JSON, 12-hour times (Dave 2026-10-15, items 4 and 5)", async () => {
+    const odd: Detail = {
+      ...detail,
+      verb: "Moved Practice from 13:30 to 14:00",
+      receipts: [{
+        ...detail.receipts[0]!, exact_verb: "Moved Practice from 13:30 to 14:00", scope_summary: "Practice · 13:30 to 14:00",
+        diff: [
+          { field: "due_date", before: null, after: "2026-10-15" },
+          { field: "time", before: { start: "13:00", end: "13:30" }, after: { start: "13:30", end: "14:00" } },
+          { field: "notes", before: null, after: null },
+          { field: "location", before: "Field 2", after: null },
+        ],
+      }],
+    };
+    const { client } = rig({ receipt_detail: () => odd });
+    render(<HubFlow onBack={() => {}} client={client} />);
+    await screen.findByText("Claude");
+    tab("Activity");
+    fireEvent.click(await screen.findByText("Saved $142.30 Bill to Money"));
+    await screen.findByText("Before and After");
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("Due Date");
+    expect(text).toContain("Start: 1:30 PM, End: 2:00 PM");
+    expect(text).toContain("Moved Practice from 1:30 PM to 2:00 PM");
+    expect(text).toContain("Field 2");
+    expect(text).not.toMatch(/\bNone\b/);
+    expect(text).not.toMatch(/[{}]|"start"|due_date|13:30|14:00/);
+    expect(text).not.toContain("Notes");   // both sides empty: nothing to say, no row
+  });
+
   it("Delete Receipt asks first, then erases; Copy Receipt carries no hash", async () => {
     const written: string[] = [];
     Object.defineProperty(window.navigator, "clipboard", { value: { writeText: async (t: string) => { written.push(t); } }, configurable: true });

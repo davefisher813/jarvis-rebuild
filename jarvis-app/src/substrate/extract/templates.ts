@@ -92,17 +92,30 @@ export function looksLikePerson(name: string): boolean {
 export function cleanEventTitle(title: string): string {
   return tidy(title
     .replace(/\s*[@|]\s.*$/, "")
-    .replace(/\s+(?:on|for)\s+(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?(?:\s+\w+\.?\s+\d{1,2}(?:,?\s+\d{4})?)?\s*$/i, "")
-    .replace(/\s+(?:on\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\s*$/i, "")
-    .replace(/\s+(?:at|@)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*$/i, "")
+    .replace(/\s+(?:on|for)\s+(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?(?:\s+\w+\.?\s+\d{1,2}(?:,?\s+\d{4})?)?\s*$/iu, "")
+    .replace(/\s+(?:on\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\s*$/iu, "")
+    .replace(/\s+(?:at|@)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?\s*$/iu, "")
     .replace(/[\s,:;-]+$/, ""));
+}
+
+/** A subject with its day and clock taken out ("Kinzler Meeting: Tuesday 1:30 PM" is "Kinzler Meeting"): the words that name the meeting
+ *  are the subject's, and when it is said was never part of the name (Dave 2026-10-15, item 2). */
+function withoutWhen(subject: string, input: TemplateInput): string {
+  const hits = [...findTimes(subject), ...findDates(subject, anchor(input))].sort((a, b) => b.start - a.start);
+  let s = subject, edge = Infinity;
+  for (const h of hits) {
+    if (h.end > edge) continue;
+    s = s.slice(0, h.start) + " " + s.slice(h.end);
+    edge = h.start;
+  }
+  return s.replace(/\s+/g, " ").replace(/\b(?:at|on|from|until|to)\s*[:;,\p{Pd}@|]*\s*$/iu, "").replace(/^[\s:;,\p{Pd}@|]+|[\s:;,\p{Pd}@|]+$/gu, "").trim();
 }
 
 /** A generic title ("Meeting") named after the sender, or after the subject when the subject names the meeting. */
 function namedTitle(title: string, input: TemplateInput): string {
   if (!GENERIC_TITLE.test(title)) return title;
-  const subject = (input.text.split("\n")[0] ?? "").replace(/^(?:re|fwd?|fw)\s*:\s*/i, "").trim();
-  if (subject && subject.length <= 80 && MEETING_WORDS.test(subject) && findTimes(subject).length === 0) {
+  const subject = withoutWhen((input.text.split("\n")[0] ?? "").replace(/^(?:re|fwd?|fw)\s*:\s*/i, "").trim(), input);
+  if (subject && subject.length <= 80 && MEETING_WORDS.test(subject)) {
     const fromSubject = cleanEventTitle(titleCase(tidy(subject)));
     if (fromSubject && !GENERIC_TITLE.test(fromSubject)) return fromSubject;
   }
@@ -221,7 +234,7 @@ export function taskTemplate(input: TemplateInput, suppressDates: Set<string>): 
     if (due && due.iso && suppressDates.has(due.iso)) continue;
     let rest = m[2] ?? "";
     if (due) rest = rest.replace(s.text.slice(due.start, due.end), "");
-    rest = rest.replace(/\b(by|before|no later than|until|on|at|due)\s*$/i, "").replace(/\s+(by|before|no later than|until|due)\s*$/i, "");
+    rest = rest.replace(/\b(by|before|no later than|until|on|at|due)\s*$/iu, "").replace(/\s+(by|before|no later than|until|due)\s*$/iu, "");
     const title = titleCase(tidy(`${verb} ${tidy(rest)}`)).slice(0, 80);
     if (title.split(" ").length < 2) continue;
     const prov: Record<string, Provenance> = { title: span({ start: s.start + m.index, end: s.start + m.index + m[0].length }) };

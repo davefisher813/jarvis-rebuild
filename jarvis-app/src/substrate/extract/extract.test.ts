@@ -211,6 +211,15 @@ describe("event extraction reads the email's own date, end and name", () => {
     expect(e.title).toBe("Video Interview for David Fisher");
     expect(e.time).toMatchObject({ start_at: "2026-10-16T22:00:00.000Z", end_at: "2026-10-16T22:30:00.000Z" });
   });
+  it("the subject names the meeting even when it also carries the day and the clock (the Kinzler mail, Oct 15)", () => {
+    const c = extractCandidates(mail("pat@kinzler.test", "Pat Kinzler", "Kinzler Meeting: Tuesday 1:30 PM", "Pat here. Can we meet Tuesday at 1:30 PM to go over the plan?"))[0]!;
+    expect((c.payload as EventPayload).title).toBe("Kinzler Meeting");
+    const re = extractCandidates(mail("pat@kinzler.test", "Pat Kinzler", "Re: Kinzler Meeting on Tuesday at 1:30 PM", "Pat here. Can we meet Tuesday at 1:30 PM to go over the plan?"))[0]!;
+    expect((re.payload as EventPayload).title).toBe("Kinzler Meeting");
+    // A subject with no meeting word in it is still the sender's to name.
+    const plain = extractCandidates(mail("pat@kinzler.test", "Pat Kinzler", "Quick one Tuesday 1:30 PM", "Can we meet Tuesday at 1:30 PM?"))[0]!;
+    expect((plain.payload as EventPayload).title).toBe("Meet with Pat Kinzler");
+  });
   it("a clock with no range takes the next clock within reach as its end, and a length elsewhere in the mail is not the meeting's", () => {
     const c = extractCandidates(mail("book@nsm.test", "Jason Shenloogian", "Booking confirmed", "Your booking is confirmed.\nDate: October 16, 2026\nTime: 6:00 PM ET, Ends: 6:30 PM\n\nPlease arrive 15 minutes early.")).find((x) => x.kind === "event")!;
     const e = c.payload as EventPayload;
