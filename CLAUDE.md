@@ -32,6 +32,12 @@ them. The moving track carries a ref and its copy count, an effect above the
 region marks every copy after the first `aria-hidden`, and the hash was
 updated with his quote. The loop, the copies and every pixel are as they were.
 
+Amended (2026-10-18): Dave unfroze the Whole Day rows FOR ONE ITEM, in his word, "Unfreeze" (his Oct 15 ask, decisions card 1): each row
+shows its area as the app's one unified chip (`shared/CatChipLine`, not restyled) under the title, first on a second line, with its
+project's name after it in grey, as a task row draws it; no area marked, no chip and no second line. The "Flexible until" subtitle stays
+gone (Oct 13). It lives in the rows (`schedule/screens/DayRow.tsx` and `ProposedRow.tsx`, plain mode, via `rowChip.tsx`), and the
+project names reach them through `RowChipWordsContext`, provided by `TodayFlow`, so the frozen region and its hash did not change.
+Nothing else about the section is unfrozen.
 
 
 ## The visual catalog is a hard gate (Dave, 2026-10-05)

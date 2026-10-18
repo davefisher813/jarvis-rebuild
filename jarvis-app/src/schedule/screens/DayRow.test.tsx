@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DayRow from "./DayRow";
+import { RowChipWordsContext } from "./rowChip";
 import type { EventItem } from "../types";
 
 // The swipe actions on this row had NO test coverage at all before 2026-08-07,
@@ -450,5 +451,45 @@ describe("the time on the row reads as one phrase", () => {
   it("digits, a no-break space, then the meridiem", () => {
     const { container } = render(<DayRow e={ev({ start: "20:32" })} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
     expect(container.querySelector(".sched-time")!.textContent).toBe("8:32\u00a0PM");
+  });
+});
+
+// THE WHOLE DAY SHOWS WHERE A ROW LIVES (Dave 2026-10-15, decisions card 1; "Unfreeze", 2026-10-18): on Home's day card (plain)
+// the row's second line is the app's one category chip, first, with the project's name after it in grey, exactly as a task row
+// draws it. No area marked, no chip and no second line. The Schedule page's rows (not plain) are untouched.
+describe("DayRow plain: the category chip under the title", () => {
+  const plainRow = (data: Partial<EventItem["data"]>, words: Record<string, string> = {}) =>
+    render(
+      <RowChipWordsContext.Provider value={{ event: (id) => words[id] ?? null, task: () => null }}>
+        <DayRow plain e={ev(data)} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />
+      </RowChipWordsContext.Provider>,
+    ).container;
+
+  it("a marked area is the unified chip, directly under the title, with the project's name after it", () => {
+    const c = plainRow({ category: "work", projectId: "p1" }, { e1: "Rebuild Calder App" });
+    const body = c.querySelector(".sched-body")!;
+    const line = body.querySelector(".r-k")!;
+    expect(line.querySelector(".cat-chip")).toHaveTextContent("Work");
+    expect(line.querySelector(".r-goal-t")).toHaveTextContent("Rebuild Calder App");
+    // Title first, the chip line second, and nothing else in the row (no "Flexible until", no state, no length).
+    expect([...body.children].map((n) => n.className.split(" ")[0])).toEqual(["sched-title", "r-k"]);
+    expect(body.querySelector(".sched-cat")).toBeNull();
+  });
+
+  it("an area with no project is the chip alone", () => {
+    const c = plainRow({ category: "work" });
+    expect(c.querySelector(".r-k .cat-chip")).toHaveTextContent("Work");
+    expect(c.querySelector(".r-k .r-goal-t")).toBeNull();
+  });
+
+  it("no area marked: no chip, no second line, even when a project is named", () => {
+    const c = plainRow({ category: "" , projectId: "p1" }, { e1: "Rebuild Calder App" });
+    expect(c.querySelector(".r-k")).toBeNull();
+    expect(c.querySelector(".cat-chip")).toBeNull();
+  });
+
+  it("the Schedule page's own row (not plain) draws no chip line", () => {
+    const { container } = render(<DayRow e={ev({ category: "work" })} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
+    expect(container.querySelector(".sched-body > .r-k")).toBeNull();
   });
 });

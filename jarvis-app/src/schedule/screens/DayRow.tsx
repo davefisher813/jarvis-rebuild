@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { WholeDayChip, useRowChipWords } from "./rowChip";
 import EntityStar, { useRemember } from "../../shared/EntityStar";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
@@ -196,6 +197,7 @@ export default function DayRow({
   // something stands before it: a line never opens on a middot. The area's
   // dot divides it from a state word by itself, so the area takes none.
   const area = catName(e.data.category);
+  const chipWords = useRowChipWords("event", e.id);
   const sepLen = !!state || !!area;
   const sepRep = sepLen || mins != null;
   const sepDist = sepRep || !!rep;
@@ -332,6 +334,7 @@ export default function DayRow({
               a separate fact and gets the separator the rest of the app uses,
               which also brings it under the dot-break casing law instead of
               slipping past it on a technicality. */}
+          {plain && <WholeDayChip category={e.data.category} words={chipWords} />}
           {hasMeta && <div className="sched-cat">
             {/* C-28: the state word leads the facts line, in the closed
                 vocabulary every day surface now speaks. */}
