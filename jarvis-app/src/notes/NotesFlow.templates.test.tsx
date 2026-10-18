@@ -148,7 +148,7 @@ describe("NotesFlow: the tapped row answers in the same turn as the tap", () => 
     expect(note.title).toBe("Meeting Notes");
     expect(note.blocks.map((b) => b.text)).toEqual(expect.arrayContaining(["Agenda", "Decisions", "Action Items"]));
     // Back to the list and into the picker again: the lock was released with the screen change.
-    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
     fireEvent.click(await screen.findByLabelText("New Note", {}, { timeout: 4000 }));
     await screen.findByText("Project Brief");
     expect(document.querySelector(".lib-row[aria-busy], .lib-row[aria-disabled]")).toBeNull();
@@ -188,7 +188,7 @@ describe("NotesFlow: walking away from a create in flight", () => {
     const { release } = holdCreateNote(svc);
     fireEvent.click(rowOf("Meeting Notes"));
     // Back is never locked.
-    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
     expect(await screen.findByLabelText("New Note", {}, { timeout: 4000 })).toBeInTheDocument();
     release();
     // The note is made, the list says so, and the person is still on the list.

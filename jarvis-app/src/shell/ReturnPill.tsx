@@ -1,4 +1,4 @@
-import { ChevronLeft } from "../shared/icons";
+import BackPill from "../shared/BackPill";
 import { useNavOrigin } from "./navOrigin";
 
 // THE WAY HOME, FOR EVERYTHING ELSE (Dave 2026-09-22: "make sure all modals
@@ -36,10 +36,5 @@ import { useNavOrigin } from "./navOrigin";
 export default function ReturnPill() {
   const nav = useNavOrigin();
   if (!nav.origin || nav.claimed) return null;
-  return (
-    <button type="button" className="return-pill" onClick={() => nav.back()}>
-      <ChevronLeft className="ic" />
-      {nav.origin.label}
-    </button>
-  );
+  return <BackPill className="return-pill" label={nav.origin.label} onClick={() => nav.back()} />;
 }

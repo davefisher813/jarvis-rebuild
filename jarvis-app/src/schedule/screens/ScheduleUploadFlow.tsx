@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { onPressKey } from "../../shared/pressable";
+import BackPill from "../../shared/BackPill";
 import { createPortal } from "react-dom";
 import type { AIService } from "../../ai/AIService";
 import { buildVisionMessage } from "../../ai/AIService";
@@ -63,8 +64,10 @@ function toRows(extracted: ExtractedEvent[], fallbackYear: number, existing: Eve
 // The raw photo is never retained: it is downscaled, sent once, and dropped
 // once the calendar has the review data.
 export default function ScheduleUploadFlow({
-  ai, svc, categories, existingEvents, initialFile, onDone, onCancel,
+  ai, svc, categories, existingEvents, initialFile, onDone, onCancel, backLabel,
 }: {
+  /** Where the review's back returns to, said by the flow that opened it (Schedule, Chat): two flows do, so this cannot know. */
+  backLabel: string;
   ai: AIService;
   svc: ScheduleService;
   categories: SheetCategory[];
@@ -316,7 +319,7 @@ export default function ScheduleUploadFlow({
       <>
         <div className="screen ruled">
           <div className="nav-bar">
-            <button className="nav-back" aria-label="Back" onClick={onCancel}></button>
+            <BackPill label={backLabel} onClick={onCancel} />
             <div className="nav-title truncate">Review the Schedule</div>
           </div>
           {thumb && (

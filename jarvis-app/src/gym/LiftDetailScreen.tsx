@@ -18,6 +18,7 @@ import { shortDate } from "../shared/dateFormat";
 import InsightEvidence from "../brain/InsightEvidence";
 import { comparableGain, gainLine } from "../insights/findings";
 import { own, rowDoor } from "../shared/rowDoor";
+import BackPill from "../shared/BackPill";
 
 const CHEV = <div className="chev" />;
 
@@ -104,7 +105,7 @@ function weeklyMetricAvg(def: MetricDef, logs: MetricLog[], weeks: number, now: 
 
 export default function LiftDetailScreen({
   name, exerciseKey, kind, unit, timeUnit, workouts, muscleGroup, muscleMap, defs, logs, goal, onSetGoal,
-  classification, onEditClass, onOpenLogs, note, onBack,
+  classification, onEditClass, onOpenLogs, note, onBack, backLabel = "Training",
 }: {
   name: string;
   /** GYM-F-04 (2026-09-05): the library key, so every derivation on this
@@ -140,6 +141,8 @@ export default function LiftDetailScreen({
    *  and inventing one here would have meant a migration for a read. */
   note?: string;
   onBack: () => void;
+  /** The page the back returns to, said by the gym: History or Exercises when the lift was opened from one, else where the gym was opened from. */
+  backLabel?: string;
 }) {
   const now = Date.now();
   // GYM-F-04: one identity for every derivation on this screen.
@@ -247,7 +250,7 @@ export default function LiftDetailScreen({
   return (
     <div className="screen ruled health-ruled wo-screen">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">{liftTitle(name)}</div>
         <span className="nav-action"></span>
       </div>

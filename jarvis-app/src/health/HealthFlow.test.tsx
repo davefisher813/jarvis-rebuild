@@ -336,7 +336,7 @@ describe("HealthFlow: The Season Feed reads a pasted schedule into draft events"
     const onExit = vi.fn();
     render(<HealthFlow store={store} ownerId="u1" initialScreen="seasonFeed" onExit={onExit} />);
     expect(screen.getByText("The Season Feed Isn't On")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Health" }));
     expect(onExit).toHaveBeenCalled();
   });
 
@@ -467,13 +467,13 @@ describe("HealthFlow: nothing is announced that did not happen (HMN-F-22)", () =
     const onExit = vi.fn();
     const { unmount } = render(<HealthFlow store={store} ownerId="u1" initialScreen="theBag" onExit={onExit} />);
     expect(screen.getByText("No Bag to Check Yet")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Health" }));
     expect(onExit).toHaveBeenCalled();
     unmount();
 
     render(<HealthFlow store={store} ownerId="u1" initialScreen="seasonFeed" onExit={onExit} />);
     expect(screen.getByText("The Season Feed Isn't On")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Health" })).toBeInTheDocument();
   });
 
   it("The Age Rule marks itself seen from an effect, once, not on every render", async () => {

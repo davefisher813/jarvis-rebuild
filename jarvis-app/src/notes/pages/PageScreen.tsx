@@ -48,6 +48,7 @@ import { SnapshotsScreen, LineupBuilder } from "./PageExtras";
 import ImportReview from "./ImportReview";
 import { keepOriginal, readSource, readOriginal, markUsed, type TableSource } from "./pageImport";
 import type { PageFormat } from "./exportPage";
+import BackPill from "../../shared/BackPill";
 
 // A TEMPLATE PAGE, OPEN (issue #115, slice 1). The note's structure, drawn as
 // a readable page with clear actions: the records, the section actions in
@@ -260,7 +261,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   if (!note) {
     return (
       <div className="screen ruled">
-        <div className="nav-bar"><button className="nav-back" onClick={onBack}>{backLabel}</button><span className="nav-title"></span><span></span></div>
+        <div className="nav-bar"><BackPill label={backLabel} onClick={onBack} /><span className="nav-title"></span><span></span></div>
       </div>
     );
   }
@@ -434,7 +435,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     return (
       <div className="screen ruled">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setView("page")}>{sportName(page)}</button>
+          <BackPill label={sportName(page)} onClick={() => setView("page")} />
           <span className="nav-title"></span>
           <div className="nav-actions">
             <button className="nav-action" onClick={undo} disabled={!canUndo} aria-label="Undo"><Undo2 className="ic" /></button>
@@ -460,7 +461,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     return (
       <div className="screen ruled">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setView("page")}>Scorecard</button>
+          <BackPill label="Scorecard" onClick={() => setView("page")} />
           <span className="nav-title"></span>
           <div className="nav-actions">
             <button className="nav-action" onClick={undo} disabled={!canUndo} aria-label="Undo"><Undo2 className="ic" /></button>
@@ -489,7 +490,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>{backLabel}</button>
+        <BackPill label={backLabel} onClick={onBack} />
         <span className="nav-title"></span>
         <div className="nav-actions">
           <button className="nav-action" onClick={undo} disabled={!canUndo} aria-label="Undo"><Undo2 className="ic" /></button>

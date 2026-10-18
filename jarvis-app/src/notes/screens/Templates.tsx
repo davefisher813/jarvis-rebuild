@@ -5,6 +5,7 @@ import type { PageKind } from "../pages/pageModel";
 import { TEMPLATES, TEMPLATE_KEYS, SHELVES, type IconKey, type Shelf } from "../pages/templateDefs";
 import { pressable } from "../../shared/pressable";
 import RowActionSheet from "../../shared/RowActionSheet";
+import BackPill from "../../shared/BackPill";
 
 // Matches locked frame #49 "Templates" (the New Note picker). Keys match the
 // TEMPLATES map in types.ts so a tap seeds the right blocks.
@@ -113,7 +114,7 @@ export default function Templates({
   return (
     <div className="screen">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>Notes</button>
+        <BackPill label="Notes" onClick={() => onBack?.()} />
         <span className="nav-title"></span>
         <span></span>
       </div>

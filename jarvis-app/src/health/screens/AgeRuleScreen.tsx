@@ -1,17 +1,20 @@
 import type { AgeRuleFact } from "../ageRule";
+import BackPill from "../../shared/BackPill";
 
 // THE AGE RULE (Part 2, built carefully). Once per season: hours a week vs
 // age, months in-season, days off, each citing NATA on the row. An offer,
 // never a verdict -- this screen states numbers and never says "too much".
-export default function AgeRuleScreen({ facts, onProtectAGap, onBack }: {
+export default function AgeRuleScreen({ facts, onProtectAGap, onBack, backLabel = "Health" }: {
   facts: AgeRuleFact[];
   onProtectAGap: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Age Rule</div>
       </div>
 

@@ -6,6 +6,7 @@ import { bindMeridiem } from "../../shared/casing";
 import { clock12 } from "../../shared/clock";
 import { type PageData, type PageSnapshot, SNAPSHOT_WHY, recordName } from "./pageModel";
 import { ReadOnlyRecords, U } from "./PageViews";
+import BackPill from "../../shared/BackPill";
 
 // Snapshots and the lineup builder: the two screens a template page pushes
 // over itself. Same chassis as every pushed Notes screen (nav-bar, large
@@ -27,7 +28,7 @@ export function SnapshotsScreen({ page, onBack, onRestore }: { page: PageData; o
     return (
       <div className="screen ruled">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setOpen(null)}>Snapshots</button>
+          <BackPill label="Snapshots" onClick={() => setOpen(null)} />
           <span className="nav-title"></span>
           <span></span>
         </div>
@@ -42,7 +43,7 @@ export function SnapshotsScreen({ page, onBack, onRestore }: { page: PageData; o
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>Page</button>
+        <BackPill label="Page" onClick={onBack} />
         <span className="nav-title"></span>
         <span></span>
       </div>
@@ -81,7 +82,7 @@ export function LineupBuilder({ team, teamTitle, onMake, onCancel }: {
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onCancel}>Cancel</button>
+        <BackPill label="Cancel" onClick={onCancel} />
         <span className="nav-title"></span>
         <span></span>
       </div>

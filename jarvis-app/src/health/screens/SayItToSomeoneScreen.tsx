@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { telHref, smsHref, hasTrustedAdult, crisisLineFor, regionOf, type CrisisLine } from "../trustedAdult";
 import { pressable } from "../../shared/pressable";
+import BackPill from "../../shared/BackPill";
 
 // SAY IT TO SOMEONE (Part 5). Always present, one tap, no preamble: the
 // athlete's own chosen trusted adult, plus the crisis line for where they
 // are. Never gated behind a mood question or any screener -- this screen
 // asks nothing before it offers both numbers.
 export default function SayItToSomeoneScreen({
-  name, phone, onSetTrustedAdult, onBack, handOff, onShare, people = [],
+  name, phone, onSetTrustedAdult, onBack, backLabel = "Health", handOff, onShare, people = [],
   // BRAIN-F-26 (2026-09-05, option a), reaching this screen too: 988 connects
   // in two countries, and this screen dialled it from anywhere on earth. The
   // line is read from the browser's own locale, and a region with none gets
@@ -21,6 +22,8 @@ export default function SayItToSomeoneScreen({
   phone: string;
   onSetTrustedAdult: (name: string, phone: string, personId?: string) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
   // UP-ATH-05 (2026-09-06): the dated Still There? summary, when the athlete
   // arrived here from Point at It. Absent on a normal visit, and then this
   // screen is exactly what it was: two numbers and no preamble.
@@ -66,7 +69,7 @@ export default function SayItToSomeoneScreen({
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Say It to Someone</div>
       </div>
 

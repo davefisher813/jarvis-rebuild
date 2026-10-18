@@ -33,6 +33,8 @@ import { weekReceipt, afterHoursLine, uniqueCompletions, type WeekEvent } from "
 import { categoryRecord, type RecordEntry } from "../categories/record";
 import { DayDivide } from "../shared/anatomy";
 import { Plus } from "../shared/icons";
+import BackPill from "../shared/BackPill";
+import { useLeaveVia } from "../shell/navOrigin";
 import { eventLog } from "../events";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
@@ -220,6 +222,9 @@ export default function CategoryDetail({
   logNonce?: number;
   onLogConsumed?: () => void;
 }) {
+  // THE ONE BACK (Dave 2026-10-18): this page opens from the Brain hub; Life's Areas lens, a search hit or a notice jump here and the
+  // back names where that came from (useLeaveVia), so there is one labeled pill on the page and the shell's own stands down.
+  const leave = useLeaveVia("Brain", onBack);
   const tasksSvc = useTasks();
   const schedule = useSchedule();
   const notesSvc = useNotes();
@@ -825,6 +830,7 @@ export default function CategoryDetail({
   if (gymOpen) {
     return (
       <GymFlow
+        backLabel={cat?.data.name ?? "Health"}
         areaId={categoryId}
         startLibrary={gymLibrary}
         startLift={gymLift ?? undefined}
@@ -1066,6 +1072,7 @@ export default function CategoryDetail({
       <HealthFlow
         service={healthSvc}
         initialScreen={healthDeep}
+        backLabel={deepFromSettings.current ? "Health Settings" : (cat?.data.name ?? "Health")}
         initialHandOff={handOff ?? undefined}
         onExit={() => { setHealthDeep(null); setHandOff(null); if (deepFromSettings.current) { deepFromSettings.current = false; setHealthSettingsOpen(true); } void reload(); }}
         sportSessions={sportSessions}
@@ -2075,7 +2082,7 @@ export default function CategoryDetail({
     // .wo-screen on the Health hub only: the board's geometry (screen 6), scoped in ruled.css with the gym's five screens.
     <div className={"screen ruled" + (kind === "health" ? " health-ruled wo-screen" : " area-ruled")}>
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={leave.label} onClick={leave.onBack} />
         <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>
         <button className="nav-action-text" onClick={() => setSheet({ kind: "edit" })}>Edit</button>
       </div>

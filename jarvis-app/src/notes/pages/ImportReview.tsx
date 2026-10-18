@@ -11,6 +11,7 @@ import {
 import Reimport from "./ReimportReview";
 import { U } from "./PageViews";
 import { templateDef } from "./templateDefs";
+import BackPill from "../../shared/BackPill";
 
 // THE CONFIRM STEP (issue #115: confirm-first, uncertain values visibly
 // uncertain, nothing silently dropped). One screen for a first import and for
@@ -68,7 +69,7 @@ export default function ImportReview({ page, sourceName, rows, notes, mode, onAp
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onCancel}>Cancel</button>
+        <BackPill label="Cancel" onClick={onCancel} />
         <span className="nav-title"></span>
         <span></span>
       </div>

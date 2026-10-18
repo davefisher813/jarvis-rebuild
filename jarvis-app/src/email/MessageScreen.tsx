@@ -52,6 +52,7 @@ import { cleanSnippet } from "./snippet";
 import { leadFor } from "../messages/rowAnatomy";
 import "../styles/mail-rows.css";
 import { KIND_WORD, PRIMARY, textOf } from "./candidates";
+import BackPill from "../shared/BackPill";
 
 const MAX_ATTACHMENT = 20 * 1024 * 1024;
 const COPY_FAILED = "Couldn't Copy";
@@ -321,7 +322,7 @@ export default function MessageScreen({ client, token, userId, row, account, off
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="msg-sheet-bar">
-          <button className="nav-back" onClick={onBack}>{EMAIL_TITLE}</button>
+          <BackPill label={EMAIL_TITLE} onClick={onBack} />
           <BarAction label={MORE_LABEL} onClick={() => setMore(true)}><MoreHorizontal className="ic" /></BarAction>
         </div>
 

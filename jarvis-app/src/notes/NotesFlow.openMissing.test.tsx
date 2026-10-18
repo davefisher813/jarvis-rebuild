@@ -87,8 +87,8 @@ describe("NotesFlow: a failed jump does not claim the next note's Back", () => {
     fireEvent.click(await screen.findByText("Real Note"));
     await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
     expect(claim, "an ordinary open is not a jump").not.toHaveBeenCalled();
-    expect(screen.queryByText("AI Hub", { selector: ".nav-back" })).toBeNull();
-    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    expect(screen.queryByText("AI Hub", { selector: ".nav-back .back-pill-t" })).toBeNull();
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
     expect(back).not.toHaveBeenCalled();
   });
 });

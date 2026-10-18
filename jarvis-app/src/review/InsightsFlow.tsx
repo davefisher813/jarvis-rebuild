@@ -167,8 +167,8 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
   const storyGoals = story.filter((x) => x.kind === "goal").length;
   const storyProjects = story.length - storyGoals;
   const exits = { onOpenEntity, onOpenMoney, onOpenEmail };
-  if (screen?.kind === "live") return <div className={pushCls} key="d-live"><ReportFlow live onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
-  if (screen?.kind === "month") return <div className={pushCls} key={"d-" + screen.month}><ReportFlow month={screen.month} onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
+  if (screen?.kind === "live") return <div className={pushCls} key="d-live"><ReportFlow live backLabel="Insights" onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
+  if (screen?.kind === "month") return <div className={pushCls} key={"d-" + screen.month}><ReportFlow month={screen.month} backLabel="Insights" onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
   if (screen?.kind === "story") {
     return (
       <div className={pushCls} key="d-story">

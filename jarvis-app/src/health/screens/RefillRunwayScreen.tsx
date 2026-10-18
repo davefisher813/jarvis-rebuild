@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { RefillState } from "../refillRunway";
 import { needsRefillCall, refillOffer, REFILL_CALL_WITHIN_DAYS, REFILL_CALL_WITHIN_DOSES } from "../refillRunway";
 import { shortDateFromMs } from "../../shared/dateFormat";
+import BackPill from "../../shared/BackPill";
 
 // REFILL RUNWAY (Part 4, top 3; Health Push D). Counts down remaining doses
 // from real Took It taps, and lands the pharmacy call as an offer on the
@@ -14,12 +15,14 @@ import { shortDateFromMs } from "../../shared/dateFormat";
 // takes the day it was received, so a
 // fill logged on Tuesday for a bottle picked up Sunday counts from Sunday.
 export default function RefillRunwayScreen({
-  state, onLogFill, onLandParentTask, onBack,
+  state, onLogFill, onLandParentTask, onBack, backLabel = "Health",
 }: {
   state: RefillState;
   onLogFill: (dosesInFill: number, filledAt: number) => void;
   onLandParentTask: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [count, setCount] = useState("30");
   const [received, setReceived] = useState(localDay());
@@ -34,7 +37,7 @@ export default function RefillRunwayScreen({
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Refill Runway</div>
       </div>
 

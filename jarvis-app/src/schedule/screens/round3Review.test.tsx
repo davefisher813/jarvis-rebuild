@@ -77,7 +77,7 @@ describe("the notes glyph on an event row (no permanent affordance, 44px reach)"
 
 describe("the event page", () => {
   const page = (e: EventItem, props: Partial<Parameters<typeof EventDetailPage>[0]> = {}) =>
-    render(<EventDetailPage event={e} onBack={() => {}} onEdit={() => {}} {...props} />);
+    render(<EventDetailPage backLabel="Schedule" event={e} onBack={() => {}} onEdit={() => {}} {...props} />);
 
   it("says Prep Tasks, not the opaque Before This, with a warm line and the head's one capsule", () => {
     const { container } = page(ev(), { onAddStep: () => {} });

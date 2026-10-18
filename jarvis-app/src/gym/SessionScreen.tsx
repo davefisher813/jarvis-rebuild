@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import BackPill from "../shared/BackPill";
 import { EQUIPMENT_LABEL, loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, weightStep, type LoadStyle } from "./equipment";
 import { MUSCLE_LABEL } from "./muscles";
 import MusclePickSheet, { type MusclePick } from "./MusclePickSheet";
@@ -9,7 +10,7 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { REST_FLOOR_SEC } from "./pacing";
-import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable, loggingBlocker } from "./measures";
+import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable } from "./measures";
 import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from "./strip";
@@ -111,6 +112,7 @@ export default function SessionScreen({
   onFinish,
   onCancel,
   onBack,
+  backLabel = "Training",
   onPause,
   // UP-ATH-03 (2026-09-06): the Notifications page's rest switch, read once
   // by GymFlow. Off means the rest timer arms nothing, so the switch is a
@@ -223,6 +225,8 @@ export default function SessionScreen({
    *  Undo. Absent, the row is absent. */
   onCancel?: () => void;
   onBack: () => void;
+  /** The page a parked session lands on, said by the gym that mounts this (the program page, or the week it was opened from). */
+  backLabel?: string;
   /** H-27 (Health Push B, 2026-09-12): Pause parks the session. Defaults to
    *  Back, which has parked since GYM-F-14. */
   onPause?: () => void;
@@ -1017,7 +1021,7 @@ export default function SessionScreen({
             keeps the workout, which is all the back chevron here ever did. */}
         {onCancel
           ? <button type="button" className="nav-action-text nav-action-quiet" aria-label="Cancel Workout" onClick={() => setCancelAsk(true)}>Cancel</button>
-          : <button className="nav-back" aria-label="Back" onClick={onBack}></button>}
+          : <BackPill label={backLabel} onClick={onBack} />}
         <div className="nav-title truncate">{workoutTitle(live.dayName)}</div>
         {/* H-27: Pause beside Finish. Both quiet; the one filled control on
             this screen is the Log bar's. */}
@@ -1502,7 +1506,7 @@ export default function SessionScreen({
                   {logged.length === 0 ? "Start the Clock" : "Run It Again"}
                 </button>
               : <button className="btn btn-primary btn-launch btn-lg" onClick={log} disabled={!loggable}>
-                  {loggingBlocker(exercise.kind, style, pending) ?? logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
+                  {logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
                 </button>}
           </div>
           {/* THE ROW UNDER LOG (Dave's board, 2026-10-17): Superset and Add

@@ -976,6 +976,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           categories={sheetCats}
           existingEvents={allEvents}
           initialFile={pending.file}
+          backLabel="Chat"
           onDone={async ({ createdCount, updatedCount, undo }) => {
             setPending(null);
             const parts: string[] = [];

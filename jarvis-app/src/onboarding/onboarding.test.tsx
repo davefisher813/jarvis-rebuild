@@ -331,7 +331,7 @@ describe("OnboardingFlow", () => {
       fireEvent.click(screen.getByText("Business"));
       expect(screen.getByDisplayValue("Clients")).toBeInTheDocument();
 
-      fireEvent.click(screen.getByText("Back"));
+      fireEvent.click(screen.getByText("Previous"));
       expect(screen.getByText(/How will you use JARVIS/)).toBeInTheDocument();
       fireEvent.click(screen.getByText("Student"));
 
@@ -345,7 +345,7 @@ describe("OnboardingFlow", () => {
       fireEvent.click(screen.getByText("Begin"));
       fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Dvae" } });
       fireEvent.click(screen.getByLabelText("Send"));
-      fireEvent.click(screen.getByText("Back"));
+      fireEvent.click(screen.getByText("Previous"));
       const field = screen.getByPlaceholderText("Your name") as HTMLInputElement;
       expect(field.value).toBe("Dvae");
       fireEvent.change(field, { target: { value: "Dave" } });

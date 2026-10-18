@@ -187,7 +187,7 @@ describe("email File It", () => {
     await openDetail();
     fireEvent.click(screen.getByRole("button", { name: "File It" }));
     await screen.findByLabelText("What to Remember");
-    fireEvent.click(screen.getByText("Email", { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText("Email", { selector: ".nav-back .back-pill-t" }));
     await screen.findByText("Ridgeley");
     expect(screen.queryByLabelText("What to Remember")).toBeNull();
     fireEvent.click(screen.getByText("Ridgeley"));

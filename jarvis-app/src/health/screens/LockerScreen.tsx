@@ -5,18 +5,21 @@ import { pressable } from "../../shared/pressable";
 import { shortDate } from "../../shared/dateFormat";
 import RowShell from "../../brain/RowShell";
 import RowSheet from "../../brain/RowSheet";
+import BackPill from "../../shared/BackPill";
 
 // THE LOCKER (Part 8). Document storage with expiry tracking. Zero medical
 // judgment, just storage: this screen never reads or shows what a document
 // says, only that it exists and when it lapses.
 export default function LockerScreen({
-  docs, today, onAdd, onRemove, onBack,
+  docs, today, onAdd, onRemove, onBack, backLabel = "Health",
 }: {
   docs: LockerDocEntry[];
   today: string;
   onAdd: (kind: LockerDocKind, expiresAt: string) => void;
   onRemove: (id: string) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [addingKind, setAddingKind] = useState<LockerDocKind | null>(null);
   const [expiresAt, setExpiresAt] = useState("");
@@ -32,7 +35,7 @@ export default function LockerScreen({
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Locker</div>
       </div>
 

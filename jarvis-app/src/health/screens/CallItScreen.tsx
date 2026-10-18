@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CallItPoint } from "../timelines";
 import { shortDateFromMs } from "../../shared/dateFormat";
+import BackPill from "../../shared/BackPill";
 
 const BLOCKS = Array.from({ length: 10 }, (_, i) => i + 1);
 
@@ -12,11 +13,13 @@ const BLOCKS = Array.from({ length: 10 }, (_, i) => i + 1);
 // Health's inherited color ban applies here same as everywhere else in the
 // module (CATEGORY_KINDS: "anything red"), so the blocks ramp on --blue's
 // own opacity rather than a red-to-green gradient.
-export default function CallItScreen({ durationMin, history, onLog, onBack }: {
+export default function CallItScreen({ durationMin, history, onLog, onBack, backLabel = "Health" }: {
   durationMin?: number; // auto-filled from the calendar event, when there is one
   history: CallItPoint[];
   onLog: (rpe: number) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [picked, setPicked] = useState<number | null>(null);
   const [logged, setLogged] = useState(false);
@@ -32,7 +35,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">How Hard It Was</div>
       </div>
 

@@ -134,6 +134,36 @@ describe("closing a modal never strands you", () => {
   });
 });
 
+// ONE BACK CONTROL (Dave 2026-10-18: "We don't need both of these. The labeled
+// one should take place of the regular one everywhere"). The bare red chevron is
+// gone; every back is the labeled pill, and its label is the screen it returns
+// to, never a generic "Back".
+describe("there is one back control and it names its destination", () => {
+  it("nothing draws a back button except BackPill", () => {
+    const bad: string[] = [];
+    for (const f of walk(SRC)) {
+      if (f.endsWith("/shared/BackPill.tsx")) continue;
+      const src = readFileSync(f, "utf8");
+      if (/<button[^>]*className="nav-back/.test(src)) bad.push(f.slice(SRC.length + 1));
+    }
+    expect(bad, "a hand-drawn back button").toEqual([]);
+  });
+
+  it("every BackPill has a label that is not Back", () => {
+    const bad: string[] = [];
+    for (const f of walk(SRC)) {
+      const src = readFileSync(f, "utf8");
+      for (const m of src.matchAll(/<BackPill\b([^>]*?)(?:\/>|>)/g)) {
+        const attrs = m[1] ?? "";
+        const lit = /label="([^"]*)"/.exec(attrs);
+        if (!/label=/.test(attrs)) bad.push(f.slice(SRC.length + 1) + ": no label");
+        else if (lit && (lit[1]!.trim() === "" || lit[1] === "Back")) bad.push(f.slice(SRC.length + 1) + ": label is " + JSON.stringify(lit[1]));
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("the page a jump opens offers the way back", () => {
   // The two the audit proved. Each says its own name when you reached it the
   // ordinary way and the origin's when a jump brought you.
@@ -168,10 +198,7 @@ describe("the page a jump opens offers the way back", () => {
     const OPT_IN = /useLeaveVia\(/;
     const bad: string[] = [];
     for (const [f, src] of text) {
-      const labels = [
-        ...[...src.matchAll(/back="([A-Za-z][A-Za-z ]*)"/g)].map((m) => m[1]!),
-        ...[...src.matchAll(/className="nav-back"[^>]*>([A-Za-z][A-Za-z ]*)</g)].map((m) => m[1]!),
-      ].filter((l) => l !== "Back");
+      const labels = [...src.matchAll(/back="([A-Za-z][A-Za-z ]*)"/g)].map((m) => m[1]!).filter((l) => l !== "Back");
       if (labels.length === 0 || OPT_IN.test(src)) continue;
       const name = f.slice(f.lastIndexOf("/") + 1).replace(/\.tsx?$/, "");
       const mounts = new Set<string>();

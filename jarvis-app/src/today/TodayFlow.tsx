@@ -2572,6 +2572,7 @@ export default function TodayFlow({
         <EventDetailPage
           event={ev}
           onBack={() => setEventDetail(null)}
+          backLabel="Today"
           onEdit={() => { const id = eventDetail; setEventDetail(null); void openEventSheet(id); }}
           steps={taskItems.filter((t) => t.data.eventId === eventDetail).map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done }))}
           onToggleStep={(id) => void onToggleTask(id)}
@@ -2594,10 +2595,10 @@ export default function TodayFlow({
     // readLiveGym on the way out: the session that was just started (or
     // finished) is the one thing this branch can change about Today, and
     // Today is not remounting to find out.
-    return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); readLiveGym(); void reload(); }} />;
+    return <GymFlow door={gymDoor.opened} backLabel="Today" onBack={() => { gymDoor.close(); readLiveGym(); void reload(); }} />;
   }
   if (reportOpen) {
-    return <ReportFlow onBack={() => { setReportOpen(false); void reload(); }} onOpenTask={(id) => { setReportOpen(false); void onOpenTask(id); }} />;
+    return <ReportFlow backLabel="Today" onBack={() => { setReportOpen(false); void reload(); }} onOpenTask={(id) => { setReportOpen(false); void onOpenTask(id); }} />;
   }
 
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh

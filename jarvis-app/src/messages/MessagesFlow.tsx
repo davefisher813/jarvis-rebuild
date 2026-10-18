@@ -196,6 +196,7 @@ import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
 import { clockLabel, minutesLabel, secondsLabel, spanLabel } from "../shared/duration";
 import { clock12 } from "../shared/clock";
+import BackPill from "../shared/BackPill";
 
 // sourceRevision and overrides are REPLY COVERAGE'S: the conversation revision a
 // reply was started against (with threadId and account, the source it answers),
@@ -3406,7 +3407,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen ruled " + pushCls} key="ledger">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => { setLedger(null); setView("list"); }}>Email</button>
+          <BackPill label="Email" onClick={() => { setLedger(null); setView("list"); }} />
           <span className="nav-title">Still Open</span>
         </div>
         {l.total === 0 ? (
@@ -3455,7 +3456,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen ruled " + pushCls} key="purge">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => { scanCtl.current?.abort(); setPurgePicks(null); setView("list"); }}>Email</button>
+          <BackPill label="Email" onClick={() => { scanCtl.current?.abort(); setPurgePicks(null); setView("list"); }} />
           <span className="nav-title">Clean Out</span>
           <button className="nav-action" onClick={() => setPurgePicks(new Set())}>None</button>
         </div>
@@ -3569,7 +3570,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     };
     return (
       <div className={"screen ruled " + pushCls} key="rules">
-        <div className="nav-bar"><button className="nav-back" onClick={() => setView("list")}>Email</button>
+        <div className="nav-bar"><BackPill label="Email" onClick={() => setView("list")} />
           <span className="nav-title">Standing Rules</span><span className="nav-action"></span></div>
         {/* §AK R1: a section with nothing in it shows nothing. The
             "Nothing filed yet." row was a placeholder that stated nothing. */}
@@ -3915,7 +3916,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               Drafts chip already lists it: no new screen to learn, and no
               confirm sheet in front of a button that is not destructive any
               more. An empty compose still just closes. */}
-          <button className="nav-back" disabled={savingDraft} onClick={() => void cancelCompose()}>{savingDraft ? "Saving…" : "Cancel"}</button>
+          <BackPill label={savingDraft ? "Saving…" : "Cancel"} disabled={savingDraft} onClick={() => void cancelCompose()} />
           <span className="nav-title">{editingDraftId ? "Draft" : "New message"}</span>
           <div className="nav-actions">
             <button className="nav-action" onClick={() => setShowSchedule((s) => !s)} aria-label="Schedule Send"><Clock className="ic" /></button>
@@ -4079,7 +4080,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen ruled " + pushCls} key="detail">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setView("list")}>Email</button>
+          <BackPill label="Email" onClick={() => setView("list")} />
           <span className="nav-title"></span>
           <div className="nav-actions">
             {/* BRAIN "FILE IT" (2026-09-29): beside Archive and Delete, only

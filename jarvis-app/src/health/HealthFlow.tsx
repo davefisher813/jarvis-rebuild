@@ -51,6 +51,7 @@ import SeasonFeedScreen from "./screens/SeasonFeedScreen";
 import LockerScreen from "./screens/LockerScreen";
 import HandoffScreen from "./screens/HandoffScreen";
 import { clock12 } from "../shared/clock";
+import BackPill from "../shared/BackPill";
 
 // HMN-F-06 (2026-09-05): exported now that something outside this module
 // chooses which screen to open (brain/CategoryDetail's More menu).
@@ -73,11 +74,11 @@ function defaultWeekDates(startMs: number = Date.now()): string[] {
 // the thing they needed was absent, which paints a blank screen with no way
 // off it. Every screen in this module ends in a way out, so the absence gets
 // a screen of its own with the same nav bar the real ones carry.
-function NothingHere({ title, sub, onBack }: { title: string; sub: string; onBack: () => void }) {
+function NothingHere({ title, sub, onBack, backLabel }: { title: string; sub: string; onBack: () => void; backLabel: string }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
       </div>
       <div className="empty-state">
         <div className="empty-title">{title}</div>
@@ -102,7 +103,7 @@ function currentSeason(now: number = Date.now()): string {
 // wires Health into the real app (still out of scope here, same Track 3
 // follow-up the foundation already named) supplies these shapes.
 export default function HealthFlow({
-  store, ownerId, service, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit,
+  store, ownerId, service, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit, backLabel = "Health",
   sportSessions = [], weekDates, athleteAgeYears, monthsInSeason,
   nightBeforeCommitments = [], eatingWindowBlocks = [], sessionStarts = [],
   bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed, people = [], parentList = false,
@@ -126,6 +127,8 @@ export default function HealthFlow({
   // Point at It builds for itself.
   initialHandOff?: string;
   onExit: () => void;
+  /** The screen onExit returns to, said by whoever mounts the flow (the Health area's name, or its settings page). */
+  backLabel?: string;
   // Part 2 (The Third Practice, Week Shape, Two Days Off, The Age Rule):
   // the same calendar candidates, reduced to which org and how long.
   sportSessions?: SportSession[];
@@ -307,7 +310,7 @@ export default function HealthFlow({
             await reload();
           }}
           onOpenWhatTheySee={() => setScreen("whatTheySee")}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "whatTheySee":
@@ -315,7 +318,7 @@ export default function HealthFlow({
         <WhatTheySeeScreen
           grants={grants} lightsOut={lightsOut} ateBefore={ateBefore} tookIt={tookIt} callIt={callIt} pointAtIt={pointAtIt}
           onManage={() => setScreen("share")}
-          onBack={() => setScreen("share")}
+          onBack={() => setScreen("share")} backLabel="The Share Line"
         />
       );
     case "lightsOut":
@@ -331,7 +334,7 @@ export default function HealthFlow({
             void reload();
           }}
           onEditTime={(id, at) => { void svc.updateLightsOut(id, at).then(() => reload()).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "ateBefore":
@@ -348,7 +351,7 @@ export default function HealthFlow({
             receipt(cheer, "Ate Before Logged", () => { healthWrite(() => svc.removeAteBefore(d.at)); });
             void reload();
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "tookIt":
@@ -365,7 +368,7 @@ export default function HealthFlow({
             void reload();
           }}
           onUndo={(row) => { healthWrite(() => svc.removeTookIt(row.at)); }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "callIt":
@@ -381,7 +384,7 @@ export default function HealthFlow({
             receipt(cheer, "Effort Logged", () => { healthWrite(() => svc.removeCallIt(d.at)); });
             void reload();
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "pointAtIt": {
@@ -407,7 +410,7 @@ export default function HealthFlow({
           // athlete had to remember and retype the dates the screen had just
           // shown them.
           onHandToSomeone={() => { setHandOff(stillThereMessage(patterns, summaries)); setScreen("sayItToSomeone"); }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     }
@@ -435,7 +438,7 @@ export default function HealthFlow({
             // parent's, and the receipt says which.
             if (line) take(onLandParentTask, line, parentList ? "Added to the parent's list" : "Added to your list");
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "medWindow":
@@ -444,7 +447,7 @@ export default function HealthFlow({
           days={medWindowDays(tookIt, ateBefore, sessionStarts, lightsOut)}
           hasFood={ateBefore.some((a) => a.data.ate)}
           onOpenDoctorReport={() => setScreen("doctorReport")}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "doctorReport": {
@@ -490,7 +493,7 @@ export default function HealthFlow({
               showToast({ message: "Couldn't Copy · Try Again" });
             }
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     }
@@ -507,7 +510,7 @@ export default function HealthFlow({
             const line = "Wind Down at " + clock12(offer.windDownAt);
             take(onOffer, { kind: "windDown", at: offer.windDownAt, line }, OFFER_RECEIPT.windDown);
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "eatingWindows":
@@ -517,14 +520,14 @@ export default function HealthFlow({
           // The gap itself is the ping time: a reminder to pack something is
           // useless after the gap it was for has started.
           onTakeOffer={(o) => take(onOffer, { kind: "reminder", at: o.gap.start, line: o.line }, OFFER_RECEIPT.reminder)}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "theBag": {
       // HMN-F-22 (2026-09-05): same blank dead end as the Season Feed. A
       // checklist binds to one calendar event; with none there is nothing to
       // check, and saying so beats an empty screen with no Back on it.
-      if (!bagEvent) return <NothingHere title="No Bag to Check Yet" sub="The bag list binds to one event on the calendar" onBack={onExit} />;
+      if (!bagEvent) return <NothingHere title="No Bag to Check Yet" sub="The bag list binds to one event on the calendar" onBack={onExit} backLabel={backLabel} />;
       const latest = latestBagCheck(bagCheck, bagEvent.eventId);
       const items = latest?.data.items ?? defaultBagItems();
       return (
@@ -533,7 +536,7 @@ export default function HealthFlow({
           items={items}
           onToggle={(key) => { svc.logBagCheck({ ...bagEvent, items: toggleItem(items, key) }); void reload(); }}
           onCheckAll={() => { svc.logBagCheck({ ...bagEvent, items: checkAll(items) }); void reload(); }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     }
@@ -542,7 +545,7 @@ export default function HealthFlow({
         <ThirdPracticeScreen
           offers={thirdPracticeOffers(sportSessions)}
           onProtectGap={(o) => take(onOffer, { kind: "protectGap", date: o.fact.date, orgs: o.fact.orgs, line: o.line }, OFFER_RECEIPT.protectGap)}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "weekShape":
@@ -550,7 +553,7 @@ export default function HealthFlow({
         <WeekShapeScreen
           shape={weekShape(sportSessions, weekDates ?? defaultWeekDates())}
           onOpenTwoDaysOff={() => setScreen("twoDaysOff")}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "twoDaysOff":
@@ -558,7 +561,7 @@ export default function HealthFlow({
         <TwoDaysOffScreen
           offer={restDayOffer(weekShape(sportSessions, weekDates ?? defaultWeekDates()))}
           onPlaceRestDay={(date) => take(onOffer, { kind: "restDay", date, line: "Rest Day" }, OFFER_RECEIPT.restDay)}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "ageRule": {
@@ -575,7 +578,7 @@ export default function HealthFlow({
           // No day and no time on this one: the facts are about the season,
           // not about Thursday, so it is honestly a task.
           onProtectAGap={() => take(onOffer, { kind: "task", line: "Protect a gap this week" }, OFFER_RECEIPT.task)}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     }
@@ -604,14 +607,14 @@ export default function HealthFlow({
               .then((r) => { if (r === "copied") showToast({ message: "Copied to your clipboard" }); })
               .catch(() => showToast({ message: "Couldn't Hand That Over · Try Again" }));
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "seasonFeed":
       // HMN-F-22 (2026-09-05): with no AI service this returned null, which
       // is a blank screen with no way back, on a stack whose only exit is
       // the Back button it did not draw.
-      if (!ai) return <NothingHere title="The Season Feed Isn't On" sub="Reading a schedule out of a photo needs JARVIS's AI turned on" onBack={onExit} />;
+      if (!ai) return <NothingHere title="The Season Feed Isn't On" sub="Reading a schedule out of a photo needs JARVIS's AI turned on" onBack={onExit} backLabel={backLabel} />;
       return (
         <SeasonFeedScreen
           ai={ai}
@@ -626,7 +629,7 @@ export default function HealthFlow({
             lineCase(draft.events.length + (draft.events.length === 1 ? " event added" : " events added")),
             onExit,
           )}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "locker":
@@ -645,7 +648,7 @@ export default function HealthFlow({
               .then(reload)
               .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
           }}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     case "handoff": {
@@ -658,7 +661,7 @@ export default function HealthFlow({
           // opened a screen that could not do its job, so it is not drawn.
           onOpenSeasonFeed={ai && onCommitSeasonFeed ? () => setScreen("seasonFeed") : undefined}
           onOpenLocker={() => setScreen("locker")}
-          onBack={onExit}
+          onBack={onExit} backLabel={backLabel}
         />
       );
     }

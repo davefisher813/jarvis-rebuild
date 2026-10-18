@@ -35,9 +35,11 @@ describe("the return pill takes its own room", () => {
   });
 
   it("is a row in the shell's column: relative, never fixed, so nothing can sit under it", () => {
-    const r = rule(".return-pill");
+    // The capsule's geometry is the one back control's (.back-pill, shared/BackPill); the pill's own rule is its place.
+    const r = rule(".back-pill");
     expect(r).toMatch(/position:\s*relative/);
     expect(r).not.toMatch(/position:\s*fixed/);
+    expect(rule(".return-pill")).not.toMatch(/position:\s*fixed/);
     expect(r, "and 44px to the finger").toMatch(/min-height:\s*44px/);
   });
 

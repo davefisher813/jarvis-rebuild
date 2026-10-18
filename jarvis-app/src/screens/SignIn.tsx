@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Brain, Mail } from "../shared/icons";
+import BackPill from "../shared/BackPill";
 import { useAuth } from "../auth/AuthProvider";
 import { appleErrorMessage, useProviderEnabled } from "../auth/providers";
 import { dismissSplash } from "../shared/splash";
@@ -123,7 +124,7 @@ export default function SignIn() {
     return (
       <div className="screen signin">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={() => { setView("choose"); setError(""); }}>          </button>
+          <BackPill label="Welcome" onClick={() => { setView("choose"); setError(""); }} />
           <div className="nav-title">{mode === "signup" ? "Create Account" : "Sign In"}</div>
         </div>
         <div className="pad-x sheet-form">

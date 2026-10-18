@@ -2,6 +2,7 @@ import { useRef, type MouseEvent, type RefObject } from "react";
 import type { DoctorReport, ReportKind } from "../doctorReport";
 import { shortDate } from "../../shared/dateFormat";
 import { clockOf } from "../meds";
+import BackPill from "../../shared/BackPill";
 
 // TAKE THIS TO THE DOCTOR (Part 4; Health Push F, H-47). A plain, dated
 // summary of a window the person chooses, family-owned, no interpretation.
@@ -21,7 +22,7 @@ export const KIND_LABEL: Record<ReportKind, string> = {
   checkin: "Check Ins",
 };
 
-export default function DoctorReportScreen({ report, range, onRange, custom, onCustom, kinds, onToggleKind, hasAteBefore = false, hasMeals = false, hasCheckins = false, onExport, onCopy, onBack }: {
+export default function DoctorReportScreen({ report, range, onRange, custom, onCustom, kinds, onToggleKind, hasAteBefore = false, hasMeals = false, hasCheckins = false, onExport, onCopy, onBack, backLabel = "Health" }: {
   report: DoctorReport;
   range: ReportRange;
   onRange: (r: ReportRange) => void;
@@ -45,6 +46,8 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   // cannot get out of the page is not an export.
   onCopy?: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const fromRef = useRef<HTMLInputElement>(null);
   const toRef = useRef<HTMLInputElement>(null);
@@ -55,7 +58,7 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Take This to the Doctor</div>
       </div>
 

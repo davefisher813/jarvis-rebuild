@@ -5,17 +5,20 @@ import { ENERGY_WORDS, MOOD_WORDS, checkInLine } from "../checkin";
 import { pressable } from "../../shared/pressable";
 import RowShell from "../../brain/RowShell";
 import RowSheet from "../../brain/RowSheet";
+import BackPill from "../../shared/BackPill";
 
 // CHECK IN (2026-09-14, the reference's Energy and Mood check-in; Dave: "Do
 // all of this"). Two words and a note, nothing scored. Energy and mood are
 // words a person picks, never a number, so nothing here can feed a
 // correlation surface or a composite (D11's rule on mood stands: this is a
 // log, and it is read back only as itself). Skip is a real answer.
-export default function CheckInScreen({ today, onLog, onUndo, onBack }: {
+export default function CheckInScreen({ today, onLog, onUndo, onBack, backLabel = "Health" }: {
   today: (CheckInEntry & { pending?: boolean })[];
   onLog: (d: { energy?: CheckInEnergy; mood?: CheckInMood; note?: string }) => void;
   onUndo?: (entry: CheckInEntry) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [energy, setEnergy] = useState<CheckInEnergy | undefined>(undefined);
   const [mood, setMood] = useState<CheckInMood | undefined>(undefined);
@@ -43,7 +46,7 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack }: {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Check In</div>
       </div>
       <div className="pad-x"><div className="card pad">

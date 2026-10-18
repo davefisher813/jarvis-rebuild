@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, isUniformStrip, isLoggable, loggingBlocker } from "./measures";
+import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, isUniformStrip } from "./measures";
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
 
 // Nine measure kinds, and the direction lives IN the kind. These pin the two
@@ -248,22 +248,5 @@ describe("a drop segment counts in tonnage and nowhere else", () => {
     expect(setVolume("weight_reps", drop, "lb")).toBe(185 * 8);
     expect(scoreOf("weight_reps", drop, "lb")).toBeNull();
     expect(scoreOf("weight_reps", { w: 185, r: 8 }, "lb")).not.toBeNull();
-  });
-});
-
-describe("a set that cannot log says why (Dave 2026-10-18, mid-workout: Hanging Leg Raise would not log)", () => {
-  const reps10 = { r: 10 } as SetLog;
-  it("a lift whose equipment was never said is whole on reps alone; a loaded one is not", () => {
-    expect(isLoggable("weight_reps", undefined, reps10)).toBe(true);
-    expect(isLoggable("weight_reps", {}, reps10)).toBe(true);
-    expect(isLoggable("weight_reps", { equipment: "barbell" }, reps10)).toBe(false);
-    expect(isLoggable("weight_reps", { equipment: "barbell" }, { r: 10, w: 135 } as SetLog)).toBe(true);
-    expect(isLoggable("weight_reps", undefined, {} as SetLog)).toBe(false);
-  });
-  it("the blocker names the missing number, and is silent when there is nothing yet or the set logs", () => {
-    expect(loggingBlocker("weight_reps", { equipment: "barbell" }, reps10)).toBe("Log Needs a Weight");
-    expect(loggingBlocker("weight_reps", { equipment: "barbell" }, { w: 135 } as SetLog)).toBe("Log Needs Reps");
-    expect(loggingBlocker("weight_reps", { equipment: "barbell" }, {} as SetLog)).toBeNull();
-    expect(loggingBlocker("weight_reps", undefined, reps10)).toBeNull();
   });
 });

@@ -2,18 +2,21 @@ import type { EatingWindowOffer } from "../eatingWindows";
 import { pressable } from "../../shared/pressable";
 import { spanLabel } from "../../shared/duration";
 import RowShell from "../../brain/RowShell";
+import BackPill from "../../shared/BackPill";
 
 // EATING WINDOWS (Part 3). Scans tomorrow for gaps too tight for a meal and
 // offers a schedule action. No nutrition content anywhere on this screen.
-export default function EatingWindowsScreen({ offers, onTakeOffer, onBack }: {
+export default function EatingWindowsScreen({ offers, onTakeOffer, onBack, backLabel = "Health" }: {
   offers: EatingWindowOffer[];
   onTakeOffer: (offer: EatingWindowOffer) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Eating Windows</div>
       </div>
 

@@ -5,6 +5,7 @@ import { shortDate } from "../../shared/dateFormat";
 import { lineCase } from "../../shared/casing";
 import { BODY_REGIONS } from "../regions";
 import type { PointAtItDetail, PointAtItFeel, PointAtItLevel } from "../types";
+import BackPill from "../../shared/BackPill";
 
 // HOW IT FEELS (2026-09-14, the reference's discomfort form). After the tap,
 // three optional words and a note. The spot alone is still a whole log, so
@@ -28,7 +29,7 @@ const LEVELS: { value: PointAtItLevel; label: string }[] = [
 // The tap reads a normal click event's own clientX/clientY relative to the
 // map's bounding box, never raw touch coordinates, so this is not a second
 // swipe/drag implementation and does not trip the one-swipe-controller law.
-export default function PointAtItScreen({ patterns, summaries = [], onLog, onDetail, onBack, onHandToSomeone }: {
+export default function PointAtItScreen({ patterns, summaries = [], onLog, onDetail, onBack, backLabel = "Health", onHandToSomeone }: {
   patterns: StillTherePattern[];
   // HMN-F-23 (2026-09-05): the dated taps behind each pattern, in the same
   // order. The catalog calls this "a shareable dated summary of the taps",
@@ -43,6 +44,8 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onDet
    *  Absent, the details card is not offered. */
   onDetail?: (detail: PointAtItDetail) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
   // BRAIN-F-26 (2026-09-05): absent when there is nobody to reach, so the row
   // is not offered rather than dialling a number that will not connect.
   onHandToSomeone?: () => void;
@@ -85,7 +88,7 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onDet
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Where It Hurts</div>
       </div>
 

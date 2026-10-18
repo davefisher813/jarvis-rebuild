@@ -23,6 +23,7 @@ import { loadSweepSession, saveSweepSession, clearSweepSession, isFreshSession, 
 import { findTaskForThread, taskTitleOf } from "./dupTaskGuard";
 import { Burst } from "../shared/Burst";
 import { madeBy } from "../shared/provenance";
+import BackPill from "../shared/BackPill";
 
 
 // THE SWEEP (Dave 2026-08-25, the Anti-Inbox catalog, every pick approved).
@@ -498,7 +499,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     return (
       <div className="screen ruled" key="deck-resume">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => { done.current = true; onPark(0); }}>Email</button>
+          <BackPill label="Email" onClick={() => { done.current = true; onPark(0); }} />
           <span className="nav-title">The Sweep</span>
           <span className="nav-action" />
         </div>
@@ -556,7 +557,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     <div className="screen ruled" key={"deck" + row.id}>
       <div className="nav-bar">
         {/* E-19: leaving parks; it no longer finishes. */}
-        <button className="nav-back" onClick={park}>Email</button>
+        <BackPill label="Email" onClick={park} />
         {/* 5A: the clock is the title. It only runs down, and zero means
             done, never "you failed to finish". E-21: on Finish This One the
             clock is gone and the title says what is left instead. */}

@@ -12,6 +12,7 @@ import { Calendar, Link2, User, Wallet } from "../shared/icons";
 import { lineCase } from "../shared/casing";
 import SkeletonRows from "../shared/SkeletonRows";
 import type { AdminProbe } from "./useIsAdmin";
+import BackPill from "../shared/BackPill";
 
 function platformLabel(p: string): string {
   return p === "ios" ? "iOS" : p === "web" ? "Web" : "Other";
@@ -118,7 +119,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
   if (!isAdmin && probe === "checking") {
     return (
       <div className="screen">
-        <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
+        <div className="nav-bar"><BackPill label="More" onClick={() => onBack?.()} /><div className="nav-large">Admin</div></div>
         <SkeletonRows rows={3} />
       </div>
     );
@@ -127,7 +128,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
   if (!isAdmin && probe === "error") {
     return (
       <div className="screen">
-        <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
+        <div className="nav-bar"><BackPill label="More" onClick={() => onBack?.()} /><div className="nav-large">Admin</div></div>
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><ShieldAlert className="ic" /></div>
           <div className="empty-title">Couldn't Check Access</div>
@@ -141,7 +142,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
   if (!isAdmin) {
     return (
       <div className="screen">
-        <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
+        <div className="nav-bar"><BackPill label="More" onClick={() => onBack?.()} /><div className="nav-large">Admin</div></div>
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><ShieldAlert className="ic" /></div>
           <div className="empty-title">Not Authorized</div>
@@ -160,7 +161,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
 
   return (
     <div className="screen">
-      <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
+      <div className="nav-bar"><BackPill label="More" onClick={() => onBack?.()} /><div className="nav-large">Admin</div></div>
 
       {source.sample && <div className="pad-x"><div className="adm-banner">Sample Data, for Layout Preview Only</div></div>}
       {error && <div className="pad-x conn-error">{error}</div>}

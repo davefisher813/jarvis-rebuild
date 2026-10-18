@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { catColor } from "../../shared/categories";
 import { Head, Card } from "../../settings/kit";
+import BackPill from "../../shared/BackPill";
 // inherit the note's Health category, so the checkboxes are cat-bd-green. The
 // urgency labels add intent color (warn / muted). No icons on this screen.
 
@@ -45,7 +46,7 @@ export default function CreateTasks({
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>Connections</button>
+        <BackPill label="Connections" onClick={() => onBack?.()} />
         <span className="nav-title"></span>
         <span></span>
       </div>

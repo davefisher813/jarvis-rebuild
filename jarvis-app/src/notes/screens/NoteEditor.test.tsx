@@ -56,7 +56,7 @@ describe("the header", () => {
     const onCreateTasks = vi.fn();
     render(<NoteEditor {...base} onDeleteNote={onDeleteNote} onConnections={() => {}} onPin={() => {}} onTags={() => {}} onArchive={() => {}} onCreateTasks={onCreateTasks} />);
     expect(screen.queryByLabelText("Delete note")).toBeNull();
-    expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument();
+    expect(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Note options"));
     const items = screen.getAllByRole("menuitem").map((b) => b.textContent?.trim());
     // The caret opens inside the first section, so the section actions are offered too.

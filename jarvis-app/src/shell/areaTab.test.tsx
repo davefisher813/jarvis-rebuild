@@ -27,7 +27,7 @@ describe("the tab bar on an area page reached from Life", () => {
     }, { timeout: 8000 });
     fireEvent.click(area);
     // The area's own page is up (its nav bar has the Edit and Back controls)...
-    await screen.findByLabelText("Back", {}, { timeout: 8000 });
+    await waitFor(() => { if (!document.querySelector(".nav-back")) throw new Error("no back yet"); }, { timeout: 8000 });
     // ...and the bar still says Life.
     expect(tab("Life")).toHaveClass("active");
     expect(tab("More")).not.toHaveClass("active");

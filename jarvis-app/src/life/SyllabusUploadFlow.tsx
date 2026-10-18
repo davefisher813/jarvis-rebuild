@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { pressable } from "../shared/pressable";
 import { clock12 } from "../shared/clock";
+import BackPill from "../shared/BackPill";
 import { createPortal } from "react-dom";
 import type { AIService } from "../ai/AIService";
 import { buildVisionMessage } from "../ai/AIService";
@@ -193,7 +194,7 @@ export default function SyllabusUploadFlow({
     return (
       <div className="screen ruled">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={onCancel}></button>
+          <BackPill label="Life" onClick={onCancel} />
           <div className="nav-title truncate">Review the Syllabus</div>
         </div>
         {thumb && (

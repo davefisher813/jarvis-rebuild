@@ -46,7 +46,8 @@ describe("GymFlow: a session named on the way in goes back to its caller", () =>
     rerender(<GymFlow startWorkoutId={id} onBack={onBack} />);
     // The session's own screen, not the program page that is up first.
     await screen.findByRole("button", { name: "Delete Workout" }, { timeout: 4000 });
-    const back = screen.getByRole("button", { name: "Back" });
+    // The one back control names where it goes: out of the flow, to the caller (Health when no one named it).
+    const back = screen.getByRole("button", { name: "Health" });
     expect(onBack).not.toHaveBeenCalled();
     await act(async () => { fireEvent.click(back); });
     expect(onBack, "the caller's page is the way out").toHaveBeenCalledTimes(1);
@@ -60,7 +61,7 @@ describe("GymFlow: a session named on the way in goes back to its caller", () =>
     fireEvent.click(await screen.findByText("1 Workout", undefined, { timeout: 4000 }));
     const row = await screen.findByText("Push Day", undefined, { timeout: 4000 });
     await act(async () => { fireEvent.click(row); });
-    const back = await screen.findByRole("button", { name: "Back" });
+    const back = await screen.findByRole("button", { name: "History" });
     await act(async () => { fireEvent.click(back); });
     expect(onBack).not.toHaveBeenCalled();
     expect(await screen.findByText("1 Workout")).toBeInTheDocument();
@@ -70,7 +71,7 @@ describe("GymFlow: a session named on the way in goes back to its caller", () =>
     const { rerender } = await seeded("gym-back-origin-lift");
     const onBack = vi.fn();
     rerender(<GymFlow startLift={{ name: "Bench Press", kind: "weight_reps", unit: "lb" }} onBack={onBack} />);
-    const back = await screen.findByRole("button", { name: "Back" }, { timeout: 4000 });
+    const back = await screen.findByRole("button", { name: "Health" }, { timeout: 4000 });
     await act(async () => { fireEvent.click(back); });
     expect(onBack).toHaveBeenCalledTimes(1);
   });

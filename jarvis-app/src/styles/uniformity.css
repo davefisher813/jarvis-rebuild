@@ -104,10 +104,7 @@
    Tokens only; black viewer surface is theme-invariant (DS uses #000/#fff
    the same way for fixed surfaces).
    ============================================================ */
-/* iOS back chevron on the canonical .nav-back (matches v2 sample L258) */
-.nav-back::before { content:''; display:inline-block; width:10px; height:10px;
-  border-left:2.5px solid var(--tint); border-bottom:2.5px solid var(--tint);
-  transform:rotate(45deg); margin-right:var(--s-1); }
+/* The back control's chevron is an icon inside shared/BackPill now; there is no second, drawn one. */
 /* New-note placeholder text */
 .is-placeholder { color: var(--tx-2); }
 /* Trailing remove control in a row (detach an attachment); 44pt tap target */

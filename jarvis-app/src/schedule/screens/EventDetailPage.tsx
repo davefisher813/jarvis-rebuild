@@ -9,6 +9,8 @@ import { CalendarDays, ListChecks, StickyNote, User, Tag } from "../../shared/ic
 import Provenance from "../../shared/ProvenanceLine";
 import { rowSource, type Source } from "../../shared/provenance";
 import InlineEdit from "../../shared/InlineEdit";
+import BackPill from "../../shared/BackPill";
+import { useLeaveVia } from "../../shell/navOrigin";
 
 // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07: "events aren't
 // first-class entities"; built 2026-09-09, all three gaps at once).
@@ -37,12 +39,15 @@ export interface EventStep {
 }
 
 export default function EventDetailPage({
-  event, occurrence, onBack, onEdit,
+  event, occurrence, onBack, backLabel, onEdit,
   steps = [], onToggleStep, onAddStep, onOpenStep,
   linkedNotes = [], onOpenNote, openSourceFor,
   onDuplicate, onDelete,
 }: {
   event: EventItem;
+  /** The screen the back returns to, said by the flow that opened this page (Today, Schedule). Two flows open it, so the page
+   *  cannot know; a cross-tab jump names its own origin instead (useLeaveVia). */
+  backLabel: string;
   /** The occurrence being looked at, for a repeating event. Defaults to the
    *  series' own date, which is what a non-repeating event has. */
   occurrence?: string;
@@ -70,6 +75,7 @@ export default function EventDetailPage({
   onDuplicate?: () => void;
   onDelete?: () => void;
 }) {
+  const leave = useLeaveVia(backLabel, onBack);
   const e = event.data;
   const date = occurrence ?? e.date;
   const tone = "cat-fg-" + catColor(e.category ?? "");
@@ -96,7 +102,7 @@ export default function EventDetailPage({
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={leave.label} onClick={leave.onBack} />
         <div className="nav-title">Event</div>
         <button className="nav-action-text" onClick={onEdit}>Edit</button>
       </div>

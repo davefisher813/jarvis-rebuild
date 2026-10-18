@@ -2,19 +2,22 @@ import type { ThirdPracticeOffer } from "../thirdPractice";
 import { pressable } from "../../shared/pressable";
 import { weekdayShortDate } from "../../shared/dateFormat";
 import RowShell from "../../brain/RowShell";
+import BackPill from "../../shared/BackPill";
 
 // THE THIRD PRACTICE (Part 2, rank #1). One day, more than one sport
 // commitment across different orgs. Stated once, as a fact, with an offer.
 // Never a warning, never red, never a recurring nag.
-export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
+export default function ThirdPracticeScreen({ offers, onProtectGap, onBack, backLabel = "Health" }: {
   offers: ThirdPracticeOffer[];
   onProtectGap: (offer: ThirdPracticeOffer) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Third Practice</div>
       </div>
 

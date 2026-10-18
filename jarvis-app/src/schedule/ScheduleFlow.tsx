@@ -1611,7 +1611,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   // Walking through the door mounts the gym whole, as an overlay -- same
   // pattern Brain uses. Coming back re-reads events so a fresh stamp shows.
   if (gymDoor.opened) {
-    return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); void reload(); }} />;
+    return <GymFlow door={gymDoor.opened} backLabel="Schedule" onBack={() => { gymDoor.close(); void reload(); }} />;
   }
 
   // THE EVENT'S OWN PAGE (2026-09-09). Same shape the gym door above uses and
@@ -1630,6 +1630,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           event={ev}
           occurrence={detail.occurrence}
           onBack={() => setDetail(null)}
+          backLabel="Schedule"
           onEdit={() => { const d = detail; setDetail(null); void openEdit(d.id, d.occurrence); }}
           steps={steps}
           onToggleStep={(id) => void onToggleTask(id)}
@@ -1808,6 +1809,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           svc={svc}
           categories={categories}
           existingEvents={allEvents}
+          backLabel="Schedule"
           onDone={async ({ createdCount, updatedCount, undo }) => {
             setUploadOpen(false);
             await reload();

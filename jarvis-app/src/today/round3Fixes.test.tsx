@@ -115,7 +115,7 @@ describe("floating chrome keeps its distance from the dock", () => {
     const pill = rule(css(), ".return-pill");
     expect(pill).toMatch(/margin-bottom:\s*var\(--s-1\)/);
     // 5px of the 44px box is unpainted on the bottom, plus 4px of margin: 9px clear.
-    expect(rule(css(), ".return-pill::before")).toMatch(/inset:\s*5px 0/);
+    expect(rule(css(), ".back-pill::before")).toMatch(/inset:\s*5px 0/);
   });
 });
 

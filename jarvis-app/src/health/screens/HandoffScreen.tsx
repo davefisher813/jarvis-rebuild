@@ -1,4 +1,5 @@
 import type { HandoffItem } from "../handoff";
+import BackPill from "../../shared/BackPill";
 
 // THE HANDOFF (Part 7, rank #2 overall). The parent's product: rides,
 // times, forms, fees, medication refill logistics, gear, the physical's
@@ -8,7 +9,7 @@ import type { HandoffItem } from "../handoff";
 // Real cross-account routing (a genuine parent identity) is not built yet
 // (see the module's own auth note); this screen renders under the
 // athlete's own ownerId, as What They See already does for the Share Line.
-export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, onBack }: {
+export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, onBack, backLabel = "Health" }: {
   items: HandoffItem[];
   // Optional (2026-10-04): the door is drawn only when the Season Feed can
   // read a schedule and commit it. The app mounts HealthFlow with neither
@@ -16,11 +17,13 @@ export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, o
   onOpenSeasonFeed?: () => void;
   onOpenLocker: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Handoff</div>
       </div>
 

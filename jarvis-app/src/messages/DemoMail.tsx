@@ -18,6 +18,7 @@ import { EnvelopeGlyph } from "../shared/glyphs";
 import ListFloor from "../shared/ListFloor";
 import NoticeCard from "../today/NoticeCard";
 import { sweepEstimate } from "./sweep";
+import BackPill from "../shared/BackPill";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -108,7 +109,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
     return (
       <div className="screen ruled">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setComposing(false)}>Cancel</button>
+          <BackPill label="Cancel" onClick={() => setComposing(false)} />
           <span className="nav-title">New Message</span>
           <div className="nav-actions">
             <button className="nav-action-text" onClick={demoTap}>Send</button>

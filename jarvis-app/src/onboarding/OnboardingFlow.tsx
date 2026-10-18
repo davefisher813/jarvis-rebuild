@@ -25,6 +25,7 @@ import { loadMailSnapshot, type MailSnapshot } from "../messages/home";
 import { foundLine, foundRows, openCount, FOUND_CLEAN, FOUND_UNKNOWN } from "./found";
 import { pressable } from "../shared/pressable";
 import { Plus } from "../shared/icons";
+import BackPill from "../shared/BackPill";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -718,7 +719,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           chevron), in the header slot the onboarding stylesheet already has. */}
       {idx > 0 && (
         <div className="ob-top">
-          <button className="nav-back" onClick={goBack}>Back</button>
+          <BackPill label="Previous" onClick={goBack} />
         </div>
       )}
       {transcript}

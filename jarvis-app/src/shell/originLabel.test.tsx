@@ -62,7 +62,7 @@ describe("a project opened from an area reached from Life", () => {
       return el;
     }, { timeout: 8000 });
     fireEvent.click(area);
-    await screen.findByLabelText("Back", {}, { timeout: 8000 });
+    await waitFor(() => { if (!document.querySelector(".nav-back")) throw new Error("no back yet"); }, { timeout: 8000 });
     const row = await waitFor(() => {
       const el = document.querySelector(".proj-row-ruled") as HTMLElement | null;
       if (!el) throw new Error("no project row yet");
@@ -74,7 +74,8 @@ describe("a project opened from an area reached from Life", () => {
       if (!el) throw new Error("no way back yet");
       return el;
     }, { timeout: 8000 });
-    expect(document.querySelector(".return-pill")?.textContent ?? pill.textContent).not.toBe("Brain");
-    expect(document.querySelector(".return-pill")?.textContent).toBe("Life");
+    // The project's own back claims the origin, so the shell's pill stands down: one way back, and it says Life.
+    expect(pill.textContent).not.toBe("Brain");
+    expect(pill.textContent).toBe("Life");
   }, 40_000);
 });

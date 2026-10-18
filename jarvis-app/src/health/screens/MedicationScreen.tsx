@@ -6,6 +6,7 @@ import MedRows from "./MedRows";
 import DoseTimeline from "./DoseTimeline";
 import MedSheet from "./MedSheet";
 import { lineCase } from "../../shared/casing";
+import BackPill from "../../shared/BackPill";
 
 // THE MEDICATION PAGE (Health Push D, H-38; Dave 2026-09-10: "medication
 // related stuff should all be its own page"; Dave 2026-09-13: log and track,
@@ -16,7 +17,7 @@ import { lineCase } from "../../shared/casing";
 export interface TrackRow { key: string; label: string; sub: string }
 
 export default function MedicationScreen({
-  title, meds, doses, now = Date.now(), lastWord, tracks, onTook, onLogDose, onUndo, onAddMed, onEditMed, onRemoveMed, onOpenTrack, onBack,
+  title, meds, doses, now = Date.now(), lastWord, tracks, onTook, onLogDose, onUndo, onAddMed, onEditMed, onRemoveMed, onOpenTrack, onBack, backLabel = "Health",
 }: {
   title: string;
   meds: MedDefEntry[];
@@ -33,13 +34,15 @@ export default function MedicationScreen({
   onRemoveMed: (id: string) => void;
   onOpenTrack: (key: string) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [sheet, setSheet] = useState<{ kind: "add" } | { kind: "edit"; med: MedDefEntry } | null>(null);
   const chev = <div className="chev" />;
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">{title}</div>
       </div>
       <div className="nav-large">Medication</div>
