@@ -228,7 +228,7 @@ export default function HealthBody({
                 </button>
                 <div className="day-acts h-hero-acts">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => onStart(SCRATCH_DAY_ID)}>Log a New Workout</button>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNextOpen(true)}>Change Workout</button>
+                  <button type="button" className="btn btn-secondary btn-sm h-hero-quiet" onClick={() => setNextOpen(true)}>Change Workout</button>
                 </div>
               </div>
             ) : (

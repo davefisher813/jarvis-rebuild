@@ -3975,7 +3975,18 @@
    line and a red Start; Dave's words override the board here. With no program the card keeps its Start Workout. ---- */
 .ruled.health-ruled.wo-screen .h-hero-cta .h-hero-go { flex-direction: column; gap: var(--s-0h); line-height: 1.2; }
 .ruled.health-ruled.wo-screen .h-hero-go-t { display: block; }
-.ruled.health-ruled.wo-screen .h-hero-acts { justify-content: flex-start; }
+/* THE READY TO TRAIN CARD'S STANDARD (Dave, approved from a rendered preview, 2026-10-18). One rhythm: the card's own 14 above the Start
+   button, 14 between it and the two capsules, 14 under them, so no gap in the card is bigger than another. The capsules span the card's
+   whole width, two equal halves with the usual 8 between, so nothing is dead at the right; Log a New Workout is the real path in the
+   capsule's usual ink, Change Workout the utility, a step dimmer with a subtler fill. The label is a label: the dimmest grey that
+   still clears 4.5, so the Start button owns the card. Red is the Start button's alone: Quick Log is a defined capsule (an edge, the
+   warm white of the page's own ink) rather than red text. */
+.ruled.health-ruled.wo-screen .h-hero-cta:has(> .h-hero-acts) { gap: var(--s-3h); }
+.ruled.health-ruled.wo-screen .h-hero-acts { justify-content: stretch; flex-wrap: nowrap; gap: var(--s-2); }
+.ruled.health-ruled.wo-screen .h-hero-acts .btn { flex: 1 1 0; justify-content: center; text-align: center; white-space: nowrap; }
+.ruled.health-ruled.wo-screen .h-hero-acts .h-hero-quiet { color: var(--tx-2); background-color: var(--press-1); }
+.ruled.health-ruled .h-hero-head .h-eyebrow { color: var(--tx-quiet); }
+html[data-theme] .ruled.health-ruled .h-hero-head > .see-all.pill-action { color: var(--tx-1); background-image: none; filter: none; box-shadow: inset 0 0 0 1px var(--tx-4); }
 .ruled.health-ruled.wo-screen .h-hero-go > .facts { color: inherit; font-size: var(--t-sub); line-height: 1.3; justify-content: center;
   flex-wrap: wrap; white-space: normal; overflow: visible; max-width: 100%; margin: 0; }
 .ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact, .ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact + .fact::before {
