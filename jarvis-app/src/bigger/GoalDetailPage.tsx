@@ -14,6 +14,8 @@ import { savingsLine, savingsPct, savedRows, savedTotal } from "./savings";
 import RemoveSavingsSheet from "./RemoveSavingsSheet";
 import { catColor, goalTone } from "../shared/categories";
 import { haptics } from "../shared/haptics";
+import BackPill from "../shared/BackPill";
+import { useLeaveVia } from "../shell/navOrigin";
 import { fmtDay } from "../decisions/DecisionsFlow";
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
@@ -136,6 +138,8 @@ export default function GoalDetailPage({
   /** Swipe left on a milestone: Delete (the flow owns the Undo). Swipe right on an open one is the tick. */
   onDeleteMilestone?: (id: string) => void;
 }) {
+  // THE ONE BACK (Dave 2026-10-18): the Life tab's Goals lens is where this page opens; a cross-tab jump names where it came from.
+  const leave = useLeaveVia("Life", onBack);
   const target = goal.data.moneyTarget;
   const progress = reach.progress;
   // Derived, never asserted: every task under every project of this goal is
@@ -210,7 +214,7 @@ export default function GoalDetailPage({
   return (
     <div className="screen ruled proj-ruled goal-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={leave.label} onClick={leave.onBack} />
         <div className="nav-title">Goal</div>
         <button className="nav-action-text" onClick={onEdit}>Edit</button>
       </div>

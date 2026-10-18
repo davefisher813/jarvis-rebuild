@@ -31,7 +31,7 @@ function SeededMonth() {
       setReady(true);
     })();
   }, [cats, schedule, tasks]);
-  return ready ? <ReportFlow onBack={() => {}} live /> : null;
+  return ready ? <ReportFlow backLabel="Insights" onBack={() => {}} live /> : null;
 }
 
 describe("the live month's report (BRAIN-F-16)", () => {

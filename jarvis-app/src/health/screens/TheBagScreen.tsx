@@ -1,25 +1,28 @@
 import { BAG_ITEMS, allChecked } from "../bag";
 import type { BagItemState } from "../types";
 import { pressable } from "../../shared/pressable";
+import BackPill from "../../shared/BackPill";
 
 // THE BAG, WATER WITH YOU IS A ROW INSIDE IT (Part 3). A pre-departure
 // checklist bound to one calendar event. One tap per item or one tap for
 // all. Water With You is object-level: is the bottle in the bag, never a
 // volume or an ounces target.
 export default function TheBagScreen({
-  eventTitle, items, onToggle, onCheckAll, onBack,
+  eventTitle, items, onToggle, onCheckAll, onBack, backLabel = "Health",
 }: {
   eventTitle: string;
   items: BagItemState[];
   onToggle: (key: string) => void;
   onCheckAll: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const done = allChecked(items);
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Bag</div>
       </div>
 

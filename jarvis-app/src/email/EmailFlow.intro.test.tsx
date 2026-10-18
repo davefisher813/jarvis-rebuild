@@ -277,7 +277,7 @@ describe("only over a Grouped list that has mail, outside select mode", () => {
     expect(screen.getByPlaceholderText("Search Mail")).toBeInTheDocument();
     expect(intro()).toBeNull();
     expect(document.querySelector(".notice-card")).toBeNull();
-    fireEvent.click(screen.getByText(EMAIL_TITLE, { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText(EMAIL_TITLE, { selector: ".nav-back .back-pill-t" }));
     expect(intro()).not.toBeNull();
     // The Waiting tab is not the Grouped list.
     fireEvent.click(tab("Waiting"));

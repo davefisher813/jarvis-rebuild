@@ -50,7 +50,6 @@
 /* A bar action that is a MODE, not a verb: it stays lit while the mode is on,
    so the editorial layout announces itself in the one place he looks. */
 .nav-action.on { color: var(--accent-chrome); }
-.nav-back .ic { width: 24px; height: 24px; }
 .tab .ic { width: 26px; height: 26px; }
 
 /* Attachment-row icons: a colored file/photo glyph sits directly in a .row via
@@ -7409,25 +7408,31 @@ span.row-star { cursor: default; }
      goal card, "SUN 11"). In flow, between the scroll box and the capture bar, the scroll box is shorter by the pill's
      own height while a jump is live and nothing is ever under it. The toast above it comes first in the column, so the
      pill is out of its way by order; z-index keeps it over the capture bar's fade. */
-  position: relative; z-index: 2; flex-shrink: 0; align-self: flex-start; margin-left: var(--s-4);
+  z-index: 2; align-self: flex-start; margin-left: var(--s-4);
   /* The capsule is painted 5px inside its 44px box, so with the box flush against the dock the paint stood 5px off it, tighter than
      the 8pt rhythm anywhere else (round 3 review). 4px of margin makes the clear space 9px, never under 8. */
   margin-bottom: var(--s-1);
+}
+/* THE ONE BACK CAPSULE (Dave 2026-10-18: "The labeled one should take place of the regular one everywhere"). Every back control in the
+   app is this: a bar's own back (.nav-back) and the shell's way home (.return-pill) wear the same capsule, because there is one
+   component (shared/BackPill). 44px to the finger, 34px to the eye: the box is the HIG minimum and the capsule is painted on
+   ::before, 5px in from the top and bottom. The label is the action red, the capsule fill dark takes opaque (see above). The label
+   gives way with an ellipsis before the capsule can grow into the title beside it. */
+.back-pill {
+  position: relative; isolation: isolate; flex-shrink: 0; max-width: 45vw;
   display: inline-flex; align-items: center; gap: var(--s-0h);
-  /* 44px to the finger, 34px to the eye: the box is the HIG minimum and the
-     capsule is painted on ::before, 5px in from the top and bottom. */
   min-height: 44px; padding: 5px var(--s-3) 5px var(--s-2);
   border: 0; border-radius: var(--r-pill);
   background: none; color: var(--tint);
   font-family: var(--f); font-size: calc(14px * var(--type-scale));
   font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
 }
-.return-pill::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: var(--r-pill);
+.back-pill::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: var(--r-pill);
   background-color: var(--capsule-fill); }
-.return-pill { isolation: isolate; }
-[data-theme="light"] .return-pill { color: var(--on-light-red); }
-.return-pill .ic { width: 17px; height: 17px; }
-.return-pill:active { opacity: 0.85; }
+[data-theme="light"] .back-pill { color: var(--on-light-red); }
+.back-pill .ic { width: 17px; height: 17px; flex-shrink: 0; }
+.back-pill-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back-pill:active { opacity: 0.85; }
 
 /* ===== WORKOUT LOGGING, one flow (2026-09-26) ===== */
 /* Dave's pass-off, top item: "Logging renders inconsistently... Needs one

@@ -1,6 +1,7 @@
 import type { MedWindowDay, MedWindowMarkKind } from "../medWindow";
 import { weekdayShortDate } from "../../shared/dateFormat";
 import { clockOf } from "../meds";
+import BackPill from "../../shared/BackPill";
 
 const MARK_LABEL: Record<MedWindowMarkKind, string> = {
   dose: "Dose",
@@ -13,7 +14,7 @@ const MARK_LABEL: Record<MedWindowMarkKind, string> = {
 // analysis, no correlation claim, no arrow drawn between any two marks: this
 // screen renders exactly the facts medWindow.ts hands it, in the order they
 // happened, and nothing that reads a relationship between them.
-export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorReport, onBack }: {
+export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorReport, onBack, backLabel = "Health" }: {
   days: MedWindowDay[];
   /** Whether any food mark exists to draw (2026-10-04). Food comes only from
    *  Ate Before, which the app does not record while it stays dormant, so the
@@ -21,11 +22,13 @@ export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorRepo
   hasFood?: boolean;
   onOpenDoctorReport: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Med Window</div>
       </div>
 

@@ -7,6 +7,7 @@ import { pressable } from "../../shared/pressable";
 import { useLeaveVia } from "../../shell/navOrigin";
 import { lineCase, titleCase } from "../../shared/casing";
 import { progressLabel } from "../../encourage/messages";
+import BackPill from "../../shared/BackPill";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
 //
@@ -182,7 +183,7 @@ export default function StartScreen({
   return (
     <div className="screen ruled start-ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={leave.onBack}>{leave.label}</button>
+        <BackPill label={leave.label} onClick={leave.onBack} />
         <div className="nav-title">Start</div>
         <span className="nav-action" />
       </div>

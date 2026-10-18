@@ -12,6 +12,7 @@ import SkeletonRows from "../shared/SkeletonRows";
 import ActionSheet from "./ActionSheet";
 import { isSessionPR } from "./prs";
 import { Check } from "../shared/icons";
+import BackPill from "../shared/BackPill";
 
 const CHEV = <div className="chev" />;
 
@@ -64,8 +65,10 @@ export function GymLoadState({ status, what, onRetry }: { status: "loading" | "f
   );
 }
 
-export default function HistoryScreen({ workouts, status = "ready", onRetry, onBack, onOpenLift, onOpenWorkout, onSameAsLastTime, onLogPast, mode: modeProp, onMode }: {
+export default function HistoryScreen({ workouts, status = "ready", onRetry, onBack, backLabel = "Training", onOpenLift, onOpenWorkout, onSameAsLastTime, onLogPast, mode: modeProp, onMode }: {
   workouts: Workout[]; onBack: () => void;
+  /** The page the back returns to, said by the gym (its program page). */
+  backLabel?: string;
   /** Whether `workouts` is the answer yet (see GymLoadState). Defaults to
    *  ready for callers that hand in a list they already hold. */
   status?: "loading" | "failed" | "ready";
@@ -137,7 +140,7 @@ export default function HistoryScreen({ workouts, status = "ready", onRetry, onB
   return (
     <div className="screen ruled health-ruled wo-screen screen-history">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">History</div>
         {(onSameAsLastTime || onLogPast) && (
           <button type="button" className="nav-action-text" onClick={() => setLogOpen(true)}>Log</button>

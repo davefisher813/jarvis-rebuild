@@ -485,10 +485,11 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
   });
 
   it("the return pill is 44 to the finger and is a row of the shell, never over content (2026-10-05)", () => {
-    const pill = ruleBody(css(), ".return-pill")!;
+    // The capsule is the one back control's (.back-pill, shared/BackPill, 2026-10-18); .return-pill is only where it stands.
+    const pill = ruleBody(css(), ".back-pill")!;
     expect(pill).toMatch(/min-height:\s*44px/);
     expect(pill, "the capsule is painted on ::before, not the box").toMatch(/background:\s*none/);
-    expect(ruleBody(css(), ".return-pill::before")).toMatch(/inset:\s*5px 0/);
+    expect(ruleBody(css(), ".back-pill::before")).toMatch(/inset:\s*5px 0/);
     // D6: it floated (position: fixed over the scroll box, clear of the dock by a measured --return-clear) and covered
     // whichever row sat at that height. It is in the shell's column now, so nothing can be under it.
     expect(pill, "in flow, not fixed").toMatch(/position:\s*relative/);

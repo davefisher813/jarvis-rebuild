@@ -2,6 +2,7 @@ import type { ConsentGrant, HealthCategoryId } from "../types";
 import { pressable } from "../../shared/pressable";
 import { HEALTH_CATEGORIES, HEALTH_CATEGORY_LABEL, HEALTH_CATEGORY_DESC, KID_ROOM_CATEGORIES, KID_ROOM_LABEL, DEFAULT_GRANTED } from "../shareLine";
 import { haptics } from "../../shared/haptics";
+import BackPill from "../../shared/BackPill";
 
 // THE SHARE LINE (Part 7). One screen, every category, an explicit on/off
 // the ATHLETE controls. Off by default for everything except logistics.
@@ -14,12 +15,14 @@ import { haptics } from "../../shared/haptics";
 // onToggle with a Kid's Room category. src/laws/healthPrivacy.test.ts checks
 // that literally.
 export default function ShareLineScreen({
-  grants, onToggle, onOpenWhatTheySee, onBack,
+  grants, onToggle, onOpenWhatTheySee, onBack, backLabel = "Health",
 }: {
   grants: ConsentGrant[];
   onToggle: (category: HealthCategoryId, granted: boolean) => void;
   onOpenWhatTheySee: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const grantedFor = (c: HealthCategoryId) => grants.find((g) => g.category === c)?.granted ?? DEFAULT_GRANTED[c];
   const flip = (c: HealthCategoryId) => { haptics.selection(); onToggle(c, !grantedFor(c)); };
@@ -27,7 +30,7 @@ export default function ShareLineScreen({
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Share Line</div>
       </div>
 

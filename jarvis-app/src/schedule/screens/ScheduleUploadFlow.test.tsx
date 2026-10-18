@@ -22,7 +22,7 @@ const fakeAI = (text: string) => ({ available: true, complete: async () => text 
 // Get to the review list the way the user does: paste, read, review.
 async function review(ai: AIService, svc: ScheduleService, onDone = vi.fn()) {
   render(
-    <ScheduleUploadFlow ai={ai} svc={svc} categories={CATS} existingEvents={[]} onDone={onDone} onCancel={() => {}} />,
+    <ScheduleUploadFlow backLabel="Schedule" ai={ai} svc={svc} categories={CATS} existingEvents={[]} onDone={onDone} onCancel={() => {}} />,
   );
   fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "anything" } });
   fireEvent.click(screen.getByText("Read the Pasted Text"));
@@ -127,7 +127,7 @@ describe("Schedule upload: the review row shows every fact it read", () => {
 describe("Schedule upload: what the fix sheet sets reaches the calendar", () => {
   async function fixRow(svc: ScheduleService) {
     render(
-      <ScheduleUploadFlow ai={fakeAI(reply([
+      <ScheduleUploadFlow backLabel="Schedule" ai={fakeAI(reply([
         { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
       ]))} svc={svc} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />,
     );
@@ -182,7 +182,7 @@ describe("Schedule upload: what the fix sheet sets reaches the calendar", () => 
     const existing = await svc.listEvents();
     const onDone = vi.fn();
     render(
-      <ScheduleUploadFlow ai={fakeAI(reply([
+      <ScheduleUploadFlow backLabel="Schedule" ai={fakeAI(reply([
         { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
       ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
     );
@@ -217,7 +217,7 @@ describe("Schedule upload: what the fix sheet sets reaches the calendar", () => 
     const existing = await svc.listEvents();
     const onDone = vi.fn();
     render(
-      <ScheduleUploadFlow ai={fakeAI(reply([
+      <ScheduleUploadFlow backLabel="Schedule" ai={fakeAI(reply([
         { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:00", location: "" },
       ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
     );
@@ -238,7 +238,7 @@ describe("Schedule upload: what the fix sheet sets reaches the calendar", () => 
     const existing = await svc.listEvents();
     const onDone = vi.fn();
     render(
-      <ScheduleUploadFlow ai={fakeAI(reply([
+      <ScheduleUploadFlow backLabel="Schedule" ai={fakeAI(reply([
         { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
       ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
     );
@@ -263,7 +263,7 @@ describe("Schedule upload: the photo card follows the number rule (2026-10-05)",
   const readPhoto = async (events: Record<string, unknown>[], uid: string) => {
     const svc = new ScheduleService(new Store(new InMemoryAdapter()), uid);
     render(
-      <ScheduleUploadFlow ai={fakeAI(reply(events))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />,
+      <ScheduleUploadFlow backLabel="Schedule" ai={fakeAI(reply(events))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />,
     );
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [new File(["x"], "s.png", { type: "image/png" })] } });
@@ -296,7 +296,7 @@ describe("Schedule upload: a read that never answers fails visibly, with a way b
     try {
       const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-hang");
       const onCancel = vi.fn();
-      render(<ScheduleUploadFlow ai={hangingAI()} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={onCancel} />);
+      render(<ScheduleUploadFlow backLabel="Schedule" ai={hangingAI()} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={onCancel} />);
       fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "Please read the attached" } });
       fireEvent.click(screen.getByText("Read the Pasted Text"));
       expect(screen.getAllByText("Reading...").length).toBeGreaterThan(0);
@@ -312,7 +312,7 @@ describe("Schedule upload: a read that never answers fails visibly, with a way b
 
   it("an answer with no events says so instead of showing an empty review", async () => {
     const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-none");
-    render(<ScheduleUploadFlow ai={fakeAI(reply([]))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />);
+    render(<ScheduleUploadFlow backLabel="Schedule" ai={fakeAI(reply([]))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "hello" } });
     fireEvent.click(screen.getByText("Read the Pasted Text"));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't Find Any Events in That Text");
@@ -323,7 +323,7 @@ describe("Schedule upload: a read that never answers fails visibly, with a way b
 // ALFRED'S LIVE CHECK ON b4ff606 (2026-10-13): "Team call tomorrow at 2pm for 30 minutes" answered "Couldn't Find Any Events in That Text".
 describe("Schedule upload: a plain sentence is an event", () => {
   const paste = (ai: AIService) => {
-    render(<ScheduleUploadFlow ai={ai} svc={new ScheduleService(new Store(new InMemoryAdapter()), "u-plain")} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />);
+    render(<ScheduleUploadFlow backLabel="Schedule" ai={ai} svc={new ScheduleService(new Store(new InMemoryAdapter()), "u-plain")} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "Team call tomorrow at 2pm for 30 minutes" } });
     fireEvent.click(screen.getByText("Read the Pasted Text"));
   };
@@ -342,7 +342,7 @@ describe("Schedule upload: a plain sentence is an event", () => {
   });
 
   it("still says so when there is truly no event in the text", async () => {
-    render(<ScheduleUploadFlow ai={fakeAI("{}")} svc={new ScheduleService(new Store(new InMemoryAdapter()), "u-none")} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />);
+    render(<ScheduleUploadFlow backLabel="Schedule" ai={fakeAI("{}")} svc={new ScheduleService(new Store(new InMemoryAdapter()), "u-none")} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "hello there" } });
     fireEvent.click(screen.getByText("Read the Pasted Text"));
     expect(await screen.findByRole("alert")).toHaveTextContent(/Couldn't Find Any Events/);

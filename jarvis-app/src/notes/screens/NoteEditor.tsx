@@ -31,6 +31,7 @@ import { useFileUrl } from "../../files/useFileUrl";
 import type { FileStore } from "../../files/FileStore";
 import { pressable } from "../../shared/pressable";
 import { clock12 } from "../../shared/clock";
+import BackPill from "../../shared/BackPill";
 
 // THE NOTE SCREEN (the writing system, 2026-09-14).
 //
@@ -439,7 +440,7 @@ export default function NoteEditor({
   return (
     <div className="screen screen-editor ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>{backLabel}</button>
+        <BackPill label={backLabel} onClick={onBack} />
         <span className="nav-title"></span>
         <div className="nav-actions">
           <button className="nav-action" onMouseDown={(e) => e.preventDefault()} onClick={() => void copy("full")} aria-label="Copy Note">

@@ -80,6 +80,7 @@ import SwipeDelete from "../shared/SwipeDelete";
 import GymSwipeRow from "./GymSwipeRow";
 import { usePushDepth } from "../shared/pushNav";
 import { pressable } from "../shared/pressable";
+import BackPill from "../shared/BackPill";
 import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
@@ -754,7 +755,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, startLift, startHistory, startWorkoutId, startSameAsLast, startBackdate, onRateSession, onLogSoreSpot }: {
+export default function GymFlow({ onBack, backLabel = "Health", door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, startLift, startHistory, startWorkoutId, startSameAsLast, startBackdate, onRateSession, onLogSoreSpot }: {
   /** 2026-09-14: open straight onto Your Lifts. The Health page's coverage
    *  card names untagged lifts and has to be able to hand you the screen
    *  that fixes them, rather than describing where it is. */
@@ -765,6 +766,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   startHistory?: "lifts" | "sessions";
   startWorkoutId?: string;
   onBack: () => void;
+  /** The screen onBack returns to, said by whoever mounted the gym (the Health area's name, Schedule, Today): three places do, so the
+   *  gym cannot know. Every back inside the gym names its own destination from here or from the gym's own screens. */
+  backLabel?: string;
   /** WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it
    *  was, where it hurts, anything related to an actual workout should go
    *  where people are logging their workout data"). The area page owns the
@@ -1090,6 +1094,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [programGameCategoryDraft, setProgramGameCategoryDraft] = useState<string | undefined>(undefined);
 
   const program = (activeProgramId ? programs.find((p) => p.id === activeProgramId) : undefined) ?? programs[0] ?? null;
+  // THE GYM'S OWN HOME is the program page, titled with the program (or "Training" with none): the label of every back that lands on it.
+  const homeLabel = program ? program.data.name : "Training";
   const weeks = program?.data.weeks ?? [];
   const multiWeek = weeks.length > 1;
   const activeWeek = multiWeek ? (weeks.find((w) => w.id === openWeekId) ?? null) : (weeks[0] ?? null);
@@ -2229,6 +2235,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {...(detailNote ? { note: detailNote } : {})}
           onOpenLogs={() => { setLiftFromOutside(false); setLiftDetailFor(null); setHistoryOpen(true); setHistoryMode("sessions"); }}
           onBack={() => { setLiftDetailFor(null); if (liftFromOutside) { setLiftFromOutside(false); onBack(); } }}
+          backLabel={liftFromOutside ? backLabel : historyOpen ? "History" : libraryOpen ? "Exercises" : homeLabel}
         />
         {/* The one classification editor, reachable from the exercise page as
             well as the library (§8), writing to the same store. */}
@@ -2304,7 +2311,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     return (
       <>
         <HistoryScreen workouts={workouts} status={loadStatus} onRetry={() => { setLoadFailed(false); void reload(); }}
-          onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)}
+          onBack={() => setHistoryOpen(false)} backLabel={homeLabel} onOpenLift={(row) => setLiftDetailFor(row)}
           onOpenWorkout={(w) => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}
           onSameAsLastTime={workouts.length > 0 ? repeatLast : undefined} onLogPast={askLogPast}
           mode={historyMode} onMode={setHistoryMode} />
@@ -2685,6 +2692,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             showToast({ message: "Kept separate" });
           }}
           onBack={() => setLibraryOpen(false)}
+          backLabel={homeLabel}
         />
         {deleteState && (
           <DeleteExerciseSheet
@@ -2755,7 +2763,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     return (
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
+          <BackPill label={workoutFromOutside ? backLabel : historyOpen ? "History" : homeLabel} onClick={closeWorkout} />
           <div className="nav-title">{workoutTitle(w.data.dayName)}</div>
           {/* The name and the date are what history is read by, and a session
               logged from memory the next morning gets both wrong. */}
@@ -3284,6 +3292,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           });
         }}
         onBack={parkSession}
+        backLabel={multiWeek && openWeekId && activeWeek ? activeWeek.label : homeLabel}
         onPause={parkSession}
         restNotify={restNotify}
         celebrations={celebrations}
@@ -3833,7 +3842,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {/* .wo-screen: the board's geometry for the program day (screen 2), scoped in ruled.css. */}
           <div className="screen ruled health-ruled wo-screen">
             <div className="nav-bar">
-              <button className="nav-back" aria-label="Back" onClick={() => setOpenDayId(null)}></button>
+              <BackPill label={multiWeek && openWeekId ? activeWeek.label : homeLabel} onClick={() => setOpenDayId(null)} />
               <div className="nav-title truncate">{openDay.name}</div>
               <button className="nav-action-text" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id, dayId: openDay.id })}>Edit</button>
             </div>
@@ -3977,7 +3986,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <>
         <div className="screen ruled health-ruled">
           <div className="nav-bar">
-            <button className="nav-back" aria-label="Back" onClick={() => setOpenWeekId(null)}></button>
+            <BackPill label={homeLabel} onClick={() => setOpenWeekId(null)} />
             <div className="nav-title truncate">{activeWeek.label}</div>
             <button className="nav-action-text" onClick={() => openWeekSheet(activeWeek.id)}>Edit</button>
           </div>
@@ -4043,8 +4052,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     <>
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-          <div className="nav-title truncate">{program ? program.data.name : "Training"}</div>
+          <BackPill label={backLabel} onClick={onBack} />
+          <div className="nav-title truncate">{homeLabel}</div>
           {program && <button className="nav-action-text" onClick={() => openProgramSheet(program)}>Edit</button>}
         </div>
 

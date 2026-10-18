@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import BackPill from "../shared/BackPill";
 import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal, useSchedule, useOptionalPeople, useOptionalDecisions } from "../data/NotesProvider";
 import type { MonthSeal, MonthSealData } from "./seal";
 import { prevMonthKey, computeSeal } from "./seal";
@@ -100,7 +101,9 @@ function busiestHours(byHour: number[]): string[] {
     .map((x) => lineCase(`${hourName(x.h)}: ${x.n} ${x.n === 1 ? "finish" : "finishes"}`));
 }
 
-export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen, canExit, onExit }: {
+export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, backLabel = "Insights", stillOpen, canExit, onExit }: {
+  /** The screen the back returns to; the report is Insights' page unless the flow that opened it says otherwise (Today does). */
+  backLabel?: string;
   report: MonthReport;
   capped: boolean;
   onCap: () => void;
@@ -135,7 +138,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
     <div className="screen ruled">
       {/* ONE WAY OUT, NAMED (Dave 2026-10-05, the review: "an unlabelled red chevron on the left and a red Done on the
           right, two ways to leave"). The same large-title header every Brain page wears, with the page it returns to. */}
-      <PageHeader title={report.monthName} back="Insights" onBack={onBack} />
+      <PageHeader title={report.monthName} back={backLabel} onBack={onBack} />
 
       {/* HERO: the month's one number, then its named wins. */}
       <div className="pad-x rep-hero">
@@ -409,8 +412,10 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
  *  path). `month` opens that sealed month from the shelf. `live` builds the
  *  CURRENT month from the live window through the same computeSeal, so the
  *  page is one engine wearing one honest extra label: So Far. */
-export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEntity, onOpenMoney, onOpenEmail }: {
+export default function ReportFlow({ onBack, backLabel, onOpenTask, month, live, onOpenEntity, onOpenMoney, onOpenEmail }: {
   onBack: () => void;
+  /** The screen the back returns to, said by the flow that opened the report (Insights, Today): two do, so this cannot know. */
+  backLabel: string;
   onOpenTask?: (id: string) => void;
   month?: string;
   live?: boolean;
@@ -558,7 +563,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
     return (
       <div className="screen">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+          <BackPill label={backLabel} onClick={onBack} />
           <div className="nav-title">Your Month</div>
           <span className="nav-action"></span>
         </div>
@@ -579,6 +584,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
       onOpenTask={onOpenTask}
       onDropTask={(c) => void onDropTask(c)}
       onBack={onBack}
+      backLabel={backLabel}
       stillOpen={live}
       canExit={canExit}
       onExit={onExit}

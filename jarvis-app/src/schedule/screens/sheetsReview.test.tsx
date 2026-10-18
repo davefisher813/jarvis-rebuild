@@ -176,7 +176,7 @@ describe("New Event: one column of values", () => {
 
 describe("the event page", () => {
   const page = (e: EventItem, props: Partial<Parameters<typeof EventDetailPage>[0]> = {}) =>
-    render(<EventDetailPage event={e} onBack={() => {}} onEdit={() => {}} {...props} />);
+    render(<EventDetailPage backLabel="Schedule" event={e} onBack={() => {}} onEdit={() => {}} {...props} />);
 
   it("title, day and time share one column, on one facts line, with no page-title stroke", () => {
     page(ev());

@@ -90,7 +90,7 @@ describe("NotesFlow: the document saves as it changes (the writing system)", () 
     const pm = screen.getByLabelText("Note");
     await act(async () => { typeInto(pm, "Groceries for the week"); });
     await waitFor(async () => expect((await svc.note(id))!.doc).toBeTruthy(), { timeout: 4000 });
-    fireEvent.click(screen.getByText("Notes", { selector: "button" }));
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
     // AMENDED 2026-09-26 (pass-off): a row name is shown in Title Case, the
     // first-line fallback included; the stored line is untouched.
     expect(await screen.findByText("Groceries for the Week", {}, { timeout: 4000 })).toBeInTheDocument();
@@ -580,17 +580,17 @@ describe("the same note deep link, twice (HMN-F-19)", () => {
 
     view.rerender(<NotesProvider userId={user}><Grab /><ShellLike id={id} /></NotesProvider>);
     // The list first: the editor's back row reads Notes.
-    await waitFor(() => expect(screen.queryByText("Notes", { selector: "button" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Notes", { selector: ".nav-back .back-pill-t" })).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Open It"));
-    await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" })).toBeInTheDocument());
 
-    fireEvent.click(screen.getByText("Notes", { selector: "button" }));
-    await waitFor(() => expect(screen.queryByText("Notes", { selector: "button" })).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
+    await waitFor(() => expect(screen.queryByText("Notes", { selector: ".nav-back .back-pill-t" })).not.toBeInTheDocument());
 
     // The same note, a second time: it opens, because the nonce moved.
     fireEvent.click(screen.getByText("Open It"));
-    await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" })).toBeInTheDocument());
   });
 });
 
@@ -626,15 +626,15 @@ describe("NotesFlow: a note opened for another page goes back to that page", () 
   it("Back returns to the origin, not the Notes list", async () => {
     const { back, claim } = await shown(true);
     expect(claim, "the editor's Back is the way home, so the pill stands down").toHaveBeenCalled();
-    expect(screen.queryByText("Notes", { selector: ".nav-back" })).toBeNull();
-    fireEvent.click(screen.getByText("Schedule", { selector: ".nav-back" }));
+    expect(screen.queryByText("Notes", { selector: ".nav-back .back-pill-t" })).toBeNull();
+    fireEvent.click(screen.getByText("Schedule", { selector: ".nav-back .back-pill-t" }));
     expect(back).toHaveBeenCalledTimes(1);
   });
 
   it("with no jump behind it, Back is still the Notes list", async () => {
     const { back, claim } = await shown(false);
     expect(claim).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
     expect(back).not.toHaveBeenCalled();
   });
 });

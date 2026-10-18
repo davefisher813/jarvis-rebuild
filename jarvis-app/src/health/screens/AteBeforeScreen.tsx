@@ -1,5 +1,6 @@
 import { ateBeforeCountLine, type AteBeforeMark } from "../timelines";
 import { pressable } from "../../shared/pressable";
+import BackPill from "../../shared/BackPill";
 
 export interface AteBeforeCandidate {
   eventId: string;
@@ -11,7 +12,7 @@ export interface AteBeforeCandidate {
 // yes or no, three seconds. No food, no amount, no quality judgment: the
 // only question this screen ever asks is the one in its name.
 export default function AteBeforeScreen({
-  candidates, answered, marks, onMark, onBack,
+  candidates, answered, marks, onMark, onBack, backLabel = "Health",
 }: {
   // Today's practice/game events that can still be answered.
   candidates: AteBeforeCandidate[];
@@ -20,13 +21,15 @@ export default function AteBeforeScreen({
   marks: AteBeforeMark[];
   onMark: (candidate: AteBeforeCandidate, ate: boolean) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const open = candidates.filter((c) => !(c.eventId in answered));
 
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Ate Before</div>
       </div>
 

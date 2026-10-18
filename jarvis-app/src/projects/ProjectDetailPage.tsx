@@ -22,6 +22,8 @@ import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
 import { projectPaceParts } from "../bigger/progress";
 import { haptics } from "../shared/haptics";
 import { ForkGlyph } from "../shared/glyphs";
+import BackPill from "../shared/BackPill";
+import { useLeaveVia } from "../shell/navOrigin";
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
@@ -91,6 +93,8 @@ export default function ProjectDetailPage({
   linkedThreads?: { threadId: string; subject?: string; from?: string }[];
   onOpenThread?: (threadId: string) => void;
 }) {
+  // THE ONE BACK (Dave 2026-10-18): the Life tab's Projects lens is where this page opens; a cross-tab jump names where it came from.
+  const leave = useLeaveVia("Life", onBack);
   // SEAMLESS LINKING (Dave 2026-08-18): Area and Goal are chip-pickers IN
   // the detail card, the one-tap in-place edit from the editing law. Local
   // copy so the change reads instantly; onChanged refreshes the list behind.
@@ -177,7 +181,7 @@ export default function ProjectDetailPage({
 
   return (
     <div className="screen ruled proj-ruled">
-      <div className="nav-bar"><button className="nav-back" aria-label="Back" onClick={onBack}></button><div className="nav-title">Project</div><button className="nav-action-text" onClick={onEdit}>Edit</button></div>
+      <div className="nav-bar"><BackPill label={leave.label} onClick={leave.onBack} /><div className="nav-title">Project</div><button className="nav-action-text" onClick={onEdit}>Edit</button></div>
       <div className="pad-x"><div className="card list-card-ruled proj-detail-hero">
         <div className={"proj-icon cat-bg-" + (hasCat ? catColor(data.category!) : "graphite")}>{initialOf(tag || data.title)}</div>
         <div className="proj-detail-title">{titleCase(data.title)}</div>

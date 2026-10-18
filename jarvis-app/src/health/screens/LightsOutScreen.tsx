@@ -5,6 +5,7 @@ import { weekdayShortDateFromMs, shortDate } from "../../shared/dateFormat";
 import Stepper from "../../shared/Stepper";
 import { pressable } from "../../shared/pressable";
 import { hoursLabel } from "../../shared/duration";
+import BackPill from "../../shared/BackPill";
 
 // LIGHTS OUT (Part 1; Health Push D, H-41). One tap, one timestamp, marks
 // the night's end. Nothing is scored: no duration shown, no streak, no ring.
@@ -12,7 +13,7 @@ import { hoursLabel } from "../../shared/duration";
 // button. The last time can be corrected (Edit Time writes the clock, on the
 // same night) because a tap made at 11:40 for a bedtime of 11:15 is the
 // commonest wrong row; there is still no duration field.
-export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, recentSleep = [], onBack }: {
+export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, recentSleep = [], onBack, backLabel = "Health" }: {
   last: (LightsOutEntry & { pending?: boolean }) | null;
   onLog: () => void;
   /** Absent, or while the last row is still pending, there is no Edit Time. */
@@ -23,6 +24,8 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
   onLogSleep?: (hours: number, night: string) => void;
   recentSleep?: { date: string; hours: number }[];
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [justTapped, setJustTapped] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -65,7 +68,7 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Sleep</div>
       </div>
 

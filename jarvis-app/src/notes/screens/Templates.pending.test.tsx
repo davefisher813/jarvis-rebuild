@@ -77,7 +77,7 @@ describe("the New Note picker with a template pending", () => {
   it("the back link stays live, so nobody is trapped on a slow create", () => {
     const onBack = vi.fn();
     render(<Templates pending="todo" onSelect={vi.fn()} onBack={onBack} />);
-    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back .back-pill-t" }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 

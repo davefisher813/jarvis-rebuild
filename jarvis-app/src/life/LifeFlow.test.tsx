@@ -195,17 +195,17 @@ describe("a deep link into the lens you are already on (LIFE-F-07)", () => {
     render(<NotesProvider userId="deep-life-1"><DeepLinked lens="projects" /></NotesProvider>);
     await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 }); // AMENDED 2026-09-26 (pass-off): Title Case display
     // The list, not the detail: the detail carries its own Back.
-    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+    expect(document.querySelector(".nav-back")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Link It"));
-    await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
+    await waitFor(() => expect(document.querySelector(".nav-back")).not.toBeNull());
   });
 
   it("does the same for a goal on the Goals lens", async () => {
     render(<NotesProvider userId="deep-life-2"><DeepLinked lens="goals" /></NotesProvider>);
     await screen.findAllByText("Build a Six-Month Runway", {}, { timeout: 3000 }); // AMENDED 2026-09-26 (pass-off): Title Case display
-    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+    expect(document.querySelector(".nav-back")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Link It"));
-    await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
+    await waitFor(() => expect(document.querySelector(".nav-back")).not.toBeNull());
   });
 });
 
@@ -300,16 +300,16 @@ describe("a project link is spent once (LIFE-F-08)", () => {
     render(<NotesProvider userId="deep-life-4"><ProjectLinked /></NotesProvider>);
     await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 }); // AMENDED 2026-09-26 (pass-off): Title Case display
     fireEvent.click(screen.getByText("Link It"));
-    await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
+    await waitFor(() => expect(document.querySelector(".nav-back")).not.toBeNull());
 
     // Back to the list, then Goals, then Projects.
-    fireEvent.click(screen.getByLabelText("Back"));
-    await waitFor(() => expect(screen.queryByLabelText("Back")).not.toBeInTheDocument());
+    fireEvent.click(document.querySelector(".nav-back")!);
+    await waitFor(() => expect(document.querySelector(".nav-back")).not.toBeInTheDocument());
     fireEvent.click(screen.getByText("Flip Lens"));
     await waitFor(() => expect(screen.getByLabelText("New Goal")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Flip Lens"));
     await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 });
 
-    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+    expect(document.querySelector(".nav-back")).not.toBeInTheDocument();
   });
 });

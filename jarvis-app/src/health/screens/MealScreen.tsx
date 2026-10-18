@@ -5,12 +5,13 @@ import { titleCase } from "../../shared/casing";
 import { pressable } from "../../shared/pressable";
 import RowShell from "../../brain/RowShell";
 import RowSheet from "../../brain/RowSheet";
+import BackPill from "../../shared/BackPill";
 
 // MEAL (Health Push D, H-42). One text field, what you ate, in your own
 // words. No calories, no macros, no amount, no grade: the privacy law's
 // vocabulary ban guards this folder, and this screen gives it nothing to
 // catch. Today's meals sit under the field with Undo on each.
-export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }: {
+export default function MealScreen({ today, recent = [], onLog, onUndo, onBack, backLabel = "Health" }: {
   today: (MealEntry & { pending?: boolean })[];
   /** 2026-09-14 (the reference's "Use a recent meal"): the last few distinct
    *  meals as chips that fill the field. */
@@ -19,6 +20,8 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }
   onLog: (text: string, at?: number) => void;
   onUndo?: (entry: MealEntry) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const [text, setText] = useState("");
   const [logged, setLogged] = useState(false);
@@ -38,7 +41,7 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Meal</div>
       </div>
       <div className="pad-x"><div className="card pad">

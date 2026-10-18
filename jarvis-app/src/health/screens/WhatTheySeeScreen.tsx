@@ -4,6 +4,7 @@ import { ateBeforeMarks, tookItTimeline, callItHistory } from "../timelines";
 import { shortDate, shortDateFromMs, weekdayShortDate } from "../../shared/dateFormat";
 import { clockOf } from "../meds";
 import { lineCase } from "../../shared/casing";
+import BackPill from "../../shared/BackPill";
 
 // 2026-10-05 (the catalog gate): a moment is "Oct 5, 2:15 PM", 12-hour with AM or
 // PM. toLocaleString() followed the phone's region (a 24-hour clock, seconds, a
@@ -17,7 +18,7 @@ const when = (at: number): string => shortDateFromMs(at) + ", " + clockOf(at);
 // not a paraphrase of it. There is no separate "preview" code path to drift
 // out of sync with the real one.
 export default function WhatTheySeeScreen({
-  grants, lightsOut, ateBefore, tookIt, callIt, pointAtIt, onManage, onBack,
+  grants, lightsOut, ateBefore, tookIt, callIt, pointAtIt, onManage, onBack, backLabel = "Health",
 }: {
   grants: ConsentGrant[];
   lightsOut: LightsOutEntry[];
@@ -27,6 +28,8 @@ export default function WhatTheySeeScreen({
   pointAtIt: PointAtItEntry[];
   onManage: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const grantedCats = HEALTH_CATEGORIES.filter((c) => grants.find((g) => g.category === c)?.granted);
   const visibleSleep = sharedView(lightsOut, grants);
@@ -38,7 +41,7 @@ export default function WhatTheySeeScreen({
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">What They See</div>
       </div>
 

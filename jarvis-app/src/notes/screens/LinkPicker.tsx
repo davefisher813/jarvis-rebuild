@@ -4,6 +4,7 @@ import { Head, Card } from "../../settings/kit";
 import type { QuickCreateKind } from "./QuickCreateSheet";
 import { pressable } from "../../shared/pressable";
 import ListFloor from "../../shared/ListFloor";
+import BackPill from "../../shared/BackPill";
 
 const NEW_ROW: Record<QuickCreateKind, { label: string; tone: string; glyph: ReactNode }> = {
   event: { label: "New Event", tone: "sky", glyph: <CalendarDays className="ic" /> },
@@ -79,7 +80,7 @@ export default function LinkPicker({
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>Connections</button>
+        <BackPill label="Connections" onClick={() => onBack?.()} />
         <span className="nav-title"></span>
         <span></span>
       </div>

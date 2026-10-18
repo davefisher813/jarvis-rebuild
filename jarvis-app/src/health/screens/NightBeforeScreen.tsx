@@ -1,5 +1,6 @@
 import type { NightBeforeOffer } from "../nightBefore";
 import { clock12 } from "../../shared/clock";
+import BackPill from "../../shared/BackPill";
 
 // 2026-10-05: 12-hour with AM or PM whatever the phone's region says.
 const fmt = (at: number) => clock12(at);
@@ -7,15 +8,17 @@ const fmt = (at: number) => clock12(at);
 // THE NIGHT BEFORE (Part 1, top 5). Reads tomorrow's first fixed commitment
 // and offers a real bedtime the evening before. Never states a shortfall:
 // this screen renders exactly one offer, never a number of hours lost.
-export default function NightBeforeScreen({ offer, onAddWindDown, onBack }: {
+export default function NightBeforeScreen({ offer, onAddWindDown, onBack, backLabel = "Health" }: {
   offer: NightBeforeOffer | null;
   onAddWindDown: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Night Before</div>
       </div>
 

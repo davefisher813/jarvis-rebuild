@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import BackPill from "./BackPill";
 
 // THE LIBRARY CHASSIS (Design 2, approved 2026-08-18). One header system for
 // every page: a sticky bar that is transparent at rest and condenses into
@@ -127,7 +128,7 @@ export default function PageHeader({ title, back, onBack, actions, headActions, 
     <>
       <div className={"pagebar" + (on ? " on" : "") + (scrolled ? " solid" : "")}>
         <div className="pagebar-row">
-          {back && onBack ? <button className="nav-back" onClick={onBack}>{back}</button> : <span />}
+          {back && onBack ? <BackPill label={back} onClick={onBack} /> : <span />}
           <div className="pagebar-title">{title}</div>
           <div className="pagebar-acts">{actions}</div>
         </div>

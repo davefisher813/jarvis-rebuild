@@ -9,6 +9,7 @@ import { MEASURE_LABEL, type ProgramData, type Exercise } from "./types";
 import ExerciseSheet from "./ExerciseSheet";
 import { showToast } from "../shared/toast";
 import { encodeImageForVision } from "../shared/imageEncode";
+import BackPill from "../shared/BackPill";
 
 const CHEV = (
   <div className="chev" />
@@ -84,7 +85,7 @@ export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
       <>
         <div className="screen ruled health-ruled">
           <div className="nav-bar">
-            <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
+            <BackPill label="Upload a Program" onClick={() => setDraft(null)} />
             <div className="nav-title truncate">{draft.name}</div>
           </div>
           {/* Derived and conditional: this line changes what the user does

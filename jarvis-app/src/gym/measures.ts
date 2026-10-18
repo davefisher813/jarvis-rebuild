@@ -157,11 +157,7 @@ export function logButtonLabel(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> 
  *  with reps alone: bodyweight, a band, the assisted machine, and any lift
  *  counted as added to or taken off the body. */
 function weightOptional(style: LoadStyle | undefined): boolean {
-  // NO EQUIPMENT SAID IS NOT A LOADED LIFT (2026-10-18, Dave mid-workout: Hanging Leg Raise "won't log. I hit the button and nothing
-  // happens"). The starter library tags no equipment (starterLibrary.ts), so every bodyweight starter (Hanging Leg Raise, Crunch, Sit-Up,
-  // Push-Up, Pull-Up, ...) arrives as a weight-and-reps lift whose equipment is not set, and the rule above made its weightless set
-  // unloggable with the button dead and silent. Where nobody said the lift is loaded, reps alone are a whole set; the weight stays blank.
-  if (!style?.equipment) return true;
+  if (!style) return false;
   if (style.equipment === "bodyweight" || style.equipment === "band" || style.equipment === "assisted") return true;
   return style.counted === "added" || style.counted === "assist";
 }
@@ -192,18 +188,6 @@ export function isLoggable(kind: MeasureKind, style: LoadStyle | undefined, entr
     case "distance_time":
       return has(entry.v) || has(entry.t);
   }
-}
-
-/** WHY THE BUTTON IS NOT LIVE (2026-10-18). A disabled Log button that says nothing is a dead tap. When a set has some of its numbers and is
- *  missing the one that stops it, the button's own words say which: "Log Needs a Weight", "Log Needs Reps". Null when the set is
- *  loggable, or has nothing yet (the button then reads its plain "Log Set" and the fields are the prompt). */
-export function loggingBlocker(kind: MeasureKind, style: LoadStyle | undefined, entry: SetLog | null): string | null {
-  if (isLoggable(kind, style, entry) || !entry) return null;
-  if (kind === "weight_reps") {
-    if (has(entry.r) && !has(entry.w)) return "Log Needs a Weight";
-    if (has(entry.w) && !has(entry.r)) return "Log Needs Reps";
-  }
-  return null;
 }
 
 /** The plan as one line for the program pages: "3 × 135 lb × 8" when every

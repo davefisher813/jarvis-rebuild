@@ -4,6 +4,7 @@ import { catColor } from "../../shared/categories";
 import { Head, Card } from "../../settings/kit";
 import { pressable } from "../../shared/pressable";
 import SwipeDelete from "../../shared/SwipeDelete";
+import BackPill from "../../shared/BackPill";
 
 // HMN-F-18 (2026-09-05): `gone` is set by the flow when the thing this link
 // points at no longer exists. The link stays (the note recorded a real
@@ -59,7 +60,7 @@ export default function Connections({
   return (
     <div className="screen ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>Note</button>
+        <BackPill label="Note" onClick={() => onBack?.()} />
         <span className="nav-title"></span>
         <span></span>
       </div>

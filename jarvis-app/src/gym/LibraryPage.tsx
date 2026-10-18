@@ -26,6 +26,7 @@ import {
   adoptStarter, DEFAULT_SORT, defaultView, filterCount, floorLine, NO_FILTER, pickerSections, SORT_LABEL, viewRows,
   type Adoption, type LibraryFilter, type SortKey,
 } from "./libraryView";
+import BackPill from "../shared/BackPill";
 
 // EXERCISES (was "Your Lifts", renamed 2026-09-14 on Dave's word: "Rename
 // 'Your Lifts' to 'Exercises' so the library covers all exercise types").
@@ -63,7 +64,7 @@ function chipTone(ch: Chip): string {
 
 export default function LibraryPage({
   rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
-  onToggleFavorite, onSetGoal, onCreate, onDelete, dismissedDupes, onDismissDuplicate, onBack, stock,
+  onToggleFavorite, onSetGoal, onCreate, onDelete, dismissedDupes, onDismissDuplicate, onBack, backLabel = "Training", stock,
 }: {
   /** The athlete's own exercises: made, logged or planned. */
   rows: LibraryRow[];
@@ -106,6 +107,8 @@ export default function LibraryPage({
   dismissedDupes?: string[];
   onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
+  /** The page the back returns to, said by the gym (its program page). */
+  backLabel?: string;
 }) {
   // SEARCH, FILTER AND SORT LIVE ABOVE THE EDITORS (§3: "Preserve search,
   // filters, and scroll position after edits"). They are this component's own
@@ -352,7 +355,7 @@ export default function LibraryPage({
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Exercises</div>
         {/* §7: "30 Exercises, each with its history" was a sentence doing a
             badge's job. This is the badge.

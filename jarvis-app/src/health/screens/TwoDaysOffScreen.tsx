@@ -1,17 +1,20 @@
 import type { RestDayOffer } from "../twoDaysOff";
 import { weekdayLongDate } from "../../shared/dateFormat";
+import BackPill from "../../shared/BackPill";
 
 // TWO DAYS OFF (Part 2). Offers to place a real rest day when the coming
 // week has none. A real calendar block, never advice with nothing behind it.
-export default function TwoDaysOffScreen({ offer, onPlaceRestDay, onBack }: {
+export default function TwoDaysOffScreen({ offer, onPlaceRestDay, onBack, backLabel = "Health" }: {
   offer: RestDayOffer;
   onPlaceRestDay: (date: string) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Two Days Off</div>
       </div>
 

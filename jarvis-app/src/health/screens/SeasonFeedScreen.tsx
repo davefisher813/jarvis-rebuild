@@ -7,6 +7,7 @@ import { showToast } from "../../shared/toast";
 import { encodeImageForVision } from "../../shared/imageEncode";
 import { weekdayShortDate } from "../../shared/dateFormat";
 import { fmtRange } from "../../schedule/calendar";
+import BackPill from "../../shared/BackPill";
 
 // THE SEASON FEED (Part 8, rank #3). Photo/screenshot or pasted text of a
 // team's practice schedule -> the model extracts -> every row is reviewed
@@ -15,10 +16,12 @@ import { fmtRange } from "../../schedule/calendar";
 //
 // FOLLOW-UP: a real ICS/subscription feed is not built in this pass; only
 // the photo/text path ships here.
-export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
+export default function SeasonFeedScreen({ ai, onCommit, onBack, backLabel = "Health" }: {
   ai: AIService;
   onCommit: (draft: SeasonFeedDraft) => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
@@ -55,7 +58,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
     return (
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
+          <BackPill label="The Season Feed" onClick={() => setDraft(null)} />
           <div className="nav-title truncate">{draft.org}</div>
         </div>
         <div className="pad-x"><div className="card pad">
@@ -94,7 +97,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">The Season Feed</div>
       </div>
       <div className="pad-x"><div className="card pad">

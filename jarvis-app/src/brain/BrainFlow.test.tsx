@@ -182,8 +182,8 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
     fireEvent.click(screen.getByText("Link It"));
     await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
 
-    // Back to the hub, the way a person backs out of a detail.
-    fireEvent.click(screen.getByLabelText("Back"));
+    // Back to the hub, the way a person backs out of a detail (the one back control names the hub).
+    fireEvent.click(screen.getByRole("button", { name: "Brain" }));
     await waitFor(() => expect(screen.queryByText(AREA_OPEN)).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Link It"));
@@ -304,7 +304,7 @@ describe("BrainFlow: the return pill does not outlive the page a jump opened", (
     // On the page the jump opened, the pill is the way home, as designed.
     expect(screen.getByRole("button", { name: "Life" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Back"));
+    fireEvent.click(screen.getByRole("button", { name: "Life" }));
     await waitFor(() => expect(screen.getByText("Your Routine")).toBeInTheDocument());
     // The hub is not a page a jump opened: no "< Life" floating over its last row.
     expect(screen.queryByRole("button", { name: "Life" })).not.toBeInTheDocument();
@@ -322,7 +322,7 @@ describe("BrainFlow: the return pill does not outlive the page a jump opened", (
     render(<NotesProvider userId="pill3"><Seed /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
     expect(clear, "still open: still the way home").not.toHaveBeenCalled();
-    fireEvent.click(screen.getByLabelText("Back"));
+    fireEvent.click(screen.getByRole("button", { name: "Life" }));
     await waitFor(() => expect(screen.getByText("Your Routine")).toBeInTheDocument());
     expect(clear).toHaveBeenCalledTimes(1);
   });

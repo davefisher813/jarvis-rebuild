@@ -745,7 +745,7 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     // And it is NOT a row on the list any more: that was the flattening.
     // Part 3 wave 4: Back from the screen lands on Settings, where the door
     // lives; the pagebar's back word there is the area's name.
-    fireEvent.click(screen.getByLabelText("Back"));
+    fireEvent.click(screen.getByRole("button", { name: "Health Settings" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Health" })).toBeInTheDocument());
     expect(screen.getByText("The Night Before")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Health" }));

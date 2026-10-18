@@ -242,7 +242,7 @@ describe("RemindersPage", () => {
     expect(onSettings).toHaveBeenCalled();
     fireEvent.change(screen.getByPlaceholderText("Search Reminders"), { target: { value: "meds" } });
     expect(onQuery).toHaveBeenCalledWith("meds");
-    fireEvent.click(screen.getByText("Today", { selector: ".nav-back" }));
+    fireEvent.click(screen.getByText("Today", { selector: ".nav-back .back-pill-t" }));
     expect(onBack).toHaveBeenCalled();
   });
 });

@@ -202,7 +202,7 @@ describe("M2: the message", () => {
     await waitFor(() => expect(document.querySelector("iframe.mail-html")!.getAttribute("srcdoc")).toMatch(/https:\/\/t\.example\/pixel\.gif/));
     await waitFor(() => expect(r.posts.find((p) => p.path.endsWith("/api/email/message") && p.body.op === "read")).toBeTruthy());
     expect(r.posts.find((p) => p.body.op === "read")!.body).toEqual({ email: DAVE, id: "m3", op: "read" });
-    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back .back-pill-t" }));
     await waitFor(() => expect(rowLabels()[0]).not.toMatch(/Unread$/));
   });
 
@@ -213,7 +213,7 @@ describe("M2: the message", () => {
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
     await waitFor(() => expect(screen.getByText(new RegExp(READ_FAILED))).toBeInTheDocument());
     expect(screen.getByText("Retry")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back .back-pill-t" }));
     await waitFor(() => expect(rowLabels()[0]).toMatch(/Unread$/));
 
     cleanup();
@@ -294,7 +294,7 @@ describe("M2: the message", () => {
     await waitFor(() => expect(screen.getByText(OPEN_GMAIL_EXACT)).toBeInTheDocument());
     fireEvent.click(screen.getByText(OPEN_GMAIL_EXACT));
     expect(open).toHaveBeenCalledWith("https://mail.google.com/mail/?authuser=dave%40example.test#all/18f2a9c4e1b7d3a3", "_blank");
-    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back .back-pill-t" }));
     await waitFor(() => expect(subjects().length).toBe(4));
     fireEvent.click(screen.getAllByRole("button").filter((b) => b.className.includes("mrow"))[2]!);
     await waitFor(() => expect(screen.getByText(OPEN_GMAIL_GENERIC)).toBeInTheDocument());
@@ -329,7 +329,7 @@ describe("M8: search", () => {
     expect(r.posts.find((p) => p.path.endsWith("/api/email/search"))!.body).toEqual({ q: "Subject m3" });
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
     await waitFor(() => expect(screen.getByText("Subject m3", { selector: ".email-subject" })).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back .back-pill-t" }));
     await waitFor(() => expect(screen.getByPlaceholderText("Search Mail")).toHaveValue("Subject m3"));
   });
 
@@ -514,7 +514,7 @@ describe("E21, E22, E28: accounts and states", () => {
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(screen.getByText("File Under"));
     fireEvent.click(screen.getByText("Sport"));
-    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back" }));
+    fireEvent.click(screen.getByText("Email", { selector: ".msg-sheet-bar .nav-back .back-pill-t" }));
     await waitFor(() => expect(screen.getByRole("button", { name: /^Sport/ })).toHaveTextContent("Sport 1"));
     fireEvent.click(screen.getByRole("button", { name: /^Sport/ }));
     expect(subjects()).toEqual(["m0"]);

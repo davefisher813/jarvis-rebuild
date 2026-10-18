@@ -1,18 +1,21 @@
 import type { WeekShape } from "../weekShape";
 import { weekdayShortDate } from "../../shared/dateFormat";
+import BackPill from "../../shared/BackPill";
 
 // WEEK SHAPE (Part 2). The week's sport commitments, flat and honest:
 // sessions, hours, which days had none. No ratio, no target, no decline
 // framing -- this screen shows days, never a delta from last week.
-export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
+export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack, backLabel = "Health" }: {
   shape: WeekShape;
   onOpenTwoDaysOff: () => void;
   onBack: () => void;
+  /** The screen the back returns to: the Health area the flow was opened from. */
+  backLabel?: string;
 }) {
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <BackPill label={backLabel} onClick={onBack} />
         <div className="nav-title">Week Shape</div>
       </div>
 
