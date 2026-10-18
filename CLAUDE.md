@@ -177,6 +177,18 @@ box is a front door and every section keeps its own fast surface; voice set
 logging is built as a test with a command phrase, read-back and undo; one
 event, one record). Read it before touching any capture surface.
 
+## The tab bar and the Life header are accepted on the phone only (issue 110, 2026-10-18)
+
+Five rounds fixed these from renders and none was seen on Dave's phone. Do not close #110, or call either one fixed, from a
+render. Settings > Advanced > This Device is the phone reporting itself: running build against the latest (asked of
+production), the origin it was opened from, what iOS says about being installed, whether the full-height rule is on, the
+viewport, safe areas, unit heights, and the shell, page bar and tab bar boxes; Outline the Layers draws the four layers so a
+screenshot of any page shows which is short, doubled or missing. Ask for that screenshot before touching a layout value.
+Three traps, all measured: the service worker once answered the version check from its cache (one deploy behind, fixed with
+/index.html and /version.json passing through); `window.Capacitor` exists on the web too, so the `ios-standalone` rule is on
+for every page that loads the bundle, which the readout shows next to what iOS reports; and Chromium's display-mode
+emulation does not reach matchMedia here, so a harness render is not a standalone render.
+
 ## Gym and logging, decided by Dave, 2026-10-17 (his decisions page)
 
 Answers 1 to 5, 9 and 10 are his own; 6 to 8 he delegated ("Whatever makes
