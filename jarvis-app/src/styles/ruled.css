@@ -1322,6 +1322,10 @@
    AMENDED 2026-10-05 (round-1 review, decision D8: truncation of text that matters is a defect): the count used to be the one
    item that gave, with an ellipsis, and read "3h Open, 5 Prop...". It is the head's second line now, whole, so nothing in the
    head ever has to give. */
+/* THE HEAD WRAPS, SO THE COUNT REALLY IS ITS SECOND LINE (2026-10-18, a render at 430 wide: "45 Min Open, 4 Propos" cut at the screen's edge on
+   the capsules' own line). The count's `flex: 1 0 100%` below only means a second line when the head may wrap, and the generic head
+   wraps only when its capsules sit inside .sec-left; this head's are direct children, so it never did. */
+.ruled .sc-dayhead { flex-wrap: wrap; row-gap: var(--s-1); }
 .ruled .sc-dayhead .t { flex-shrink: 0; }
 .ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: var(--t-sub); color: var(--tx-3); min-width: 0;
   order: 4; flex: 1 0 100%; white-space: normal; }
