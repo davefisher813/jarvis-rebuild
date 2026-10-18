@@ -112,12 +112,26 @@ describe("B and H: an empty set cannot be logged and earns nothing", () => {
   });
 
   it("a loaded lift needs weight AND reps; a bodyweight lift needs reps alone", () => {
-    renderScreen({}, bench({ sets: [{ id: "p1", r: 8 }] }));
+    renderScreen({}, bench({ equipment: "barbell", sets: [{ id: "p1", r: 8 }] }));
     expect(cta(), "reps alone on a barbell is not a set").toBeDisabled();
+    // ...and the button says why, instead of sitting there dead (Dave 2026-10-18: "I hit the button and nothing happens").
+    expect(cta()).toHaveTextContent("Log Needs a Weight");
     fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "135" } });
     expect(cta()).toBeEnabled();
     fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "" } });
     expect(cta(), "an emptied reps field disables it again").toBeDisabled();
+  });
+
+  it("a lift with no equipment said logs on reps alone: Hanging Leg Raise from the starter library, weight blank (Dave 2026-10-18, mid-workout)", () => {
+    const onLog = vi.fn();
+    const legRaise: Exercise = { id: "e9", name: "Hanging Leg Raise", kind: "weight_reps", unit: "lb", exerciseKey: "k-hlr", sets: [{ id: "h1", r: 10 }, { id: "h2", r: 10 }, { id: "h3", r: 10 }] };
+    renderScreen({ onLog }, legRaise);
+    expect(cta()).toBeEnabled();
+    expect(cta()).toHaveTextContent("Log 10 Reps");
+    fireEvent.click(cta());
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ r: 10, state: "reported" });
+    expect(onLog.mock.calls[0]![0].w).toBeUndefined();
   });
 
   it("reps alone logs on bodyweight, and one rep is 1 Rep", () => {
