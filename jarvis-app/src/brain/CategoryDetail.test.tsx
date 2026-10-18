@@ -836,8 +836,13 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
     expect(screen.getByText("Ready to Train")).toBeInTheDocument();
     expect(screen.queryByText("Set Up a Program")).toBeNull();
     expect(screen.getByRole("button", { name: "Start Workout" })).toBeInTheDocument();
-    // No program day to switch to, so no Change Workout either.
-    expect(screen.queryByText("Change Workout")).toBeNull();
+    // CHANGE WORKOUT IS ON THE CARD WITH NO PROGRAM TOO (Dave's standard, Alfred's live pass 2026-10-18): the quiet utility under
+    // Start Workout, opening the Change Workout sheet, which always holds an empty workout.
+    const change = screen.getByRole("button", { name: "Change Workout" });
+    expect(change).toHaveClass("h-hero-quiet");
+    expect(change.closest(".h-hero-cta")).toContainElement(screen.getByRole("button", { name: "Start Workout" }));
+    fireEvent.click(change);
+    expect(await screen.findByText("Empty Workout")).toBeInTheDocument();
   });
 });
 

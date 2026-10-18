@@ -239,6 +239,12 @@ export default function HealthBody({
                 <div className="h-hero-cta">
                   {/* No glyph: the session's Log button carries none, and the two are one weight. */}
                   <button type="button" className="btn btn-primary btn-launch btn-lg btn-block" onClick={() => onStart(SCRATCH_DAY_ID)}>Start Workout</button>
+                  {/* CHANGE WORKOUT IS ON THE CARD WHETHER OR NOT THERE IS A PROGRAM (2026-10-18, Alfred's live pass: with no program the
+                      card had no Change Workout at all). It is the utility, so it is the quiet one, the whole width of the row under
+                      Start Workout, and it opens the same Change Workout sheet. */}
+                  <div className="day-acts h-hero-acts">
+                    <button type="button" className="btn btn-secondary btn-sm h-hero-quiet" onClick={() => setChangeOpen(true)}>Change Workout</button>
+                  </div>
                 </div>
               </>
             )}
@@ -454,6 +460,9 @@ export default function HealthBody({
           actions={[
             ...days.filter((d) => d.id !== next?.day.id).map((d) => ({ label: d.name, onClick: () => onStart(d.id) })),
             { label: "Empty Workout", onClick: () => onStart(SCRATCH_DAY_ID) },
+            // With no program there is no other day to change to: the two ways to start from a workout already done are the change.
+            ...(days.length === 0 && onSameAsLastTime ? [{ label: "Same as Last Time", onClick: onSameAsLastTime }] : []),
+            ...(days.length === 0 && onLogPast ? [{ label: "Log a Past Workout", onClick: onLogPast }] : []),
           ]}
           onClose={() => setChangeOpen(false)}
         />
