@@ -449,3 +449,25 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
     expect(screen, "and the count is the shared one").toMatch(/const count = setCount\(logged, planEx\.sets\.length\)/);
   });
 });
+
+// THE READY TO TRAIN CARD'S STANDARD (Dave, approved from a rendered preview, 2026-10-18).
+describe("the Ready to Train card keeps the approved standard", () => {
+  const ruled = readFileSync(join(SRC, "styles/ruled.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = (sel: string): string => [...ruled.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => m[1]!.trim().replace(/\s+/g, " ") === sel).map((m) => m[2]).join(" ");
+  it("the two capsules span the card's width, equal halves; Change Workout is the quieter one", () => {
+    expect(rule(".ruled.health-ruled.wo-screen .h-hero-acts .btn")).toMatch(/flex:\s*1 1 0/);
+    expect(rule(".ruled.health-ruled.wo-screen .h-hero-acts .h-hero-quiet")).toMatch(/color:\s*var\(--tx-2\)[^}]*background-color:\s*var\(--press-1\)/);
+    expect(readFileSync(join(SRC, "brain/HealthBody.tsx"), "utf8")).toMatch(/h-hero-quiet" onClick=\{\(\) => setNextOpen\(true\)\}>Change Workout/);
+  });
+  it("one rhythm: 14 above the Start button, 14 under it, and the card's own 14 below the capsules", () => {
+    expect(rule(".ruled.health-ruled.wo-screen .h-hero-cta:has(> .h-hero-acts)")).toMatch(/gap:\s*var\(--s-3h\)/);
+    expect(rule(".ruled.health-ruled.wo-screen .h-hero-cta")).toMatch(/padding:\s*var\(--s-3h\)/);
+  });
+  it("Quick Log is a defined capsule in the page's ink, never red text; the label is the quiet grey", () => {
+    const quick = rule("html[data-theme] .ruled.health-ruled .h-hero-head > .see-all.pill-action");
+    expect(quick).toMatch(/color:\s*var\(--tx-1\)/);
+    expect(quick).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--tx-4\)/);
+    expect(quick).not.toMatch(/red|tint/);
+    expect(rule(".ruled.health-ruled .h-hero-head .h-eyebrow")).toMatch(/color:\s*var\(--tx-quiet\)/);
+  });
+});
