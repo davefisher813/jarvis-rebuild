@@ -9,7 +9,7 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { REST_FLOOR_SEC } from "./pacing";
-import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable } from "./measures";
+import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable, loggingBlocker } from "./measures";
 import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from "./strip";
@@ -1502,7 +1502,7 @@ export default function SessionScreen({
                   {logged.length === 0 ? "Start the Clock" : "Run It Again"}
                 </button>
               : <button className="btn btn-primary btn-launch btn-lg" onClick={log} disabled={!loggable}>
-                  {logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
+                  {loggingBlocker(exercise.kind, style, pending) ?? logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
                 </button>}
           </div>
           {/* THE ROW UNDER LOG (Dave's board, 2026-10-17): Superset and Add
