@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBackup, useChat, useSettings } from "../data/NotesProvider";
 import { runBackupExport } from "../backup/runExport";
@@ -12,6 +12,8 @@ import { readEmailTaskHome, type EmailTaskHome } from "../tasks/emailTasks";
 import { useSubstrateReadiness } from "../substrate/useReadiness";
 import { flagsOn } from "../substrate/flags";
 import { CAPTURE_KINDS, type CaptureKind } from "../substrate/contracts";
+import { fetchLatestBuild, readDevice, readoutLines, readoutText, type DeviceReading, type LatestBuild } from "../shared/deviceCheck";
+import { runningBundle } from "../shared/buildCheck";
 
 // THE UNIFIED SUBSTRATE'S OWN READINESS (docs/jarvis-unified, slice 01). The
 // one place the app says whether migration 0044 has been run and which
@@ -21,8 +23,41 @@ const CAPTURE_LABEL: Record<CaptureKind, string> = {
   bill: "Bills to Money", receipt: "Receipts to Money", task: "Tasks", event: "Schedule", waiting: "Waiting",
 };
 
+// THE LAYER OUTLINES (issue 110, 2026-10-18). One switch draws a hairline round the shell, the scroll area, the page bar and
+// the tab bar (styles/components.css, html[data-outline-layers]), so a screenshot of Life or any other page shows where each
+// layer actually sits on THIS phone. It lives on the document, not in storage: closing the app puts it away.
+const OUTLINE_ATTR = "data-outline-layers";
+
 export default function AdvancedPage({ onBack, onLearningLab }: { onBack: () => void; onLearningLab?: () => void }) {
   const chat = useChat();
+  // THIS DEVICE (issue 110): what build this copy is and what the screen measures, read from the phone itself.
+  const stamp = { id: typeof __BUILD_ID__ === "string" ? __BUILD_ID__ : "dev", date: typeof __BUILD_DATE__ === "string" ? __BUILD_DATE__ : "" };
+  const bundle = runningBundle(import.meta.url);
+  const [reading, setReading] = useState<DeviceReading>(() => readDevice(bundle));
+  const [latest, setLatest] = useState<LatestBuild | null | "checking">("checking");
+  const [outline, setOutline] = useState(() => document.documentElement.hasAttribute(OUTLINE_ATTR));
+  const measure = useCallback(() => setReading(readDevice(bundle)), [bundle]);
+  const askLatest = useCallback(() => { setLatest("checking"); void fetchLatestBuild().then(setLatest); }, []);
+  useEffect(() => {
+    measure();
+    askLatest();
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => { window.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("resize", measure); };
+  }, [measure, askLatest]);
+  const lines = readoutLines(reading, stamp, latest);
+  const toggleOutline = () => {
+    const root = document.documentElement;
+    if (root.hasAttribute(OUTLINE_ATTR)) root.removeAttribute(OUTLINE_ATTR); else root.setAttribute(OUTLINE_ATTR, "");
+    setOutline(root.hasAttribute(OUTLINE_ATTR));
+    measure();
+  };
+  const copyReadout = () => {
+    const text = readoutText(lines);
+    const done = navigator.clipboard?.writeText(text);
+    if (!done) { showToast({ message: "Couldn't Copy" }); return; }
+    done.then(() => showToast({ message: "Readout Copied" })).catch(() => showToast({ message: "Couldn't Copy" }));
+  };
   const backup = useBackup();
   // Export Data exports (slice 09 QA, 2026-10-04: it opened the Backup page). The same file Backup makes, the same
   // honest answer: a count when the file left the app, nothing when the share sheet was dismissed.
@@ -75,6 +110,19 @@ export default function AdvancedPage({ onBack, onLearningLab }: { onBack: () => 
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Advanced" back="Settings" onBack={onBack} />
+      <Head label="This Device" actions={[
+        { label: "Copy", onClick: copyReadout },
+        { label: "Measure", onClick: () => { measure(); askLatest(); } },
+      ]} />
+      <Card>
+        {lines.map((l) => (
+          <Row key={l.label} label={l.label} value={<>{l.parts.map((p, i) => <Fragment key={i}>{i > 0 ? " " : ""}<span className="fact">{p}</span></Fragment>)}</>} />
+        ))}
+        <Switch label="Outline the Layers"
+          meta="Shell Red, Scroll Green, Page Bar Blue, Tab Bar Amber"
+          on={outline}
+          onToggle={toggleOutline} />
+      </Card>
       <Head label="Projects and Goals" />
       <Card>
         <Switch label="Clear Done Automatically"

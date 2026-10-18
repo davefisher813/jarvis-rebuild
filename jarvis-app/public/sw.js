@@ -24,9 +24,20 @@
 // forever meant the tab it belonged to could never load again without
 // clearing site data. The handler now refuses to cache HTML under an asset
 // URL, and the cache name bump purges any entry the old handler poisoned.
+// v6 (2026-10-18, issue 110): THE VERSION CHECK IS NEVER ANSWERED FROM A CACHE.
+// shared/buildCheck.ts asks "which bundle is deployed?" by fetching
+// /index.html, a plain fetch and not a navigation, so it fell to the last
+// handler below: cache-first with a background refresh. Measured on this worker
+// with a deploy landing between two checks: the first check answered with the
+// PREVIOUS deploy's HTML (same bundle as the running page, so "not stale") and
+// only the second saw the new one. Every foreground resume of the home-screen
+// app was one step behind, which is how a merged fix can sit invisible on a
+// phone until a cold launch. /index.html and /version.json (the Settings >
+// Advanced readout reads it) now pass straight through to the network; the
+// stable cache is renamed so the old stale /index.html entry is purged.
 const HTML_CACHE = "jarvis-html-v4";
 const ASSET_CACHE = "jarvis-assets-v5";
-const STABLE_CACHE = "jarvis-shell-v4";
+const STABLE_CACHE = "jarvis-shell-v5";
 const KEEP = [HTML_CACHE, ASSET_CACHE, STABLE_CACHE];
 const STABLE = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 const ASSET_LIMIT = 60; // ~3 deploys of bundles; trimmed oldest-first
@@ -56,6 +67,8 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // leave Supabase + others alone
+  // The two files that say which build is deployed are never served from a cache (v6, above).
+  if (url.pathname === "/index.html" || url.pathname === "/version.json") return;
 
   // HTML navigations: NETWORK FIRST, with the cache as a fast fallback.
   //

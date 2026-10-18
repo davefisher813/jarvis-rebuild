@@ -30,6 +30,12 @@ function buildSha(): string {
 // stranger sees on first launch. Because it carries no marker, the no-demo-data
 // law in src/laws/noDemoData.test.ts judges it as a real build rather than
 // skipping it, which is the correct treatment and worth keeping that way.
+// The stamp, once, for the define below and for version.json (2026-10-18, issue
+// 110): the deployed build says which build it is in a file the app can fetch,
+// so Settings > Advanced can compare "this copy" with "the latest" on any host.
+const BUILD_ID = buildSha();
+const BUILD_DATE = new Date().toISOString().slice(0, 10);
+
 export default defineConfig({
   plugins: [
     react(),
@@ -38,6 +44,15 @@ export default defineConfig({
     // apart. Without it the law fails whenever someone has built a demo
     // locally, which trains people to ignore it: a law that cries wolf is
     // worse than no law.
+    ...(process.env.SINGLEFILE || process.env.CLEAN
+      ? []
+      : [{
+          name: "jarvis-version-file",
+          generateBundle(this: unknown) {
+            (this as { emitFile: (f: { type: "asset"; fileName: string; source: string }) => void })
+              .emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ id: BUILD_ID, date: BUILD_DATE }) + "\n" });
+          },
+        }]),
     ...(process.env.SINGLEFILE || process.env.DEMO
       ? [{
           name: "jarvis-demo-marker",
@@ -56,8 +71,8 @@ export default defineConfig({
   // held by a test.
   define: {
     __DEMO_SEED__: JSON.stringify(!!process.env.SINGLEFILE || !!process.env.DEMO),
-    __BUILD_ID__: JSON.stringify(buildSha()),
-    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+    __BUILD_DATE__: JSON.stringify(BUILD_DATE),
   },
   resolve: {
     alias: { "@core": resolve(__dirname, "../jarvis-core/src/index.ts") },

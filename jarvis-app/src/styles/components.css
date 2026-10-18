@@ -3186,6 +3186,14 @@ button {
    hairline, and the red energy line (the one brand moment in the chrome).
    Large titles and search live in the scroll. Nothing collides with the
    clock, on any page, ever again. */
+/* THE LAYER OUTLINES (issue 110, 2026-10-18): Settings > Advanced > This Device, Outline the Layers. A hairline inside each of the four
+   layers whose edges decide where a page and its tab bar sit, so one screenshot of a real phone says which layer is short, which is
+   doubled and which is missing. Drawn inside the box (negative offset) so it never moves a thing; off unless the switch put the
+   attribute on the document. */
+html[data-outline-layers] .app-shell { outline: 2px solid var(--red); outline-offset: -2px; }
+html[data-outline-layers] .app-scroll { outline: 2px solid var(--good); outline-offset: -4px; }
+html[data-outline-layers] .pagebar { outline: 2px solid var(--blue); outline-offset: -6px; }
+html[data-outline-layers] .tab-bar { outline: 2px solid var(--warn); outline-offset: -2px; }
 .pagebar { position: sticky; top: 0; z-index: 40; padding-top: var(--safe-top, env(safe-area-inset-top, 0px));
   pointer-events: none; transition: background var(--dur-fast) var(--ease-out); }
 /* THE INSET IS PAID ONCE (2026-10-17, Dave's Life screenshot: the status bar, a dead band, then "Life"). .screen

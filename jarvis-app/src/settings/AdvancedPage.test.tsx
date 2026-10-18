@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
@@ -64,5 +64,62 @@ describe("AdvancedPage: Export Data", () => {
     saveBackupFile.mockRejectedValueOnce(new Error("disk full"));
     fireEvent.click(screen.getByText("Export Data"));
     await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "Export Failed · Try Again" }));
+  });
+});
+
+// THE SCREEN AND VERSION READOUT (issue 110, 2026-10-18): Dave's phone is the only acceptance test the tab bar and the
+// Life header have ever had, and every render that passed was not it. This section is the phone reporting its own build,
+// origin and measurements, and the switch that outlines the four layers so a screenshot of any page shows where each sits.
+describe("AdvancedPage: This Device", () => {
+  const latest = { id: "c772c56", date: "2026-10-18" };
+  beforeEach(() => {
+    document.documentElement.removeAttribute("data-outline-layers");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => latest }) as Response));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); document.documentElement.removeAttribute("data-outline-layers"); });
+
+  const open = () => render(<NotesProvider userId="u1"><AdvancedPage onBack={() => {}} /></NotesProvider>);
+  const rowValue = (label: string) => screen.getByText(label, { selector: ".row-title, .row-label, span, div" }).closest(".row")!;
+
+  it("is the first section, and reads the newest build from production", async () => {
+    open();
+    expect(document.querySelector(".sh2 .t")!.textContent).toBe("This Device");
+    await waitFor(() => expect(rowValue("Latest Build").textContent).toContain("c772c56"));
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("https://jarvis-rebuild.vercel.app/version.json", { cache: "no-store" });
+  });
+
+  it("names the build, where it was opened from, and the screen in the order they get asked", async () => {
+    open();
+    const labels = Array.from(document.querySelectorAll(".set-card")[0]!.querySelectorAll(".row")).map((r) => r.textContent ?? "");
+    for (const want of ["Running Build", "Latest Build", "This Copy", "Opened From", "Safe Areas", "Tab Bar", "Labels to Bottom"]) {
+      expect(labels.some((t) => t.includes(want)), want).toBe(true);
+    }
+    await waitFor(() => expect(rowValue("This Copy").textContent).toMatch(/Behind the Latest|Not Known/));
+  });
+
+  it("an unreachable production origin reads Couldn't Check, never a claim that this copy is current", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    open();
+    await waitFor(() => expect(rowValue("Latest Build").textContent).toContain("Couldn't Check"));
+    expect(rowValue("This Copy").textContent).toContain("Not Known");
+  });
+
+  it("Outline the Layers puts the attribute on the document and takes it off again", async () => {
+    open();
+    const sw = screen.getByRole("switch", { name: /Outline the Layers/ });
+    expect(document.documentElement.hasAttribute("data-outline-layers")).toBe(false);
+    fireEvent.click(sw);
+    expect(document.documentElement.hasAttribute("data-outline-layers")).toBe(true);
+    fireEvent.click(sw);
+    expect(document.documentElement.hasAttribute("data-outline-layers")).toBe(false);
+  });
+
+  it("Copy puts the readout on the clipboard, one line a fact", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect((writeText.mock.calls[0] as unknown as [string])[0]).toMatch(/^Running Build: /);
   });
 });
