@@ -77,6 +77,7 @@ import { settleDuePlans } from "../events/pipeline";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask, sheetGoals } from "../bigger/reach";
 import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import { RowChipWordsContext, type RowChipWords } from "../schedule/screens/rowChip";
 import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
@@ -1888,6 +1889,11 @@ export default function TodayFlow({
   // WHERE A TASK LIVES (The Row and Health, 2026-09-02): the row's second
   // line, project first, then the goal it moves, then the category.
   const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems, allEvents), [projList, goalList, taskItems, allEvents]);
+  // The words beside a Whole Day row's area chip: its project's name, the way a task row draws it (Dave 2026-10-18, "Unfreeze").
+  const rowChipWords = useMemo<RowChipWords>(() => ({
+    event: (id) => { const pid = allEvents.find((e) => e.id === id)?.data.projectId; return (pid && projList.find((p) => p.id === pid)?.data.title) || null; },
+    task: (id) => { const t = taskItems.find((x) => x.id === id); const p = t ? parentForTask(parentIdx, t) : null; return p && p.kind !== "category" ? p.name : null; },
+  }), [projList, taskItems, allEvents, parentIdx]);
   const goalReach = (id: string) => {
     const g = goalList.find((x) => x.id === id);
     return g ? reachOf(taskItems, projList, g) : { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -4397,6 +4403,7 @@ export default function TodayFlow({
 
   return (
     <>
+    <RowChipWordsContext.Provider value={rowChipWords}>
     <TodayPage
       greeting={name ? `${greetingFor(now)}, ${name}` : greetingFor(now)}
       dateLong={longDate(now)}
@@ -4565,6 +4572,7 @@ export default function TodayFlow({
       onOpenPerson={onOpenPerson}
       onCallPerson={(id) => setCallPerson(id)}
     />
+    </RowChipWordsContext.Provider>
     {planOpen && (
       <PlanDaySheet
         key={planDate}

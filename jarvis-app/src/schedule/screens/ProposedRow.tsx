@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { WholeDayChip, useRowChipWords } from "./rowChip";
 import { catColor } from "../../shared/categories";
 import { useChipInView } from "../../shared/useChipInView";
 import { useSwipe } from "../../shared/useSwipe";
@@ -93,6 +94,7 @@ export default function ProposedRow({
   const t = fmtTime(block.start);
   const sep = <span className="sched-sep">&middot;</span>;
   const slot = catColor(block.category);
+  const chipWords = useRowChipWords("task", block.taskId);
   const mins = blockMinutes(block);
   const title = titleCase(block.text);
   const durs = useRef<HTMLDivElement>(null);
@@ -156,6 +158,7 @@ export default function ProposedRow({
           <div className="sched-time">{t.time}{"\u00a0"}<span className="ampm">{t.ap}</span></div>
           <div className="sched-body">
             <div className="sched-title"><span className="sched-t">{title}</span></div>
+            {plain && <WholeDayChip category={block.category} words={chipWords} />}
             {!plain && (
               <div className="sched-cat">
                 <span className="sched-fact"><span className="prop-tag fact st gray">Proposed</span></span>
@@ -204,6 +207,7 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete, p
   onComplete?: () => void;
 }) {
   const title = titleCase(block.text);
+  const heldWords = useRowChipWords("task", block.taskId);
   const actions: RowAction[] = [
     ...(onAccept ? [{ label: "Book It", onPick: onAccept }] : []),
     ...(onComplete ? [{ label: "Done", onPick: onComplete }] : []),
@@ -243,6 +247,7 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete, p
           it, so nothing is squeezed to make room for a time or a verb. */}
       <div className="block-held-col">
       <span className="block-held-t">{title}</span>
+      {plain && <WholeDayChip category={block.category} words={heldWords} />}
       {!plain && <span className="facts block-held-facts">
         <span className="fact date">{fmtTime(block.start).time} {fmtTime(block.start).ap}</span>
         <span className="fact st gray">Proposed</span>
