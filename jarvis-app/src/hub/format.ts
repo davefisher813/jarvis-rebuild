@@ -65,3 +65,41 @@ export function shownOverview(o: HubOverview): HubOverview {
 export function dotParts(s: string | null | undefined): string[] {
   return (s ?? "").split("·").map((p) => p.trim()).filter((p) => p.length > 0);
 }
+
+// RECEIPTS SPEAK IN WORDS (Dave 2026-10-15, items 4 and 5: a receipt showed a stored field name, "None", raw JSON and "13:30 to
+// 14:00"). What a receipt stores is the system's own record; what it SHOWS is read through these, once, at the screen.
+
+const ISO_STAMP = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g;
+const ISO_DAY = /\b\d{4}-\d{2}-\d{2}\b/g;
+const CLOCK_24 = /\b([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?\b(?!\s?[AP]M)/g;
+
+/** A stored line as the person reads it: a timestamp as its day and 12-hour time, a bare day as a short date, a 24-hour clock as
+ *  AM or PM. Older receipts were written before the writers spelled it this way, so nothing is trusted to arrive already read. */
+export function humanTimes(text: string): string {
+  return text
+    .replace(ISO_STAMP, (s) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : `${shortDate(s.slice(0, 10))}, ${clock12(d)}`; })
+    .replace(ISO_DAY, (s) => shortDate(s))
+    .replace(CLOCK_24, (s) => clock12(s) || s);
+}
+
+/** "issuer" or "due_date" as "Issuer" or "Due Date": the stored field name, said as a label. */
+export function fieldLabel(field: string): string {
+  return titleCase(field.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_.\-]+/g, " "));
+}
+
+/** A stored value in words, or null where there is nothing to say (a receipt never prints "None"). An object is said as its own
+ *  "Label: value" parts and a list as its items, never as JSON. */
+export function receiptValue(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === "string") return v.trim() ? humanTimes(v.trim()) : null;
+  if (typeof v === "number") return String(v);
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (Array.isArray(v)) { const parts = v.map(receiptValue).filter((x): x is string => x !== null); return parts.length ? parts.join(", ") : null; }
+  if (typeof v === "object") {
+    const parts = Object.entries(v as Record<string, unknown>)
+      .map(([k, x]) => { const w = receiptValue(x); return w === null ? null : `${fieldLabel(k)}: ${w}`; })
+      .filter((x): x is string => x !== null);
+    return parts.length ? parts.join(", ") : null;
+  }
+  return null;
+}

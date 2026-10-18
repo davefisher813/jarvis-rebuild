@@ -12,6 +12,9 @@ import { apiPost, type EmailAccount, type Fetch, type MessageDetail } from "./em
 import { ACCOUNT_PREFIX } from "../messages/mailCache";
 import { mailAccountKey } from "../messages/mailIdentity";
 import { replySubject } from "../connections/google/map";
+import { textOf } from "./candidates";
+import { shortDate } from "../shared/dateFormat";
+import { clock12 } from "../shared/clock";
 import { SIGNATURE_DELIM, type SignatureFields, type SignatureImage } from "./signature";
 
 export type SendState = "draft" | "sending" | "sent" | "unknown" | "failed";
@@ -219,6 +222,43 @@ export function normalizeAddress(a: string): string {
 
 // ---- replies ----------------------------------------------------------------
 
+// A REPLY OPENS WITH THE MESSAGE IT ANSWERS (Dave 2026-10-15, item 3: "opens with an empty draft"). The sender's words ride under the
+// person's own, the way every mail client quotes: "On Oct 13, 1:30 PM, Pat wrote:" and each line behind "> ". The saved signature is
+// appended after it (it must stay the body's last block), and what the person has TYPED is told apart from the quote by ownWords,
+// so the "Answered X of Y" reading never counts the sender's own question as the reply to it.
+const QUOTE_HEAD = /^On .+ wrote:$/;
+const QUOTE_LINES_MAX = 60;
+
+/** The quoted block for a reply to m: a header line, then the message's own lines, each behind "> ". Empty where the message said nothing. */
+export function quoteOf(m: Pick<MessageDetail, "from_name" | "from_address" | "internal_date" | "text" | "html" | "snippet">): string {
+  const lines = textOf(m).split(/\r?\n/).map((l) => l.trimEnd());
+  const kept: string[] = [];
+  for (const l of lines) {
+    if (l === "" && (kept.length === 0 || kept[kept.length - 1] === "")) continue;
+    kept.push(l);
+    if (kept.length >= QUOTE_LINES_MAX) break;
+  }
+  while (kept.length && kept[kept.length - 1] === "") kept.pop();
+  if (kept.length === 0) return "";
+  const d = new Date(m.internal_date);
+  const when = Number.isNaN(d.getTime()) ? "" : `${shortDate(m.internal_date.slice(0, 10))}, ${clock12(d)}, `;
+  const who = m.from_name.trim() || m.from_address;
+  return `On ${when}${who} wrote:\n` + kept.map((l) => (l ? `> ${l}` : ">")).join("\n");
+}
+
+/** The body without the quoted block: what the person wrote. */
+export function ownWords(body: string): string {
+  const out: string[] = [];
+  let quoting = false;
+  for (const l of body.split("\n")) {
+    if (!quoting && QUOTE_HEAD.test(l.trim())) { quoting = true; continue; }
+    if (quoting && (l.startsWith(">") || l.trim() === "")) continue;
+    quoting = false;
+    out.push(l);
+  }
+  return out.join("\n");
+}
+
 /** The fields of a reply, from the message's own headers: the sender (or its Reply-To), the subject with its Re:, the thread, the ids. Reply All keeps everyone else, drops the person's own addresses, and never pulls a Bcc from history (there is none to pull). */
 export function replyFields(m: MessageDetail, own: readonly string[], all: boolean): DraftFields {
   const mine = new Set(own.map((a) => a.toLowerCase()));
@@ -243,7 +283,7 @@ export function replyFields(m: MessageDetail, own: readonly string[], all: boole
     cc_addresses: cc,
     bcc_addresses: [],
     subject: replySubject(m.subject),
-    body_text: "",
+    body_text: quoteOf(m) ? `\n\n${quoteOf(m)}` : "",
     attachment_refs: [],
     reply_headers: { in_reply_to: mid, references: refs, thread_id: m.thread_id || null },
     signature_revision: null,

@@ -76,7 +76,9 @@ describe("Session Plan: headings, minutes and a clock", () => {
     fireEvent.click(screen.getByText("Start Time"));
     fireEvent.change(await screen.findByPlaceholderText("Start Time"), { target: { value: "17:30" } });
     fireEvent.click(within(sheetOf()).getByText("Save"));
-    expect(await screen.findByText("5:30 PM", {}, { timeout: 4000 })).toBeInTheDocument();
+    // Twice: the Start Time row itself reads in 12-hour (it printed the stored "17:30" until 2026-10-18), and the Warm-Up row's clock.
+    await waitFor(() => expect(screen.getAllByText("5:30 PM")).toHaveLength(2), { timeout: 4000 });
+    expect(screen.queryByText("17:30")).toBeNull();
     expect(screen.getByText("5:40 PM")).toBeInTheDocument();   // Passing Square, after the ten-minute Warm-Up
   });
 

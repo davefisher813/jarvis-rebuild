@@ -31,7 +31,7 @@ describe("google mappers", () => {
   });
 });
 
-import { mapInboxMessage, mapGmailFull, buildReply, buildReplyAll, encodeEmail } from "./map";
+import { mapInboxMessage, mapGmailFull, buildReply, buildReplyAll, encodeEmail, replySubject } from "./map";
 
 describe("gmail read + send mappers", () => {
   it("flags unread and parses the timestamp", () => {
@@ -347,5 +347,25 @@ describe("encodeEmail with an HTML body", () => {
     expect(rich).toContain("Hello there");
     expect(rich).toContain("<strong>there</strong>");
     expect(rich.indexOf("text/plain")).toBeLessThan(rich.indexOf("text/html"));
+  });
+});
+
+describe("replySubject (Dave 2026-10-15, item 3)", () => {
+  it("puts on exactly one Re:, whatever the subject already carried", () => {
+    expect(replySubject("Tuesday plan")).toBe("Re: Tuesday plan");
+    expect(replySubject("Re: Tuesday plan")).toBe("Re: Tuesday plan");
+    expect(replySubject("RE: Re: re:Tuesday plan")).toBe("Re: Tuesday plan");
+  });
+  it("drops a gateway's warning tag, wherever it sat among the Res, and keeps a list's own tag", () => {
+    expect(replySubject("[EXTERNAL] Kinzler Meeting")).toBe("Re: Kinzler Meeting");
+    expect(replySubject("[EXTERNAL] Re: Kinzler Meeting")).toBe("Re: Kinzler Meeting");
+    expect(replySubject("RE: [EXTERNAL] Re: Kinzler Meeting")).toBe("Re: Kinzler Meeting");
+    expect(replySubject("[CAUTION: External Email] Agenda")).toBe("Re: Agenda");
+    expect(replySubject("[Project X] Kickoff")).toBe("Re: [Project X] Kickoff");
+  });
+  it("a missing or placeholder subject is a bare Re:", () => {
+    expect(replySubject("")).toBe("Re:");
+    expect(replySubject("(no subject)")).toBe("Re:");
+    expect(replySubject("[EXTERNAL]")).toBe("Re:");
   });
 });

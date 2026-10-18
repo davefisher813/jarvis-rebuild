@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  badAddresses, canonicalFields, clearLocalDraft, emptyFields, hasManagedSignature, isAddress, loadLocalDrafts, normalizeAddress, outcomeOf, pausedOpenTarget, replaceSignature, replyFields, reviewExpired, sameFields,
+  badAddresses, canonicalFields, ownWords, clearLocalDraft, emptyFields, hasManagedSignature, isAddress, loadLocalDrafts, normalizeAddress, outcomeOf, pausedOpenTarget, replaceSignature, replyFields, reviewExpired, sameFields,
   saveLocalDraft, signatureUntouched, splitAddresses, stripSignature, unsavedLocal, withSignature, type DraftFields, type DraftRow, type LocalDraft, type Reopened,
 } from "./drafts";
 import type { EmailAccount, MessageDetail } from "./emailClient";
@@ -36,7 +36,17 @@ describe("replies (E17)", () => {
     expect(f.subject).toBe("Re: Peña transcript");
     expect(f.reply_headers).toEqual({ in_reply_to: "<m2@example.test>", references: ["<m1@example.test>", "<m2@example.test>"], thread_id: "t-a2" });
     expect(f.thread_id).toBe("t-a2");
-    expect(f.body_text).toBe("");
+    // A reply opens with the message it answers, quoted (Dave 2026-10-15, item 3), not an empty draft.
+    expect(f.body_text).toMatch(/^\n\nOn Oct [34], \d{1,2}:05 [AP]M, Coach Miller wrote:\n> On it$/);
+  });
+  it("the quote is the sender's own lines behind '> ', from the html when there is no plain text, and ownWords tells it from what was typed", () => {
+    const f = replyFields(message({ text: "Line one\n\n\nLine two\n", from_name: "" }), [], false);
+    expect(f.body_text).toMatch(/^\n\nOn Oct [34], \d{1,2}:05 [AP]M, coach@example\.test wrote:\n> Line one\n>\n> Line two$/);
+    expect(replyFields(message({ text: null, html: "<p>Tuesday 1:30 PM</p>" }), [], false).body_text).toContain("> Tuesday 1:30 PM");
+    expect(replyFields(message({ text: "", html: null, snippet: "" }), [], false).body_text).toBe("");
+    const typed = "Sounds good.\n\n" + f.body_text.trim() + "\n\n-- \nDave";
+    expect(ownWords(typed)).toBe("Sounds good.\n\n-- \nDave");
+    expect(ownWords("No quote here")).toBe("No quote here");
   });
   it("Reply All keeps everyone else on Cc, drops the person's own identities in any case, and never invents a Bcc", () => {
     const f = replyFields(message(), ["dave@example.test", "dave@work.test"], true);

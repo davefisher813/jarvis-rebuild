@@ -108,7 +108,9 @@ describe("Poker Night", () => {
 describe("Running Order, Party Planner and Watch List ride the shared engine", () => {
   it("Running Order puts a clock on each item from the start time", async () => {
     await openWith("u-w4-run", "runorder", (p) => withRows([{ item: "Doors", min: "30" }, { item: "Opening Act", min: "20" }])({ ...p, meta: { ...(p.meta ?? {}), start: "19:00" } }));
-    expect(await screen.findByText("7:00 PM")).toBeInTheDocument();
+    // The Start Time row reads in 12-hour too, so 7:00 PM is on the page twice: that row and the first item's clock.
+    await waitFor(() => expect(screen.getAllByText("7:00 PM")).toHaveLength(2));
+    expect(screen.queryByText("19:00")).toBeNull();
     expect(screen.getByText("7:30 PM")).toBeInTheDocument();
   });
   it("Party Planner totals what it costs", async () => {

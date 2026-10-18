@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dayLabel, dotParts, timeOf, whenFacts, whenLine } from "./format";
+import { dayLabel, dotParts, fieldLabel, humanTimes, receiptValue, timeOf, whenFacts, whenLine } from "./format";
 
 const now = new Date(2026, 9, 3, 15, 0, 0); // 3 October 2026, 3 PM local
 
@@ -39,5 +39,30 @@ describe("the Hub's facts", () => {
   it("a string another layer joined with a dot is cut back into its parts", () => {
     expect(dotParts("Suggested by Claude \u00b7 Approved by You")).toEqual(["Suggested by Claude", "Approved by You"]);
     expect(dotParts(null)).toEqual([]);
+  });
+});
+
+describe("receipts speak in words (Dave 2026-10-15, items 4 and 5)", () => {
+  it("humanTimes turns a 24-hour clock, a stamp and a bare day into what a person reads", () => {
+    expect(humanTimes("Moved from 13:30 to 14:00")).toBe("Moved from 1:30 PM to 2:00 PM");
+    expect(humanTimes("Team Meeting 9:05 AM")).toBe("Team Meeting 9:05 AM");
+    expect(humanTimes("Due 2026-10-15")).toMatch(/^Due Oct 15$/);
+    expect(humanTimes("00:15")).toBe("12:15 AM");
+  });
+  it("fieldLabel says a stored field name as a label", () => {
+    expect(fieldLabel("issuer")).toBe("Issuer");
+    expect(fieldLabel("due_date")).toBe("Due Date");
+    expect(fieldLabel("startTime")).toBe("Start Time");
+  });
+  it("receiptValue never says None, never prints JSON, and says an object as its parts", () => {
+    expect(receiptValue(null)).toBeNull();
+    expect(receiptValue(undefined)).toBeNull();
+    expect(receiptValue("  ")).toBeNull();
+    expect(receiptValue(true)).toBe("Yes");
+    expect(receiptValue(142.3)).toBe("142.3");
+    expect(receiptValue({ start: "13:30", end: "14:00" })).toBe("Start: 1:30 PM, End: 2:00 PM");
+    expect(receiptValue(["a", null, "b"])).toBe("a, b");
+    expect(receiptValue({ a: null })).toBeNull();
+    expect(receiptValue({ due_date: "2026-10-15" })).not.toMatch(/[{}"]/);
   });
 });

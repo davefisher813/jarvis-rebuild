@@ -13,7 +13,7 @@ import { actorLine, assuranceLine, eraseReceipt, exportReceipt, receiptDetail, s
 import { COPIED, COPY_RECEIPT, DELETE_RECEIPT, ITEM_REMOVED, OPEN_DESTINATION, PROVIDER_ACK_NOTE, UNDO, UNDONE } from "./copy";
 import { destinationKindOf, type RpcClient } from "./hubClient";
 import { ConfirmSheet } from "./sheets";
-import { dotParts, whenFacts } from "./format";
+import { dotParts, fieldLabel, humanTimes, receiptValue, whenFacts } from "./format";
 import HubFacts, { type HubFact, type HubFactInput } from "./HubFacts";
 import { Foot } from "../settings/kit";
 import type { ReceiptEvent } from "../substrate/commands/receipts";
@@ -118,7 +118,10 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
   const kind = d ? destinationKindOf(d.kind) : null;
   const last = d?.receipts[d.receipts.length - 1];
   const scope = d?.receipts.find((r) => r.scope_summary)?.scope_summary ?? "";
-  const diff = d?.receipts.flatMap((r) => r.diff) ?? [];
+  // Only the changes that have something to say: a row whose two sides are both empty is not drawn, and no side prints "None".
+  const diff = (d?.receipts.flatMap((r) => r.diff) ?? [])
+    .map((x) => ({ field: x.field, before: receiptValue(x.before), after: receiptValue(x.after) }))
+    .filter((x) => x.before !== null || x.after !== null);
   const ack = d?.outbox?.provider_ack ?? d?.receipts.find((r) => r.provider_ack)?.provider_ack ?? null;
 
   return (
@@ -135,8 +138,8 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
         <>
           <div className="pad-x"><div className="card pad hub-card">
             <span className={"hub-cap" + (d.state === "confirmed" ? " hub-cap-money" : d.state === "failed" ? " hub-cap-error" : d.state === "outcome_unknown" ? " hub-cap-waiting" : "")}>{statusLine(d.state)}</span>
-            <div className="conn-name">{d.verb}</div>
-            {scope && <div className="hub-text">{scope}</div>}
+            <div className="conn-name">{humanTimes(d.verb)}</div>
+            {scope && <div className="hub-text">{humanTimes(scope)}</div>}
             <HubFacts facts={cardFacts(d, last?.assurance)} />
           </div></div>
 
@@ -145,12 +148,12 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
               <div className="sh2 sh2-quiet"><span className="t">Before and After</span></div>
               <div className="pad-x"><div className="card pad"><div className="hub-diff">
                 {diff.map((x, i) => {
-                  const oldCls = x.before == null ? "" : "hub-diff-old";
+                  const { before, after } = x;
                   return (
-                    <div key={`${x.field}-${i}`} className="hub-diff-k">{x.field}
+                    <div key={`${x.field}-${i}`} className="hub-diff-k">{fieldLabel(x.field)}
                       <div className="hub-diff">
-                        <span className={oldCls}>{x.before == null ? "None" : String(typeof x.before === "object" ? JSON.stringify(x.before) : x.before)}</span>
-                        <span>{x.after == null ? "None" : String(typeof x.after === "object" ? JSON.stringify(x.after) : x.after)}</span>
+                        {before !== null && <span className="hub-diff-old">{before}</span>}
+                        {after !== null && <span>{after}</span>}
                       </div>
                     </div>
                   );
@@ -190,7 +193,7 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
           <div className="pad-x"><div className="card list-card-ruled">
             {d.receipts.map((r) => (
               <div className="row" key={r.receipt_id}><div className="row-grow">
-                <div className="conn-name">{r.exact_verb}</div>
+                <div className="conn-name">{humanTimes(r.exact_verb)}</div>
                 <HubFacts facts={historyFacts(r)} />
               </div></div>
             ))}

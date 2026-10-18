@@ -65,3 +65,37 @@ describe("sanitizeMailHtml", () => {
     expect(out).not.toMatch(/content="dark light"/);
   });
 });
+
+describe("the reading view shows the words (Dave 2026-10-15, item 6)", () => {
+  const colourOf = (html: string, sel: string, dark = true): string => {
+    const doc = new DOMParser().parseFromString(sanitizeMailHtml(html, { dark }), "text/html");
+    return (doc.querySelector(sel) as HTMLElement).style.color || (doc.querySelector(sel) as HTMLElement).getAttribute("color") || "";
+  };
+  it("dark grey text on the dark ground is lifted until it reads", () => {
+    const c = colourOf('<p id="x" style="color:#333333">Hello</p>', "#x");
+    expect(c).toMatch(/^rgb\(/);
+    const [r] = c.match(/\d+/g)!.map(Number);
+    expect(r).toBeGreaterThan(0x77);
+    expect(colourOf('<font id="x" color="#000000">Hello</font>', "#x")).toMatch(/^rgb\(/);
+  });
+  it("text that already reads, and text on a ground the sender painted, is left exactly as sent", () => {
+    expect(colourOf('<p id="x" style="color:#EEEEEE">Hi</p>', "#x")).not.toMatch(/^rgb\((?!238)/);
+    expect(colourOf('<table><tr><td bgcolor="#ffffff"><p id="x" style="color:#333333">Hi</p></td></tr></table>', "#x")).toBe("rgb(51, 51, 51)");
+    expect(colourOf('<div style="background:#fff"><p id="x" style="color:#333">Hi</p></div>', "#x")).toBe("rgb(51, 51, 51)");
+  });
+  it("a dark link becomes the frame's link blue, and light text in a light app is pulled down to read", () => {
+    expect(colourOf('<a id="x" href="https://e.test" style="color:#1a0dab">go</a>', "#x")).toMatch(/10, 132, 255|0A84FF|#0a84ff/i);
+    const c = colourOf('<p id="x" style="color:#ffffff">Hi</p>', "#x", false);
+    const [r] = c.match(/\d+/g)!.map(Number);
+    expect(r).toBeLessThan(0x90);
+  });
+  it("the sender's class colours are lifted only when the mail paints no ground anywhere", () => {
+    expect(sanitizeMailHtml('<style>.t{color:#222222}</style><p class="t">Hi</p>', { dark: true })).not.toMatch(/color:\s*#222222/);
+    expect(sanitizeMailHtml('<style>.t{color:#222222}</style><table><tr><td bgcolor="#fff" class="t">Hi</td></tr></table>', { dark: true })).toMatch(/color:\s*#222222/);
+  });
+  it("a picture that was not fetched leaves no empty box", () => {
+    const out = sanitizeMailHtml('<img src="https://t.test/a.png" width="600" height="300" alt="">', { dark: true, remoteImages: false });
+    expect(out).toMatch(/data-remote="off"/);
+    expect(out).toMatch(/img\[data-remote="off"\]\s*\{\s*display:\s*none\s*!important/);
+  });
+});
