@@ -273,6 +273,7 @@ describe("Money writes that fail say so and give the button back (HMN-F-09)", ()
 
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     vi.spyOn(LedgerService.prototype, "markBillPaidByUser").mockRejectedValue(new Error("offline"));
+    vi.spyOn(LedgerService.prototype, "approveBillMatch").mockRejectedValue(new Error("offline"));
     fireEvent.click(screen.getByLabelText("Mark paid"));
     fireEvent.click(await screen.findByText("I Paid This"));
     await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));

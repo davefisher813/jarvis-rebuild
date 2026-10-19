@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
-import { useOptionalLedger } from "../data/NotesProvider";
+import { useOptionalLedger, useOptionalTracker } from "../data/NotesProvider";
 import { FormSheet, Group, FieldRow, Row, Note, ErrorLine } from "../shared/FormSheet";
 import { Calendar } from "../shared/icons";
 import { DollarGlyph } from "../shared/glyphs";
@@ -11,6 +11,7 @@ import { billAmount } from "./billView";
 import { CONFIRM_MARK_PAID } from "./confirmMarkPaid";
 import { isRealDate } from "./ledger/dates";
 import type { Bill } from "./ledger/types";
+import { fileTrackerPayment } from "./paymentTx";
 
 // MARK PAID, THE ONE DOOR (Money ledger, lane B).
 //
@@ -20,6 +21,13 @@ import type { Bill } from "./ledger/types";
 // the small "I paid this" confirm, false writes at once dated today and gives
 // an Undo. Either way the evidence is the person's own word, and a write that
 // fails says so (attemptWrite) and leaves the bill as it was.
+//
+// A PAID BILL IS A PAYMENT IN THE TRACKER (the live audit, 2026-10-19: Paid This
+// Month moved and the Tracker never did). With a tracker and a known amount, Mark
+// Paid files the payment, dated the day paid, and links it to the bill as its
+// evidence (approveBillMatch), so the bill is paid on a transaction and the
+// Tracker says the same thing. Undo takes both back. A bill with no amount, or
+// a refused link, is marked on the person's word as before and files nothing.
 
 function MarkPaidSheet({ bill, onSave, onCancel }: { bill: Bill; onSave: (paidAt: string) => Promise<boolean>; onCancel: () => void }) {
   const [paidOn, setPaidOn] = useState(todayISO());
@@ -50,12 +58,24 @@ function MarkPaidSheet({ bill, onSave, onCancel }: { bill: Bill; onSave: (paidAt
 /** `request(bill)` starts Mark Paid for a ledger bill; render `sheet` once. */
 export function useMarkBillPaid(onDone: () => void | Promise<void>): { request: (b: Bill) => void; sheet: ReactNode } {
   const ledger = useOptionalLedger();
+  const tracker = useOptionalTracker();
   const [target, setTarget] = useState<Bill | null>(null);
 
   const commit = useCallback(async (b: Bill, paidAt: string): Promise<boolean> => {
     if (!ledger) return false;
+    let filed: string | null = null;
     const ok = await attemptWrite(async () => {
-      const r = await ledger.markBillPaidByUser(b.id, paidAt);
+      let r: { ok: boolean; reason?: string } = { ok: false, reason: "no payment" };
+      if (tracker && b.data.amountCents > 0) {
+        filed = await fileTrackerPayment(tracker, { merchant: b.data.vendor, amountCents: b.data.amountCents, date: paidAt });
+        // A payment that did not become the bill's evidence is taken back out: no orphan row in the Tracker.
+        const dropFiled = async () => { if (filed) { const id = filed; filed = null; await tracker.removeTx(id).catch(() => {}); } };
+        if (filed) {
+          try { r = await ledger.approveBillMatch(b.id, filed); } catch (e) { await dropFiled(); throw e; }
+          if (!r.ok) await dropFiled();
+        }
+      }
+      if (!r.ok) r = await ledger.markBillPaidByUser(b.id, paidAt);
       // A refusal is a failed write: the bill stays as it was and it says so.
       if (!r.ok) throw new Error(r.reason);
     });
@@ -63,16 +83,21 @@ export function useMarkBillPaid(onDone: () => void | Promise<void>): { request: 
     await onDone();
     // One tap has no confirm to stand behind it, so it has the way back.
     if (!CONFIRM_MARK_PAID) {
+      const row = filed;
       showToast({
         message: "Marked Paid",
         actionLabel: "Undo",
         onAction: () => void (async () => {
-          if (await attemptWrite(async () => { const u = await ledger.unmarkBillPaid(b.id); if (!u.ok) throw new Error(u.reason); })) await onDone();
+          if (await attemptWrite(async () => {
+            const u = await ledger.unmarkBillPaid(b.id);
+            if (!u.ok) throw new Error(u.reason);
+            if (row && tracker) await tracker.removeTx(row);
+          })) await onDone();
         })(),
       });
     }
     return true;
-  }, [ledger, onDone]);
+  }, [ledger, tracker, onDone]);
 
   const request = useCallback((b: Bill) => {
     if (CONFIRM_MARK_PAID) setTarget(b);

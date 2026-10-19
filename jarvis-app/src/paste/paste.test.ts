@@ -1003,8 +1003,28 @@ describe("a payment already made files a transaction in the tracker", () => {
     expect(classifyLine("I paid $12.50 at Starbucks", TODAY).expense).toEqual({ amountCents: 1250, merchant: "Starbucks" });
     expect(classifyLine("Paid $1,200 for rent", TODAY).expense).toEqual({ amountCents: 120000, merchant: "Rent" });
     expect(classifyLine("spent 30 minutes on the report", TODAY).expense, "minutes are not money").toBeUndefined();
+    // The live audit of 2026-10-19: both of these filed a Bill. A payment already made is a transaction however it is worded.
+    expect(classifyLine("I already paid $1 for lunch", TODAY).expense).toEqual({ amountCents: 100, merchant: "Lunch" });
+    expect(classifyLine("Paid $1 for lunch, already paid", TODAY).expense).toEqual({ amountCents: 100, merchant: "Lunch" });
+    expect(classifyLine("Paid $1 ... already paid", TODAY).expense).toEqual({ amountCents: 100, merchant: "Payment" });
+    expect(classifyLine("Paid $45 Geico", TODAY).expense).toEqual({ amountCents: 4500, merchant: "Geico" });
+    expect(classifyLine("Geico $45 already paid", TODAY).expense, "already paid, said last").toEqual({ amountCents: 4500, merchant: "Geico" });
+    expect(classifyLine("Geico $45 due Friday", TODAY).expense, "no past-tense verb, no claim").toBeUndefined();
+    expect(classifyLine("I already paid $1 for lunch", TODAY).bill, "a payment made is never a bill").toBeUndefined();
+    expect(classifyLine("I haven't paid $50 for rent", TODAY).expense, "not done").toBeUndefined();
+    expect(classifyLine("remind me to pay $50 when I paid last", TODAY).expense).toBeUndefined();
+    expect(classifyLine("unpaid $50 invoice", TODAY).expense).toBeUndefined();
     expect(classifyLine("Pay Geico $214", TODAY).expense, "imperative is a bill").toBeUndefined();
     expect(classifyLine("Pay Geico $214", TODAY).bill).toEqual({ amount: 214 });
+  });
+
+  it("a model that reads an already-paid line as a bill is overruled: expense in, bill out", async () => {
+    const { parseCapture } = await import("../ai/capture");
+    const r = parseCapture('{"kind":"task","title":"Pay Lunch","bill":{"amount":1},"expense":{"amount":1,"merchant":"Lunch"}}');
+    expect(r).toMatchObject({ kind: "task", expense: { amountCents: 100, merchant: "Lunch" } });
+    expect(r!.bill).toBeUndefined();
+    expect(parseCapture('{"kind":"task","title":"Pay Lunch","bill":{"amount":1}}')!.bill).toEqual({ amount: 1 });
+    expect(parseCapture('{"kind":"task","title":"x","expense":{"amount":-3,"merchant":"y"}}')!.expense).toBeUndefined();
   });
 
   it("files it once, Undo removes it, and with no tracker it says so and makes no task", async () => {

@@ -14,7 +14,7 @@ import type { LedgerService } from "../money/ledger/LedgerService";
 import { fileManualBill, noteFor } from "../money/ledger/emailBill";
 import type { BillRecurrence } from "../money/ledger/types";
 import type { TrackerService } from "../money/TrackerService";
-import { lastCategoryFor } from "../money/categoryDefault";
+import { fileTrackerPayment } from "../money/paymentTx";
 
 const RECURRENCES: Recurrence[] = ["daily", "weekly", "monthly", "weekdays"];
 
@@ -73,9 +73,16 @@ export const CAPTURE_SCHEMA: Record<string, unknown> = {
     },
     bill: {
       type: "object",
-      description: "only when the text names a money amount to pay",
+      description: "only when the text names a money amount still to pay",
       properties: { amount: { type: "number" } },
       required: ["amount"],
+    },
+    // A payment already made is never a bill (the live audit, 2026-10-19).
+    expense: {
+      type: "object",
+      description: "only when the text says it was already paid or spent (past tense): the amount in dollars and who was paid",
+      properties: { amount: { type: "number" }, merchant: { type: "string" } },
+      required: ["amount", "merchant"],
     },
   },
   required: ["kind", "title"],
@@ -102,8 +109,9 @@ export function captureSystemPrompt(ctx: AIContext, today: string): AISystem {
       // reply shape and stay fenced by the line under it. Splitting the
       // prompt for caching moved the context out; it did not narrow what
       // the model is allowed to fill in.
-      'Reply with ONLY a JSON object, no prose, no code fences: {"kind":"task|event|note","title":string,"date":"yyyy-mm-dd"(optional),"start":"HH:MM"(optional, 24h),"category":string(optional),"notes":string(optional),"recurrence":"daily|weekly|monthly|weekdays"(optional),"reminder":{"time":"HH:MM","days":[0-6]}(optional),"bill":{"amount":number}(optional)}.',
-      "Only fill recurrence, reminder or bill from words the person actually wrote. Never invent a repeat, a time, or an amount.",
+      'Reply with ONLY a JSON object, no prose, no code fences: {"kind":"task|event|note","title":string,"date":"yyyy-mm-dd"(optional),"start":"HH:MM"(optional, 24h),"category":string(optional),"notes":string(optional),"recurrence":"daily|weekly|monthly|weekdays"(optional),"reminder":{"time":"HH:MM","days":[0-6]}(optional),"bill":{"amount":number}(optional),"expense":{"amount":number,"merchant":string}(optional)}.',
+      "Only fill recurrence, reminder, bill or expense from words the person actually wrote. Never invent a repeat, a time, or an amount.",
+      'A bill is money still owed. If the text says it was already paid or spent ("paid", "spent", "already paid"), it is NOT a bill: fill expense with the amount and who was paid, and use kind "task".',
     ].join("\n"),
   };
 }
@@ -128,6 +136,14 @@ export function parseCapture(raw: string): CaptureResult | null {
       if (out.reminder && !/^\d{2}:\d{2}$/.test(out.reminder.time ?? "")) delete out.reminder;
       if (out.reminder?.days && !out.reminder.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) delete out.reminder.days;
       if (out.bill && !(Number.isFinite(out.bill.amount) && out.bill.amount > 0)) delete out.bill;
+      // The model speaks dollars and a payee; the record is cents. A payment already made is never also a bill.
+      const said = (o as { expense?: { amount?: number; merchant?: string } }).expense;
+      delete out.expense;
+      if (said && Number.isFinite(said.amount) && said.amount! > 0 && typeof said.merchant === "string" && said.merchant.trim()) {
+        out.expense = { amountCents: Math.round(said.amount! * 100), merchant: noDashes(said.merchant.trim()) };
+        out.kind = "task";
+        delete out.bill;
+      }
       return out;
     }
   } catch {
@@ -235,20 +251,7 @@ export async function applyCapture(
   // had and the first account, the same defaults the New Transaction sheet opens on.
   if (r.kind === "task" && r.expense) {
     if (!svc.tracker) return { id: null, kind: "expense", note: "Money Isn't Available Right Now" };
-    const day = r.date ?? today;
-    let category = "Other";
-    let account = "";
-    try {
-      const data = await svc.tracker.load();
-      category = lastCategoryFor(r.expense.merchant, data.txs, []) ?? category;
-      account = data.accounts[0]?.data.name ?? "";
-    } catch {
-      /* the defaults are a convenience; the payment is still recorded */
-    }
-    const id = await svc.tracker.saveTx(null, {
-      date: day, month: day.slice(0, 7), merchant: r.expense.merchant, name: r.expense.merchant,
-      amountCents: r.expense.amountCents, category, account,
-    });
+    const id = await fileTrackerPayment(svc.tracker, { merchant: r.expense.merchant, amountCents: r.expense.amountCents, date: r.date ?? today });
     return id ? { id, kind: "expense" } : { id: null, kind: "expense", note: "That Payment Could Not Be Saved" };
   }
   // A BILL IS MONEY'S, NEVER A TASK (ledger hard rule 1). A line that read as a
