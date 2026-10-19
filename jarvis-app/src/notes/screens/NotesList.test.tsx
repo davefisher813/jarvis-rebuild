@@ -61,22 +61,23 @@ describe("NotesList", () => {
   // the chip. Rows with no category show no chip at all"). The area is a small chip in its colour, which replaces the dot,
   // and the note's own first line sits right next to it; the same piece a task row draws its area and project with.
   // AMENDED 2026-10-11 (Dave, "match the mock exactly": unified-chip-system-mockup-2026-10-09). Line one is the title with
-  // the date at its right; line two is the area's chip and the note's preview beside it. Unfiled: no chip. A note with
-  // neither a chip nor a preview has no second line.
-  it("line one is the title and the date; line two is the chip and the preview; unfiled shows no chip", () => {
+  // the date at its right; line two is the area's chip and the note's preview beside it. ONE ROW GRAMMAR (Dave 2026-10-18, Notes
+  // screen order item 5): every row has both. Unfiled wears a muted "No Area" chip; a note with nothing written says "Empty Note".
+  it("line one is the title and the date; line two is the chip and the preview on EVERY row; unfiled wears a muted No Area chip", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const { container } = render(<NotesList notes={notes} />);
       const rows = container.querySelectorAll(".note-row");
       // Today, filed, no body: title alone on line one (the Today head says the day), the chip alone on line two.
       expect([...rows[0]!.querySelector(".note-line1")!.children].map((c) => c.className)).toEqual(["task-name"]);
-      expect([...rows[0]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip"]);
+      expect([...rows[0]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip", "r-goal note-preview note-preview-none"]);
+      expect(rows[0]!.querySelector(".note-preview")).toHaveTextContent("Empty Note");
       expect(rows[0]!.querySelector(".note-sub .cat-chip")).toHaveTextContent("Work");
       expect(rows[0]!.querySelector(".note-sub .cat-chip-dot")).toHaveClass("cat-bg-blue");
       expect(rows[0]!.querySelector(".note-line1 .cat-chip"), "the chip is not on the title line").toBeNull();
-      // Yesterday, unfiled: no chip, the preview alone.
-      expect(rows[1]!.querySelector(".cat-chip")).toBeNull();
-      expect([...rows[1]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["r-goal note-preview"]);
+      // Yesterday, unfiled: the muted No Area chip, then the preview.
+      expect(rows[1]!.querySelector(".cat-chip")).toHaveTextContent("No Area");
+      expect([...rows[1]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip cat-chip-none", "r-goal note-preview"]);
       expect(rows[1]!.querySelector(".note-preview")).toHaveTextContent("Base week.");
       expect(rows[1]!.querySelector(".note-date"), "the Yesterday head already says it").toBeNull();
       expect(rows[1]!.textContent).not.toMatch(/Not Filed/);
@@ -86,9 +87,10 @@ describe("NotesList", () => {
       expect([...rows[2]!.querySelector(".note-sub")!.children].map((c) => c.className)).toEqual(["cat-chip", "r-goal note-preview"]);
       expect(rows[2]!.querySelector(".note-preview")).toHaveTextContent("Tents and tables");
       expect(rows[2]!.querySelector(".note-sub .note-date"), "the date is not on line two").toBeNull();
-      // No date, no area, no body: a title and nothing else.
+      // No date, no area, no body: the rhythm still holds, a muted No Area chip and "Empty Note".
       expect(rows[3]!.querySelector(".note-date")).toBeNull();
-      expect(rows[3]!.querySelector(".note-sub")).toBeNull();
+      expect(rows[3]!.querySelector(".note-sub .cat-chip")).toHaveTextContent("No Area");
+      expect(rows[3]!.querySelector(".note-sub .note-preview")).toHaveTextContent("Empty Note");
     } finally {
       vi.useRealTimers();
     }
@@ -110,8 +112,9 @@ describe("NotesList", () => {
       expect(berto.textContent).not.toMatch(/Attendees|Aug 24|\u00b7/);
       expect(berto.querySelectorAll(".note-date")).toHaveLength(1);
       expect(berto.querySelector(".note-date")).toHaveTextContent("Aug 30");
-      // Nothing but the empty label: unfiled, so no second line at all.
-      expect(row("Meeting Notes").querySelector(".note-sub")).toBeNull();
+      // Nothing but the empty label: unfiled and empty, so the row still has both halves of its second line.
+      expect(row("Meeting Notes").querySelector(".note-sub .cat-chip")).toHaveTextContent("No Area");
+      expect(row("Meeting Notes").querySelector(".note-sub .note-preview")).toHaveTextContent("Empty Note");
       // Names typed after the label: who it was with, and only that.
       expect(row("Board Sync").querySelector(".note-preview")).toHaveTextContent(/^With: Wei, Sam Okafor$/);
     } finally {

@@ -1479,8 +1479,32 @@
 .ruled.notes-list .note-row .note-line1 > .task-name { color: var(--tx-1); }
 .ruled .note-row .note-line1 > .task-name {
   display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-  font-family: 'Newsreader', Georgia, serif; font-weight: var(--w-medium); font-size: calc(18px * var(--type-scale)); line-height: 1.15;
+  font-weight: var(--w-semi); font-size: calc(18px * var(--type-scale)); line-height: 1.15;
 }
+/* THE NOTE TITLE IS THE APP'S FONT (Dave 2026-10-18, Notes screen order item 1; this REVERSES the 2026-10-11 "Note Titles" serif ruling
+   above and settles parked item V10): no family of its own, so it is Poppins like every other title in the app. Size and the one line
+   with an ellipsis are as they were. */
+/* THE CHIP FOR A NOTE WITH NO AREA (Dave 2026-10-18, item 5): a muted "No Area" in the same chip, a grey dot, so every row has the
+   same second line. */
+.ruled .cat-chip-dot-none, .day-sheet .cat-chip-dot-none { background: var(--tx-4); }
+.ruled .cat-chip-none { color: var(--tx-3); }
+.ruled .note-row .note-preview-none { font-style: italic; }
+/* THE NOTES SCREEN, FLAT AND FULL STRENGTH (Dave 2026-10-18, items 4 and 7). The list card loses its gloss: the lit corner, the top sheen and
+   the inner highlights come off, and the card's own colour (the pane) stays exactly as every card has it. */
+html[data-theme="dark"] .ruled.notes-list .card.note-card { background: var(--gd-pane); box-shadow: none; }
+html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--gl-pane); box-shadow: none; }
+/* NEW NOTE IS THE SCREEN'S PRIMARY ACTION and reads like one: the light tile with the pencil, the page's full ink, nothing dimmed. */
+.ruled.notes-list .set-row .conn-name { color: var(--tx-1); opacity: 1; }
+.ruled.notes-list .note-new-tile { background: var(--tx-1); color: var(--bg); opacity: 1; }
+[data-theme="light"] .ruled.notes-list .note-new-tile { background: var(--surface-3); color: var(--tx-1); }
+/* THE NOTES TRIAL (Dave 2026-10-18, item 3, judged live on his phone): a thin red margin line down the inside left of the list card
+   at about 45%, and the preview in italic of the app's font. Both hang on `.notes-trial` (NotesList's root) and nothing else, so they
+   come out cleanly: delete this block, or the class. */
+.ruled.notes-list.notes-trial .card.note-card { position: relative; }
+.ruled.notes-list.notes-trial .card.note-card::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: var(--s-2h); width: 1.5px; background: var(--tint); opacity: 0.45; pointer-events: none; z-index: 1;
+}
+.ruled.notes-list.notes-trial .note-row .note-preview { font-style: italic; }
 /* The "first" row shape: the note's own first line, in grey, one line. */
 .ruled .note-first { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: var(--s-1); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; min-width: 0; }
