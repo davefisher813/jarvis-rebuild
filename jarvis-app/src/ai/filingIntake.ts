@@ -16,6 +16,7 @@ import {
   UNDO_MS,
   VOICE_SAMPLE_CAP,
   filedToastText,
+  filedToBrainToastText,
   type BrainMemoryCategory,
   type BrainMemoryData,
   type BrainMemoryRow,
@@ -104,9 +105,9 @@ export function oldestVoiceSample(rows: BrainMemoryRow[]): BrainMemoryRow | null
 // Undo capsule runs the caller's per-filing undo (writes the exact restore
 // state, SHARED-F-03), and the toast lives UNDO_MS (8s). Same component, same
 // styles as every other "Saved …" toast; no new visuals.
-export function showFilingConfirm(category: BrainMemoryCategory, onUndo: () => void, pending = false): void {
+export function showFilingConfirm(category: BrainMemoryCategory, onUndo: () => void, pending = false, toBrain = false): void {
   showToast(
-    { message: filedToastText(category, pending), actionLabel: "Undo", onAction: onUndo },
+    { message: toBrain ? filedToBrainToastText(category, pending) : filedToastText(category, pending), actionLabel: "Undo", onAction: onUndo },
     UNDO_MS,
   );
 }

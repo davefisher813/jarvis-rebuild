@@ -54,7 +54,7 @@ export default function FileAsSheet({
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="grp"><div className="eyebrow">File As…</div></div>
+        <div className="grp"><div className="eyebrow">File to Brain As…</div></div>
         {guardLines.length > 0 && (
           <div className="pad-x">
             {guardLines.map((line) => (

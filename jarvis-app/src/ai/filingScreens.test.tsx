@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Brain Manual v1 (the filing doors as Dave taps them).
 //
-// NoteEditor: "File As…" sits in the note's existing More menu, files the
+// NoteEditor: "File to Brain As…" sits in the note's existing More menu, files the
 // selection when one exists (else the whole note), and renders disabled on
 // an empty note. QuickCapture: the + menu's two filing doors open the one
 // filing sheet (3 fields max) with the right mode and source.
@@ -15,6 +15,7 @@ import NotesFlow from "../notes/NotesFlow";
 import QuickCapture from "../capture/QuickCapture";
 import type { BrainMemoryService } from "./brainMemoryService";
 import type { AIService } from "../ai/AIService";
+import { subscribeToast, type ToastState } from "../shared/toast";
 
 vi.mock("../data/store", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../data/store")>();
@@ -50,16 +51,18 @@ async function openNoteWithText(text: string, blankTitle = false) {
   return { id };
 }
 
-describe("NoteEditor → File As…", () => {
+describe("NoteEditor → File to Brain As…", () => {
   it("files the whole note from the More menu and names the destination", async () => {
+    const toasts: ToastState[] = [];
+    const off = subscribeToast((t) => { if (t) toasts.push(t); });
     await openNoteWithText("Discipline beats motivation.");
     fireEvent.click(screen.getByLabelText("Note options"));
-    const item = await screen.findByText("File As…");
+    const item = await screen.findByText("File to Brain As…");
     expect(item).toBeInTheDocument();
     expect(item.closest("button")).not.toBeDisabled();
     fireEvent.click(item);
     // The one filing sheet: pick Philosophy, one tap, no form.
-    await screen.findByText("File As…", { selector: ".eyebrow" });
+    await screen.findByText("File to Brain As…", { selector: ".eyebrow" });
     fireEvent.click(screen.getByText("Philosophy"));
     await waitFor(async () => {
       const rows = await brainRef!.listByCategory("philosophy");
@@ -67,12 +70,15 @@ describe("NoteEditor → File As…", () => {
       expect(rows[0]!.data.text).toContain("Discipline beats motivation.");
       expect(rows[0]!.data.source).toBe("note");
     });
+    // The toast says the filing went to the Brain; the note's own area is not what moved.
+    await waitFor(() => expect(toasts.map((t) => t.message)).toContain("Saved to Philosophy in Your Brain ✓"));
+    off();
   });
 
   it("an empty note renders the menu item disabled", async () => {
     await openNoteWithText("", true);
     fireEvent.click(screen.getByLabelText("Note options"));
-    const item = await screen.findByText("File As…");
+    const item = await screen.findByText("File to Brain As…");
     expect(item.closest("button")).toBeDisabled();
   });
 });
