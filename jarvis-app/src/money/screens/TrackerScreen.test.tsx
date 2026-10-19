@@ -6,6 +6,7 @@ import "@testing-library/jest-dom";
 import { NotesProvider, useLedger, useTracker } from "../../data/NotesProvider";
 import type { LedgerService } from "../ledger/LedgerService";
 import type { TrackerService } from "../TrackerService";
+import { todayISO } from "../../tasks/grouping";
 import { subscribeToast, resetToasts, type ToastState } from "../../shared/toast";
 import { DEFAULT_BUDGET_CATEGORIES } from "../ledger/types";
 import { monthLabel, thisMonth, type TrackerTxData } from "../tracker";
@@ -62,6 +63,15 @@ describe("Tracker transactions: added by hand, no bank", () => {
     expect(screen.queryByText("Nothing Tracked Yet")).toBeNull();
     expect(document.body.textContent).not.toMatch(/connect (a )?bank|link (a )?bank|sync/i);
     expect(screen.queryByText("Add a Transaction")).toBeNull();
+  });
+
+  // The live audit of 2026-10-19: Add Manually opened on 10/15. In the month on screen that is this one, a new payment is today's.
+  it("Add Manually opens on today's date when the month on screen is this month", async () => {
+    mount("tr-date-today", async (s) => { await s.tracker.saveTx(null, tx({ date: day(1) })); });
+    await tab("Activity");
+    fireEvent.click(await screen.findByText("Add Manually"));
+    await screen.findByText("New Transaction");
+    expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe(todayISO());
   });
 
   // Research standard rule 5 (2026-10-18): a payment entered by hand can be taken back from the toast, with the sheet
