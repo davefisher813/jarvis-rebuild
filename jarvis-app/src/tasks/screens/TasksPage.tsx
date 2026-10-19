@@ -8,6 +8,7 @@ import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { Trash2, Clock, ListChecks, Check, Zap, Forward } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
+import LoadFailed from "../../shared/LoadFailed";
 import { Burst } from "../../shared/Burst";
 import type { BurstSize } from "../../shared/completion";
 import type { TaskItem } from "../TasksService";
@@ -791,6 +792,8 @@ export default function TasksPage({
   counts,
   items,
   loading,
+  loadFailed,
+  onRetryLoad,
   today,
   onFilter,
   onToggle,
@@ -834,6 +837,9 @@ export default function TasksPage({
   counts: Record<TaskFilter, number>;
   items: TaskItem[];
   loading?: boolean;
+  /** The first read failed and nothing is on screen: the page says so, with Retry (shared/LoadFailed). */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   today: string;
   onFilter?: (f: TaskFilter) => void;
   onToggle?: (id: string) => void;
@@ -1114,7 +1120,9 @@ export default function TasksPage({
         </div>
       )}
 
-      {loading ? (
+      {loadFailed && items.length === 0 ? (
+        <LoadFailed what="Your Tasks" onRetry={() => onRetryLoad?.()} />
+      ) : loading ? (
         <SkeletonRows />
       ) : shown.length === 0 && momentumHome && listed.length !== items.length ? (
         // ONLY THE SUGGESTION IS LEFT (Dave's pass-off, 2026-09-26). The one

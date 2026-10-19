@@ -26,6 +26,7 @@ import { overLine } from "../ledger/actuals";
 import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT, type Bill, type Receipt } from "../ledger/types";
 import { removeTxWithLinks, unmatchTx, type LinkChange } from "../txLinks";
 import { todayISO } from "../../tasks/grouping";
+import LoadFailed from "../../shared/LoadFailed";
 import { useLedgerEvents } from "../useLedgerEvents";
 
 // THE TRACKER (PASSOFF 2026-09-19, built by Alfred, integrated here).
@@ -72,6 +73,8 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
   const svc = useTracker();
   const [data, setData] = useState<TrackerData>(EMPTY_TRACKER);
   const [loaded, setLoaded] = useState(false);
+  // The first read failed with nothing yet on screen: say so with Retry instead of drawing an empty ledger as if it were the person's.
+  const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [month, setMonth] = useState(() => thisMonth());
   const [seeding, setSeeding] = useState(false);
@@ -92,17 +95,24 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     // is a one-time, idempotent correction of imported data, not a user action, so no toast; a failure leaves the rows
     // as they were and the next load tries again.
     await svc.reconcileImportFees().catch(() => false);
-    const [d, receipts, bills] = await Promise.all([
-      svc.load(),
-      ledger ? ledger.listReceipts() : Promise.resolve([] as Receipt[]),
-      ledger ? ledger.listBills() : Promise.resolve([] as Bill[]),
-    ]);
-    if (ticket === loadTicket.current) {
-      setData(d);
-      setRecs({ receipts, bills });
-      setLoaded(true);
+    try {
+      const [d, receipts, bills] = await Promise.all([
+        svc.load(),
+        ledger ? ledger.listReceipts() : Promise.resolve([] as Receipt[]),
+        ledger ? ledger.listBills() : Promise.resolve([] as Bill[]),
+      ]);
+      if (ticket === loadTicket.current) {
+        setData(d);
+        setRecs({ receipts, bills });
+        setLoaded(true);
+        setFailed(false);
+      }
+      return d;
+    } catch {
+      // A refresh that fails with data on screen keeps the data; only a first read with nothing to show is a failed load.
+      if (ticket === loadTicket.current) setFailed(true);
+      return null;
     }
-    return d;
   }, [svc, ledger]);
   useEffect(() => { void reload(); }, [reload]);
   useLedgerEvents([ENTITY_MONEY_RECEIPT, ENTITY_MONEY_BILL], reload);
@@ -121,6 +131,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     setSeeding(false);
     if (!wrote) return;
     const d = await reload();
+    if (!d) return;
     // THE IMPORT LANDS WHERE ITS DATA IS (2026-10-05, the perfect bar): the offer wrote September and the screen kept
     // showing October at $0.00, so the import looked like it had done nothing. The screen moves to the newest month
     // the import wrote, and the toast says how much arrived.
@@ -145,17 +156,18 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
           onOpen={() => void runSeed()} />
         </div>
       )}
-      <TabStrip tab={tab} onTab={setTab} />
-      {tab === "dashboard" && (
+      {failed && !loaded && <LoadFailed what="Your Tracker" onRetry={() => void reload()} />}
+      {!(failed && !loaded) && <TabStrip tab={tab} onTab={setTab} />}
+      {!(failed && !loaded) && tab === "dashboard" && (
         <Dashboard month={month} onMonth={setMonth} txs={monthTxs} receipts={recs.receipts} data={data} onSaved={refresh} />
       )}
-      {tab === "transactions" && (
+      {!(failed && !loaded) && tab === "transactions" && (
         <Transactions data={data} month={month} receipts={recs.receipts} bills={recs.bills} onSaved={refresh} />
       )}
-      {tab === "budgets" && (
+      {!(failed && !loaded) && tab === "budgets" && (
         <Budgets month={month} onMonth={setMonth} data={data} receipts={recs.receipts} onSaved={refresh} />
       )}
-      {tab === "subs" && <Subscriptions data={data} onSaved={refresh} />}
+      {!(failed && !loaded) && tab === "subs" && <Subscriptions data={data} onSaved={refresh} />}
       <div className="screen-foot" />
     </div>
   );
