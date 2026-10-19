@@ -360,3 +360,8 @@ export function MealGlyph({ className = "ic" }: { className?: string }) {
     </>
   );
 }
+
+// THE BRAIN'S OWN PHOSPHOR GLYPHS, ROUTED HERE (research standard, one icon family, 2026-10-18). Three screens drew
+// Phosphor straight from the package, so the library had four doors; these are the same components with the same weights,
+// now behind the one shared module. consistencyRatchet.test.ts keeps every other file out of the package.
+export { ShieldCheck, Compass, PenNib, Flag, Clock as ClockIcon, ArrowsClockwise, Target as TargetIcon, Hourglass, Barbell as BarbellIcon, EnvelopeSimple, UsersThree, UserMinus, Eye } from "@phosphor-icons/react";

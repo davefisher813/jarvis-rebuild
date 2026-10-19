@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck } from "@phosphor-icons/react";
+import { ShieldCheck } from "../shared/glyphs";
 import { useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import type { Strand } from "../brain/strands/types";
 import { lineCase, titleCase } from "../shared/casing";

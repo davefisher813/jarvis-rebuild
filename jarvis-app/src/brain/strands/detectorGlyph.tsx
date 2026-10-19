@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Clock, ArrowsClockwise, Target, Hourglass, Barbell, EnvelopeSimple, UsersThree, UserMinus, Eye } from "@phosphor-icons/react";
+import { ClockIcon as Clock, ArrowsClockwise, TargetIcon as Target, Hourglass, BarbellIcon as Barbell, EnvelopeSimple, UsersThree, UserMinus, Eye } from "../../shared/glyphs";
 import type { DerivationKey } from "./types";
 
 // THE DETECTOR'S OWN GLYPH (Dave 2026-10-05, the review: "a generic amber question mark that reads as a placeholder or an
