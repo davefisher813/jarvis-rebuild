@@ -46,7 +46,7 @@ describe("LifeFlow", () => {
     expect(screen.queryByText("Money")).not.toBeInTheDocument();
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Life");
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
-    expect(tabs).toEqual(["Areas", "Tasks", "Reminders", "Projects", "Goals"]);
+    expect(tabs).toEqual(["Areas", "Goals", "Projects", "Reminders", "Tasks"]);
     expect(screen.getByRole("tab", { name: "Areas" })).toHaveAttribute("aria-selected", "true");
   });
 
