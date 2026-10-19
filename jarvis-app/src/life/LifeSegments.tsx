@@ -10,12 +10,15 @@ export const LIFE_SEGMENTS: { key: LifeSegment; label: string }[] = [
   // Browsing what's filed under an area used to mean going to Brain for the
   // name and back to Life for the work; this is the one door.
   { key: "areas", label: "Areas" },
-  { key: "tasks", label: "Tasks" },
+  // THE ORDER TRACKS UP TO DOWN, LEFT TO RIGHT (Dave, 2026-10-19, from his phone: "People read left to right. That's
+  // how it should track."): after Areas, the widest view first, then the work that sits under it. Goals, Projects,
+  // Reminders, Tasks. Areas stays first and stays the default.
+  { key: "goals", label: "Goals" },
+  { key: "projects", label: "Projects" },
   // THE REMINDERS REBUILD (push E, 2026-09-15): the page lives here as well
   // as behind Today's See All, the same component both ways.
   { key: "reminders", label: "Reminders" },
-  { key: "projects", label: "Projects" },
-  { key: "goals", label: "Goals" },
+  { key: "tasks", label: "Tasks" },
 ];
 
 // THE ACTIVE LENS IS ALWAYS ON SCREEN, AND THE STRIP SAYS WHEN IT SCROLLS (2026-10-05, the perfect bar: "Goals" was
