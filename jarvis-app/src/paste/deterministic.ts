@@ -249,10 +249,41 @@ function matchRepeat(lower: string): RepeatHit | null {
 // a bill for three dollars, which is exactly the guessing this refuses.
 const MONEY_RE = /\$\s?(\d[\d,]*(?:\.\d{1,2})?)/;
 
-// "spent 30 on gas", "I paid $12.50 at Starbucks": the verb, the amount (a $ is
-// optional here because "spent" already says it is money), the preposition,
-// then who was paid. "30 minutes" fails the preposition, so time is not money.
-const EXPENSE_RE = /^(?:i\s+)?(?:spent|paid)\s+\$?\s?(\d[\d,]*(?:\.\d{1,2})?)\s+(?:on|at|for|to)\s+(.+)$/i;
+// A PAYMENT ALREADY MADE (rule 5, 2026-10-18; widened 2026-10-19 after the live audit: "I already paid $1 for ..." and
+// "Paid $1 ... already paid" filed a Bill). The word is past tense, "paid" or "spent", anywhere in the line, with an
+// amount he wrote. The imperative "Pay" is never matched, and a line that says it is NOT done (not, never, need to, when,
+// until, if, ...) is not either. The amount is a $ figure anywhere, or a bare number straight after the verb when a
+// preposition follows ("spent 30 on gas"), so "spent 30 minutes on the report" stays time.
+const PAID_WORD = /\b(?:paid|spent)\b/i;
+const NOT_DONE = /\b(?:not|never|haven'?t|hasn'?t|didn'?t|don'?t|won'?t|unpaid|yet to|need to|needs to|have to|has to|must|should|gonna|going to|when|until|before|once|if)\b/i;
+const DOLLAR_AMOUNT = /\$\s?(\d[\d,]*(?:\.\d{1,2})?)/;
+const BARE_AMOUNT = /\b(?:paid|spent)\s+(\d[\d,]*(?:\.\d{1,2})?)(?=\s+(?:on|at|for|to)\b)/i;
+
+/** The payment a line reports as already made, or null. `spans` are the day and time words already read, cut from the payee. */
+export function readExpense(t: string, spans: string[]): { amountCents: number; merchant: string } | null {
+  if (!PAID_WORD.test(t) || NOT_DONE.test(t)) return null;
+  const dollar = DOLLAR_AMOUNT.exec(t);
+  const bare = dollar ? null : BARE_AMOUNT.exec(t);
+  const m = dollar ?? bare;
+  if (!m) return null;
+  const amount = Number(m[1]!.replace(/,/g, ""));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  // The payee is what is left once the amount, the "I already paid" words and the day words are out.
+  let rest = t.replace(dollar ? DOLLAR_AMOUNT : /\b(\d[\d,]*(?:\.\d{1,2})?)(?=\s+(?:on|at|for|to)\b)/, " ");
+  for (const sp of spans) rest = rest.replace(new RegExp("(?:\\b(?:at|on|from)\\s+)?" + sp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ");
+  rest = rest
+    .replace(/\b(?:i|we|i've|we've|already|just|have|had)\b/gi, " ")
+    .replace(/\b(?:paid|spent)\b/gi, " ")
+    .replace(/[.\u2026]{2,}/g, " ");
+  // Glue words at either end are not the payee.
+  for (let i = 0; i < 6; i++) {
+    const next = rest.replace(/^[\s,.:;!-]+|[\s,.:;!-]+$/g, "").replace(/^(?:on|at|for|to|via|with|the|a|an|my|our)\s+/i, "").replace(/\s+(?:already|today|ok|okay)$/i, "");
+    if (next === rest) break;
+    rest = next;
+  }
+  rest = rest.replace(/\s{2,}/g, " ").trim();
+  return { amountCents: Math.round(amount * 100), merchant: rest || "Payment" };
+}
 
 function matchAmount(lower: string): { amount: number; text: string } | null {
   const m = lower.match(MONEY_RE);
@@ -376,22 +407,19 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // 30 on gas", "Paid $1,200 for rent". The imperative "Pay $50 rent" is
   // still a bill (owed), and a line without all three words is read as it
   // always was. The day is only the one he named; none means today.
-  const spent = EXPENSE_RE.exec(t);
+  const spent = readExpense(t, [dayHit?.text, timeHit?.text].filter(Boolean) as string[]);
   if (spent) {
-    const merchant = stripDateWords(spent[2]!, [dayHit?.text, timeHit?.text].filter(Boolean) as string[]).replace(/^(?:the|a|an|my)\s+/i, "").trim();
-    const amount = Number(spent[1]!.replace(/,/g, ""));
-    if (merchant && Number.isFinite(amount) && amount > 0) {
-      return {
-        kind: "task",
-        title: titleCase(merchant),
-        expense: { amountCents: Math.round(amount * 100), merchant: titleCase(merchant) },
-        date: date ?? today,
-        confident: true,
-        raw: t,
-        ...who,
-        inferred: date ? who.inferred : [...who.inferred, "date"],
-      };
-    }
+    const merchant = titleCase(spent.merchant);
+    return {
+      kind: "task",
+      title: merchant,
+      expense: { amountCents: spent.amountCents, merchant },
+      date: date ?? today,
+      confident: true,
+      raw: t,
+      ...who,
+      inferred: date ? who.inferred : [...who.inferred, "date"],
+    };
   }
 
   // A time plus a day (or just a time with "tonight"-style words caught by

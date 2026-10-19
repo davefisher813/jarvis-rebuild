@@ -3,7 +3,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useLedger, useTasks, useProfile } from "../data/NotesProvider";
+import { NotesProvider, useLedger, useTasks, useProfile, useTracker } from "../data/NotesProvider";
+import type { TrackerService } from "./TrackerService";
 import MoneyFlow from "./MoneyFlow";
 import { LedgerService } from "./ledger/LedgerService";
 import { suggestionKey, dismissSuggestion } from "./suggestionMemory";
@@ -24,11 +25,13 @@ const day = (n: number) => addDays(T, n);
 
 let ledgerRef: LedgerService | null = null;
 let tasksRef: TasksService | null = null;
+let trackerRef: TrackerService | null = null;
 
 /** Runs `seed` once with the services, then shows its children. */
 function Seed({ seed, children }: { seed: (l: LedgerService, t: TasksService) => Promise<void>; children: ReactNode }) {
   const ledger = useLedger();
   const tasks = useTasks();
+  const tracker = useTracker();
   const started = useRef(false);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -36,8 +39,9 @@ function Seed({ seed, children }: { seed: (l: LedgerService, t: TasksService) =>
     started.current = true;
     ledgerRef = ledger;
     tasksRef = tasks;
+    trackerRef = tracker;
     void seed(ledger, tasks).then(() => setReady(true));
-  }, [ledger, tasks, seed]);
+  }, [ledger, tasks, tracker, seed]);
   return ready ? <>{children}</> : null;
 }
 
@@ -204,7 +208,12 @@ describe("Mark paid: the person's own word, confirmed", () => {
     fireEvent.click(screen.getByText("I Paid This"));
     await screen.findByText(`Paid ${monthDay(day(-1))}`);
     const [b] = await ledgerRef!.listBills();
-    expect(b!.data).toMatchObject({ paidAt: day(-1), paidEvidence: { type: "user_confirmed" } });
+    // MARK PAID FILES THE PAYMENT (the live audit, 2026-10-19): the bill is paid on a transaction, dated the day paid,
+    // and the Tracker says the same thing Paid This Month does.
+    const txs = (await trackerRef!.load()).txs;
+    expect(txs).toHaveLength(1);
+    expect(txs[0]!.data).toMatchObject({ merchant: "Water", amountCents: 4000, date: day(-1), source: "manual", paysBillId: b!.id });
+    expect(b!.data).toMatchObject({ paidAt: day(-1), paidEvidence: { type: "transaction", transactionId: txs[0]!.id } });
   });
 
   it("Cancel leaves the bill unpaid", async () => {
@@ -232,10 +241,12 @@ describe("Mark paid: the person's own word, confirmed", () => {
     mount("mb-pay-fail", async (l) => { await add(l, { vendor: "Water", amount: 40 }); });
     await screen.findByText("Water");
     vi.spyOn(LedgerService.prototype, "markBillPaidByUser").mockRejectedValue(new Error("offline"));
+    vi.spyOn(LedgerService.prototype, "approveBillMatch").mockRejectedValue(new Error("offline"));
     fireEvent.click(screen.getByLabelText("Mark paid"));
     fireEvent.click(await screen.findByText("I Paid This"));
     await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
     expect(screen.getByText("I Paid This")).toBeInTheDocument(); // Save is a button again
+    expect((await trackerRef!.load()).txs, "a failed write leaves no payment behind").toEqual([]);
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
     stop();
   });

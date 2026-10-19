@@ -101,7 +101,8 @@ describe("the Today bill card carries ledger bills", () => {
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
     fireEvent.click(screen.getByText("I Paid This"));
     await waitFor(() => expect(screen.queryByText("2 Days Late")).toBeNull());
-    expect((await ledgerRef!.listBills())[0]!.data).toMatchObject({ paidAt: T, paidEvidence: { type: "user_confirmed" } });
+    // The shared door files the payment too (the live audit, 2026-10-19), and it is the bill's evidence.
+    expect((await ledgerRef!.listBills())[0]!.data).toMatchObject({ paidAt: T, paidEvidence: { type: "transaction" } });
   });
 
   it("an autopay ledger bill is on the card but offers no Paid button", async () => {
