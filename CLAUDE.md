@@ -40,6 +40,14 @@ project names reach them through `RowChipWordsContext`, provided by `TodayFlow`,
 Nothing else about the section is unfrozen.
 
 
+## The Whole Day card is measured in a real browser (Dave, 2026-10-19: "The schedule is broke")
+
+The 2026-10-18 area chip on the Whole Day rows joined the held-task rows' two-column grid with no column of its own and squeezed every held title
+into a one-letter strip (`.block-held-col > .r-k { grid-column: 2 }` is the fix). Every jsdom test passed, because jsdom has no layout engine.
+`src/laws/wholeDayRender.test.ts` renders the real Today day card (`bench-whole-day.html`, through the real stylesheets) at 390px in Chromium
+and measures it; CI installs Chromium for it, and `CHROMIUM_PATH` points at one anywhere else. Any change to a row inside the day card (event,
+proposed, held) or to the `.block-held-*` grid runs that law before it is called done, and a new kind of row goes into the bench.
+
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
 "I am sick of this shit." A thin grey subtext came back on the live Email card

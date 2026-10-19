@@ -67,6 +67,10 @@ jobs:
         working-directory: jarvis-core
       - run: npx tsc --noEmit
       - run: npx eslint src
+      # A real browser, for the one law that LOOKS (laws/wholeDayRender.test.ts, 2026-10-19). jsdom has no layout engine, and a card that renders
+      # as a one-letter strip passed every test that came before it. The laws below launch Chromium; this puts one where Playwright expects it.
+      - name: Chromium, for the render laws
+        run: npx playwright install --with-deps chromium
       # The laws suite is the reason this file exists, so it is named rather
       # than folded into the run below: when CI goes red, the log should say
       # which kind of red it is before it says anything else.
