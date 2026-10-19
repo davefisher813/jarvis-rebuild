@@ -44,4 +44,14 @@ describe("the tab bar's foot is a fixed length", () => {
     const foot = feet.map((r) => r.body).join(";");
     expect(foot).toMatch(/--tab-clear/);
   });
+
+  // THE DOCK JOINS THE ONE RADIUS SYSTEM (Dave 2026-10-19, ruling on the live audit: "round the dock corners like the cards"). The flush bar had
+  // square top corners in dark while every card is 24; it takes the card radius on its top corners. The light capsule keeps --r-dock.
+  it("the flush bar's top corners are the card radius, and the light capsule keeps its own", () => {
+    const ds = readFileSync(join(STYLES, "jarvis-design-system.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const bar = /(?:^|\n)\.tab-bar \{[^}]*border-radius:\s*var\(--r-lg\) var\(--r-lg\) 0 0/.exec(ds);
+    expect(bar, "the base .tab-bar rounds its top corners with the card radius").not.toBeNull();
+    const light = readFileSync(join(STYLES, "glass-light.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(light).toMatch(/\.tab-bar \{[^}]*border-radius:\s*var\(--r-dock\)/);
+  });
 });
