@@ -398,7 +398,6 @@ export default function NotesList({
     // the title. A meeting note's own opening date ("Aug 24 · Attendees") is taken off its preview, so the row never
     // says two dates.
     const when = dayHead ? "" : editedLabel(n.edited, now);
-    const chip = NOTES_ROW === "line" && !!area;
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
@@ -447,10 +446,15 @@ export default function NotesList({
           </div>
           {/* The preview is one thing (rowLine): who the meeting was with, or the note's own words; never a label with
               nothing after it. It gives up whole words to fit (WordFit). Tags and what JARVIS found are not on the row. */}
-          {NOTES_ROW === "line" && (chip || !!second) && (
+          {/* ONE ROW GRAMMAR ON EVERY ROW (Dave 2026-10-18, Notes screen order item 5): title, then the chip and the preview. A note
+              with no area wears a muted "No Area" chip, and one with nothing written says so in the preview's slot, so the rhythm
+              never breaks. */}
+          {NOTES_ROW === "line" && (
             <div className="r-k note-sub">
-              {chip && <CatChip category={n.category} />}
-              {second && <WordFit text={second} className="r-goal note-preview" data-sentence="" />}
+              <CatChip category={n.category} empty="No Area" />
+              {second
+                ? <WordFit text={second} className="r-goal note-preview" data-sentence="" />
+                : <span className="r-goal note-preview note-preview-none">Empty Note</span>}
             </div>
           )}
           {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}
@@ -493,7 +497,7 @@ export default function NotesList({
   };
 
   return (
-    <div className="screen ruled notes-list">
+    <div className="screen ruled notes-list notes-trial">
       {/* Library chassis (Design 2, approved 2026-08-18): pencil rides the
           bar, search under the title. */}
       <PageHeader
@@ -590,7 +594,7 @@ export default function NotesList({
           ) : (
             <div className="sh2 sh2-quiet"><span className="t">{g.head}</span><span className="n">{g.items.length}</span></div>
           )}
-          <div className="pad-x"><div className="card list-card-ruled">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, g.key, remember)}</RememberGate>)}</div></div>
+          <div className="pad-x"><div className="card list-card-ruled note-card">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, g.key, remember)}</RememberGate>)}</div></div>
         </Fragment>
       ))}
       {query && shown.length === 0 && (
@@ -612,7 +616,7 @@ export default function NotesList({
               onImportTable || onAddFile ? { key: "import", name: "Import", cat: "green", Icon: Table, run: () => setImportOpen(true) } : null,
             ].filter(Boolean) as { key: string; name: string; cat: string; Icon: typeof PenLine; run: () => void }[]).map(({ key, name, cat, Icon, run }) => (
               <div className="row set-row" key={key} {...pressable(run)}>
-                <div className={"proj-icon cat-bg-" + cat}><Icon className="ic" /></div>
+                <div className={"proj-icon " + (key === "new" ? "note-new-tile" : "cat-bg-" + cat)}><Icon className="ic" /></div>
                 <div className="conn-name">{name}</div>
                 <div className="chev"></div>
               </div>

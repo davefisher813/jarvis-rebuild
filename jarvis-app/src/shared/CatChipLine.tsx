@@ -21,8 +21,9 @@ export function chipArea(ref: string | null | undefined): { name: string; slot: 
 }
 
 /** The chip alone, for a row that sets it beside its own title (a note row, Dave 2026-10-11). No area, no chip. */
-export function CatChip({ category }: { category?: string | null }) {
+export function CatChip({ category, empty }: { category?: string | null; /** The words of a muted chip when there is no area (Notes: "No Area"), so a row's rhythm never breaks. Absent: no area, no chip. */ empty?: string }) {
   const area = chipArea(category);
+  if (!area && empty) return <span className="cat-chip cat-chip-none"><span className="cat-chip-dot cat-chip-dot-none" aria-hidden="true" />{empty}</span>;
   // THE APPROVED CHIP (unified-chip-system-mockup-2026-10-09, .chip): a quiet pill, the area's colour as a dot, and the
   // area's name in plain case beside it.
   return area ? <span className="cat-chip"><span className={"cat-chip-dot cat-bg-" + area.slot} aria-hidden="true" />{area.name}</span> : null;
