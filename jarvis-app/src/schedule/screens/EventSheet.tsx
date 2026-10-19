@@ -5,6 +5,7 @@ import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
 import { sortPicks } from "../../shared/pickerSort";
+import { notePick, recentPicks } from "../../shared/recentPicks";
 import { titleCase } from "../../shared/casing";
 import RowCtxAction from "../../shared/RowCtxAction";
 import type { EventRecurrence } from "../types";
@@ -236,7 +237,7 @@ export default function EventSheet({
   // option wears its area's dot (the lead, 2026-09-26: the Projects menu
   // shows each project's area dot and keeps area-then-name order with
   // search), so the order reads as grouping.
-  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId)
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId, recentPicks("project"))
     .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
@@ -312,6 +313,7 @@ export default function EventSheet({
       // hidden row must not write its empty default over a real value).
       ...(projects.length > 0 ? { projectId } : {}),
     };
+    if (projects.length > 0 && projectId) notePick("project", projectId);
     const done = recurringEdit ? onSave(draft, scope) : onSave(draft);
     void Promise.resolve(done).then((v) => {
       if (v === false) { setSaving(false); return; }

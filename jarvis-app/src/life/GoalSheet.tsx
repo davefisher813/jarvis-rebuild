@@ -4,10 +4,15 @@ import type { GoalData } from "./types";
 import type { Category } from "../categories/types";
 import type { Measure, Cadence } from "../bigger/measure";
 import { todayISO } from "../tasks/grouping";
+import { draftStore } from "../shared/draftStore";
 import { FormSheet, Group, Row, FieldRow, MenuRow, DeleteRow, ErrorLine, Note } from "../shared/FormSheet";
 import HeadMenu from "../shared/HeadMenu";
 import { Tag, Calendar } from "../shared/icons";
 import { TargetGlyph, BullseyeGlyph, RepeatGlyph, DollarGlyph } from "../shared/glyphs";
+
+// NO ENTRY IS EVER LOST (the Logging Standard, rule 8; the research standard, 2026-10-19: Goal sheets had no draft store). A new goal's title is kept as it
+// is typed, reopens on the sheet, and is spent by the save that used it. Cancel is the explicit discard; a tap outside keeps it.
+const GOAL_DRAFT = draftStore("jarvis.goal.draft.v1");
 
 type MeasureKind = "none" | "count" | "cadence" | "projects" | "milestones";
 const KINDS: { key: MeasureKind; label: string }[] = [
@@ -44,7 +49,8 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   onSave: (d: GoalData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
   // Shown in Title Case and saved in Title Case (Dave 2026-10-05).
-  const [title, setTitle] = useState(initial?.title ? titleCase(initial.title) : "");
+  const [title, setTitleState] = useState(() => (initial?.title ? titleCase(initial.title) : mode === "new" ? GOAL_DRAFT.read() : ""));
+  const setTitle = (v: string) => { setTitleState(v); if (mode === "new") GOAL_DRAFT.write(v); };
   // Money v1: an optional dollar target turns this into a savings goal.
   // Progress stays DERIVED (from logged entries), so this is a target, not a
   // self-reported status; it earns its field.
@@ -115,10 +121,11 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
       by: dated && by ? by : undefined,
       moneyTarget: target.trim() ? Number(target) : undefined,
     });
-    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); else if (mode === "new") GOAL_DRAFT.clear(); });
   };
+  const cancel = () => { if (mode === "new") GOAL_DRAFT.clear(); onCancel(); };
   return (
-    <FormSheet title={mode === "new" ? "New Goal" : "Edit Goal"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
+    <FormSheet title={mode === "new" ? "New Goal" : "Edit Goal"} onCancel={cancel} onDismiss={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Goal">
         <FieldRow tone="red" glyph={<TargetGlyph />} value={title} onChange={setTitle} placeholder="e.g. Run a half marathon"
           ariaLabel="Goal title" error={touched && !title.trim()} right={false} />

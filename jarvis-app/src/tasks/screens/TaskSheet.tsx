@@ -21,6 +21,7 @@ import { onPressKey, pressable } from "../../shared/pressable";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { addDays, fmtTime } from "../../schedule/calendar";
 import { sortPicks } from "../../shared/pickerSort";
+import { notePick, recentPicks } from "../../shared/recentPicks";
 import { titleCase } from "../../shared/casing";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
@@ -336,7 +337,7 @@ export default function TaskSheet({
   // (Dave's pass-off, 2026-09-26); the value stays the id. Each option wears
   // its area's dot (the lead, 2026-09-26), so the area-then-name order reads
   // as grouping rather than as no order at all.
-  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId)
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId, recentPicks("project"))
     .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
@@ -472,6 +473,7 @@ export default function TaskSheet({
     setSaving(true);
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
+    if (projectId) notePick("project", projectId);
     const r = onSave({
       text: titleCase(name.trim()), ...setCategories(effCats), due: effDue, repeat: effRepeat, projectId: projectId || undefined,
       // With a project the goal is the project's (or none); without one it

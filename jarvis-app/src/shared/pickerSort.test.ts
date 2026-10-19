@@ -17,6 +17,12 @@ describe("sortPicks", () => {
   it("puts the current pick first, whatever its area", () => {
     expect(sortPicks(items, "z").map((i) => i.id)).toEqual(["z", "b", "g", "a", "n"]);
   });
+  // RECENTS NEXT (research standard, rule 11, 2026-10-19): what he picked lately follows the current pick, newest first, ahead of the area groups.
+  it("puts the recents after the current pick, newest first, then the rest in area order", () => {
+    expect(sortPicks(items, null, ["g", "z"]).map((i) => i.id)).toEqual(["g", "z", "b", "a", "n"]);
+    expect(sortPicks(items, "a", ["g", "z"]).map((i) => i.id)).toEqual(["a", "g", "z", "b", "n"]);
+    expect(sortPicks(items, null, ["gone"]).map((i) => i.id), "an id that is no longer there changes nothing").toEqual(["b", "g", "a", "z", "n"]);
+  });
   it("leaves the input alone", () => {
     const before = items.map((i) => i.id);
     sortPicks(items, "a");
