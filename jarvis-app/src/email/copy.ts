@@ -23,6 +23,8 @@ export const LOAD_MORE = "Load More";
 export const LOADING_MORE = "Loading...";
 export const LOADED_SO_FAR = "Showing what's loaded so far.";
 export const RETRY = "Retry";
+/** The inbox's first load failed with nothing cached: the empty state's title; its sub is the reason, its action is Retry. */
+export const LOAD_FAILED_TITLE = "Couldn't Load Your Mail";
 const SHOW_ALL = "Show All";
 export const PULL_HINT = "Release to Refresh";
 export const REFRESHING = "Refreshing...";

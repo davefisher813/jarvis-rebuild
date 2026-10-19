@@ -63,7 +63,7 @@ import type { Bill, Receipt } from "../money/ledger/types";
 import ReceiptDetail from "../hub/ReceiptDetail";
 import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
-  NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
+  NO_CLIENT, LOAD_FAILED_TITLE, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, PUT_BACK, RESTORED, UNSUPPORTED_ACTION, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, DRAFT_SAVED, DRAFT_SAVED_HERE, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
   REVIEW_OPEN, reviewItemsLine, WAITING_TITLE, waitingDeleted,
@@ -1483,11 +1483,11 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       )}
       {/* Catching up with nothing cached yet is still loading: never "Nothing in Your Inbox" for a window not yet listed (8.3). */}
       {client && (pending || (catchingUp && segment === "inbox")) && rows.length === 0 && !error && <SkeletonRows rows={4} />}
+      {/* THE FIRST LOAD FAILED: THE ONE EMPTY STATE WITH ITS ACTION (Dave 2026-10-05, locked: no button in a row; law L7, no dead ends). It was a card
+          holding the reason and a full-width Retry row. It is now the same shape every other Email empty state is, with the reason as its sub and Retry
+          as the screen's one filled primary (issue 112's open call 5). */}
       {client && error && rows.length === 0 && !pending && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="row-grow"><div className="conn-name">{lineFor(error)}</div></div></div>
-          <button className="row row-act" onClick={() => void load("first")}>{RETRY}</button>
-        </div></div>
+        <EmptyState copy={{ title: LOAD_FAILED_TITLE, sub: lineFor(error), action: RETRY }} onAction={() => void load("first")} />
       )}
 
       {client && segment === "waiting" && (waitingSvc ? (
