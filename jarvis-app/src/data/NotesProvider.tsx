@@ -270,6 +270,7 @@ export function useLedger(): LedgerService {
   return s;
 }
 export function useOptionalLedger(): LedgerService | null { return useContext(LedgerContext) ?? null; }
+export function useOptionalTracker(): TrackerService | null { return useContext(TrackerContext) ?? null; }
 export function useTracker(): TrackerService {
   const s = useContext(TrackerContext);
   if (!s) throw new Error("useTracker must be used inside NotesProvider");

@@ -13,6 +13,8 @@ import type { Recurrence } from "../notes/types";
 import type { LedgerService } from "../money/ledger/LedgerService";
 import { fileManualBill, noteFor } from "../money/ledger/emailBill";
 import type { BillRecurrence } from "../money/ledger/types";
+import type { TrackerService } from "../money/TrackerService";
+import { lastCategoryFor } from "../money/categoryDefault";
 
 const RECURRENCES: Recurrence[] = ["daily", "weekly", "monthly", "weekdays"];
 
@@ -32,6 +34,8 @@ export interface CaptureResult {
   recurrence?: Recurrence;
   reminder?: { time: string; days?: number[] };
   bill?: { amount: number };
+  // A payment already made, filed in Money's tracker as a transaction.
+  expense?: { amountCents: number; merchant: string };
   personId?: string;
   projectId?: string;
   // The Logging Standard, rule 3 (2026-10-17): a length read from the words.
@@ -186,6 +190,9 @@ interface ApplyServices {
   // Where a bill goes (ledger hard rule 1). Optional: without it the bill
   // lane is closed and says so; it is never made a task instead.
   ledger?: Pick<LedgerService, "addBill" | "removeBill">;
+  // Where a payment already made goes: Money's tracker, as a transaction. The
+  // same rule as the ledger: without it the lane is closed and says so.
+  tracker?: Pick<TrackerService, "saveTx" | "load">;
 }
 
 /** A task's repeat word as a bill's. A bill is not daily and has no weekdays. */
@@ -202,8 +209,8 @@ export function billVendorOf(title: string): string {
 
 export interface Applied {
   id: string | null;
-  /** "bill" when the line was filed in Money. */
-  kind: CaptureResult["kind"] | "bill";
+  /** "bill" or "expense" when the line was filed in Money. */
+  kind: CaptureResult["kind"] | "bill" | "expense";
   /** What to tell the person when nothing was made: already in Money, what is
    *  missing, or that Money is not available. */
   note?: string;
@@ -223,6 +230,27 @@ export async function applyCapture(
   // Absent, every write below is exactly what it was.
   extra?: { personName?: string; taskNotes?: string },
 ): Promise<Applied> {
+  // A PAYMENT ALREADY MADE IS MONEY'S TOO: one transaction in the tracker, on
+  // the day he named (today when none), under the category this merchant last
+  // had and the first account, the same defaults the New Transaction sheet opens on.
+  if (r.kind === "task" && r.expense) {
+    if (!svc.tracker) return { id: null, kind: "expense", note: "Money Isn't Available Right Now" };
+    const day = r.date ?? today;
+    let category = "Other";
+    let account = "";
+    try {
+      const data = await svc.tracker.load();
+      category = lastCategoryFor(r.expense.merchant, data.txs, []) ?? category;
+      account = data.accounts[0]?.data.name ?? "";
+    } catch {
+      /* the defaults are a convenience; the payment is still recorded */
+    }
+    const id = await svc.tracker.saveTx(null, {
+      date: day, month: day.slice(0, 7), merchant: r.expense.merchant, name: r.expense.merchant,
+      amountCents: r.expense.amountCents, category, account,
+    });
+    return id ? { id, kind: "expense" } : { id: null, kind: "expense", note: "That Payment Could Not Be Saved" };
+  }
   // A BILL IS MONEY'S, NEVER A TASK (ledger hard rule 1). A line that read as a
   // bill is filed in the ledger as typed or pasted: source manual, the due
   // date only when the person wrote one (rule 3), a repeat only when they

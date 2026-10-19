@@ -193,6 +193,7 @@ const STORE_PENDING_RULING: Record<string, string> = {
   "messages/MessagesFlow.tsx · Added to Your Tasks · ": RULING + " (tasks.createTask from an invite)",
   "money/screens/ReceiptsSection.tsx · Receipt Saved": RULING + " (ledger.addReceipt is a Store write; the upload before it is answered)",
   "money/screens/TrackerScreen.tsx · Budget Saved": RULING + " (svc.saveBudget)",
+  "money/screens/TrackerScreen.tsx · Transaction Added": RULING + " (svc.saveTx; the toast exists to carry Undo)",
   "notes/NotesFlow.tsx · Added to ": RULING + " (svc.appendToDoc)",
   "notes/NotesFlow.tsx · Task Added": RULING + " (tasksSvc.createTask)",
   "notes/NotesFlow.tsx · Decision Saved": RULING + " (decisionsSvc.create)",
