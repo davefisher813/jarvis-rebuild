@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Compass, PenNib, Flag, ShieldCheck } from "@phosphor-icons/react";
+import { Compass, PenNib, Flag, ShieldCheck } from "../../shared/glyphs";
 import { useBrainDocs, useOptionalStrands, useOptionalRules } from "../../data/NotesProvider";
 import { todayISO } from "../../ai/useAIContext";
 import { WRITING_CHANNEL_LABEL, type Strand, type WritingChannel } from "../strands/types";

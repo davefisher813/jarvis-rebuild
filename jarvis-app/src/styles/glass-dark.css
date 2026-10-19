@@ -175,7 +175,7 @@ html[data-theme="dark"] .convo-send,
 html[data-theme="dark"] .voice-mic,
 html[data-theme="dark"] .sheet-bar-save:not(.dim),
 html[data-theme="dark"] .bench-act.prim {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 10px -6px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 10px -6px rgba(var(--shadow-warm-rgb), 0.35);
   filter: none;
 }
 /* A primary that cannot be pressed yet keeps its own waiting wash. */
