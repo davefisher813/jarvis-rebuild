@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useTasks, useProfile, useNotes, useDecisions, usePeople, useSchedule, useCategories } from "../../data/NotesProvider";
 import type { TaskItem } from "../TasksService";
@@ -70,8 +70,18 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
   const [testing, setTesting] = useState(false);
   const [linkCandidates, setLinkCandidates] = useState<LinkCandidate[]>([]);
 
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the list drew as an empty one. It says so, with
+  // Retry; a later refresh that fails keeps the reminders on screen and the next write reloads.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
   const reload = useCallback(async () => {
-    try { setItems(await tasks.listTasks()); } catch { /* the next write reloads */ }
+    try {
+      setItems(await tasks.listTasks());
+      loadedRef.current = true;
+      setLoadFailed(false);
+    } catch {
+      if (!loadedRef.current) setLoadFailed(true);
+    }
   }, [tasks]);
   useEffect(() => {
     void reload();
@@ -248,6 +258,8 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         onResume={(id) => void pause(id, false)}
         onRestore={(id, date) => void restore(id, date)}
         onDelete={setConfirmDelete}
+        loadFailed={loadFailed}
+        onRetryLoad={() => { setLoadFailed(false); void reload(); }}
       />
       )}
       {detail && (

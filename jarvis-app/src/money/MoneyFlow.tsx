@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../shared/PageHeader";
+import LoadFailed from "../shared/LoadFailed";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useTracker, useOptionalLedger } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, MINUS, formatMoney, kindRestated, listHasCents, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
@@ -345,7 +346,11 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
 
   // RECEIPTS are records now (Money ledger, 2026-10-03) and live in screens/ReceiptsSection, whose head carries Add Receipt.
 
-  const reload = useCallback(async () => {
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the page said "No Accounts Yet" to a person
+  // with accounts. It says what could not be read and offers Retry; a later refresh that fails keeps what is on screen and says nothing here.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
+  const read = useCallback(async () => {
     // Autopay bills whose date passed roll themselves forward first, so the
     // list never shows an autopay bill pretending to be overdue.
     await tasksSvc.rollAutopayBills();
@@ -396,6 +401,15 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
     };
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")).map(unMoney));
   }, [svc, tasksSvc, profileSvc, catsSvc, trackerSvc, ledger]);
+  const reload = useCallback(async () => {
+    try {
+      await read();
+      loadedRef.current = true;
+      setLoadFailed(false);
+    } catch {
+      if (!loadedRef.current) setLoadFailed(true);
+    }
+  }, [read]);
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): this page draws accounts AND the bills that live
   // as tasks, so a bill paid on the laptop repaints here too.
@@ -916,9 +930,11 @@ export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, 
       <PageHeader title="Money" {...(onBack && !inTabBar ? { back: "More", onBack } : {})} />
       {accounts.length === 0 && entries.length === 0 && tagged.length === 0 ? (
         <>
+        {loadFailed ? <LoadFailed what="Your Money" onRetry={() => { setLoadFailed(false); void reload(); }} /> : (
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
+        )}
           {trackerRow}
           <MatchesCard />
           {receiptsSection}

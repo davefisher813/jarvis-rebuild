@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth, useOptionalProjects, useOptionalDecisions, useOptionalGoals } from "../data/NotesProvider";
 import { loadMailSnapshot } from "../messages/home";
 import { titleCase as titleCaseMail } from "../shared/casing";
@@ -126,8 +126,18 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
   // 2026-08-03; the facts they claimed to organize live on each person).
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the page said "No One Here Yet" to a person with
+  // contacts. It says what could not be read and offers Retry; a later refresh that fails keeps the list on screen.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
   const reload = useCallback(async () => {
-    setList(await people.list());
+    try {
+      setList(await people.list());
+      loadedRef.current = true;
+      setLoadFailed(false);
+    } catch {
+      if (!loadedRef.current) setLoadFailed(true);
+    }
   }, [people]);
 
   useEffect(() => { void reload(); }, [reload]);
@@ -834,6 +844,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         onSkipRepair={skipRepair}
         onOpenTriage={onOpenTriage}
         onBack={onBack}
+        loadFailed={loadFailed}
+        onRetryLoad={() => { setLoadFailed(false); void reload(); }}
       />
       {sheetEl}
       {importEl}

@@ -7,6 +7,7 @@ import type { CategoryKind } from "../../categories/types";
 import PageHeader from "../../shared/PageHeader";
 import CategorySheet, { type CategoryDraft } from "../../categories/screens/CategorySheet";
 import { attemptWrite } from "../../shared/guard";
+import LoadFailed from "../../shared/LoadFailed";
 import AreaItemStandard, { type AreaCounts, type AreaSummary } from "../cards/AreaItemStandard";
 
 // AREAS, FIRST (LIFE_AREAS_TAB_HANDOFF, 2026-09-16, from Dave's Brain
@@ -39,7 +40,10 @@ export default function AreasTab({ segments, onOpenCategory }: {
   const [areas, setAreas] = useState<AreaRow[]>([]);
   const [adding, setAdding] = useState(false);
 
-  const reload = useCallback(async () => {
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the tab sat blank under its segments for good.
+  // It says what could not be read and offers Retry; a later refresh that fails keeps the areas on screen.
+  const [failed, setFailed] = useState(false);
+  const read = useCallback(async () => {
     const [cats, tasks, projects, goals] = await Promise.all([
       catsSvc.list(),
       tasksSvc.listTasks(),
@@ -77,6 +81,14 @@ export default function AreasTab({ segments, onOpenCategory }: {
     setAreas(rows);
     setLoaded(true);
   }, [catsSvc, tasksSvc, projectsSvc, goalsSvc]);
+  const reload = useCallback(async () => {
+    try {
+      await read();
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  }, [read]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -102,6 +114,7 @@ export default function AreasTab({ segments, onOpenCategory }: {
     <div className="screen ruled">
       <PageHeader title="Life" />
       {segments}
+      {failed && !loaded && <LoadFailed what="Your Areas" onRetry={() => { setFailed(false); void reload(); }} />}
       {loaded && <div className="sh2 sh2-quiet"><span className="t">Areas</span><button className="see-all pill-action" onClick={() => setAdding(true)}>Add Area</button></div>}
       {loaded && total > 0 && (
         <>

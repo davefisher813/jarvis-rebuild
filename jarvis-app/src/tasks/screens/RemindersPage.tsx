@@ -17,6 +17,7 @@ import RowCtxAction from "../../shared/RowCtxAction";
 import { titleCase } from "../../shared/casing";
 import { fmtTime } from "../../schedule/calendar";
 import { dayTone } from "../../messages/factsLine";
+import LoadFailed from "../../shared/LoadFailed";
 
 // THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15; row anatomy
 // corrected the same day after Dave's review of the interactive preview;
@@ -158,8 +159,11 @@ function RemSwipe({ title, verb, canComplete, onComplete, onDelete, extra, onOpe
 
 export default function RemindersPage({
   chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today, now,
-  onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore, onDelete,
+  onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore, onDelete, loadFailed, onRetryLoad,
 }: {
+  /** The first read failed and nothing is on screen: the page says so, with Retry (shared/LoadFailed), where it drew an empty list. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   chrome: PageChrome;
   sections: PageSection[];
   tab: PageTab;
@@ -380,7 +384,8 @@ export default function RemindersPage({
         : <PageHeader title="Reminders" back={chrome.back} onBack={chrome.onBack} headActions={opts}
             hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders</div></div>}>{header}</PageHeader>}
 
-      {shownSections.length === 0 && (
+      {shownSections.length === 0 && loadFailed && <LoadFailed what="Your Reminders" onRetry={() => onRetryLoad?.()} />}
+      {shownSections.length === 0 && !loadFailed && (
         // NO BOX ROUND A BUTTON (Dave 2026-10-05, rule 12): the empty state keeps its own words, and its one action is the
         // screen's filled primary, never a grey card holding only "Add a Reminder".
         <div className="empty-state">

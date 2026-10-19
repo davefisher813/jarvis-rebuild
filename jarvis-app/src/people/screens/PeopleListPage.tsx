@@ -12,6 +12,7 @@ import { pressable } from "../../shared/pressable";
 import { lineCase } from "../../shared/casing";
 import { BRAIN_ROLES } from "../../ai/brainMemory";
 import { brainRoleLabel, brainRolesOf, isUnsorted } from "../../brain/manual/triage";
+import LoadFailed from "../../shared/LoadFailed";
 
 const CHEV = (
   <div className="chev" />
@@ -93,7 +94,12 @@ export default function PeopleListPage({
   onClearDuplicateNotes,
   onOpenTriage,
   onBack,
+  loadFailed = false,
+  onRetryLoad,
 }: {
+  /** The first read failed and nothing is on screen: the page says so, with Retry (shared/LoadFailed), where it said "No One Here Yet". */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   people: Person[];
   pendingReview?: Person[]; // legacy Adversarial members awaiting consent
   onConfirmFlag?: (id: string) => void;
@@ -251,7 +257,9 @@ export default function PeopleListPage({
         <button className="see-all pill-action" onClick={onAdd}>Add Person</button>
         {onImportFile && <HeadMore label="More" actions={[{ label: "Import from File", onPick: () => fileRef.current?.click() }]} />}
       </div>
-      {people.length === 0 ? (
+      {people.length === 0 && loadFailed ? (
+        <LoadFailed what="Your People" onRetry={() => onRetryLoad?.()} />
+      ) : people.length === 0 ? (
         <div className="empty-state empty-compact">
           <div className="empty-icon cat-fg-teal">{PEOPLE}</div>
           <div className="empty-title">No One Here Yet</div>
