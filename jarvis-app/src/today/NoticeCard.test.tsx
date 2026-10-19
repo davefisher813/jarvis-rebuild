@@ -265,3 +265,21 @@ describe("NoticeCard: dismissButton", () => {
     expect(rule).not.toMatch(/position:\s*absolute/);
   });
 });
+
+// THE TITLE AND ITS SUB READ AS TWO WORDS, NOT ONE (live audit, 2026-10-19): a Heads Up row whose title ends in a period and whose sub begins a new
+// sentence read as "First Meaningful Line for the Preview check.Second Line of the Body." to anything that reads the markup as text (a screen reader,
+// textContent, a copy). The two are flex items so the gap is drawn by CSS and the markup had no space between them.
+describe("NoticeCard: the title and the sub are never glued", () => {
+  for (const form of ["row", "card"] as const) {
+    it(`${form} form: a space sits between the title and the sub`, () => {
+      const { container } = render(<NoticeCard {...base} form={form} title="First Meaningful Line for the Preview check." sub="Second Line of the Body." />);
+      const text = container.textContent ?? "";
+      expect(text).toContain("check. Second Line");
+      expect(text).not.toContain("check.Second");
+    });
+  }
+  it("no sub, no stray space", () => {
+    const { container } = render(<NoticeCard {...base} title="Only a title." />);
+    expect(container.querySelector(".vrow-fact, .conn-name")?.parentElement?.textContent).toBe("Only a title.");
+  });
+});

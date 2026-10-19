@@ -396,6 +396,10 @@ export default function NoticeCard({
         <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
         <div className="row-grow vrow-line">
           <span className="conn-name vrow-fact" ref={(el) => { factRef.current = el; }}>{title}</span>
+          {/* A SPACE BETWEEN THE TWO LINES (live audit, 2026-10-19: "First Meaningful Line for the Preview check.Second Line of the Body."). The title and its
+              sub are flex items, so the gap is drawn by CSS and the markup had nothing between them; whatever reads the row as text (a screen reader,
+              textContent, a copy) got the title's last word glued to the sub's first. Whitespace between flex items is never drawn, so nothing moves. */}
+          {subNode && !subDropped && " "}
           {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={(el) => { subRef.current = el; }}>{subNode}</span>}
         </div>
         {/* NO CAPSULE ON A ROW (Dave 2026-10-05). Its verb is the swipe, the tap
@@ -425,6 +429,7 @@ export default function NoticeCard({
             {/* Same refs the verb row uses: the latch above is one law and
                 it measures whichever form is on screen. */}
             <div className="conn-name" ref={(el) => { factRef.current = el; }}>{title}</div>
+            {subNode && !subDropped && " "}
             {subNode && !subDropped && <div className="conn-meta" ref={(el) => { subRef.current = el; }}>{subNode}</div>}
           </div>
           {/* An expanded row with two verbs carries neither in the trailing
