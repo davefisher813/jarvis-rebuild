@@ -139,6 +139,13 @@
 .sheet-scrim { position:fixed; top:0; left:0; right:0; height:100dvh; z-index:200; background:var(--scrim);
   display:flex; flex-direction:column; justify-content:flex-end; padding:0; gap:0; }
 body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-open .voice-bar, body.sheet-open .tab-bar { visibility: hidden; }
+/* A SHEET DRAWN INSIDE THE PAGE COVERS THE DOCK'S CIRCLES NO LONGER (live audit, 2026-10-19: "Edit" and "Yes, Forget" on the Brain's filed-entry sheet
+   drew as faint dark pills with no label). A sheet rendered inline (the Brain's filed-entry sheet, Strands, Readiness, Change Password, a Schedule sheet)
+   lives inside .app-scroll's stacking layer (1), and the dock is a later sibling at the same layer, so the lightning and search circles and the dock's
+   dark fade painted OVER the sheet's middle actions while only the Add Anything pill and the tab bar stepped aside. A scrim inside the scroller now
+   hides the whole dock and the return pill the way a Focus screen does, hidden and not removed so the page keeps its height. A sheet portalled to the
+   body (every other one) sits above the dock already and keeps the dock dimmed behind it, exactly as before. */
+body:has(.app-scroll .sheet-scrim) :is(.voice-dock, .return-pill) { visibility: hidden; }
 
 /* v2.2 GATE color: category tile glyph size + file-type color glyphs (Files-app convention) */
 .proj-icon .ic { width: 16px; height: 16px; }
