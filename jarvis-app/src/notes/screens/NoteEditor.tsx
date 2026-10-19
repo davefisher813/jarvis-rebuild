@@ -467,7 +467,7 @@ export default function NoteEditor({
                 )}
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setCopyAsOpen(true); }}><Copy className="ic" /> Copy As</button>
                 {onFileNote && (
-                  <button className="block-menu-item" role="menuitem" disabled={!fileSnapshot()} onClick={() => { setMenuOpen(false); setFileAsOpen(true); }}><Brain className="ic" /> File As…</button>
+                  <button className="block-menu-item" role="menuitem" disabled={!fileSnapshot()} onClick={() => { setMenuOpen(false); setFileAsOpen(true); }}><Brain className="ic" /> File to Brain As…</button>
                 )}
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setFindOpen(true); }}><Search className="ic" /> Find in Note</button>
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setOutline(editorRef.current?.outline() ?? []); }}><AlignLeft className="ic" /> Outline</button>

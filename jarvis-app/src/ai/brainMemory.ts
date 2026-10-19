@@ -131,6 +131,15 @@ export function filedToastText(c: BrainMemoryCategory, pending = false): string 
   return savedToastText(`Saved to ${categoryLabel(c)} ✓`, heldText(categoryLabel(c)), pending);
 }
 
+/** The File As… door's confirmation (Dave, via Alfred, 2026-10-19: words only). File As copies a note's text into the
+ *  Brain and leaves the note's own area alone, so the toast says the filing went to the Brain: "Saved to Philosophy in
+ *  Your Brain ✓". Remember This is the Brain's own page, so it reads "Saved to Your Brain ✓". Held, the same two forms
+ *  Filed to ... · Will Sync, through the one body in shared/saved.ts. */
+export function filedToBrainToastText(c: BrainMemoryCategory, pending = false): string {
+  const place = c === "fact" ? "Your Brain" : `${categoryLabel(c)} in Your Brain`;
+  return savedToastText(`Saved to ${place} ✓`, heldText(place), pending);
+}
+
 // "Who Is This?" ends on a contact, not a brain_memory row, but the same
 // confirm-toast shape applies -- shared so every surface names it once.
 export function filedContactToastText(pending = false): string {

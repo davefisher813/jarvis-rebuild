@@ -24,6 +24,7 @@ import {
   UNDO_MS,
   VOICE_SAMPLE_CAP,
   filedContactToastText,
+  filedToBrainToastText,
   type BrainMemoryCategory,
 } from "./brainMemory";
 
@@ -212,6 +213,21 @@ describe("destination toast + 8-second Undo", () => {
     expect((toast as { message: string }).message).toBe("Filed to Philosophy · Will Sync");
     expect(filedContactToastText(true)).toBe("Filed to Contacts · Will Sync");
     expect(filedContactToastText()).toBe("Saved to Contacts ✓");
+  });
+  it("File to Brain As… says the filing went to the Brain, landed and held (Dave, via Alfred, 2026-10-19)", () => {
+    expect(filedToBrainToastText("philosophy")).toBe("Saved to Philosophy in Your Brain ✓");
+    expect(filedToBrainToastText("value")).toBe("Saved to Values in Your Brain ✓");
+    expect(filedToBrainToastText("fact")).toBe("Saved to Your Brain ✓");
+    expect(filedToBrainToastText("philosophy", true)).toBe("Filed to Philosophy in Your Brain · Will Sync");
+    expect(filedToBrainToastText("philosophy", true)).not.toMatch(/Saved/);
+    vi.clearAllMocks();
+    showFilingConfirm("philosophy", () => {}, false, true);
+    const [toast] = (showToast as unknown as { mock: { calls: [object, number][] } }).mock.calls[0]!;
+    expect((toast as { message: string }).message).toBe("Saved to Philosophy in Your Brain ✓");
+    // Every other filing door keeps its own words.
+    showFilingConfirm("philosophy", () => {});
+    const [other] = (showToast as unknown as { mock: { calls: [object, number][] } }).mock.calls[1]!;
+    expect((other as { message: string }).message).toBe("Saved to Philosophy ✓");
   });
   it("pending() reads the store: false online with an empty queue", () => {
     expect(mk().pending()).toBe(false);

@@ -130,7 +130,7 @@ export default function NotesFlow({
     const ok = await attemptWrite(async () => { id = await brain.file(fileMemory({ category, text, source: "note" })); });
     if (!ok || !id) return;
     const filedId = id;
-    showFilingConfirm(category, () => void brain.unfile(filedId), brain.pending());
+    showFilingConfirm(category, () => void brain.unfile(filedId), brain.pending(), true);
   };
   const [catList, setCatList] = useState<Category[]>([]);
   const defaultCatId = catList[0]?.id ?? "";
