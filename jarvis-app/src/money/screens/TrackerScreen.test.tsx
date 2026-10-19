@@ -5,7 +5,7 @@ import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-li
 import "@testing-library/jest-dom";
 import { NotesProvider, useLedger, useTracker } from "../../data/NotesProvider";
 import type { LedgerService } from "../ledger/LedgerService";
-import type { TrackerService } from "../TrackerService";
+import { TrackerService } from "../TrackerService";
 import { todayISO } from "../../tasks/grouping";
 import { subscribeToast, resetToasts, type ToastState } from "../../shared/toast";
 import { DEFAULT_BUDGET_CATEGORIES } from "../ledger/types";
@@ -53,6 +53,22 @@ const seedPair = async (h: Handles) => {
   if (!a.ok) throw new Error("link");
   return { txId, receiptId: r.id };
 };
+
+// THE FIRST LOAD FAILED (research standard, section 5 rule 18, 2026-10-19). A read that failed with nothing yet on screen drew an empty ledger (zeros) as if it were
+// the person's. It says what could not be read and offers Retry, the one filled primary; the tabs are not drawn over it.
+describe("Tracker: the first load failing", () => {
+  it("draws Couldn't Load Your Tracker with Retry, and Retry brings the screen", async () => {
+    vi.spyOn(TrackerService.prototype, "load").mockRejectedValueOnce(new Error("offline"));
+    mount("tr-load-fail", async (s) => { await s.tracker.saveTx(null, tx({})); });
+    expect(await screen.findByText("Couldn't Load Your Tracker")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Activity" })).toBeNull();
+    expect(document.querySelector(".empty-state .btn-primary")).toHaveTextContent("Retry");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await tab("Activity");
+    expect(screen.queryByText("Couldn't Load Your Tracker")).toBeNull();
+    expect(await screen.findByText("Stop & Shop")).toBeInTheDocument();
+  });
+});
 
 describe("Tracker transactions: added by hand, no bank", () => {
   it("says Add Manually, never offers a bank connection", async () => {

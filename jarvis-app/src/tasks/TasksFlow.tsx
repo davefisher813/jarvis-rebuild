@@ -271,12 +271,22 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const [fsHidden, setFsHidden] = useState(false);
   const sweptRef = useRef(false);
 
+  // The first read failed with nothing yet on screen (research standard, section 5 rule 18, 2026-10-19): the list used to sit on its
+  // skeleton for good. It says what could not be read and offers Retry; a refresh that fails with tasks on screen keeps them.
+  const [loadFailed, setLoadFailed] = useState(false);
   const reload = useCallback(async () => {
-    const items = await svc.listTasks();
-    setParts(partition(items, today));
-    setAllItems(items);
-    setLoading(false);
-    return items;
+    try {
+      const items = await svc.listTasks();
+      setParts(partition(items, today));
+      setAllItems(items);
+      setLoading(false);
+      setLoadFailed(false);
+      return items;
+    } catch {
+      setLoadFailed(true);
+      setLoading(false);
+      return [];
+    }
   }, [svc, today]);
 
   useEffect(() => {
@@ -1324,6 +1334,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           initial: filter === "today" || filter === "overdue" || filter === "all" ? { due: today } : filter === "tomorrow" ? { due: addDays(today, 1) } : undefined,
         })}
         loading={loading}
+        loadFailed={loadFailed}
+        onRetryLoad={() => { setLoading(true); void reload(); }}
       />
       {sheet && (
         <TaskSheet
