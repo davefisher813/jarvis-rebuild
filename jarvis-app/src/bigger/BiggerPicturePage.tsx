@@ -21,6 +21,7 @@ import { nextMilestone } from "./measure";
 import { lineCase, titleCase } from "../shared/casing";
 import { showToast } from "../shared/toast";
 import { fmtDay } from "../decisions/DecisionsFlow";
+import LoadFailed from "../shared/LoadFailed";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
 // separate"; THE UNIFICATION, Dave 2026-08-29: "there's just too much
@@ -52,7 +53,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject, onAchieveGoal, onDeleteGoal,
+  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, loadFailed, onRetryLoad, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject, onAchieveGoal, onDeleteGoal,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -86,6 +87,9 @@ export default function BiggerPicturePage({
   // Same ids everything on this page already carries; no second taxonomy.
   sections?: { id: string; name: string; color: string }[];
   loading?: boolean;
+  /** The first read failed and nothing is on screen: the skeleton gives way to shared/LoadFailed with Retry. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   offer?: ReactNode; // THE one ask: quiet area or stalled project, never both
   nextActionTextOf?: (projectId: string) => string | null;
   // PICK 20: what a row could never say, derived by the flow: a hold's date.
@@ -157,7 +161,7 @@ export default function BiggerPicturePage({
       <div className="screen">
         <PageHeader title={title} />
         {segments}
-        <SkeletonRows />
+        {loadFailed ? <LoadFailed what={lens === "projects" ? "Your Projects" : "Your Goals"} onRetry={() => onRetryLoad?.()} /> : <SkeletonRows />}
       </div>
     );
   }

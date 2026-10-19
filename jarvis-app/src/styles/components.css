@@ -1042,6 +1042,11 @@ body:has(.focus-screen) .toast-dock { order: 1; transform: translateY(calc(-1 * 
 /* THE FACTS ARE ONE LINE (Dave 2026-10-05: a proposed task is exactly two lines, the name and then "4:45 PM · PROPOSED · 30 Min"). */
 .block-held-col .block-held-facts { grid-column: 1 / -1; flex-wrap: nowrap; white-space: nowrap; overflow: visible; text-overflow: clip; }
 .block-held-col .block-held-facts > .fact { flex: 0 0 auto; overflow: visible; text-overflow: clip; }
+/* THE WHOLE DAY'S AREA CHIP IS THE SECOND LINE OF THE TITLE COLUMN (2026-10-19; broken on production 2026-10-18 to 19, Dave: "The schedule is broke").
+   The chip line (shared/CatChipLine, via schedule/screens/rowChip) joined this grid with no column of its own, so auto-placement put it in the ring's
+   column, which is sized to its content: the chip made that column the whole row and the title was left a one-letter strip down the right edge. It
+   takes the title's column, under the title, like every other row's second line. */
+.block-held-col > .r-k { grid-column: 2; min-width: 0; }
 
 /* MERGE B + I3 (2026-08-24). The band under the Now head, and the line that
    admits an empty evening. Quiet by design: the accent on the head above is

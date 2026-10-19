@@ -33,6 +33,7 @@ import { catColor } from "../shared/categories";
 import { effectiveKind } from "../categories/kinds";
 import { shortDate } from "../shared/dateFormat";
 import { pressable } from "../shared/pressable";
+import LoadFailed from "../shared/LoadFailed";
 
 // Decision Record (brainstorm shipment 1). It answers one question six weeks
 // later: why did I choose this? No AI anywhere in this folder: the record is
@@ -135,11 +136,19 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   const [revisitOpen, setRevisitOpen] = useState(false);
   const revisitRef = useRef<HTMLInputElement>(null);
 
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the list sat blank for good. It says what could not
+  // be read and offers Retry; a later refresh that fails keeps the decisions on screen.
+  const [loadFailed, setLoadFailed] = useState(false);
   const reload = useCallback(async () => {
-    const [rows, everything] = await Promise.all([svc.list(), svc.listAll()]);
-    setLive(rows);
-    setAll(everything);
-    setLoading(false);
+    try {
+      const [rows, everything] = await Promise.all([svc.list(), svc.listAll()]);
+      setLive(rows);
+      setAll(everything);
+      setLoading(false);
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    }
   }, [svc]);
   useEffect(() => { void reload(); }, [reload]);
 
@@ -249,7 +258,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       // Deleted or unknown id: land on the list instead of a dead screen.
       return (
         <div className={pushCls} key="gone">
-          <ListScreen live={live} loading={loading} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onDelete={(r) => void deleteRecord(r)} onAdd={() => setSheet({ kind: "new" })} />
+          <ListScreen live={live} loading={loading} loadFailed={loadFailed && loading} onRetryLoad={() => { setLoadFailed(false); void reload(); }} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onDelete={(r) => void deleteRecord(r)} onAdd={() => setSheet({ kind: "new" })} />
           {sheet.kind === "new" && <DecisionCaptureSheet attachOptions={attachOptions} onSave={(d) => void saveNew(d)} onCancel={() => setSheet({ kind: "closed" })} />}
         </div>
       );
@@ -564,7 +573,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   // ---- Screen 01 / 06: the list and its empty state ----------------------
   return (
     <div className={pushCls} key="base">
-      <ListScreen live={live} loading={loading} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onDelete={(r) => void deleteRecord(r)} onAdd={() => setSheet({ kind: "new" })} />
+      <ListScreen live={live} loading={loading} loadFailed={loadFailed && loading} onRetryLoad={() => { setLoadFailed(false); void reload(); }} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onDelete={(r) => void deleteRecord(r)} onAdd={() => setSheet({ kind: "new" })} />
       {sheet.kind === "new" && <DecisionCaptureSheet attachOptions={attachOptions} onSave={(d) => void saveNew(d)} onCancel={() => setSheet({ kind: "closed" })} />}
     </div>
   );
@@ -582,9 +591,12 @@ function RuleAdder({ onAdd }: { onAdd: (v: string) => void }) {
   );
 }
 
-function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }: {
+function ListScreen({ live, loading, loadFailed, onRetryLoad, projCat, onBack, onOpen, onDelete, onAdd }: {
   live: DecisionRecord[];
   loading: boolean;
+  /** The first read failed and nothing is on screen: shared/LoadFailed with Retry, where the page sat blank. */
+  loadFailed: boolean;
+  onRetryLoad: () => void;
   projCat: (id: string) => string | undefined;
   onBack: () => void;
   onOpen: (id: string) => void;
@@ -603,6 +615,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
         onBack={onBack}
         actions={<BarAction label="Add" onClick={onAdd}>{PLUS}</BarAction>}
       />
+      {loadFailed && <LoadFailed what="Your Decisions" onRetry={onRetryLoad} />}
       {!loading && live.length === 0 && filed === 0 && (
         <div className="empty-state">
           <div className="empty-icon">{DECISION_ICO}</div>

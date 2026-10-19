@@ -18,6 +18,7 @@ import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
 import EntityStar, { useRemember } from "../../shared/EntityStar";
 import { titleCase } from "../../shared/casing";
+import LoadFailed from "../../shared/LoadFailed";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
 // locked frame #46 (2026-08-18) are gone from this page; the note is a row
@@ -234,8 +235,13 @@ export default function NotesList({
   onPasteRows,
   onShare,
   onDuplicate,
+  loadFailed = false,
+  onRetryLoad,
 }: {
   notes: NoteListItem[];
+  /** The first read failed and nothing is on screen: the page says so, with Retry (shared/LoadFailed), where it used to draw an empty library. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   onOpen?: (id: string) => void;
   onNewNote?: () => void;
   // THE CLIP (Dave 2026-09-02: "both pages need to have a pic/file upload
@@ -496,6 +502,7 @@ export default function NotesList({
     ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
   };
 
+  const failedEmpty = loadFailed && notes.length === 0;
   return (
     <div className="screen ruled notes-list notes-trial">
       {/* Library chassis (Design 2, approved 2026-08-18): pencil rides the
@@ -587,6 +594,7 @@ export default function NotesList({
           phone verdict made Today the reference, and Today's heads are quiet.
           A library index is information, not a verb. Under "area" the head
           is Tasks' own group head, the dot in the area's colour. */}
+      {failedEmpty && <LoadFailed what="Your Notes" onRetry={() => onRetryLoad?.()} />}
       {groups.map((g) => (
         <Fragment key={g.key}>
           {g.color ? (
@@ -597,7 +605,7 @@ export default function NotesList({
           <div className="pad-x"><div className="card list-card-ruled note-card">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, g.key, remember)}</RememberGate>)}</div></div>
         </Fragment>
       ))}
-      {query && shown.length === 0 && (
+      {query && shown.length === 0 && !failedEmpty && (
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="task-row p2"><div className="task-title"><span className="task-name">No notes match &ldquo;{q.trim()}&rdquo;</span></div></div>
         </div></div>
@@ -605,7 +613,7 @@ export default function NotesList({
       {/* THEN SOMETHING NEW (issue #115, Notes home order: Search, Pinned, Recent, the area filter, then New Note, Use a
           Template, Import). What he already has leads the page; the three ways to start sit under it, in the ordinary
           views, out of the way of a search, a selection and the archive. */}
-      {!query && !sel.active && (filter.kind === "all" || filter.kind === "pinned" || filter.kind === "unfiled") && (onBlankNote || onNewNote) && (
+      {!query && !sel.active && !failedEmpty && (filter.kind === "all" || filter.kind === "pinned" || filter.kind === "unfiled") && (onBlankNote || onNewNote) && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Start Something</span></div>
           {/* Doors to three screens, in the grouped card the Connections screen's Actions card already wears. */}

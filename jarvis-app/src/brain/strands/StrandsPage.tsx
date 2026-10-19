@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStrands } from "../../data/NotesProvider";
 import { useAI } from "../../ai/useAI";
 import FiledRows from "../manual/FiledRows";
@@ -26,6 +26,7 @@ import RowShell from "../RowShell";
 import RowSheet from "../RowSheet";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { Sparkles } from "../../shared/icons";
+import LoadFailed from "../../shared/LoadFailed";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -153,7 +154,19 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
   const [channel, setChannel] = useState<WritingChannel | null>(null);
   const [filter, setFilter] = useState<Filter>(initialFilter ?? "all");
 
-  const reload = useCallback(async () => setStrands(await svc.list()), [svc]);
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the page said "Nothing Remembered Yet" to a person
+  // JARVIS knows plenty about. It says what could not be read and offers Retry; a later refresh that fails keeps the list on screen.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
+  const reload = useCallback(async () => {
+    try {
+      setStrands(await svc.list());
+      loadedRef.current = true;
+      setLoadFailed(false);
+    } catch {
+      if (!loadedRef.current) setLoadFailed(true);
+    }
+  }, [svc]);
   useEffect(() => { void reload(); }, [reload]);
 
   // C-39 / C-41: one read, for the panel's words and the rows' confidence.
@@ -428,7 +441,8 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           over "Nothing Noticed Yet"). The notices are offers, not yet facts, so what is empty is what has been KEPT: the
           title says so, and the line holds with or without a notice above it. A glyph in the Brain's own purple, and the
           one capsule that fills it is the head's Add One Thing. */}
-      {strands.length === 0 && filter !== "watching" && (
+      {strands.length === 0 && loadFailed && filter !== "watching" && <LoadFailed what="What JARVIS Knows" onRetry={() => { setLoadFailed(false); void reload(); }} />}
+      {strands.length === 0 && !loadFailed && filter !== "watching" && (
         <div className="empty-state empty-compact">
           <div className="empty-icon cat-fg-purple"><Sparkles className="ic" /></div>
           <div className="empty-title">Nothing Remembered Yet</div>

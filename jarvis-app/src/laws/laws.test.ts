@@ -2065,6 +2065,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "emailBench.tsx",                      // bench harness, run by hand
     "condBench.tsx",                       // bench harness, run by hand
     "healthBench.tsx",                     // bench harness, run by hand
+    "wholeDayBench.tsx",                   // the Whole Day card's bench, loaded in a real browser by laws/wholeDayRender.test.ts
     "score.ts",                            // golden-set scorer, run by hand
     "rowTap.scan.ts",                      // the row-tap law's scanner, run by laws/rowTap.test.ts
     // AMENDED 2026-09-26 (round 3): the one definition of red that the

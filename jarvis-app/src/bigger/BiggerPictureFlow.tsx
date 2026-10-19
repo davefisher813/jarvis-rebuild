@@ -186,7 +186,11 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   const [people, setPeople] = useState<Person[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
-  const reload = useCallback(async () => {
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the skeleton sat for good. The page says what
+  // could not be read and offers Retry; a later refresh that fails keeps what is on screen.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
+  const read = useCallback(async () => {
     const [p, g, c, t, w, ml, ppl, ev] = await Promise.all([
       projectsSvc.list(), goalsSvc.list(), catsSvc.list(), tasksSvc.listTasks(),
       gymSvc ? gymSvc.listWorkouts() : Promise.resolve([] as Workout[]),
@@ -196,6 +200,15 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     ]);
     setProjects(p); setGoals(g); setCategories(c); setTasks(t); setWorkouts(w); setMetricLogs(ml); setPeople(ppl); setAllEvents(ev); setLoading(false);
   }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, gymSvc, metricsSvc, peopleSvc, schedSvc]);
+  const reload = useCallback(async () => {
+    try {
+      await read();
+      loadedRef.current = true;
+      setLoadFailed(false);
+    } catch {
+      if (!loadedRef.current) setLoadFailed(true);
+    }
+  }, [read]);
   useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
@@ -1127,6 +1140,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         // THE FRAME IS THE CATEGORIES (2026-08-29): same ids, Brain's order.
         sections={[...categories].sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0)).map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
         loading={loading}
+        loadFailed={loadFailed}
+        onRetryLoad={() => { setLoadFailed(false); void reload(); }}
         offer={stalledRow}
         nextActionTextOf={nextActionTextOf}
         holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}

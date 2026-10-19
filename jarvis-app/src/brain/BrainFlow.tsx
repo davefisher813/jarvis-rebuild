@@ -19,6 +19,8 @@ import TriageScreen from "./manual/TriageScreen";
 import { usePushDepth } from "../shared/pushNav";
 import { useNavOrigin } from "../shell/navOrigin";
 import { effectiveKind } from "../categories/kinds";
+import PageHeader from "../shared/PageHeader";
+import LoadFailed from "../shared/LoadFailed";
 
 const DOC_TOPIC: Record<string, string> = {
   philosophy: "philosophy",
@@ -90,10 +92,18 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   // area" from "not loaded yet", and a category opened by deep link would
   // flash a dead end on its way to rendering.
   const [catsLoaded, setCatsLoaded] = useState(false);
+  // A list that could not be read is not a list that has not arrived (research standard, section 5 rule 18, 2026-10-19): an area opened by deep link
+  // sat on a blank screen for good. It says so, with Retry; the hub itself draws from fixed rows and has nothing to lie about.
+  const [catsFailed, setCatsFailed] = useState(false);
   const loadCats = useCallback(async () => {
-    const list = await cats.list();
-    setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon, kind: effectiveKind(c.data) })));
-    setCatsLoaded(true);
+    try {
+      const list = await cats.list();
+      setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon, kind: effectiveKind(c.data) })));
+      setCatsLoaded(true);
+      setCatsFailed(false);
+    } catch {
+      setCatsFailed(true);
+    }
   }, [cats]);
   useEffect(() => { void loadCats(); }, [loadCats]);
   // UP-PLAT-06 (2026-09-06): an area renamed on another device repaints here.
@@ -240,7 +250,13 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     // "not yet", so hold an empty screen for a frame rather than asserting
     // anything; once they have loaded, the effect above has already sent us
     // back to the hub.
-    return catsLoaded ? null : <div className="screen" />;
+    if (catsLoaded) return null;
+    return catsFailed ? (
+      <div className="screen">
+        <PageHeader title="Brain" back="Brain" onBack={() => closeToHub()} />
+        <LoadFailed what="Your Areas" onRetry={() => { setCatsFailed(false); void loadCats(); }} />
+      </div>
+    ) : <div className="screen" />;
   })();
 
   if (detail) return <div className={pushCls} key={"d-" + open!.key}>{detail}</div>;

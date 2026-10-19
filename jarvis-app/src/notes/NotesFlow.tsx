@@ -291,8 +291,21 @@ export default function NotesFlow({
   // the first has written that flag.
   const unfiled = useRef(false);
 
+  // The first read failed with nothing on screen (research standard, section 5 rule 18, 2026-10-19): the library drew as an empty one. It says what
+  // could not be read and offers Retry; a later refresh that fails keeps the notes already on screen and says nothing here.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
+  const [attempt, setAttempt] = useState(0);
   const loadList = useCallback(async () => {
-    const items = await svc.listNotes({ includeDeleted: true });
+    let items: Awaited<ReturnType<typeof svc.listNotes>>;
+    try {
+      items = await svc.listNotes({ includeDeleted: true });
+    } catch {
+      if (aliveRef.current && !loadedRef.current) setLoadFailed(true);
+      return;
+    }
+    loadedRef.current = true;
+    setLoadFailed(false);
     setList(
       items.map((it) => {
         const d = it.data as unknown as NoteData;
@@ -422,8 +435,8 @@ export default function NotesFlow({
         } catch { /* retried on the next open */ }
       }
       await loadList();
-    })();
-  }, [seed, svc, cats, loadList, profile]);
+    })().catch(() => { if (aliveRef.current && !loadedRef.current) setLoadFailed(true); });
+  }, [seed, svc, cats, loadList, profile, attempt]);
 
   // UP-PLAT-06 (2026-09-06): a note written on the laptop shows up here
   // without a relaunch. useFreshLists shipped 2026-08-24 and only three
@@ -1107,6 +1120,8 @@ export default function NotesFlow({
         onArchive={(id, archived) => void archiveFromList(id, archived)}
         onRestore={(id) => void restoreNote(id)}
         onDeleteForever={(id) => void deleteForever(id)}
+        loadFailed={loadFailed}
+        onRetryLoad={() => { setLoadFailed(false); setAttempt((n) => n + 1); }}
       />
       {appending && (
         <QuickAppendSheet title={list.find((n) => n.id === appending)?.title ?? "Note"} onDone={(nodes) => void runAppend(appending, nodes)} onCancel={() => setAppending(null)} />
