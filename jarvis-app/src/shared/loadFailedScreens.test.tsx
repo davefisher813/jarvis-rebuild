@@ -61,7 +61,7 @@ describe("Life and Brain: the first load failing", () => {
 
   it("Contacts", async () => {
     vi.spyOn(PeopleService.prototype, "list").mockRejectedValueOnce(new Error("offline"));
-    render(<NotesProvider userId="lf-people"><PeopleFlow /></NotesProvider>);
+    render(<NotesProvider userId="lf-people"><PeopleFlow onBack={() => {}} /></NotesProvider>);
     expect(await screen.findByText("Couldn't Load Your People")).toBeInTheDocument();
     expect(screen.queryByText("No One Here Yet")).toBeNull();
     retry();
