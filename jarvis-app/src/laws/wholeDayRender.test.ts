@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright";
 
@@ -21,6 +23,7 @@ const PHONE = { width: 390, height: 844 };
 let server: ViteDevServer;
 let browser: Browser;
 let page: Page;
+let cacheDir = "";
 
 function chromiumPath(): string | undefined {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
@@ -28,7 +31,14 @@ function chromiumPath(): string | undefined {
 }
 
 beforeAll(async () => {
-  server = await createServer({ root: process.cwd(), logLevel: "silent", server: { host: "127.0.0.1", port: 0, strictPort: false } });
+  // A cache of its own, and the bench's dependencies named up front: a cold dev server otherwise discovers them as the page asks, optimises them
+  // and RELOADS the page under the measurement (CI starts cold every time). With both, the page loads once, the same way on every machine.
+  cacheDir = mkdtempSync(join(tmpdir(), "jarvis-whole-day-"));
+  server = await createServer({
+    root: process.cwd(), logLevel: "silent", cacheDir,
+    optimizeDeps: { entries: ["bench-whole-day.html"] },
+    server: { host: "127.0.0.1", port: 0, strictPort: false },
+  });
   await server.listen();
   const url = server.resolvedUrls?.local[0];
   if (!url) throw new Error("the bench server did not start");
@@ -42,6 +52,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await browser?.close();
   await server?.close();
+  if (cacheDir) rmSync(cacheDir, { recursive: true, force: true });
 });
 
 interface Box { text: string; w: number; h: number; lines: number }

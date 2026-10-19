@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useState, useRef, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, useDeferredValue, type ReactNode } from "react";
 import { X } from "../shared/icons";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, useOptionalTracker, usePeople, useProjects, useStore } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
@@ -31,6 +31,9 @@ import { capturePeople } from "../paste/captureContext";
 import { heldText, savedToastText } from "../shared/saved";
 import { draftStore } from "../shared/draftStore";
 import { clock12 } from "../shared/clock";
+import { chipArea } from "../shared/CatChipLine";
+import type { CaptureContext } from "../paste/deterministic";
+import { liveRead, type LiveRead } from "./liveRead";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -150,6 +153,24 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   return out;
 }
 
+// WHAT THE LINE IS READING AS, WHILE IT IS TYPED (the research standard, rule 12, 2026-10-19). The same facts the receipt draws, by the same
+// function, under the box, so a wrong read (a Thursday meant as the next one, a bill that was an expense) is seen before Return and not after.
+// The receipt's kind is a chip beneath it, so here the kind is a word, unless a fact already says it (Bill, Expense, a Reminder's time, Rule, a
+// Decision); a task with nothing read off it says nothing at all. Who and which project fold into that one word ("Task for Marco"), never a
+// second grey beside it (§AK). The area a #tag named is the app's own dot-and-name fact.
+function liveFacts(r: LiveRead): ReactNode[] {
+  if (r.items) return [<span className="fact" key="items">{r.items} Items</span>];
+  const s = r.entity;
+  const says = !!(s.bill || s.expense || s.reminder || s.rule || !KINDS.includes(s.kind) || (s.kind === "fact" && s.factType && s.factType !== "fact"));
+  const who = [r.names.person, r.names.project].filter(Boolean).join(", ");
+  const area = chipArea(r.area);
+  const read = says ? receiptFacts(s, r.names) : receiptFacts(s, {});
+  if (!says && s.kind === "task" && read.length === 0 && !who && !area) return [];
+  const out = says ? read : [<span className="fact" key="kind">{KIND_LABEL[s.kind]}{who ? " for " + who : ""}</span>, ...read];
+  if (area) out.push(<span className="fact cat" key="area"><span className={"cd cat-bg-" + area.slot} />{area.name}</span>);
+  return out;
+}
+
 // A receipt row after its Undo (2026-10-01, live audit: Undo removed the item
 // and the sheet carried on as if nothing had happened). The row stays where it
 // was and says "Removed" with a Redo, so the tap has a visible answer and a
@@ -220,6 +241,30 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const [recents, setRecents] = useState<RecentCapture[]>([]);
   const [error, setError] = useState("");
   const [dupAge, setDupAge] = useState<number | null>(null);
+  // THE LIVE READ'S LISTS (rule 12): the people, projects and areas the line is read against while it is typed, read once when the sheet opens.
+  // The save re-reads them fresh, so a failure here costs the live line its names and the save nothing.
+  const [liveCtx, setLiveCtx] = useState<CaptureContext>({});
+  useEffect(() => {
+    let on = true;
+    void (async () => {
+      const [cl, pl, prl] = await Promise.all([categoriesSvc.list().catch(() => []), peopleSvc.list().catch(() => []), projectsSvc.list().catch(() => [])]);
+      if (!on) return;
+      setLiveCtx({
+        people: capturePeople(pl),
+        projects: prl.map((p) => ({ id: p.id, title: p.data.title })),
+        categories: cl.map((c) => ({ id: c.id, name: c.data.name })),
+        ...(flagOn("memory_v1") ? { followUp: true } : {}),
+      });
+    })();
+    return () => { on = false; };
+  }, [categoriesSvc, peopleSvc, projectsSvc]);
+  // Deferred, so typing never waits on the read.
+  const typed = useDeferredValue(text);
+  const live = useMemo(
+    () => liveRead(typed, todayISO(), liveCtx, { strands: !!strands, decisions: !!decisions, ledger: !!ledger, tracker: !!tracker }),
+    [typed, liveCtx, strands, decisions, ledger, tracker],
+  );
+  const liveLine = phase === "input" && live ? liveFacts(live) : [];
   // UP-CORE-01 (2026-09-05): the bounded lists the capture matches people and
   // projects against, and the receipt names them from. Read once with the
   // categories; a failure leaves both lanes closed rather than blocking the
@@ -503,6 +548,9 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               {brain && <button className="quiet-action" onClick={() => setFilingMode("decision")}>Log the Decision</button>}
               {brain && <button className="quiet-action" onClick={() => setFilingMode("remember")}>Remember This</button>}
             </div>
+            {/* UNDER THE AIDS, NOT ABOVE THEM: a row that appears and disappears as the line is typed must not move the Speak button
+                under the thumb. Nothing read, nothing drawn. */}
+            {liveLine.length > 0 && <div className="conn-meta live-read">{liveLine}</div>}
             {error && <div className="input-error">{error}</div>}
             {dupAge !== null && (
               <div className="input-note">You captured this exact text {Math.max(1, Math.round(dupAge / 86400000))} {dupAge < 86400000 * 1.5 ? "day" : "days"} ago.</div>

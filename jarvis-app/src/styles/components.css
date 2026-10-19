@@ -2859,6 +2859,8 @@ button {
 /* Smart Paste (addendum item 1, LOCKED-CSS CHANGE FLAGGED): the saved
    receipt list and the Recent Captures strip inside the capture sheet. Rows
    are the standard .row anatomy; these two wrappers only space the groups. */
+/* The live read (Quick Capture): the facts the receipt will draw, under the box while the line is typed. */
+.sheet-form .live-read { margin-top: var(--s-2); }
 .capture-saved-list { display: flex; flex-direction: column; gap: var(--s-2); }
 .capture-saved { border-bottom: 0.5px solid var(--divider); padding-bottom: var(--s-2); }
 .capture-saved:last-child { border-bottom: 0; padding-bottom: 0; }
