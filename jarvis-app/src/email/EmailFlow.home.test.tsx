@@ -37,13 +37,13 @@ const ROWS: InboxRow[] = [
 
 type Route = (path: string, body: Record<string, unknown>) => { status: number; body: unknown } | undefined;
 
-function rig(o: { rows?: InboxRow[]; accounts?: EmailAccount[]; routes?: Route } = {}) {
+function rig(o: { rows?: InboxRow[]; accounts?: EmailAccount[]; routes?: Route; inboxFails?: boolean } = {}) {
   let all = [...(o.rows ?? ROWS)].sort(newestFirst);
   const acc = o.accounts ?? accounts;
   const posts: Array<{ path: string; body: Record<string, unknown> }> = [];
   const table: Record<string, (a: Record<string, unknown>) => unknown> = {
     email_accounts: () => acc,
-    email_inbox: (a) => ({ rows: all.slice(0, a.p_limit as number), cached_total: all.length, page: a.p_limit }),
+    email_inbox: (a) => { if (o.inboxFails) throw new Error("offline"); return { rows: all.slice(0, a.p_limit as number), cached_total: all.length, page: a.p_limit }; },
     substrate_readiness: () => ({ registered: [] }),
     candidates_for: () => [],
   };
@@ -81,6 +81,22 @@ beforeEach(() => {
   Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
 });
 afterEach(() => { unsub(); cleanup(); vi.unstubAllGlobals(); document.body.classList.remove("selecting"); });
+
+// THE FIRST LOAD FAILED (issue 112, open call 5; Dave 2026-10-05, locked: no button in a row). With nothing cached the screen said why in a
+// card and offered Retry as a full-width row. It is the same empty state every other Email screen draws now: the reason as its sub, Retry as
+// the one filled primary, nothing in a row.
+describe("the inbox's first load failing", () => {
+  it("draws the empty state with Retry as its one primary, and Retry loads again", async () => {
+    const r = rig({ inboxFails: true });
+    mount(r);
+    expect(await screen.findByText("Couldn't Load Your Mail")).toBeInTheDocument();
+    const empty = document.querySelector(".empty-state") as HTMLElement;
+    expect(empty).not.toBeNull();
+    expect(empty.querySelector(".btn-primary")).toHaveTextContent("Retry");
+    expect(document.querySelector(".row-act"), "no button in a row").toBeNull();
+    expect(rowEls().length).toBe(0);
+  });
+});
 
 describe("the grouped home (spec 3.1, 3.2)", () => {
   it("is the five sections in their fixed order, expanded, empty ones omitted, each with its loaded count and colour", async () => {
