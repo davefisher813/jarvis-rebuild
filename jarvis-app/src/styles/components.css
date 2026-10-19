@@ -7876,6 +7876,14 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .conn-strip-text { min-width: 0; overflow-wrap: anywhere; }
 .conn-strip-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-3); background: transparent; border: 1px solid var(--on-fill-dark); border-radius: var(--r-md);
   color: var(--on-fill-dark); font-family: var(--f); font-size: var(--t-sub); font-weight: var(--w-semi); }
+/* THE EMAIL STRIP LEAVES THE WORDS THEIR ROOM (issue 107, the 390 squeeze Dave's pass found 2026-10-13 and left open; measured 2026-10-19). The action reads
+   "Reconnect <address>" and cannot shrink (flex 0 0 auto), so a long address took the whole row and the words beside it got 0px: at 390 a 37 character
+   address made the strip 1019px tall with the title one letter wide. The words now ask for a readable width (12rem) and the action drops under them, at its
+   own size or the row's width at most, with its label allowed to wrap, the moment the two cannot sit side by side. A short address still sits on one line.
+   Today's strip is a slim row by its own law (below) and is not touched. */
+.conn-strip:not(.conn-strip-today) { flex-wrap: wrap; }
+.conn-strip:not(.conn-strip-today) .conn-strip-text { flex: 1 1 12rem; }
+.conn-strip:not(.conn-strip-today) .conn-strip-act { flex: 0 1 auto; max-width: 100%; padding: var(--s-2) var(--s-2); overflow-wrap: break-word; text-align: center; }
 /* TODAY'S PROBLEM ROW (issue 106 V2, approved by Dave 2026-10-13: "ONE slim amber row below the greeting, actionable, and it
    disappears when resolved. Not a large red card at the top"). It is the strip above, whole, so Today and Email say one problem
    in one colour: the same amber fill, the same ink, the same outlined action. Nothing below sets a colour, a face, a size or a

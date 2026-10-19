@@ -220,3 +220,22 @@ describe("the Track This evidence block shows everything the mail said (Dave 202
     }
   });
 });
+
+// THE EMAIL RECONNECT STRIP LEAVES ITS WORDS ROOM (issue 107, the 390 squeeze; measured 2026-10-19: a 37 character address made the strip 1019px
+// tall with the words 0px wide, because the action reads "Reconnect <address>" and could not shrink). The words ask for a readable width and the
+// action wraps under them when the two cannot sit side by side. Today's strip is a slim row by its own law and is not touched.
+describe("the Email connection strip wraps instead of squeezing its words", () => {
+  const css = rules(ALL_SHEETS);
+  const find = (sel: string) => css.filter((r) => r.sel.split(",").some((s) => s.trim() === sel));
+  it("wraps the strip, gives the words a floor, and lets the action shrink and wrap", () => {
+    expect(find(".conn-strip:not(.conn-strip-today)").map((r) => r.body).join(";")).toMatch(/flex-wrap:\s*wrap/);
+    expect(find(".conn-strip:not(.conn-strip-today) .conn-strip-text").map((r) => r.body).join(";")).toMatch(/flex:\s*1 1 12rem/);
+    const act = find(".conn-strip:not(.conn-strip-today) .conn-strip-act").map((r) => r.body).join(";");
+    expect(act).toMatch(/flex:\s*0 1 auto/);
+    expect(act).toMatch(/max-width:\s*100%/);
+  });
+  it("leaves Today's slim row alone", () => {
+    const today = css.filter((r) => /conn-strip-today/.test(r.sel) && !/:not\(\.conn-strip-today\)/.test(r.sel)).map((r) => r.body).join(";");
+    expect(today).not.toMatch(/flex-wrap:\s*wrap;\s*$/m);
+  });
+});
