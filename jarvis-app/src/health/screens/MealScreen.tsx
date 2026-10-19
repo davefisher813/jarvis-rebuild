@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { draftStore } from "../../shared/draftStore";
 import type { MealEntry } from "../types";
 import { clockOf } from "../meds";
 import { titleCase } from "../../shared/casing";
@@ -11,6 +12,8 @@ import BackPill from "../../shared/BackPill";
 // words. No calories, no macros, no amount, no grade: the privacy law's
 // vocabulary ban guards this folder, and this screen gives it nothing to
 // catch. Today's meals sit under the field with Undo on each.
+const MEAL_DRAFT = draftStore("jarvis.meal.draft.v1");
+
 export default function MealScreen({ today, recent = [], onLog, onUndo, onBack, backLabel = "Health" }: {
   today: (MealEntry & { pending?: boolean })[];
   /** 2026-09-14 (the reference's "Use a recent meal"): the last few distinct
@@ -23,7 +26,9 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack, 
   /** The screen the back returns to: the Health area the flow was opened from. */
   backLabel?: string;
 }) {
-  const [text, setText] = useState("");
+  // What was typed survives a kill or a back (the Logging Standard, rule 8); logging it spends it.
+  const [text, setTextState] = useState(() => MEAL_DRAFT.read());
+  const setText = (v: string) => { setTextState(v); MEAL_DRAFT.write(v); };
   const [logged, setLogged] = useState(false);
   const [when, setWhen] = useState("");
   const [open, setOpen] = useState<(MealEntry & { pending?: boolean }) | null>(null);
@@ -33,6 +38,7 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack, 
     const at = when ? atToday(when) : undefined;
     if (at) onLog(text.trim(), at); else onLog(text.trim());
     setText("");
+    MEAL_DRAFT.clear();
     setWhen("");
     setLogged(true);
   };

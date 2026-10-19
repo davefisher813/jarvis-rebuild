@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { draftStore } from "../../shared/draftStore";
 import type { CheckInEntry, CheckInEnergy, CheckInMood } from "../types";
 import { clockOf } from "../meds";
 import { ENERGY_WORDS, MOOD_WORDS, checkInLine } from "../checkin";
@@ -12,6 +13,8 @@ import BackPill from "../../shared/BackPill";
 // words a person picks, never a number, so nothing here can feed a
 // correlation surface or a composite (D11's rule on mood stands: this is a
 // log, and it is read back only as itself). Skip is a real answer.
+const NOTE_DRAFT = draftStore("jarvis.checkin.note.draft.v1");
+
 export default function CheckInScreen({ today, onLog, onUndo, onBack, backLabel = "Health" }: {
   today: (CheckInEntry & { pending?: boolean })[];
   onLog: (d: { energy?: CheckInEnergy; mood?: CheckInMood; note?: string }) => void;
@@ -22,7 +25,9 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack, backLabel 
 }) {
   const [energy, setEnergy] = useState<CheckInEnergy | undefined>(undefined);
   const [mood, setMood] = useState<CheckInMood | undefined>(undefined);
-  const [note, setNote] = useState("");
+  // The note survives a kill or a back (the Logging Standard, rule 8); the Save that logs it spends it.
+  const [note, setNoteState] = useState(() => NOTE_DRAFT.read());
+  const setNote = (v: string) => { setNoteState(v); NOTE_DRAFT.write(v); };
   const [open, setOpen] = useState<(CheckInEntry & { pending?: boolean }) | null>(null);
   const valid = !!energy || !!mood || note.trim().length > 0;
   const submit = () => {
@@ -31,6 +36,7 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack, backLabel 
     setEnergy(undefined);
     setMood(undefined);
     setNote("");
+    NOTE_DRAFT.clear();
   };
   const rows = [...today].sort((a, b) => b.data.at - a.data.at);
   const chips = <T extends string>(name: string, words: { value: T; label: string }[], value: T | undefined, pick: (v: T | undefined) => void) => (

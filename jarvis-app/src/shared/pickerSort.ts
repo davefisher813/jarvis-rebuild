@@ -4,17 +4,24 @@
 // what is set is never scrolled for; then by area, so the projects of one
 // part of life sit together; then by name inside the area. Records with no
 // area come after every area, together. Pure, so a sheet can sort what it
-// is handed without knowing where it came from.
+// is handed without knowing where it came from. Since 2026-10-19 the ones he picked most recently follow the current pick (recentPicks).
 
 export interface Pickable { id: string; title: string; area?: string | null }
 
 const cmp = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
 
-export function sortPicks<T extends Pickable>(items: T[], currentId?: string | null): T[] {
+export function sortPicks<T extends Pickable>(items: T[], currentId?: string | null, recents: readonly string[] = []): T[] {
   return [...items].sort((a, b) => {
     if (currentId) {
       if (a.id === currentId) return -1;
       if (b.id === currentId) return 1;
+    }
+    // RECENTS NEXT (research standard, rule 11, 2026-10-19): what he picked lately, newest first, ahead of the area groups.
+    const ra = recents.indexOf(a.id), rb = recents.indexOf(b.id);
+    if (ra !== rb) {
+      if (ra < 0) return 1;
+      if (rb < 0) return -1;
+      return ra - rb;
     }
     const aa = a.area ?? "", ba = b.area ?? "";
     if (aa !== ba) {
