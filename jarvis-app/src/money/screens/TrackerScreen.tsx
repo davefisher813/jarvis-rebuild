@@ -25,6 +25,7 @@ import { allocationsFromRows, discrepancyLines, displayRows, isUncategorized, mo
 import { overLine } from "../ledger/actuals";
 import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT, type Bill, type Receipt } from "../ledger/types";
 import { removeTxWithLinks, unmatchTx, type LinkChange } from "../txLinks";
+import { todayISO } from "../../tasks/grouping";
 import { useLedgerEvents } from "../useLedgerEvents";
 
 // THE TRACKER (PASSOFF 2026-09-19, built by Alfred, integrated here).
@@ -80,7 +81,12 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
   // shows what it is matched to.
   const ledger = useOptionalLedger();
   const [recs, setRecs] = useState<{ receipts: Receipt[]; bills: Bill[] }>({ receipts: [], bills: [] });
+  // THE NEWEST LOAD WINS, NOT THE LAST TO ARRIVE (live audit, 2026-10-19: the Activity count lagged until you left and came back). A
+  // save, a ledger event and the mount can each start a load; on a slow network an older one can finish after a newer one and
+  // put the old list back. Each load takes a ticket and only the newest ticket may draw.
+  const loadTicket = useRef(0);
   const reload = useCallback(async () => {
+    const ticket = ++loadTicket.current;
     // THE BANK'S COUNT OF THE SEPTEMBER FEES, ONCE (Dave, via Alfred, 2026-10-17): the first import's three unlabelled
     // Overdraft Fee rows become the five the bank charged, each labelled with its purchase, before the screen reads. It
     // is a one-time, idempotent correction of imported data, not a user action, so no toast; a failure leaves the rows
@@ -91,9 +97,11 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
       ledger ? ledger.listReceipts() : Promise.resolve([] as Receipt[]),
       ledger ? ledger.listBills() : Promise.resolve([] as Bill[]),
     ]);
-    setData(d);
-    setRecs({ receipts, bills });
-    setLoaded(true);
+    if (ticket === loadTicket.current) {
+      setData(d);
+      setRecs({ receipts, bills });
+      setLoaded(true);
+    }
     return d;
   }, [svc, ledger]);
   useEffect(() => { void reload(); }, [reload]);
@@ -561,7 +569,9 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
         return (
           <TxSheet
             initial={tx ? tx.data : {
-              date: month + "-15", month, merchant: "", name: "", amountCents: 0,
+              // TODAY WHEN THE MONTH ON SCREEN IS THIS ONE (live audit, 2026-10-19: Add Manually opened on 10/15). Another month has no "today", so
+              // it keeps the middle of that month, a day inside it.
+              date: month === thisMonth() ? todayISO() : month + "-15", month, merchant: "", name: "", amountCents: 0,
               category: "Other", account: data.accounts[0]?.data.name ?? "",
             }}
             accounts={data.accounts.map((a) => a.data.name)}
