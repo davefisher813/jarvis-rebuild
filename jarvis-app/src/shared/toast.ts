@@ -40,7 +40,14 @@ let shownAt = 0;
 // two places that read the pair: an action is a label AND something to run.
 const hasAction = (t: ToastState | null): boolean => !!t?.actionLabel && !!t?.onAction;
 
-export function showToast(t: ToastState, ms = 5000): void {
+// HOW LONG A TOAST LIVES. A plain receipt is five seconds. A toast that carries an action (an Undo) is the app's whole answer
+// to "reversible without a confirm", so its window is the longer one the Brain's filings already use (ai/brainMemory UNDO_MS,
+// 8 seconds; toast.test.ts holds the two equal): the Logging Standard asks for at least five seconds in which the Undo is genuinely usable, and the live audit of
+// 2026-10-19 could not tap the Transaction Added Undo in three tries inside five. A caller that names its own time keeps it.
+export const TOAST_MS = 5000;
+export const UNDO_TOAST_MS = 8000;
+
+export function showToast(t: ToastState, ms = hasAction(t) ? UNDO_TOAST_MS : TOAST_MS): void {
   if (hasAction(current) && !hasAction(t)) {
     queued = { t, ms, at: Date.now() };
     return;

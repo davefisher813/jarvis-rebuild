@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { showToast, hideToast, subscribeToast, resetToasts, dismissForNavigation, TOAST_NAV_GRACE_MS, type ToastState } from "./toast";
+import { UNDO_MS } from "../ai/brainMemory";
+import { showToast, hideToast, subscribeToast, resetToasts, dismissForNavigation, TOAST_NAV_GRACE_MS, TOAST_MS, UNDO_TOAST_MS, type ToastState } from "./toast";
 
 // SHARED-F-09 (2026-09-05), option A. The store held one toast and replacement
 // was unconditional: bulk-delete twelve tasks ("Deleted 12 Tasks · Undo"), then
@@ -118,5 +119,35 @@ describe("dismissForNavigation: a receipt does not follow you to another screen"
     const before = seen.length;
     dismissForNavigation();
     expect(seen.length).toBe(before);
+  });
+});
+
+// The live audit of 2026-10-19: the Transaction Added Undo expired inside five seconds three times running. The standard is an Undo that
+// is available for at least five seconds and genuinely usable, so a toast with an action lives the longer window by default.
+describe("how long a toast lives", () => {
+  it("a plain receipt is five seconds; an Undo is eight, and never less than five", () => {
+    expect(UNDO_TOAST_MS).toBeGreaterThanOrEqual(8000);
+    expect(UNDO_TOAST_MS).toBeGreaterThan(TOAST_MS);
+    showToast(plain);
+    vi.advanceTimersByTime(TOAST_MS - 1);
+    expect(seen.at(-1)).toEqual(plain);
+    vi.advanceTimersByTime(1);
+    expect(seen.at(-1)).toBeNull();
+
+    showToast(undo);
+    vi.advanceTimersByTime(TOAST_MS + 1000);
+    expect(seen.at(-1), "still tappable after the old five seconds").toEqual(undo);
+    vi.advanceTimersByTime(UNDO_TOAST_MS - TOAST_MS - 1000);
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("an Undo toast and the Brain's filing window are the same number", () => {
+    expect(UNDO_TOAST_MS).toBe(UNDO_MS);
+  });
+
+  it("a caller that names its own time keeps it", () => {
+    showToast(undo, 3000);
+    vi.advanceTimersByTime(3000);
+    expect(seen.at(-1)).toBeNull();
   });
 });
