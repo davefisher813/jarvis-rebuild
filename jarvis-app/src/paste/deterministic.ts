@@ -40,6 +40,9 @@ export interface ParsedEntity {
   recurrence?: Recurrence;
   reminder?: { time: string; days?: number[] };
   bill?: { amount: number };
+  // A payment already made ("Spent 30 on gas"): Money's transaction, never a
+  // task and never a bill (a bill is owed; this is paid). Stated words only.
+  expense?: { amountCents: number; merchant: string };
   personId?: string;
   // More than one contact answers to this line. Never a guess (the
   // Uncertainty Protocol): the receipt offers these as chips and the person
@@ -246,6 +249,11 @@ function matchRepeat(lower: string): RepeatHit | null {
 // a bill for three dollars, which is exactly the guessing this refuses.
 const MONEY_RE = /\$\s?(\d[\d,]*(?:\.\d{1,2})?)/;
 
+// "spent 30 on gas", "I paid $12.50 at Starbucks": the verb, the amount (a $ is
+// optional here because "spent" already says it is money), the preposition,
+// then who was paid. "30 minutes" fails the preposition, so time is not money.
+const EXPENSE_RE = /^(?:i\s+)?(?:spent|paid)\s+\$?\s?(\d[\d,]*(?:\.\d{1,2})?)\s+(?:on|at|for|to)\s+(.+)$/i;
+
 function matchAmount(lower: string): { amount: number; text: string } | null {
   const m = lower.match(MONEY_RE);
   if (!m) return null;
@@ -362,6 +370,29 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   const words = rest;
   const taskExtra = { ...(dur ? { estimateMin: dur.minutes } : {}), ...(area ? { category: area.id } : {}) };
   const eventExtra = (start: string) => ({ ...(dur ? { end: addMinutes(start, dur.minutes) } : {}), ...(area ? { category: area.id } : {}) });
+
+  // A PAYMENT ALREADY MADE IS A TRANSACTION, NOT A NOTE (the research standard,
+  // rule 5, 2026-10-18). Past tense and an amount and who it went to: "Spent
+  // 30 on gas", "Paid $1,200 for rent". The imperative "Pay $50 rent" is
+  // still a bill (owed), and a line without all three words is read as it
+  // always was. The day is only the one he named; none means today.
+  const spent = EXPENSE_RE.exec(t);
+  if (spent) {
+    const merchant = stripDateWords(spent[2]!, [dayHit?.text, timeHit?.text].filter(Boolean) as string[]).replace(/^(?:the|a|an|my)\s+/i, "").trim();
+    const amount = Number(spent[1]!.replace(/,/g, ""));
+    if (merchant && Number.isFinite(amount) && amount > 0) {
+      return {
+        kind: "task",
+        title: titleCase(merchant),
+        expense: { amountCents: Math.round(amount * 100), merchant: titleCase(merchant) },
+        date: date ?? today,
+        confident: true,
+        raw: t,
+        ...who,
+        inferred: date ? who.inferred : [...who.inferred, "date"],
+      };
+    }
+  }
 
   // A time plus a day (or just a time with "tonight"-style words caught by
   // resolveDay) is an event, confidently.

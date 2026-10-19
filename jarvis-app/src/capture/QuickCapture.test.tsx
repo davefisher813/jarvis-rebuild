@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import type React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople, useLedger } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople, useLedger, useTracker } from "../data/NotesProvider";
 import type { LedgerService } from "../money/ledger/LedgerService";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
@@ -366,6 +366,32 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     fireEvent.click(await screen.findByText("Save Anyway"));
     expect(await screen.findByText("Already in Money · Geico $214.00")).toBeInTheDocument();
     expect(await ledgerRef!.listBills()).toHaveLength(1);
+  });
+
+  // The research standard, rule 5 (2026-10-18): "Spent 30 on gas" is a payment already made, so it is a Money transaction.
+  // The receipt says In Money, shows the amount as one fact, offers no task chip, and Undo deletes the transaction.
+  it("a payment's receipt says Expense with its amount, sits In Money, and Undo deletes the transaction", async () => {
+    let trackerRef: ReturnType<typeof useTracker> | null = null;
+    let taskRef: ReturnType<typeof useTasks> | null = null;
+    function Grab() { trackerRef = useTracker(); taskRef = useTasks(); return null; }
+    render(
+      <NotesProvider userId="u-receipt-expense">
+        <Grab />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Spent 30 on gas" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    expect(screen.getByText("In Money")).toBeInTheDocument();
+    expect(screen.queryByText("Task")).toBeNull();
+    const facts = receiptFacts();
+    expect(facts.map((f) => f.textContent)).toEqual([expect.stringMatching(/^Expense \$30(\.00)?$/)]);
+    expect(facts[0]!.className).toBe("fact");
+    expect((await trackerRef!.load()).txs.map((t) => [t.data.merchant, t.data.amountCents])).toEqual([["Gas", 3000]]);
+    expect(await taskRef!.listTasks()).toEqual([]);
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(async () => expect((await trackerRef!.load()).txs).toEqual([]));
   });
 
   // §AM R8 (2026-09-26): a task's date is a due date, so it wears the due

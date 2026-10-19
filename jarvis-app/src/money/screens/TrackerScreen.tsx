@@ -430,9 +430,27 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
     if (savingRef.current) return;
     savingRef.current = true;
     try {
-      if (!(await attemptWrite(() => svc.saveTx(id, d)))) return;
+      let made: string | null = null;
+      if (!(await attemptWrite(async () => { made = await svc.saveTx(id, d); }))) return;
       setEditing(null);
       await onSaved();
+      // UNDO ON A NEW PAYMENT (the Logging Standard, rule 5, 2026-10-18): a row
+      // entered by hand can be taken back without opening it. The sheet is closed
+      // first because a toast raised under an open sheet cannot be tapped (CLAUDE.md).
+      if (!id && made) {
+        const row = made;
+        let used = false;
+        showToast({
+          message: "Transaction Added",
+          actionLabel: "Undo",
+          onAction: async () => {
+            if (used) return;
+            used = true;
+            await attemptWrite(() => svc.removeTx(row));
+            await onSaved();
+          },
+        });
+      }
     } finally {
       savingRef.current = false;
     }

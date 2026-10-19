@@ -64,6 +64,24 @@ describe("Tracker transactions: added by hand, no bank", () => {
     expect(screen.queryByText("Add a Transaction")).toBeNull();
   });
 
+  // Research standard rule 5 (2026-10-18): a payment entered by hand can be taken back from the toast, with the sheet
+  // already closed (a toast under an open sheet cannot be tapped).
+  it("saving a new transaction raises Undo, and Undo removes it", async () => {
+    const h = mount("tr-undo-new", async (s) => { await s.tracker.saveTx(null, tx({ date: day(1) })); });
+    await tab("Activity");
+    fireEvent.click(await screen.findByText("Add Manually"));
+    await screen.findByText("New Transaction");
+    fireEvent.change(screen.getByLabelText("Merchant"), { target: { value: "Bodega" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "9.00" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByText("New Transaction")).toBeNull());
+    const done = toasts.find((t) => t.message === "Transaction Added")!;
+    expect(done.actionLabel).toBe("Undo");
+    done.onAction!();
+    await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(1));
+  });
+
   it("a new transaction opens on the category its merchant usually gets", async () => {
     const h = mount("tr-cat", async (s) => { await s.tracker.saveTx(null, tx({ date: day(1), category: "Household" })); });
     await tab("Activity");

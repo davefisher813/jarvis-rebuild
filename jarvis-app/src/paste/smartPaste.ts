@@ -27,6 +27,7 @@ import type { LearnedRule, LearnedRulesService } from "../rules/LearnedRulesServ
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { StrandCategory } from "../brain/strands/types";
 import type { LedgerService } from "../money/ledger/LedgerService";
+import type { TrackerService } from "../money/TrackerService";
 
 export interface SavedEntity {
   id: string;
@@ -37,7 +38,7 @@ export interface SavedEntity {
   // both are reversible from the same receipt as everything else here.
   // "bill" (Money ledger): a line that read as a bill is filed in Money, and
   // its receipt and Undo are the ledger's, never a task's.
-  kind: "task" | "event" | "note" | "fact" | "decision" | "person" | "bill";
+  kind: "task" | "event" | "note" | "fact" | "decision" | "person" | "bill" | "expense";
   title: string;
   date?: string;
   start?: string;
@@ -53,6 +54,8 @@ export interface SavedEntity {
   recurrence?: import("../notes/types").Recurrence;
   reminder?: { time: string; days?: number[] };
   bill?: { amount: number };
+  // "expense": a payment already made, filed in Money's tracker; Undo removes it.
+  expense?: { amountCents: number; merchant: string };
   personId?: string;
   // More than one contact answered to the line, so nobody was filed and the
   // receipt asks (the Uncertainty Protocol).
@@ -83,6 +86,9 @@ export interface PasteDeps {
   // Called when a line read as a bill and nothing was filed: already in Money,
   // what is missing, or that Money is unavailable. Same seam as onFactRefused.
   onBillNote?: (message: string) => void;
+  // Where a payment already made goes (the tracker). Absent, an expense is
+  // refused out loud through onBillNote and is never made a task instead.
+  tracker?: Pick<TrackerService, "saveTx" | "load" | "removeTx">;
   ai: AIService;
   gather: () => Promise<AIContext>;
   tasks: TasksService;
@@ -184,6 +190,7 @@ function toCaptureResult(e: ParsedEntity, kind: CaptureResult["kind"]): CaptureR
     ...(e.recurrence ? { recurrence: e.recurrence } : {}),
     ...(e.reminder ? { reminder: e.reminder } : {}),
     ...(e.bill ? { bill: e.bill } : {}),
+    ...(e.expense ? { expense: e.expense } : {}),
     ...(e.personId ? { personId: e.personId } : {}),
     ...(e.projectId ? { projectId: e.projectId } : {}),
     // The Logging Standard, rule 3 (2026-10-17): the length and the area the
@@ -485,7 +492,7 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       const isBill = applied.kind === "bill";
       const s: SavedEntity = {
         id,
-        kind: isBill ? "bill" : result.kind,
+        kind: isBill ? "bill" : applied.kind === "expense" ? "expense" : result.kind,
         title: result.title,
         ...(result.date ? { date: result.date } : {}),
         ...(result.start ? { start: result.start } : {}),
@@ -497,6 +504,7 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
         ...(isBill ? (billRecurrenceOf(result.recurrence) ? { recurrence: result.recurrence! } : {}) : result.recurrence ? { recurrence: result.recurrence } : {}),
         ...(result.reminder ? { reminder: result.reminder } : {}),
         ...(result.bill ? { bill: result.bill } : {}),
+        ...(result.expense ? { expense: result.expense } : {}),
         ...(result.personId ? { personId: result.personId } : {}),
         ...(e.personChoices ? { personChoices: e.personChoices } : {}),
         ...(result.projectId ? { projectId: result.projectId } : {}),
@@ -506,7 +514,7 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       saved.push(s);
       // Recent Captures opens a task, event, note or fact; a bill is opened in
       // Money, which that strip has no door to, so it is not listed there.
-      if (s.kind !== "bill") recordCapture({ id, kind: s.kind, title: s.title, ts: Date.now() });
+      if (s.kind !== "bill" && s.kind !== "expense") recordCapture({ id, kind: s.kind, title: s.title, ts: Date.now() });
     }
   }
   return saved;
@@ -515,8 +523,13 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
 // Undo one created entity: the record disappears entirely.
 export async function undoSaved(
   s: SavedEntity,
-  deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands" | "decisions" | "peopleSvc" | "ledger">,
+  deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands" | "decisions" | "peopleSvc" | "ledger" | "tracker">,
 ): Promise<void> {
+  // A payment filed in the tracker is deleted from the tracker.
+  if (s.kind === "expense") {
+    await deps.tracker?.removeTx(s.id);
+    return;
+  }
   // A bill filed in Money comes back out of Money (never through the task door).
   if (s.kind === "bill") {
     await deps.ledger?.removeBill(s.id);
@@ -581,7 +594,7 @@ export async function refileSaved(
   if (toKind === "decision" || toKind === "person") return null;
   // A bill is Money's and never becomes a task, an event or a note by a chip,
   // and nothing is refiled INTO Money from here (ledger hard rule 1).
-  if (toKind === "bill" || s.kind === "bill") return null;
+  if (toKind === "bill" || s.kind === "bill" || toKind === "expense" || s.kind === "expense") return null;
   // Refiling one AWAY is the ordinary path: the target is created first and
   // the original removed after (SHELL-F-02's order), which undoSaved
   // already handles for both kinds.
@@ -645,7 +658,7 @@ export async function refileSaved(
     try { await undoSaved(next, deps); } catch { /* the original still stands; the receipt keeps tracking it */ }
     throw e;
   }
-  if (next.kind !== "bill") recordCapture({ id: next.id, kind: next.kind, title: next.title, ts: Date.now() });
+  if (next.kind !== "bill" && next.kind !== "expense") recordCapture({ id: next.id, kind: next.kind, title: next.title, ts: Date.now() });
   return next;
 }
 
@@ -655,7 +668,7 @@ export async function recategorizeSaved(
   categoryId: string,
   deps: Pick<PasteDeps, "tasks" | "schedule" | "notes">,
 ): Promise<void> {
-  if (s.kind === "bill") return; // a ledger bill has no area
+  if (s.kind === "bill" || s.kind === "expense") return; // Money's records have no area
   if (s.kind === "task") await deps.tasks.setCategory(s.id, categoryId);
   else if (s.kind === "event") await deps.schedule.editCategory(s.id, categoryId);
   else await deps.notes.setCategory(s.id, categoryId);

@@ -991,3 +991,42 @@ describe("classifyLine reads a length and an #Area", () => {
     expect(task.data).toMatchObject({ text: "Call Nadia", estimateMin: 30, category: "c-work" });
   });
 });
+
+// THE RESEARCH STANDARD, rule 5 (2026-10-18): a payment already made is a Money transaction. "Spent 30 on gas" used
+// to save as a note. Past tense, an amount and who was paid; the imperative "Pay Geico $214" is still a bill.
+describe("a payment already made files a transaction in the tracker", () => {
+  it("reads spent and paid with an amount and a payee, and nothing else", () => {
+    const e = classifyLine("Spent 30 on gas", TODAY);
+    expect(e.expense).toEqual({ amountCents: 3000, merchant: "Gas" });
+    expect(e.date).toBe(TODAY);
+    expect(e.bill).toBeUndefined();
+    expect(classifyLine("I paid $12.50 at Starbucks", TODAY).expense).toEqual({ amountCents: 1250, merchant: "Starbucks" });
+    expect(classifyLine("Paid $1,200 for rent", TODAY).expense).toEqual({ amountCents: 120000, merchant: "Rent" });
+    expect(classifyLine("spent 30 minutes on the report", TODAY).expense, "minutes are not money").toBeUndefined();
+    expect(classifyLine("Pay Geico $214", TODAY).expense, "imperative is a bill").toBeUndefined();
+    expect(classifyLine("Pay Geico $214", TODAY).bill).toEqual({ amount: 214 });
+  });
+
+  it("files it once, Undo removes it, and with no tracker it says so and makes no task", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const { TrackerService } = await import("../money/TrackerService");
+    const tracker = new TrackerService(store, U);
+    const deps = { ...rig({ n: 0 }), tracker } as PasteDeps;
+    const saved = await smartPasteSave("Spent 30 on gas", deps);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ kind: "expense", expense: { amountCents: 3000, merchant: "Gas" } });
+    const txs = (await tracker.load()).txs;
+    expect(txs).toHaveLength(1);
+    expect(txs[0]!.data).toMatchObject({ merchant: "Gas", amountCents: 3000, date: TODAY, month: "2026-08", source: "manual" });
+    expect(await deps.tasks.listTasks()).toEqual([]);
+    expect(await deps.notes.listNotes()).toEqual([]);
+    await undoSaved(saved[0]!, deps);
+    expect((await tracker.load()).txs).toEqual([]);
+
+    const closed = rig({ n: 0 });
+    const notes: string[] = [];
+    expect(await smartPasteSave("Spent 30 on gas", { ...closed, onBillNote: (m) => notes.push(m) })).toEqual([]);
+    expect(notes).toEqual(["Money Isn't Available Right Now"]);
+    expect(await closed.tasks.listTasks()).toEqual([]);
+  });
+});

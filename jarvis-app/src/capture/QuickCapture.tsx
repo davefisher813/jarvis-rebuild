@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, type ReactNode } from "react";
 import { X } from "../shared/icons";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, usePeople, useProjects, useStore } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, useOptionalTracker, usePeople, useProjects, useStore } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
@@ -40,7 +40,7 @@ import { clock12 } from "../shared/clock";
 // refile targets (KINDS below): a decision record and a person's card are
 // not things a task can be turned into by a chip, and offering it would be a
 // control that promises a move nobody built.
-const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact", decision: "Decision", person: "Person", bill: "Bill" };
+const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact", decision: "Decision", person: "Person", bill: "Bill", expense: "Expense" };
 // NO ENTRY IS EVER LOST (the Logging Standard, rule 8, 2026-10-17): the box is
 // written here on every keystroke, read back when the sheet opens again, and
 // cleared by the Capture that spent it or the Cancel that discarded it. A
@@ -77,7 +77,8 @@ function fmtClock(hhmm: string): string {
 function whenParts(s: SavedEntity): { text: string; tone: ReturnType<typeof dayTone> }[] {
   const parts: { text: string; tone: ReturnType<typeof dayTone> }[] = [];
   // A bill's date is its due date, so it wears the due window a task's does.
-  if (s.date) parts.push({ text: weekdayLongDate(s.date), tone: s.kind === "task" || s.kind === "bill" ? dayTone(s.date, todayISO()) : "date" });
+  // A payment made today says nothing of the day: the date is only drawn when he named one.
+  if (s.date && !(s.expense && s.inferred?.includes("date"))) parts.push({ text: weekdayLongDate(s.date), tone: s.kind === "task" || s.kind === "bill" ? dayTone(s.date, todayISO()) : "date" });
   if (s.start) parts.push({ text: fmtClock(s.start), tone: "date" });
   return parts;
 }
@@ -126,7 +127,7 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   const who = [names.person, names.project].filter(Boolean).join(", ");
   // The one grey word run a record with no chip carries, who folded in.
   // A bill has no kind run: its own Bill fact below is the word.
-  const kindRun = s.kind === "bill" ? null : !KINDS.includes(s.kind) ? KIND_LABEL[s.kind] + (who ? " for " + who : "")
+  const kindRun = s.kind === "bill" || s.kind === "expense" ? null : !KINDS.includes(s.kind) ? KIND_LABEL[s.kind] + (who ? " for " + who : "")
     // C-49: the kind the prefix chose, when it is not plain Fact.
     : s.kind === "fact" && s.factType && s.factType !== "fact" ? STRAND_TYPE_LABEL[s.factType] + (who ? " about " + who : "")
     : null;
@@ -144,6 +145,7 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   const repeat = s.recurrence ? (REPEAT_WORD[s.recurrence] ?? s.recurrence) : s.reminder ? reminderDays(s.reminder.days) : "";
   if (repeat) out.push(<span className="fact date" key="repeat">{repeat}</span>);
   if (s.bill) out.push(<span className="fact" key="bill">Bill <b>{formatMoney(s.bill.amount)}</b>{who ? " for " + who : ""}</span>);
+  else if (s.expense) out.push(<span className="fact" key="expense">Expense <b>{formatMoney(s.expense.amountCents / 100)}</b></span>);
   else if (who && !kindRun) out.push(<span className="fact" key="who">{who}</span>);
   return out;
 }
@@ -193,6 +195,8 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const decisions = useOptionalDecisions();
   // Where a bill goes. Money's ledger, never a task (ledger hard rule 1).
   const ledger = useOptionalLedger();
+  // Where a payment already made goes (the tracker), beside the bill lane.
+  const tracker = useOptionalTracker();
   // Brain Manual v1 (2026-09-27): the filing doors. Optional like the
   // decisions seam above -- without a brain service they simply don't render.
   const brain = useOptionalBrainMemory();
@@ -232,7 +236,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // it did before.
   const deps = (categories: Category[], who: { people?: { id: string; name: string }[]; projects?: { id: string; title: string }[] } = { people, projects }) =>
     ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...who, ...(rules ? { rules } : {}), ...(strands ? { strands } : {}),
-      ...(decisions ? { decisions } : {}), ...(ledger ? { ledger } : {}), peopleSvc });
+      ...(decisions ? { decisions } : {}), ...(ledger ? { ledger } : {}), ...(tracker ? { tracker } : {}), peopleSvc });
 
   // UP-ATH-18 (2026-09-06, option A): THE SET GOES TO THE SESSION, NOT TO A
   // LIST. While a session is live the bar is standing right next to the
@@ -564,7 +568,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                       {/* A bill lives in Money: no task, event, note or area
                           chip can move it out, so the one chip says where it
                           is, lit and inert (hard rule 1). */}
-                      {s.kind === "bill" ? (
+                      {s.kind === "bill" || s.kind === "expense" ? (
                         <div className="chip active" role="radio" aria-checked="true">In Money</div>
                       ) : KINDS.filter((k) => k !== "fact" || strands).map((k) => (
                         <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
@@ -574,7 +578,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                           (S4-Q22): the category is a guess same as any other
                           capture, and selfFact.ts has always said the receipt
                           lets it be changed. */}
-                      {s.kind === "bill" ? null : s.kind === "fact"
+                      {s.kind === "bill" || s.kind === "expense" ? null : s.kind === "fact"
                         ? FACT_CATEGORIES.map((c) => (
                             <div key={c} className={"chip" + (s.factCategory === c ? " active" : "")} role="radio" aria-checked={s.factCategory === c} tabIndex={0} onClick={() => void onFactCat(s, c)}>
                               {STRAND_CATEGORY_LABEL[c]}
