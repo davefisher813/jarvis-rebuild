@@ -1054,7 +1054,10 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .chip.active, .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 
 /* TAB BAR */
-.tab-bar { display: flex; background: var(--nav-bg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 var(--tab-clear); }
+.tab-bar { display: flex; background: var(--nav-bg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 var(--tab-clear);
+  /* THE DOCK JOINS THE ONE RADIUS SYSTEM (Dave 2026-10-19, ruling on the live audit: "round the dock corners like the cards"): the flush bar takes the
+     card radius on its top corners. The floating light capsule keeps its own --r-dock (glass-light.css). */
+  border-radius: var(--r-lg) var(--r-lg) 0 0; }
 /* Unselected tab labels ride systemGray, not tertiaryLabel. tertiaryLabel
    is Apple's colour for text that has been deliberately de-emphasised
    INSIDE content; iOS tab bars use the opaque grey, because the tab bar is
