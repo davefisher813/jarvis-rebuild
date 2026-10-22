@@ -21,6 +21,7 @@ import { onPressKey, pressable } from "../../shared/pressable";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { addDays, fmtTime } from "../../schedule/calendar";
 import { sortPicks } from "../../shared/pickerSort";
+import { listInAreas, homeArea, keepIfTied, projectAreas, useWhenAreasChange } from "../../shared/areaLinks";
 import { notePick, recentPicks } from "../../shared/recentPicks";
 import { titleCase } from "../../shared/casing";
 
@@ -72,7 +73,7 @@ export interface TaskDraft {
 export interface SheetProject { id: string; title: string; category?: string; goalTitle?: string; goalId?: string }
 /** A goal this sheet can file a task to (2026-09-26): the fileable ones,
  *  plus whichever it is already under (bigger/reach.ts sheetGoals). */
-export interface SheetGoal { id: string; title: string }
+export interface SheetGoal { id: string; title: string; /** The areas it is tied to (its tags), home first: the sheet's Area narrows the Goal menu to the ones tied to it (Dave 2026-10-22). */ areas?: string[] }
 /** An event this sheet can file a task to. `when` is a rendered day, not a
  *  date: the menu has to disambiguate two events with the same name, and a
  *  raw ISO string in a picker is a machine talking. */
@@ -191,7 +192,8 @@ export default function TaskSheet({
   // free text (A25): a typed name is the guessing this field replaces.
   // Empty means no Person row at all, so a person with no contacts never
   // meets a control that can only say None.
-  people?: { id: string; name: string }[];
+  // `areas` is where they belong (their categoryIds), so the sheet's Area can narrow this menu (Dave 2026-10-22, shared/areaLinks).
+  people?: { id: string; name: string; areas?: string[] }[];
   // Provenance of the task being edited, when it was auto-created. A fact
   // line only; the sheet never writes it (coverage map: not editable).
   source?: Source;
@@ -291,10 +293,26 @@ export default function TaskSheet({
   // It only fills a BLANK area, and only the primary one. Overwriting an area
   // he set by hand would be the app arguing with him, and adding to the extra
   // set would silently spread a task across areas he never chose. So: if the
-  // field is empty, answer it; otherwise leave it entirely alone.
+  // field is empty, answer it; otherwise leave it entirely alone. "Empty" is
+  // the area the rows show (a #area read from the name counts), because a
+  // pick is only ever offered under the area already in force (see below).
   const fillAreaFrom = (cat: string | undefined) => {
-    if (!cat) return;
-    setCats((cur) => (cur.length > 0 ? cur : [cat]));
+    if (!cat || effCats.length > 0) return;
+    setCats([cat]);
+  };
+  // THE LINKED PICKERS FOLLOW THE AREA, BOTH WAYS (Dave 2026-10-22; the rule
+  // and its edges are in shared/areaLinks). With an Area the Person, Project
+  // and Goal menus list only what is tied to it; with none, a pick brings
+  // its own Area in; and a change of Area sends any pick that no longer fits
+  // back to None (the effect below the effective areas).
+  const liveAreaIds = categories.map((c) => c.id);
+  const pickPerson = (id: string) => {
+    setPersonId(id);
+    if (id) fillAreaFrom(homeArea(people.find((x) => x.id === id)?.areas, liveAreaIds));
+  };
+  const pickGoal = (id: string) => {
+    setGoalId(id);
+    if (id) fillAreaFrom(homeArea(goals.find((x) => x.id === id)?.areas, liveAreaIds));
   };
   const pickProject = (id: string) => {
     setProjectId(id);
@@ -333,12 +351,6 @@ export default function TaskSheet({
   // search field at the top of the menu.
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
   const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
-  // His titles are SHOWN in Title Case, in the menu and on the row alike
-  // (Dave's pass-off, 2026-09-26); the value stays the id. Each option wears
-  // its area's dot (the lead, 2026-09-26), so the area-then-name order reads
-  // as grouping rather than as no order at all.
-  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId, recentPicks("project"))
-    .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -367,6 +379,30 @@ export default function TaskSheet({
     : undefined;
   const lengthLabel = effEstimate === null ? "None" : durLabel(effEstimate);
   const usualWord = categoryMinutes[effCategory] ? durLabel(categoryMinutes[effCategory]!) : "";
+
+  // THE MENUS UNDER THE AREA IN FORCE (Dave 2026-10-22). What the rows draw is the effective area, so a #area typed into the name narrows
+  // them too; the pick already made stays listed even when it no longer fits (an old record opened as it was), and None is always on top.
+  const personsHere = listInAreas(people, (p) => p.areas, effCats, personId);
+  const goalsHere = listInAreas(goals, (g) => g.areas, effCats, goalId);
+  // His titles are SHOWN in Title Case, in the menu and on the row alike
+  // (Dave's pass-off, 2026-09-26); the value stays the id. Each option wears
+  // its area's dot (the lead, 2026-09-26), so the area-then-name order reads
+  // as grouping rather than as no order at all.
+  const projectOptions = sortPicks(
+    listInAreas(projects, (p) => projectAreas(p.category), effCats, projectId).map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })),
+    projectId, recentPicks("project"))
+    .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
+  // A CHANGE OF AREA SENDS WHAT NO LONGER FITS BACK TO NONE (rule 3). Once per change, never on open. With a project kept, the goal on
+  // the row is the project's own and is left alone; a project that goes takes its goal off the row, and the goal it leaves behind
+  // stays only if it is tied to the new area.
+  useWhenAreasChange(effCats, (chosen) => {
+    const nextProject = keepIfTied(projectId, projects, (p) => projectAreas(p.category), chosen);
+    if (nextProject !== projectId) setProjectId(nextProject);
+    const nextGoal = nextProject ? goalId : keepIfTied(goalId, goals, (g) => g.areas, chosen);
+    if (nextGoal !== goalId) setGoalId(nextGoal);
+    const nextPerson = keepIfTied(personId, people, (p) => p.areas, chosen);
+    if (nextPerson !== personId) setPersonId(nextPerson);
+  });
 
   // STEPS (2026-09-04): a checklist inside the task, edited locally like
   // every other field here and committed whole on Save (TasksService.setSteps
@@ -807,8 +843,8 @@ export default function TaskSheet({
               <Tile tone="teal"><User className="ic" /></Tile>
               <div className="conn-name">Person</div>
               <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
-                options={[{ value: "", label: "None" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
-                onPick={setPersonId} />
+                options={[{ value: "", label: "None" }, ...personsHere.map((p) => ({ value: p.id, label: p.name }))]}
+                onPick={pickPerson} />
             </div>
             {(
               <div className="row xs-row" onClick={tapField}>
@@ -855,9 +891,9 @@ export default function TaskSheet({
                     search="Search Projects"
                     onPick={pickProject} />
                 : <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
-                    options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: titleCase(g.title) }))]}
+                    options={[{ value: "", label: "None" }, ...sortPicks(goalsHere, goalId).map((g) => ({ value: g.id, label: titleCase(g.title) }))]}
                     search="Search Goals"
-                    onPick={setGoalId} />}
+                    onPick={pickGoal} />}
             </div>
             {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
                 tied to task modals"). The event page could file a task to

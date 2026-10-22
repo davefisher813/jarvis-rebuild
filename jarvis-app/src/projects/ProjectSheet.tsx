@@ -7,6 +7,7 @@ import { FolderKanban, Tag, Calendar } from "../shared/icons";
 import { TargetGlyph, PulseGlyph } from "../shared/glyphs";
 import { fileableGoals } from "../bigger/reach";
 import { titleCase } from "../shared/casing";
+import { listInAreas, homeArea, keepIfTied, useWhenAreasChange } from "../shared/areaLinks";
 
 // THE PROJECT SHEET ON THE SHEET BAR (2026-09-02, the form sheets after the
 // task sheet): the name as the row, Status, Back On when it is on hold, Area
@@ -37,6 +38,21 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
   // goal that no longer counts, so it read as unfiled on its category page.
   // The goal it is already under stays listed so the value still resolves.
   const goalOptions = fileableGoals(goals, initial?.goalId);
+  // THE GOAL MENU FOLLOWS THE AREA, BOTH WAYS (Dave 2026-10-22, shared/areaLinks): with an Area it lists the goals tied to it (None on
+  // top, the one already under stays listed); with none, picking a goal brings its Area in; and changing the Area sends a goal that no
+  // longer fits back to None. The row itself stays while any goal exists, so an Area with no goals says None rather than losing the row.
+  const chosenAreas = category ? [category] : [];
+  const goalsHere = listInAreas(goalOptions, (g) => g.data.tags, chosenAreas, goalId);
+  const pickGoal = (id: string) => {
+    setGoalId(id);
+    if (!id || category) return;
+    const home = homeArea(goalOptions.find((g) => g.id === id)?.data.tags, categories.map((c) => c.id));
+    if (home) setCategory(home);
+  };
+  useWhenAreasChange(chosenAreas, (chosen) => {
+    const next = keepIfTied(goalId, goalOptions, (g) => g.data.tags, chosen);
+    if (next !== goalId) setGoalId(next);
+  });
   const valid = title.trim().length > 0;
   const save = () => {
     if (!valid) { setTouched(true); return; }
@@ -76,8 +92,8 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
           )}
           {goalOptions.length > 0 && (
             <MenuRow tone="red" glyph={<TargetGlyph />} label="Goal" value={goalId} ariaLabel="Goal" off={goalId === ""}
-              options={[{ value: "", label: "None" }, ...goalOptions.map((g) => ({ value: g.id, label: titleCase(g.data.title) }))]}
-              onPick={setGoalId} />
+              options={[{ value: "", label: "None" }, ...goalsHere.map((g) => ({ value: g.id, label: titleCase(g.data.title) }))]}
+              onPick={pickGoal} />
           )}
         </Group>
       )}

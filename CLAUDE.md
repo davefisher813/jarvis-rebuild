@@ -48,6 +48,23 @@ into a one-letter strip (`.block-held-col > .r-k { grid-column: 2 }` is the fix)
 and measures it; CI installs Chromium for it, and `CHROMIUM_PATH` points at one anywhere else. Any change to a row inside the day card (event,
 proposed, held) or to the `.block-held-*` grid runs that law before it is called done, and a new kind of row goes into the bench.
 
+## Linked pickers follow the Area, both ways (Dave, 2026-10-22)
+
+His phone: Area said Elite Squad and the Goal picker still listed every goal. The rule, in one place (`src/shared/areaLinks.ts`), read by every editor that
+carries an Area beside a Person, Project or Goal (the task sheet, the event sheet, the project sheet, the project page's own rows):
+
+1. **Area first.** With an Area, the other pickers list only what is tied to it, None on top, a search searching what is left, and an Area with nothing of a
+   kind leaves just None. No Area, no filter.
+2. **Reverse.** A Goal, Project or Person picked while the Area is blank brings its own Area in (the first it names); a pick never moves an Area already chosen.
+3. **A change of Area clears** any picked Goal, Project or Person that is not tied to the new one, back to None. None for the Area clears nothing.
+
+"Tied" is each kind's stored link: a project's `category`, a goal's `tags`, a person's `categoryIds`. An item with no area is tied to none, so an Area hides
+it; assigning areas to contacts and goals is what makes them appear. A record opened with a link that already disagrees keeps showing it (and keeps it
+listed) until the Area changes; opening a record never edits it. The event sheet's Area defaults to the first area, so it is not in force until somebody
+chooses one (or the sheet opens into one, or it is an edit); a Project pick brings its Area in until then. `laws/areaLinks.test.ts` finds the editors by what
+they draw, so a new editor with the same pair fails until it is wired. Not covered by this rule: the Event picker on the task sheet, and the reminder sheet's
+Linked Item (a mixed-type link, not a Project, Person or Goal field).
+
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
 "I am sick of this shit." A thin grey subtext came back on the live Email card

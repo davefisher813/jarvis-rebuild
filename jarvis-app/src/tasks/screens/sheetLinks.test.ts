@@ -22,8 +22,10 @@ describe("sheetProjects", () => {
 });
 
 describe("sheetPeople", () => {
-  it("is the id and the name, nothing else", () => {
-    const people = [{ id: "m", data: { name: "Marco" } } as Person];
-    expect(sheetPeople(people)).toEqual([{ id: "m", name: "Marco" }]);
+  // AMENDED 2026-10-22 (Dave: linked pickers filter by Area): a contact also carries the areas they belong to, so the sheet's Area can narrow the
+  // Person menu. A contact with none is tied to none.
+  it("is the id, the name and the areas they belong to, nothing else", () => {
+    const people = [{ id: "m", data: { name: "Marco", categoryIds: ["c1", "c2"] } } as Person, { id: "n", data: { name: "Nina" } } as Person];
+    expect(sheetPeople(people)).toEqual([{ id: "m", name: "Marco", areas: ["c1", "c2"] }, { id: "n", name: "Nina", areas: [] }]);
   });
 });

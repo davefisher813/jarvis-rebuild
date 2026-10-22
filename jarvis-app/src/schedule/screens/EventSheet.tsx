@@ -5,6 +5,7 @@ import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
 import { sortPicks } from "../../shared/pickerSort";
+import { listInAreas, keepIfTied, projectAreas, useWhenAreasChange } from "../../shared/areaLinks";
 import { notePick, recentPicks } from "../../shared/recentPicks";
 import { titleCase } from "../../shared/casing";
 import RowCtxAction from "../../shared/RowCtxAction";
@@ -223,21 +224,30 @@ export default function EventSheet({
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
   // A project already knows its area, so picking one answers the Area row
   // (the task sheet's rule: only a blank is filled). The area on an event is
-  // never blank (it defaults to the first), so it follows the project only
-  // while it is still that default on a new event.
+  // never blank (it defaults to the first), so until somebody chooses one it
+  // is not an Area in force: the Project menu lists everything, and a pick
+  // brings its own Area in. A record being edited, or a new event opened
+  // into an area, has chosen (Dave 2026-10-22, shared/areaLinks).
+  const [areaSet, setAreaSet] = useState(mode === "edit" || initial?.category !== undefined);
+  const changeArea = (id: string) => { setCategory(id); setAreaSet(true); };
   const pickProject = (id: string) => {
     setProjectId(id);
     const p = projects.find((x) => x.id === id);
-    if (!p) return;
-    if (p.category && mode === "new" && category === (initial?.category ?? categories[0]?.id ?? "")) setCategory(p.category);
+    if (p?.category && !areaSet) changeArea(p.category);
   };
+  // The Area in force, for the linked menus; and rule 3, a change of it sends a project that no longer fits back to None (never on open).
+  const chosenAreas = areaSet && category ? [category] : [];
+  useWhenAreasChange(chosenAreas, (chosen) => {
+    const next = keepIfTied(projectId, projects, (p) => projectAreas(p.category), chosen);
+    if (next !== projectId) setProjectId(next);
+  });
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
   const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
   // His titles are SHOWN in Title Case (Dave's pass-off, 2026-09-26). Each
   // option wears its area's dot (the lead, 2026-09-26: the Projects menu
   // shows each project's area dot and keeps area-then-name order with
   // search), so the order reads as grouping.
-  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId, recentPicks("project"))
+  const projectOptions = sortPicks(listInAreas(projects, (p) => projectAreas(p.category), chosenAreas, projectId).map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId, recentPicks("project"))
     .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
@@ -384,7 +394,7 @@ export default function EventSheet({
     setStart(s.start);
     setEnd(addMinutes(s.start, s.durationMin));
     if (s.location) setLocation(s.location);
-    if (categories.some((c) => c.id === s.category)) setCategory(s.category);
+    if (categories.some((c) => c.id === s.category)) changeArea(s.category);
     if (err) setErr(false);
   };
   // A suggestion's two facts, drawn apart (§AM F2/F3): the start is a
@@ -614,8 +624,8 @@ export default function EventSheet({
             <div onClick={tapField} className="row xs-row">
               <Tile tone="blue"><Tag className="ic" /></Tile>
               <div className="conn-name">Area</div>
-              <HeadMenu variant="value" ariaLabel="Area" value={category}
-                options={categories.map((c) => ({ value: c.id, label: c.name, dot: slot(c) as string }))} onPick={setCategory} />
+              <HeadMenu variant="value" ariaLabel="Area" value={category} repick={!areaSet}
+                options={categories.map((c) => ({ value: c.id, label: c.name, dot: slot(c) as string }))} onPick={changeArea} />
             </div>
             {/* WHAT IT IS FOR (Dave's pass-off, 2026-09-26: "no way to attach
                 a project"). The task sheet's Project row, on the event: a
