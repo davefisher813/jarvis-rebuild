@@ -734,15 +734,20 @@ describe("TaskSheet: the smart Where group", () => {
     expect(screen.getByLabelText("Area").textContent).toContain("Work");
   });
 
+  // AMENDED 2026-10-22 (Dave: linked pickers filter by Area, both directions). An area he set himself used to survive a pick from another
+  // area; now the other area's projects are not offered at all while it is set, so the pick that could have argued with him cannot be
+  // made, and a pick that is offered leaves the area alone.
   it("never argues with an area he set himself", () => {
-    render(<TaskSheet mode="new" categories={CATS} projects={PROJ} onSave={() => {}} onCancel={() => {}} />);
+    const two = [...PROJ, { id: "pr2", title: "Hiring Plan", category: "c1" }];
+    render(<TaskSheet mode="new" categories={CATS} projects={two} onSave={() => {}} onCancel={() => {}} />);
     fireEvent.click(screen.getByLabelText("Area"));
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Work/ }));
     // The multi menu stays open while picking, so close it by its own control
     // (the trigger is the first match; the open list carries the label too).
     fireEvent.click(screen.getAllByLabelText("Area")[0]!);
     fireEvent.click(screen.getByLabelText("Project"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));
+    expect(screen.queryByRole("menuitemradio", { name: /Kitchen Remodel/ })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Hiring Plan/ }));
     expect(screen.getByLabelText("Area").textContent).toContain("Work");
     expect(screen.getByLabelText("Area").textContent).not.toContain("Money");
   });

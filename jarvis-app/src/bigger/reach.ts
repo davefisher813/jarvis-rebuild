@@ -64,9 +64,11 @@ export function fileableGoals(goals: Goal[], currentId?: string): Goal[] {
 }
 
 /** The goal picker's options for a task or event sheet (2026-09-26): the
- *  fileable goals, as the id-and-title pair the sheets take. */
-export function sheetGoals(goals: Goal[], currentId?: string): { id: string; title: string }[] {
-  return fileableGoals(goals, currentId).map((g) => ({ id: g.id, title: g.data.title }));
+ *  fileable goals, as the id-and-title pair the sheets take, and the areas each
+ *  is tied to (its tags, home first) so the sheet's Area can narrow the list
+ *  (Dave 2026-10-22, shared/areaLinks). */
+export function sheetGoals(goals: Goal[], currentId?: string): { id: string; title: string; areas: string[] }[] {
+  return fileableGoals(goals, currentId).map((g) => ({ id: g.id, title: g.data.title, areas: goalTags(g) }));
 }
 
 export interface GoalReach {

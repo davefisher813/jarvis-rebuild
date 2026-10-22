@@ -28,7 +28,8 @@ export function sheetProjects(projects: Project[], goals: Goal[]): SheetProject[
   });
 }
 
-/** A contact as the sheet's Person menu takes it. */
-export function sheetPeople(people: Person[]): { id: string; name: string }[] {
-  return people.map((p) => ({ id: p.id, name: p.data.name }));
+/** A contact as the sheet's Person menu takes it, with the areas they belong to so the sheet's Area can narrow the list
+ *  (Dave 2026-10-22, shared/areaLinks). */
+export function sheetPeople(people: Person[]): { id: string; name: string; areas: string[] }[] {
+  return people.map((p) => ({ id: p.id, name: p.data.name, areas: p.data.categoryIds ?? [] }));
 }

@@ -18,6 +18,7 @@ import { attemptWrite } from "../shared/guard";
 import { lineCase, titleCase } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
 import { fileableGoals } from "../bigger/reach";
+import { listInAreas, homeArea, keepIfTied } from "../shared/areaLinks";
 import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
 import { projectPaceParts } from "../bigger/progress";
 import { haptics } from "../shared/haptics";
@@ -114,6 +115,19 @@ export default function ProjectDetailPage({
   const saveField = (patch: Partial<ProjectData>) => {
     setData((d) => ({ ...d, ...patch }));
     if (projectsSvc) void attemptWrite(() => projectsSvc.update(project.id, patch)).then(() => onChanged?.());
+  };
+  // THE GOAL MENU FOLLOWS THE AREA, BOTH WAYS (Dave 2026-10-22, shared/areaLinks). These two rows save the moment they are picked, so the
+  // three rules land in one write: the Goal menu lists the goals tied to the Area (None on top, the one already filed under stays listed);
+  // a goal picked while there is no Area brings its own in; and an Area it no longer fits sends the goal back to None.
+  const goalsHere = listInAreas(fileableGoals(goalList, data.goalId), (g) => g.data.tags, data.category ? [data.category] : [], data.goalId ?? "");
+  const pickArea = (id: string) => {
+    const category = id || undefined;
+    const goalStays = !data.goalId || !category || keepIfTied(data.goalId, goalList, (g) => g.data.tags, [category]) === data.goalId;
+    saveField({ category, ...(goalStays ? {} : { goalId: undefined }) });
+  };
+  const pickGoal = (id: string) => {
+    const home = id && !data.category ? homeArea(goalList.find((g) => g.id === id)?.data.tags, catList.map((c) => c.id)) : undefined;
+    saveField({ goalId: id || undefined, ...(home ? { category: home } : {}) });
   };
 
   // Add a step without leaving the project. The task sheet asks for a
@@ -252,10 +266,10 @@ export default function ProjectDetailPage({
           {projectsSvc && catList.length > 0 ? (
             <HeadMenu variant="value" ariaLabel="Area" value={data.category ?? ""} off={!hasCat}
               options={[{ value: "", label: "None" }, ...catList.map((c) => ({ value: c.id, label: c.data.name, dot: c.data.color as string }))]}
-              onPick={(v) => saveField({ category: v || undefined })} />
+              onPick={pickArea} />
           ) : hasCat ? <span className="proj-detail-cat"><span className={"cat-dot cat-bg-" + catColor(data.category!)} />{tag}</span> : <span className="row-value">None</span>}</div>
         {guessedArea && (
-          <div className="row proj-guess" role="button" tabIndex={0} onClick={() => saveField({ category: guessedArea })}>
+          <div className="row proj-guess" role="button" tabIndex={0} onClick={() => pickArea(guessedArea)}>
             <div className="row-grow">
               <div className="conn-name">Set Area to {catName(guessedArea)}</div>
               <div className="conn-meta">Most of This Project&rsquo;s Steps Are Already There</div>
@@ -269,8 +283,8 @@ export default function ProjectDetailPage({
               // LIFE-F-26 (2026-09-05): this dropped achieved goals and kept
               // dropped ones, so a project could still be filed under a goal
               // that had been put down on purpose.
-              options={[{ value: "", label: "None" }, ...fileableGoals(goalList, data.goalId).map((g) => ({ value: g.id, label: g.data.title }))]}
-              onPick={(v) => saveField({ goalId: v || undefined })} />
+              options={[{ value: "", label: "None" }, ...goalsHere.map((g) => ({ value: g.id, label: g.data.title }))]}
+              onPick={pickGoal} />
           ) : <span className="row-value">{goalList.find((g) => g.id === data.goalId)?.data.title ?? "None"}</span>}</div>
       </div></div>
       {/* THE STEPS. Open work first, finished work folded away behind its

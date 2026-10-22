@@ -66,6 +66,7 @@ export default function HeadMenu({
   multi = false,
   picked,
   search,
+  repick = false,
 }: {
   value: string;
   options: MenuOption[];
@@ -93,6 +94,10 @@ export default function HeadMenu({
       label as he types, and the clearing option (value "") always stays. The
       caller orders the options (shared/pickerSort). */
   search?: string;
+  /** A TAP ON THE VALUE ALREADY SHOWN STILL COUNTS (2026-10-22). A single-choice menu says nothing when the value picked is the one it
+      shows. An event's Area shows the first area before anybody has chosen one, and choosing that very area is a choice (it puts the
+      Area in force for the linked menus), so that row asks to hear it. */
+  repick?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -155,7 +160,7 @@ export default function HeadMenu({
   const pick = (v: string) => {
     haptics.selection();
     if (!multi || v === "") setOpen(false);
-    if (multi || v !== value) onPick(v);
+    if (multi || repick || v !== value) onPick(v);
   };
 
   return (
