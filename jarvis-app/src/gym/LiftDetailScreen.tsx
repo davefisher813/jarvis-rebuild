@@ -243,7 +243,7 @@ export default function LiftDetailScreen({
   const withUnit = (n: number | string) => lineCase(unit ? `${n} ${unit}` : `${n}`);
   /** The set, cased for display ("185 Lb × 5"); formatSet itself stays
    *  lowercase for the strip's own chips and the receipts that read it. */
-  const setLine = (x: import("./types").SetLog) => lineCase(formatSet({ kind, unit, timeUnit }, x));
+  const setLine = (x: import("./types").SetLog) => lineCase(formatSet({ kind, unit, timeUnit }, x, { bodyweight: true }));
   /** The comparable gain, in words ("Up 10 Lb at 5 Reps Since Aug 31"). */
   const moved = gain && gain.delta !== 0 ? gainLine(gain, "word") : null;
 

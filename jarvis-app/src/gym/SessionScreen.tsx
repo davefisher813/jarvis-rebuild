@@ -10,7 +10,7 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { REST_FLOOR_SEC } from "./pacing";
-import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable } from "./measures";
+import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable, notLoggableWhy } from "./measures";
 import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom, uniformStrip } from "./strip";
@@ -757,7 +757,7 @@ export default function SessionScreen({
   const receiptForLog = (entry: SetEntry, movedTo?: string, undoAccept?: (() => void) | null) => {
     const before = logged;
     const at = idx;
-    const logged1 = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${entry.warmup ? "Warm-Up " : ""}${lineCase(formatSet(exercise, entry))}`;
+    const logged1 = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${entry.warmup ? "Warm-Up " : ""}${lineCase(formatSet(exercise, entry, { bodyweight: true }))}`;
     const said = undoAccept ? `${logged1} \u00b7 Plan Moved` : logged1;
     showToast({
       // In a superset the receipt says where the session just went, so the
@@ -1509,6 +1509,10 @@ export default function SessionScreen({
                   {logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
                 </button>}
           </div>
+          {/* A DIM BUTTON SAYS WHY (Dave, 2026-10-24: logging is never blocked silently): the one thing missing, in words, right under it. */}
+          {!cond && exercise.kind !== "done" && (!planComplete || extraOpen) && notLoggableWhy(exercise.kind, pending) && (
+            <div className="logbar-why" role="status">{notLoggableWhy(exercise.kind, pending)}</div>
+          )}
           {/* THE ROW UNDER LOG (Dave's board, 2026-10-17): Superset and Add
               Exercise, the two moves on the whole workout, as the capsules
               every non-primary control is (§AL). "Add Exercise" on the face

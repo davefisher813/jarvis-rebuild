@@ -111,21 +111,33 @@ describe("B and H: an empty set cannot be logged and earns nothing", () => {
     expect(cta()).toBeEnabled();
   });
 
-  it("a loaded lift needs weight AND reps; a bodyweight lift needs reps alone", () => {
-    renderScreen({}, bench({ sets: [{ id: "p1", r: 8 }] }));
-    expect(cta(), "reps alone on a barbell is not a set").toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "135" } });
+  it("weight is never required (Dave 2026-10-24: Hanging Leg Raise, reps 12, would not log); reps are the set, and a dim button says why", () => {
+    const onLog = vi.fn();
+    renderScreen({ onLog }, bench({ sets: [{ id: "p1", r: 12 }] }));
+    expect(cta(), "reps alone logs on any lift, one tap, from the prefilled values").toBeEnabled();
+    expect(cta()).toHaveTextContent("Log Bodyweight × 12");
+    expect(document.querySelector(".logbar-why"), "nothing to say when it can log").toBeNull();
+    fireEvent.click(cta());
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(onLog.mock.calls[0]![0]).toMatchObject({ r: 12, state: "reported" });
+    expect(onLog.mock.calls[0]![0].w).toBeUndefined();
+  });
+
+  it("an emptied reps field disables it, and the card says what is missing in words", () => {
+    renderScreen({}, bench({ sets: [{ id: "p1", r: 8, w: 135 }] }));
     expect(cta()).toBeEnabled();
     fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "" } });
-    expect(cta(), "an emptied reps field disables it again").toBeDisabled();
+    expect(cta()).toBeDisabled();
+    expect(document.querySelector(".logbar-why")?.textContent).toBe("Add the Reps to Log");
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "5" } });
+    expect(document.querySelector(".logbar-why")).toBeNull();
   });
 
   it("reps alone logs on bodyweight, and one rep is 1 Rep", () => {
     const onLog = vi.fn();
     renderScreen({ onLog }, bench({ equipment: "bodyweight", sets: [{ id: "p1", r: 1 }] }));
     expect(cta()).toBeEnabled();
-    expect(cta()).toHaveTextContent("Log 1 Rep");
-    expect(cta()).not.toHaveTextContent("1 Reps");
+    expect(cta()).toHaveTextContent("Log Bodyweight × 1");
     fireEvent.click(cta());
     expect(onLog).toHaveBeenCalledTimes(1);
   });
