@@ -62,6 +62,8 @@ describe("the Game Night sheets, scored their real way", () => {
     await mount("u-s1-hearts");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("Scoreboard"));
+    // The Scoreboard row asks which one (its League Standings view sits under it, 2026-10-23).
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Scoreboard"));
     // The named sheets sit on the Game Night shelf of the picker.
     for (const g of ["Hearts", "Spades", "Euchre", "Rummy", "Phase 10", "Yahtzee", "Farkle"]) expect(within(sheetOf()).getByText(g), g).toBeInTheDocument();
     fireEvent.click(within(sheetOf()).getByText("Hearts"));
@@ -98,6 +100,8 @@ describe("the Game Night sheets, scored their real way", () => {
     await mount("u-s1-dice");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("Scoreboard"));
+    // The Scoreboard row asks which one (its League Standings view sits under it, 2026-10-23).
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Scoreboard"));
     fireEvent.click(await within(sheetOf()).findByText("Yahtzee"));
     fireEvent.click(within(sheetOf()).getByText("Start"));
     await screen.findByLabelText("Page options", {}, { timeout: 4000 });

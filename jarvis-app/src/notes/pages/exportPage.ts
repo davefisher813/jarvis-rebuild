@@ -168,6 +168,24 @@ function pdfSubtitle(page: PageData): string {
   return "";
 }
 
+/** THE ONE-PAGER IS A PRINTOUT OF A SCOUTING REPORT (Dave's cut list, 2026-10-23: the Profile One-Pager folded into the Scouting Report).
+ *  One report row becomes a one-person page that reads down (field, then value), with only the fields that have words in them. Nothing is
+ *  stored: the page exists for the PDF and is gone. Null when the row has nothing to print. */
+export function onePagerOf(page: PageData, recordId: string): { title: string; page: PageData } | null {
+  const rec = page.records.find((r) => r.id === recordId);
+  if (!rec) return null;
+  const fields = editableFields(page).filter((f) => (rec.v[f.key] ?? "").trim());
+  if (!fields.length) return null;
+  const title = (rec.v.name ?? "").trim() || "Scouting Report";
+  return { title, page: { v: 1, kind: "profile", fields: fields.map((f) => ({ ...f })), records: [{ id: rec.id, v: { ...rec.v } }] } };
+}
+
+/** The one-pager as a PDF. */
+export async function buildOnePager(page: PageData, recordId: string): Promise<{ blob: Blob; title: string } | null> {
+  const one = onePagerOf(page, recordId);
+  return one ? { blob: await buildPagePdf(one.title, one.page), title: one.title } : null;
+}
+
 /** What a person is sent: the picked rows and fields as plain lines, nothing else. */
 export function shareText(title: string, page: PageData, fieldKeys: string[], recordIds: string[]): string {
   const keep = new Set(recordIds);

@@ -243,6 +243,7 @@ export function StandingsView({ page, onTeam, onAddTeam, onGame, onAddGame }: {
         </>
       )}
       {rows.length < 2 && <Foot>Add Two Teams, Then Record a Game; Wins, Losses and Points Work Themselves Out</Foot>}
+      {rows.length >= 2 && games.length === 0 && <Foot>Finish a Two-Team Scoreboard Game With Both Names Here and It Lands in the Table</Foot>}
     </>
   );
 }
@@ -460,7 +461,10 @@ export const scoreStart = (page: PageData): number => nextPeriod(page);
 
 export interface WorkoutLine { id: string; date: string; name: string; minutes: number | null; exercises: number }
 
-export function TrainingLogView({ page, workouts, onOpen, onAdd }: { page: PageData; workouts: WorkoutLine[] | null; onOpen: (id: string) => void; onAdd: () => void }) {
+/** THE TRAINING LOG IS A VIEW (Dave's cut list, 2026-10-23: "read from health/workout data, no entries of its own"). It draws the workouts Health
+ *  holds and adds nothing. A page made before this still shows the notes it already has, tappable, so nothing a person wrote goes missing;
+ *  there is no way to add another. */
+export function TrainingLogView({ page, workouts, onOpen }: { page: PageData; workouts: WorkoutLine[] | null; onOpen: (id: string) => void }) {
   const notes = [...page.records].sort((a, b) => ((b.v.date ?? "") > (a.v.date ?? "") ? 1 : -1));
   return (
     <>
@@ -471,16 +475,18 @@ export function TrainingLogView({ page, workouts, onOpen, onAdd }: { page: PageD
               meta={<>{ISO.test(w.date) && <span className="fact date">{monthDay(w.date)}</span>}{w.minutes !== null && <span className="fact"><b>{w.minutes}</b> Min</span>}<span className="fact">{w.exercises} {w.exercises === 1 ? "Exercise" : "Exercises"}</span></>} />
           ))}</Card>
         : <Foot>{workouts ? "No Workouts Logged Yet; They Appear Here From Health" : "Workouts Appear Here From Health"}</Foot>}
-      <Head label={notes.length === 0 ? "Notes" : notes.length === 1 ? "1 Note" : `${notes.length} Notes`} action={{ label: "Add Note", onClick: onAdd }} />
       {notes.length > 0 && (
-        <Card>
-          {notes.map((r) => (
-            <Row key={r.id} label={<U>{(r.v.note ?? "").trim() || "Note"}</U>} onClick={() => onOpen(r.id)} chev
-              meta={rowFacts(page, r)} />
-          ))}
-        </Card>
+        <>
+          <Head label={notes.length === 1 ? "1 Earlier Note" : `${notes.length} Earlier Notes`} />
+          <Card>
+            {notes.map((r) => (
+              <Row key={r.id} label={<U>{(r.v.note ?? "").trim() || "Note"}</U>} onClick={() => onOpen(r.id)} chev
+                meta={rowFacts(page, r)} />
+            ))}
+          </Card>
+        </>
       )}
-      <Foot>Workouts Are Read From Health, Never Copied; Notes Live on This Page</Foot>
+      <Foot>Workouts Are Read From Health, Never Copied; This Page Keeps No Entries of Its Own</Foot>
     </>
   );
 }
@@ -648,7 +654,11 @@ export function BracketView({ page, rounds, champion, format, onEntrant, onAddEn
 // ---------------------------------------------------------------------------
 // Fantasy Draft Board.
 
-export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: PageData; onOpen: (id: string) => void; onAdd: () => void; onTeams: () => void; onOrder: () => void }) {
+export function DraftView({ page, onOpen, onAdd, onTeams, onOrder, onFormat, onFields, onSuggest, playerKey = "player" }: {
+  page: PageData; onOpen: (id: string) => void; onAdd: () => void; onTeams: () => void; onOrder: () => void;
+  /** The Brackets and Pools page in its Draft format: a row that changes the format back, and the key a pick's player is kept under (its name). */
+  onFormat?: () => void; onFields?: () => void; onSuggest?: (key: string) => void; playerKey?: string;
+}) {
   const teams = managersOf(page);
   const snake = page.meta?.snake !== "0";
   const clock = onTheClock(page);
@@ -660,9 +670,11 @@ export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: Pag
     <>
       <Head label={n === 0 ? "Picks" : n === 1 ? "1 Pick" : `${n} Picks`} action={{ label: "Add Pick", onClick: onAdd }} />
       <Card>
+        {onFormat && <Row label="Format" value="Fantasy Draft" onClick={onFormat} chev />}
         <Row label="Teams" value={teams.length ? `${teams.length} Teams` : "Not Set"} onClick={onTeams} chev />
         <Row label="Order" value={snake ? "Snake" : "Straight"} onClick={onOrder} chev />
       </Card>
+      {n === 0 && onFields && <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />}
       {clock && (
         <Card><Row label={<><U>{clock.manager}</U> Is on the Clock</>} meta={<><span className="fact warn">Round {clock.round}</span><span className="fact">Pick {clock.pick}</span><span className="fact">Overall {clock.overall}</span></>} /></Card>
       )}
@@ -674,7 +686,7 @@ export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: Pag
               const slot = teams.length >= 2 ? draftSlot(i, teams.length, snake) : null;
               const pos = (record.v.pos ?? "").trim();
               return (
-                <Row key={record.id} lead={slot ? <div className="row-ico nav-tile-graphite"><b>{slot.overall}</b></div> : undefined} label={<U>{(record.v.player ?? "").trim() || "Pick"}</U>} onClick={() => onOpen(record.id)} chev
+                <Row key={record.id} lead={slot ? <div className="row-ico nav-tile-graphite"><b>{slot.overall}</b></div> : undefined} label={<U>{(record.v[playerKey] ?? "").trim() || "Pick"}</U>} onClick={() => onOpen(record.id)} chev
                   meta={<>{slot && <span className="fact"><U>{teams[slot.team]!}</U></span>}{pos && <span className="fact"><U>{pos}</U></span>}</>} />
               );
             })}
@@ -684,7 +696,7 @@ export function DraftView({ page, onOpen, onAdd, onTeams, onOrder }: { page: Pag
       {rosters.some((x) => x.picks.length > 0) && rosters.filter((x) => x.picks.length > 0).map((x) => (
         <div key={x.manager}>
           <Head label={x.manager} count={x.picks.length} />
-          <Card>{x.picks.map(({ record, slot }) => <Row key={record.id} label={<U>{(record.v.player ?? "").trim() || "Pick"}</U>} onClick={() => onOpen(record.id)} chev meta={<><span className="fact">Round {slot.round}</span>{(record.v.pos ?? "").trim() && <span className="fact"><U>{record.v.pos!.trim()}</U></span>}</>} />)}</Card>
+          <Card>{x.picks.map(({ record, slot }) => <Row key={record.id} label={<U>{(record.v[playerKey] ?? "").trim() || "Pick"}</U>} onClick={() => onOpen(record.id)} chev meta={<><span className="fact">Round {slot.round}</span>{(record.v.pos ?? "").trim() && <span className="fact"><U>{record.v.pos!.trim()}</U></span>}</>} />)}</Card>
         </div>
       ))}
       {teams.length < 2 && <Foot>Name the Teams, in Draft Order, Separated by Commas; the Board Works Out Who Picks Next</Foot>}

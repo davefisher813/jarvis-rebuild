@@ -70,7 +70,7 @@ const WERE_SHELLS: { name: string; seed?: TemplateKey; pick: string[]; heads: st
   { name: "Team Sheet", pick: ["Team Sheet"], heads: ["Players", "Starts With"], texts: ["Add Player", "Edit Fields", "Name", "Number", "Position"] },
   { name: "Outreach Tracker", pick: ["Outreach Tracker"], heads: ["Contacts", "Starts With"], texts: ["Add Contact", "Who", "Organization", "Status"] },
   { name: "Session Plan", pick: ["Session Plan"], heads: ["Warm-Up", "Drills", "Scrimmage", "Cool-Down", "Headings"], texts: ["Start Time", "15 Min"], adds: 4 },
-  { name: "Event Day Pack", pick: ["Event Day Pack"], heads: ["Before You Go", "Bring", "People", "Schedule"], texts: ["Tickets", "Directions", "Water"], adds: 4 },
+  { name: "Event Day Pack", pick: ["Event Day Pack"], heads: ["Before You Go", "Bring", "People", "Timeline"], texts: ["Tickets", "Directions", "Water", "Arrive", "Start Time"], adds: 4 },
   { name: "Scouting Report", pick: ["Scouting Report"], heads: ["Reports", "Starts With", "Suggested"], texts: ["Add Report", "Strengths", "Weaknesses", "Position"] },
   { name: "League Standings", seed: "standings", pick: ["League Standings"], heads: ["Standings", "Teams"], texts: ["Add Team", "Won-Lost", "Points", "For-Against"] },
   { name: "Group Manager Page", seed: "group", pick: ["Group Manager Page"], heads: ["Leaders", "Members", "Starts With"], texts: ["Role", "Dues Paid"], adds: 2 },
@@ -122,7 +122,7 @@ describe("the 16 that were ready still open as they did", () => {
   const PAGES: { name: string; seed?: TemplateKey; pick: string[]; anchors: string[] }[] = [
     { name: "Pitching Board", pick: ["Pitching Board"], anchors: ["Rules", "Daily Limit", "Add Outing"] },
     { name: "Profile One-Pager", seed: "profile", pick: ["Profile One-Pager"], anchors: ["Profile", "Edit Profile", "Add What You Want on the Page; Empty Fields Stay Off It"] },
-    { name: "Training Log", pick: ["Training Plan", "Training Log"], anchors: ["From Health", "Add Note"] },
+    { name: "Training Log", pick: ["Training Plan", "Training Log"], anchors: ["From Health", "Workouts Are Read From Health, Never Copied; This Page Keeps No Entries of Its Own"] },
     { name: "Training Plan", pick: ["Training Plan", "Training Plan"], anchors: ["Week 1", "Add Day"] },
     { name: "Accomplishments and Milestones", pick: ["Accomplishments and Milestones"], anchors: ["Add Entry", "Starts With"] },
     { name: "Debt Payoff", pick: ["Debt Payoff"], anchors: ["Pay First", "Extra Each Month", "Add Debt"] },
@@ -155,6 +155,8 @@ describe("the 16 that were ready still open as they did", () => {
   it("Scoreboard picks its game and opens on the score", async () => {
     await openPicker("u-ready16-score");
     fireEvent.click(screen.getByText("Scoreboard"));
+    // The Scoreboard row asks which one (its League Standings view sits under it, 2026-10-23).
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Scoreboard"));
     fireEvent.click(await screen.findByText("Basketball"));
     fireEvent.click(within(sheetOf()).getByText("Start"));
     await screen.findByLabelText("Page options", {}, { timeout: 4000 });

@@ -114,7 +114,7 @@ describe("Session Plan: headings, minutes and a clock", () => {
 describe("Event Day Pack: the done mark leads the row", () => {
   it("opens with its headings and starters, and a tap on the checkbox ticks the item without opening it", async () => {
     await openPicked("u-w2-eventday", "Event Day Pack");
-    for (const h of ["Before You Go", "Bring", "People", "Schedule"]) expect(screen.getByLabelText(`Add Item Under ${h}`)).toBeInTheDocument();
+    for (const h of ["Before You Go", "Bring", "People", "Timeline"]) expect(screen.getByLabelText(`Add Item Under ${h}`)).toBeInTheDocument();
     for (const seed of ["Tickets", "Directions", "Water"]) expect(screen.getByText(seed)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Add Item Under Bring"));
     fireEvent.change(await screen.findByLabelText("Item"), { target: { value: "Water Bottles" } });
@@ -135,6 +135,8 @@ describe("Scoreboard: pick the sport and score it", () => {
     await mount("u-w2-score");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("Scoreboard"));
+    // The Scoreboard row asks which one (its League Standings view sits under it, 2026-10-23).
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Scoreboard"));
     fireEvent.click(await screen.findByText("Basketball"));
     fireEvent.click(within(sheetOf()).getByText("Start"));
     fireEvent.click(await screen.findByText("Start Quarter 1", {}, { timeout: 4000 }));

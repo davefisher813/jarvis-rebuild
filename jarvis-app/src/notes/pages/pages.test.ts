@@ -12,7 +12,8 @@ import {
 } from "./pageModel";
 import { parseDelimited, toCsv, writeXlsx, readXlsx, zipStore, detectDelimiter } from "./tabular";
 import { proposeMapping, planImport, applyImport, reconcile, applyReconcile, conflictKey, T_ID, T_EXTRA, T_SKIP, ID_HEADER, mappingIsExact } from "./importMap";
-import { pageTable, shareText, buildPageFile } from "./exportPage";
+import { pageTable, shareText, buildPageFile, onePagerOf, buildOnePager } from "./exportPage";
+import { newTemplatePage } from "./templateDefs";
 
 const team = (rows: [string, string, string][]): PageData => {
   let p = newTeamPage();
@@ -292,5 +293,25 @@ describe("export", () => {
     const pdf = await buildPageFile("pdf", "Round", p);
     const head = new TextDecoder().decode(new Uint8Array(await pdf.arrayBuffer()).slice(0, 5));
     expect(head).toBe("%PDF-");
+  });
+});
+
+describe("the one-pager is a printout of a Scouting Report (the Profile One-Pager folded in, 2026-10-23)", () => {
+  it("one report row becomes a one-person page with only the fields that have words in them, and nothing is stored", async () => {
+    let p = newTemplatePage("scouting");
+    const made = addRecord(p, { name: "Sam Ortiz", team: "Hawks", strengths: "Arm, Speed", weaknesses: "" });
+    p = made.page;
+    const one = onePagerOf(p, made.id)!;
+    expect(one.title).toBe("Sam Ortiz");
+    expect(one.page.kind).toBe("profile");
+    expect(one.page.fields.map((f) => f.label)).toEqual(["Name", "Team", "Strengths"]);
+    expect(p.records).toHaveLength(1);
+    const built = await buildOnePager(p, made.id);
+    expect(new TextDecoder().decode(new Uint8Array(await built!.blob.arrayBuffer()).slice(0, 5))).toBe("%PDF-");
+  });
+  it("a row with nothing in it has nothing to print", () => {
+    const made = addRecord(newTemplatePage("scouting"), {});
+    expect(onePagerOf(made.page, made.id)).toBeNull();
+    expect(onePagerOf(made.page, "missing")).toBeNull();
   });
 });

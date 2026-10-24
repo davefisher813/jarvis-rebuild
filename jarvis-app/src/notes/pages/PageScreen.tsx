@@ -29,6 +29,7 @@ import {
 } from "./pageModel";
 import { setHolePar, setStat, applyCourse } from "./golf";
 import { keepRound } from "./golfRounds";
+import { feedStandings } from "./standingsFeed";
 import { TeamView, LineupView, OutreachView, ScorecardView, HoleEntry, U } from "./PageViews";
 import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, CourseSheet, PageShareSheet, SectionsSheet, GameSheet, LedgerFilterSheet, BlindsSheet } from "./PageSheets";
 import { setTeamSport } from "./teamSports";
@@ -49,7 +50,9 @@ import { setCell, setPeriodScore, setSport, sportChangeImpact, addPeriod, sportN
 import { SnapshotsScreen, LineupBuilder } from "./PageExtras";
 import ImportReview from "./ImportReview";
 import { keepOriginal, readSource, readOriginal, markUsed, type TableSource } from "./pageImport";
-import type { PageFormat } from "./exportPage";
+import { type PageFormat, buildOnePager } from "./exportPage";
+import { saveFile } from "../../shared/saveFile";
+import { safeFilename } from "../exportDoc";
 import BackPill from "../../shared/BackPill";
 
 // A TEMPLATE PAGE, OPEN (issue #115, slice 1). The note's structure, drawn as
@@ -320,7 +323,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   const sharePage = def?.view === "bizledger" ? ledgerAsPage(page, ledgerRows) : page;
   // Brackets and Pools: the draw worked out from the entrants' order and the results kept on the page.
   const bracket = def?.view === "bracket" ? bracketOf(page.records.map((r) => r.id), resultsOf(page)) : null;
-  const bracketFormat: "single" | "pool" = page.meta?.format === "pool" ? "pool" : "single";
+  const bracketFormat: "single" | "pool" | "draft" = page.meta?.format === "pool" ? "pool" : page.meta?.format === "draft" ? "draft" : "single";
   const winnerMatch = sheet?.k === "winner" && bracket ? bracket.rounds.flat().find((m) => m.id === sheet.id) ?? null : null;
   const entrantName = (id: string | null) => (id ? (page.records.find((r) => r.id === id)?.v.name ?? "").trim() || "Entrant" : "");
   // Poker Night: what each player is up or down, and who pays whom.
@@ -442,6 +445,22 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
     })();
   };
 
+  // FINISHING A SCOREBOARD GAME keeps the finished card and, when two teams the League Standings page knows played it, puts it in the table.
+  const finishGame = () => {
+    keepFinished();
+    const cur = noteRef.current;
+    if (!cur) return;
+    void (async () => {
+      let league: string | null = null;
+      const ok = await attemptWrite(async () => { league = await feedStandings(svc, noteId, cur.page); });
+      if (ok && league) {
+        // Honest about where the game is, as every landed toast is: while the Store still holds the write on this phone alone, it says Will Sync.
+        const pending = flagOn("trust_v1") && (store?.pending() ?? false);
+        showToast({ message: savedToastText(`Added to ${league}`, heldText("Your Standings"), pending) });
+      }
+    })();
+  };
+
   // ---- the score screen of a scoreboard: one column at a time, the Golf Scorecard's hole screen for every other game
   const sc = page.score;
   if (view === "score" && sc) {
@@ -462,7 +481,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <div className="pad-x exp-acts">
           {!single && (at < last || sc.mode === "countdown")
             ? <button type="button" className="btn btn-primary btn-block" onClick={() => setAt(at + 1)}>{`Next: ${columnName(sc, at + 1)}`}</button>
-            : <button type="button" className="btn btn-primary btn-block" onClick={() => { if (!single) keepFinished(); setView("page"); }}>{single ? "Done" : "Finish"}</button>}
+            : <button type="button" className="btn btn-primary btn-block" onClick={() => { if (!single) finishGame(); setView("page"); }}>{single ? "Done" : "Finish"}</button>}
           {sc.mode === "periods" && at >= last && <button type="button" className="btn btn-secondary btn-block" onClick={() => { void commit(addPeriod(noteRef.current!.page)); setAt(at + 1); }}>{`Add Another ${sc.unit}`}</button>}
           {at > 1 && !single && <button type="button" className="btn btn-secondary btn-block" onClick={() => setAt(at - 1)}>{`Back to ${columnName(sc, at - 1)}`}</button>}
         </div>
@@ -575,7 +594,11 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
           onFromMoney={() => setSheet({ k: "fromMoney" })} onMethod={() => setSheet({ k: "method" })} onExtra={() => setSheet({ k: "extra" })} />
       )}
-      {def?.view === "bracket" && bracket && (
+      {def?.view === "bracket" && bracketFormat === "draft" && (
+        <DraftView page={page} playerKey="name" onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onTeams={() => setSheet({ k: "teams" })} onOrder={() => setSheet({ k: "order" })}
+          onFormat={() => setSheet({ k: "format" })} onFields={openFields} onSuggest={suggestField} />
+      )}
+      {def?.view === "bracket" && bracket && bracketFormat !== "draft" && (
         <>
           <BracketView page={page} rounds={bracket.rounds} champion={bracket.champion} format={bracketFormat}
             onEntrant={(id) => setSheet({ k: "record", id })} onAddEntrant={() => setSheet({ k: "record", id: null })}
@@ -599,6 +622,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       {def?.view === "session" && (
         <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
           timeOf={sessionClock(page)}
+          onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined}
           belowHead={<Card><Row label="Start Time" value={(page.meta?.start ?? "") ? bindMeridiem(clock12(page.meta!.start!) || page.meta!.start!) : "Not Set"} onClick={() => setSheet({ k: "start" })} chev /></Card>} />
       )}
@@ -613,7 +637,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <PitchingView page={page} today={todayISO()} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} onLimit={() => setSheet({ k: "limit" })} />
       )}
       {def?.view === "traininglog" && (
-        <TrainingLogView page={page} workouts={workouts} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })} />
+        <TrainingLogView page={page} workouts={workouts} onOpen={(id) => setSheet({ k: "record", id })} />
       )}
       {def?.view === "standings" && (
         <StandingsView page={page} onTeam={(id) => setSheet({ k: "record", id })} onAddTeam={() => setSheet({ k: "record", id: null })}
@@ -646,6 +670,20 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
       {sheet?.k === "record" && (
         <RecordSheet page={page} record={record} isNew={!sheet.id} defaultSection={sheet.sec}
+          onPrint={page.kind === "scouting" && sheet.id ? () => {
+            const id = sheet.id!;
+            void (async () => {
+              try {
+                const one = await buildOnePager(noteRef.current!.page, id);
+                if (!one) { showToast({ message: "Nothing on This Report to Print" }); return; }
+                const name = safeFilename(one.title, "pdf");
+                const result = await saveFile(one.blob, name, { title: one.title });
+                if (result === false) return;
+                setSheet(null);
+                showToast({ message: result === "shared" ? `${name} Shared` : `${name} Downloaded` });
+              } catch (e) { showToast({ message: e instanceof Error && e.message ? e.message : "It Did Not Leave the App" }); }
+            })();
+          } : undefined}
           initial={carried?.values}
           carried={carried ? (carried.from ? `Follow-Ups Carried From ${monthDay(carried.from)}; Clear the Ones That Are Done` : "Follow-Ups Carried From the Last Meeting; Clear the Ones That Are Done") : undefined}
           onCancel={() => setSheet(null)}
@@ -812,7 +850,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         ]} />
       )}
       {sheet?.k === "format" && (
-        <RowActionSheet title="Format" onCancel={() => setSheet(null)} actions={([["single", "Single Elimination"], ["pool", "Round Robin"]] as const).map(([k, label]) => ({
+        <RowActionSheet title="Format" onCancel={() => setSheet(null)} actions={([["single", "Single Elimination"], ["pool", "Round Robin"], ["draft", "Fantasy Draft"]] as const).map(([k, label]) => ({
           label: label + (k === bracketFormat ? " · Current" : ""),
           onPick: () => { setSheet(null); void commit({ ...noteRef.current!.page, meta: { ...(noteRef.current!.page.meta ?? {}), format: k } }); },
         }))} />

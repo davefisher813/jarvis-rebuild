@@ -27,7 +27,7 @@ const noun = (page: PageData) => templateDef(page.kind)?.noun ?? (page.kind === 
 /** One record, every field it has, typed in place. A value the import was not sure of is named under its group with
  *  the reason, and can be kept as it is in one tap. Nothing here makes a task, an event or a share: Outreach's Make a
  *  Task is its own row and runs only when tapped. */
-export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord, defaultSection, initial, carried }: {
+export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, onKeep, onMakeTask, onMove, taskMade, onConfirm, confirmedWord, defaultSection, initial, carried, onPrint }: {
   page: PageData;
   record: PageRecord | null;
   isNew: boolean;
@@ -48,6 +48,8 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   /** A sensitive page: the person says this row is still true. Their tap alone sets it. */
   onConfirm?: () => void;
   confirmedWord?: string;
+  /** A Scouting Report row can print as a one-page profile: the one-pager, made when asked and kept nowhere. */
+  onPrint?: () => void;
 }) {
   const fields = editableFields(page);
   const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? (isNew ? initial?.[f.key] : undefined) ?? ""])));
@@ -108,6 +110,11 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
         </Group>
       )}
       {onMakeTask && !taskMade && !(draft.next ?? "").trim() && <Note>The Next Step Stays Text Unless You Make It a Task</Note>}
+      {onPrint && record && (
+        <Group label="One-Pager">
+          <Row label="Print One-Pager" onClick={onPrint} />
+        </Group>
+      )}
       {onMove && (
         <Group label="Order">
           <Row label="Move Up" onClick={() => onMove(-1)} />

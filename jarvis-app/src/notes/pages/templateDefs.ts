@@ -78,6 +78,9 @@ export interface TemplateDef {
   /** FOLDED INTO ANOTHER TEMPLATE (Dave's cut list, 2026-10-23). Not a row in the picker any more, and the line says where it lives now.
    *  The definition stays so every page already made from it opens and works exactly as it did; nothing is migrated or deleted. */
   retired?: string;
+  /** The heading whose rows run on a clock from the page's Start Time (the Event Day Pack's Timeline, which is the Running Order folded
+   *  in). Absent: the clock runs over every row, as the Session Plan's does. */
+  timeline?: string;
 }
 
 const f = (key: string, label: string, type: PageField["type"] = "text", options?: string[]): PageField => ({ key, label, type, ...(options ? { options } : {}) });
@@ -125,12 +128,18 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     needs: { min: "Clock Times From the Start Stop Working" },
   },
   eventday: {
-    key: "eventday", name: "Event Day Pack", shelf: "Sports", desc: "Arrive, Bring, People, Schedule, Checked Off", cat: "yellow", icon: "checks",
-    noun: "Item", plural: "Items", headline: "item", show: ["notes"],
-    fields: [f("item", "Item"), f("done", "Done", "check"), f("notes", "Notes")],
-    sections: ["Before You Go", "Bring", "People", "Schedule"],
-    starter: [{ sec: "Before You Go", v: { item: "Tickets" } }, { sec: "Before You Go", v: { item: "Directions" } }, { sec: "Bring", v: { item: "Water" } }],
-    suggested: [f("who", "Who"), f("time", "Time")], view: "sheet", wave: 2,
+    key: "eventday", name: "Event Day Pack", shelf: "Sports", desc: "Before You Go, Bring, People, and a Timeline With Clock Times", cat: "yellow", icon: "checks",
+    noun: "Item", plural: "Items", headline: "item", show: ["min", "notes"],
+    // REBUILT 2026-10-23 (Dave's cut list): the Running Order folded in as the Timeline. The old four-heading skeleton (Schedule was a
+    // list of words with no times) is gone; Timeline rows carry minutes and the page works out each one's clock time from the start.
+    fields: [f("item", "Item"), f("done", "Done", "check"), f("min", "Minutes", "number"), f("notes", "Notes")],
+    sections: ["Before You Go", "Bring", "People", "Timeline"], timeline: "Timeline", totals: [{ key: "min", label: "Min" }],
+    starter: [
+      { sec: "Before You Go", v: { item: "Tickets" } }, { sec: "Before You Go", v: { item: "Directions" } }, { sec: "Bring", v: { item: "Water" } },
+      { sec: "Timeline", v: { item: "Arrive", min: "15" } }, { sec: "Timeline", v: { item: "Event Starts", min: "90" } }, { sec: "Timeline", v: { item: "Pack Up", min: "15" } },
+    ],
+    suggested: [f("who", "Who"), f("where", "Where")], view: "session", wave: 2, meta: { start: "" },
+    needs: { min: "Clock Times From the Start Stop Working" },
   },
   scouting: {
     key: "scouting", name: "Scouting Report", shelf: "Sports", desc: "Opponents or Prospects: Strengths, Weaknesses", cat: "purple", icon: "brain",
@@ -146,11 +155,10 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     suggested: [f("school", "School"), f("coach", "Coach"), f("video", "Video Link")], view: "profile", one: true, wave: 2,
   },
   traininglog: {
-    key: "traininglog", name: "Training Log", shelf: "Sports", desc: "Your Workouts From Health, Plus Your Notes", cat: "teal", icon: "dumbbell",
+    key: "traininglog", name: "Training Log", shelf: "Sports", desc: "Your Workouts, Read From Health", cat: "teal", icon: "dumbbell",
     noun: "Note", plural: "Notes", headline: "note", show: ["date", "coach"], parent: "trainingplan", entry: "Training Log",
     fields: [f("date", "Date", "date"), f("note", "Note"), f("coach", "Coach")], view: "traininglog", one: true, wave: 2,
-    // TrainingLogView: the notes are drawn newest first by their date.
-    needs: { date: "Notes Stop Sorting by Date" },
+    // TrainingLogView: a view over Health with no entries of its own; notes a page already has are drawn newest first by their date.
   },
   trainingplan: {
     key: "trainingplan", name: "Training Plan", shelf: "Sports", desc: "Weeks and Days, From a Program or Your Own", cat: "sky", icon: "calendar",
@@ -160,7 +168,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
   },
   standings: {
     key: "standings",
-    retired: "Worked Out From Scored Scoreboard Games", name: "League Standings", shelf: "Sports", desc: "Teams, Games, Wins and Losses Worked Out", cat: "blue", icon: "table",
+    parent: "scoreboard", entry: "League Standings", name: "League Standings", shelf: "Sports", desc: "Teams, Games, Wins and Losses Worked Out", cat: "blue", icon: "table",
     noun: "Team", plural: "Teams", headline: "name", show: [], fields: [f("name", "Team")], view: "standings", one: true, wave: 2,
   },
   group: {
@@ -324,9 +332,11 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
 
   // ---- Wave 4: Entertainment
   bracket: {
-    key: "bracket", name: "Brackets and Pools", shelf: "Entertainment", desc: "Single Elimination or Round Robin: Pick Winners, Watch Them Advance", cat: "orange", icon: "kanban",
+    key: "bracket", name: "Brackets and Pools", shelf: "Entertainment", desc: "Single Elimination, Round Robin or a Fantasy Draft: Pick Winners, Watch Them Advance", cat: "orange", icon: "kanban",
     noun: "Entrant", plural: "Entrants", headline: "name", show: ["notes"], fields: [f("name", "Name"), f("notes", "Notes")],
-    suggested: [f("seed", "Seed"), f("contact", "Contact")], view: "bracket", wave: 4, meta: { format: "single" },
+    suggested: [f("seed", "Seed"), f("contact", "Contact"), f("pos", "Position")], view: "bracket", wave: 4, meta: { format: "single" },
+    // The Fantasy Draft Board folded in on 2026-10-23 as a format (Single Elimination, Round Robin, Fantasy Draft): entrants become picks in
+    // order, with the teams and snake or straight order the draft board always had.
   },
   draft: {
     key: "draft",

@@ -287,7 +287,10 @@ export function sessionClock(page: PageData): Map<string, string> {
   const start = (page.meta?.start ?? "").trim();
   if (!start) return out;
   let at = 0;
+  const only = templateDef(page.kind)?.timeline;
   for (const g of groupedRecords(page)) {
+    // The Event Day Pack runs a clock over its Timeline alone: a checklist row has no time of its own.
+    if (only && g.section?.label !== only) continue;
     for (const r of g.records) {
       const t = clockAfter(start, at);
       if (t) out.set(r.id, t);

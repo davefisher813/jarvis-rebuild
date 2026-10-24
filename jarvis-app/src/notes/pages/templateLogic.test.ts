@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { newTemplatePage, TEMPLATE_KEYS, TEMPLATES, SHELVES, templateDef } from "./templateDefs";
-import { addRecord, type PageData, takeSnapshot, restoreSnapshot, duplicatePage, pageSummary, recordName } from "./pageModel";
+import { addRecord, newTeamPage, type PageData, takeSnapshot, restoreSnapshot, duplicatePage, pageSummary, recordName } from "./pageModel";
 import {
-  addSection, renameSection, removeSection, moveSection, setSection, groupedRecords, sectionGroups, untouchedTemplatePage, moveField, suggestedFor, addSuggested, sumOf, totalsLine, asMyTemplate, fromMyTemplate,
+  addSection, renameSection, removeSection, moveSection, setSection, groupedRecords, sectionGroups, untouchedTemplatePage, moveField, suggestedFor, addSuggested, groupDues, keyDates, sumOf, totalsLine, asMyTemplate, fromMyTemplate,
   restDaysFor, pitcherStatuses, clockAfter, sessionClock, standingsOf, addGame, removeTeamAndGames, gamesOfTeam, num, fieldConsequences,
 } from "./templateLogic";
 
@@ -174,6 +174,41 @@ describe("session: a start time puts a clock on every activity", () => {
     const clock = sessionClock(p);
     expect(clock.get(b.id)).toBe("5:00 PM");  // Warm-Up draws first
     expect(clock.get(a.id)).toBe("5:10 PM");
+  });
+});
+
+describe("the Event Day Pack's timeline (the Running Order folded in, 2026-10-23)", () => {
+  it("runs a clock over the Timeline alone: a checklist row has no time", () => {
+    let p = newTemplatePage("eventday");
+    expect(p.sections!.map((x) => x.label)).toEqual(["Before You Go", "Bring", "People", "Timeline"]);
+    expect(sessionClock(p).size).toBe(0);
+    p = { ...p, meta: { start: "17:00" } };
+    const clock = sessionClock(p);
+    const by = (item: string) => p.records.find((r) => r.v.item === item)!.id;
+    expect(clock.has(by("Tickets"))).toBe(false);
+    expect([clock.get(by("Arrive")), clock.get(by("Event Starts")), clock.get(by("Pack Up"))]).toEqual(["5:00 PM", "5:15 PM", "6:45 PM"]);
+    expect(totalsLine(p)).toBe("120 Min");
+  });
+});
+
+describe("the Team Sheet is also the group (the Group Manager folded in, 2026-10-23)", () => {
+  const roster = () => { let p = newTeamPage(); for (const n of ["Ava", "Ben", "Cal"]) p = addRecord(p, { name: n }).page; return p; };
+  it("offers fees, roles, who is coming and key dates in one tap, and adds nothing until asked", () => {
+    const p = roster();
+    expect(suggestedFor(p).map((f) => f.key)).toEqual(["role", "fee", "paid", "coming", "keydate"]);
+    expect(p.fields.map((f) => f.key)).toEqual(["name", "number", "position", "contact"]);
+    expect(addSuggested(p, "fee").fields.map((f) => f.key)).toContain("fee");
+    expect(groupDues(p)).toBeNull();
+  });
+  it("works out what is owed, paid and still due, and names the unpaid", () => {
+    let p = addSuggested(addSuggested(roster(), "fee"), "paid");
+    p = { ...p, records: p.records.map((r, i) => ({ ...r, v: { ...r.v, fee: ["100", "100", "50"][i]!, ...(i === 0 ? { paid: "1" } : {}) } })) };
+    expect(groupDues(p)).toEqual({ owed: 250, paid: 100, left: 150, unpaid: 2 });
+  });
+  it("lists the next key dates from today on, soonest first", () => {
+    let p = addSuggested(roster(), "keydate");
+    p = { ...p, records: p.records.map((r, i) => ({ ...r, v: { ...r.v, keydate: ["2026-11-02", "2026-10-01", "2026-10-30"][i]! } })) };
+    expect(keyDates(p, "2026-10-23").map((d) => d.name)).toEqual(["Cal", "Ava"]);
   });
 });
 

@@ -71,6 +71,27 @@ describe("Brackets and Pools", () => {
   });
 });
 
+describe("Brackets and Pools, in its Fantasy Draft format (the Draft Board folded in, 2026-10-23)", () => {
+  it("shows the entrants as picks under their rounds, with the teams, the order and who is on the clock", async () => {
+    await openWith("u-w4-bdraft", "bracket", (p) => withRows([{ name: "A. Rivera" }, { name: "B. Okafor" }, { name: "C. Stone" }])({ ...p, meta: { ...(p.meta ?? {}), format: "draft", teams: "Sam, Dana, Lee", snake: "1" } }));
+    expect(await screen.findByText("Round 1", { selector: ".sh2 .t, .t" })).toBeInTheDocument();
+    expect(screen.getByText(/Is on the Clock/)).toBeInTheDocument();
+    expect(screen.getAllByText("A. Rivera").length).toBeGreaterThan(0);
+    expect(screen.getByText("Fantasy Draft")).toBeInTheDocument();
+    expect(screen.queryByText("Semifinals")).toBeNull();
+  });
+  it("is chosen from the page's Format, and the format can be changed back", async () => {
+    await openWith("u-w4-bdraft2", "bracket", withRows([{ name: "Hawks" }, { name: "Owls" }, { name: "Wolves" }, { name: "Bears" }]));
+    fireEvent.click(await screen.findByText("Format"));
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Fantasy Draft"));
+    expect(await screen.findByText("Teams", {}, { timeout: 4000 })).toBeInTheDocument();
+    await waitFor(async () => expect((await pageOf("bracket"))!.page.meta!.format).toBe("draft"));
+    fireEvent.click(screen.getByText("Format"));
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(/Single Elimination/));
+    expect(await screen.findByText("Semifinals", {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+});
+
 describe("Fantasy Draft Board", () => {
   it("names who is on the clock and puts each pick under its round", async () => {
     await openWith("u-w4-draft", "draft", (p) => withRows([{ player: "A. Rivera" }, { player: "B. Okafor" }, { player: "C. Stone" }])({ ...p, meta: { teams: "Sam, Dana, Lee", snake: "1" } }));
