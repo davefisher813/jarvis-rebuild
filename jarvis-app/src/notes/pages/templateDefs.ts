@@ -81,7 +81,7 @@ const f = (key: string, label: string, type: PageField["type"] = "text", options
 
 /** Every template the catalog has built so far. A key is added here as its wave lands. */
 export const TEMPLATE_KEYS = [
-  "scoreboard", "pitching", "session", "eventday", "scouting", "profile", "traininglog", "trainingplan", "standings", "group",
+  "scoreboard", "rounds", "pitching", "session", "eventday", "scouting", "profile", "traininglog", "trainingplan", "standings", "group",
   "moneymap", "insurance", "debt", "giving", "homebook", "inventory", "healthcard", "petcard", "handover", "carerecord", "occasions", "trip", "expenses",
   "recipes", "mealplan", "freezer", "accomplish", "oneonone", "projtracker", "bizledger",
   "bracket", "draft", "watchlist", "party", "runorder", "poker",
@@ -93,6 +93,15 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
   scoreboard: {
     key: "scoreboard", name: "Scoreboard", shelf: "Sports", desc: "Any Sport, Real Scoring, Game Night and Trivia", cat: "green", icon: "gauge",
     noun: "Side", plural: "Sides", headline: "name", show: [], fields: [f("name", "Name")], view: "scoreboard", wave: 2,
+  },
+  // THE ROUNDS PAGE (Dave 2026-10-23, Golf decision: "past rounds are kept in a history"). Every finished Golf round writes one row per
+  // player here, and the course book (a course's real pars, remembered after one setup) lives in this page's settings. It is a PRESET of
+  // the Golf Scorecard (`parent`), so it is not a row of its own in the picker: the Golf row asks "New Round" or "Rounds".
+  rounds: {
+    key: "rounds", name: "Rounds", shelf: "Sports", desc: "Every Round You Finish, by Course and Score", cat: "green", icon: "target",
+    noun: "Round", plural: "Rounds", headline: "player", show: ["date", "course", "score", "topar"], parent: "scorecard", entry: "Rounds",
+    fields: [f("date", "Date", "date"), f("course", "Course"), f("player", "Player"), f("score", "Score", "number"), f("topar", "To Par"), f("net", "Net", "number"), f("pts", "Points", "number"), f("putts", "Putts", "number"), f("fairways", "Fairways"), f("greens", "Greens", "number")],
+    view: "sheet", one: true, wave: 2, sort: "dateDesc", note: "Rows Come From Finished Rounds",
   },
   pitching: {
     key: "pitching", name: "Pitching Board", shelf: "Sports", desc: "Pitch Counts, Rest Days, Who Is Available", cat: "orange", icon: "flame",

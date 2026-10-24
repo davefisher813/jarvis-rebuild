@@ -7,10 +7,11 @@ import { shareText as shareOut } from "../../shared/shareText";
 import { safeFilename } from "../exportDoc";
 import { showToast } from "../../shared/toast";
 import {
-  type PageData, type PageRecord, type PageField,
+  type PageData, type PageRecord, type PageField, type GolfInfo,
   editableFields, fieldImpact, recordName, labelOf, KIND_NAME,
 } from "./pageModel";
 import { templateDef } from "./templateDefs";
+import { findCourse, type CourseMemo } from "./golf";
 import { SPORTS, SPORT_GROUPS } from "./scoreboard";
 import { suggestedFor, fieldConsequences } from "./templateLogic";
 import { RowCheck } from "./TemplateViews";
@@ -211,13 +212,25 @@ export function StartGameSheet({ onStart, onCancel }: { onStart: (sportKey: stri
   );
 }
 
-/** A NEW ROUND WITHOUT ARRANGING ANYTHING: a course if he wants one, 9 or 18, the players. Start goes straight to hole 1. */
-export function StartRoundSheet({ onStart, onCancel }: { onStart: (o: { course: string; holes: 9 | 18; players: string[] }) => void; onCancel: () => void }) {
+/** A NEW ROUND WITHOUT ARRANGING ANYTHING: a course (a remembered one is one tap, with its real pars), 9 or 18, the players. Start goes
+ *  straight to hole 1. A course never seen before starts with no pars and says so; they are set once, on the round. */
+export function StartRoundSheet({ book, onStart, onCancel }: { book: CourseMemo[]; onStart: (o: { course: string; holes: 9 | 18; players: string[] }) => void; onCancel: () => void }) {
   const [course, setCourse] = useState("");
   const [holes, setHoles] = useState<9 | 18>(18);
   const [players, setPlayers] = useState<string[]>([""]);
+  const known = findCourse(book, course);
   return (
-    <FormSheet title="New Round" saveLabel="Start" onCancel={onCancel} onSave={() => onStart({ course, holes, players })}>
+    <FormSheet title="New Round" saveLabel="Start" onCancel={onCancel} onSave={() => onStart({ course, holes: known ? known.holes : holes, players })}>
+      {book.length > 0 && (
+        <Group label="Your Courses">
+          <Strip>
+            {book.map((c) => (
+              <button key={c.name} type="button" className={"chip" + (known?.name === c.name ? " active" : "")} aria-pressed={known?.name === c.name}
+                onClick={() => { setCourse(c.name); setHoles(c.holes); }}><span data-user-text="">{c.name}</span></button>
+            ))}
+          </Strip>
+        </Group>
+      )}
       <Group label="Course">
         <FieldRow ariaLabel="Course name" placeholder="Course Name" value={course} onChange={setCourse} />
       </Group>
@@ -234,7 +247,57 @@ export function StartRoundSheet({ onStart, onCancel }: { onStart: (o: { course: 
         ))}
         {players.length < 8 && <Row label="Add a Player" onClick={() => setPlayers((ps) => [...ps, ""])} />}
       </Group>
-      <Note>Par Is 4 on Every Hole Until You Change It on the Hole</Note>
+      <Note>{known ? "Pars Come In from the Last Time You Played Here" : "Set the Pars Once; the Course Is Remembered"}</Note>
+    </FormSheet>
+  );
+}
+
+/** Why a stroke index cannot be saved, in words, or null when it can. Blank everywhere is fine (the holes then run in order). */
+export function siProblem(si: string[], holes: number): string | null {
+  const used = si.slice(0, holes).map((x) => x.trim());
+  if (used.every((x) => x === "")) return null;
+  if (used.some((x) => x === "")) return "Stroke Index Needs a Number on Every Hole, or None";
+  const nums = used.map(Number);
+  if (nums.some((n) => !Number.isInteger(n) || n < 1 || n > 18)) return "Stroke Index Runs from 1 to 18";
+  if (new Set(nums).size !== nums.length) return "Stroke Index Has a Repeat; Each Number Is Used Once";
+  return null;
+}
+
+/** THE COURSE, SET ONCE: its name, the par of every hole as a chip, and the stroke index if he wants net scores to use it. A hole with
+ *  no par stays unset and the round says so; nothing is filled in for him. */
+export function CourseSheet({ golf, onSave, onCancel }: { golf: GolfInfo; onSave: (c: { course: string; par: number[]; si: number[] | null }) => void; onCancel: () => void }) {
+  const [course, setCourse] = useState(golf.course);
+  const [par, setPar] = useState<number[]>(() => Array.from({ length: 18 }, (_, i) => golf.par[i] ?? 0));
+  const [si, setSi] = useState<string[]>(() => Array.from({ length: 18 }, (_, i) => (golf.si?.[i] ? String(golf.si[i]) : "")));
+  const [showSi, setShowSi] = useState(!!golf.si);
+  const problem = showSi ? siProblem(si, golf.holes) : null;
+  const holes = Array.from({ length: golf.holes }, (_, i) => i + 1);
+  return (
+    <FormSheet title="Course" saveLabel="Save" saveDisabled={problem !== null} onCancel={onCancel}
+      onSave={() => onSave({ course: course.trim(), par, si: showSi && si.slice(0, golf.holes).every((x) => x.trim() !== "") ? si.map((x, i) => (i < golf.holes ? Number(x) : golf.si?.[i] ?? i + 1)) : null })}>
+      <Group label="Course">
+        <FieldRow ariaLabel="Course name" placeholder="Course Name" value={course} onChange={setCourse} />
+      </Group>
+      <Group label="Par">
+        {holes.map((h) => (
+          <Row key={h} label={`Hole ${h}`}>
+            <div className="hole-chips">
+              {[3, 4, 5, 6].map((n) => (
+                <button key={n} type="button" className={"score-chip" + (par[h - 1] === n ? " active" : "")} aria-pressed={par[h - 1] === n} aria-label={`Par ${n} for hole ${h}`}
+                  onClick={() => setPar((ps) => ps.map((x, j) => (j === h - 1 ? (x === n ? 0 : n) : x)))}>{n}</button>
+              ))}
+            </div>
+          </Row>
+        ))}
+      </Group>
+      <Group label="Stroke Index">
+        {!showSi && <Row label="Add Stroke Index" onClick={() => setShowSi(true)} />}
+        {showSi && holes.map((h) => (
+          <FieldRow key={h} label={`Hole ${h}`} ariaLabel={`Stroke index for hole ${h}`} inputMode="numeric" placeholder="Rank" value={si[h - 1] ?? ""}
+            error={problem !== null && (si[h - 1] ?? "").trim() === ""} onChange={(v) => setSi((xs) => xs.map((x, j) => (j === h - 1 ? v.replace(/[^\d]/g, "").slice(0, 2) : x)))} />
+        ))}
+      </Group>
+      {problem ? <Note>{problem}</Note> : <Note>The Stroke Index Decides Which Holes Get a Handicap Stroke</Note>}
     </FormSheet>
   );
 }

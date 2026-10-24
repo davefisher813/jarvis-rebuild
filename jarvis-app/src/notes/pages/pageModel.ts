@@ -88,8 +88,15 @@ export interface ScoreInfo {
 export interface GolfInfo {
   course: string;
   holes: 9 | 18;
-  /** Par for all eighteen holes, always eighteen long, so a 9 to 18 change loses nothing. */
+  /** Par for all eighteen holes, always eighteen long, so a 9 to 18 change loses nothing. A hole whose par has not been set is 0:
+   *  a new round never starts with eighteen fours (Dave 2026-10-23), and "to par" leaves an unset hole out and says so. */
   par: number[];
+  /** Stroke index of each hole, 1 hardest to 18, for working out the strokes a handicap gives. Absent: the holes in order. */
+  si?: number[];
+  /** Two players only: the round is also a match, shown live as holes up. */
+  match?: boolean;
+  /** When the person finished the round (the finish screen was reached and the round kept in Rounds). Absent on a round in play. */
+  finishedAt?: number;
   date: string;
 }
 
@@ -206,19 +213,21 @@ export function newOutreachPage(): PageData {
 export const holeKey = (h: number) => "h" + h;
 
 export function scorecardFields(): PageField[] {
-  return [{ key: "name", label: "Player", type: "text" }, ...Array.from({ length: 18 }, (_, i) => ({ key: holeKey(i + 1), label: String(i + 1), type: "number" as const }))];
+  return [{ key: "name", label: "Player", type: "text" }, { key: "hcp", label: "Handicap", type: "number" }, ...Array.from({ length: 18 }, (_, i) => ({ key: holeKey(i + 1), label: String(i + 1), type: "number" as const }))];
 }
 
-/** A round, ready to score: no columns to arrange. Course and players are optional. */
-export function newScorecardPage(opts: { course?: string; holes?: 9 | 18; players?: string[]; date: string }): PageData {
+/** A round, ready to score: no columns to arrange. Course and players are optional. A course the person has played before comes in
+ *  with its real pars (`par`, `si`); a new one starts with none, never eighteen fours. */
+export function newScorecardPage(opts: { course?: string; holes?: 9 | 18; players?: string[]; date: string; par?: number[]; si?: number[] }): PageData {
   const names = (opts.players ?? []).map((p) => p.trim()).filter(Boolean);
   const players = names.length ? names : ["Player 1"];
+  const par = opts.par && opts.par.length === 18 ? opts.par.slice() : Array.from({ length: 18 }, () => 0);
   return {
     v: 1,
     kind: "scorecard",
     fields: scorecardFields(),
     records: players.map((name) => ({ id: newId("r"), v: { name } })),
-    golf: { course: (opts.course ?? "").trim(), holes: opts.holes ?? 18, par: Array.from({ length: 18 }, () => 4), date: opts.date },
+    golf: { course: (opts.course ?? "").trim(), holes: opts.holes ?? 18, par, ...(opts.si && opts.si.length === 18 ? { si: opts.si.slice() } : {}), date: opts.date },
   };
 }
 
@@ -332,7 +341,10 @@ export function removeField(page: PageData, key: string, now: number): PageData 
 
 /** Fields the person sees and edits on a record (the scorecard's hole fields are scored on the hole screen). */
 export function editableFields(page: PageData): PageField[] {
-  if (page.kind === "scorecard" || page.kind === "scoreboard" || page.kind === "standings") return page.fields.filter((f) => f.key === "name");
+  // A round's players carry a name and a handicap; the hole scores are entered on the hole screen. A round made before the
+  // handicap existed has no such field, so it is offered all the same.
+  if (page.kind === "scorecard") return [page.fields.find((f) => f.key === "name") ?? { key: "name", label: "Player", type: "text" }, page.fields.find((f) => f.key === "hcp") ?? { key: "hcp", label: "Handicap", type: "number" }];
+  if (page.kind === "scoreboard" || page.kind === "standings") return page.fields.filter((f) => f.key === "name");
   if (page.kind === "lineup") return page.fields.filter((f) => f.key !== "player");
   return page.fields;
 }
@@ -365,7 +377,9 @@ export function golfTotals(page: PageData, r: PageRecord): GolfTotals {
     played++;
     thru = h;
     if (h <= 9) out += s; else inn += s;
-    toPar += s - (g.par[h - 1] ?? 4);
+    // A hole whose par is not set (0) is left out of "to par", never counted as a four.
+    const par = g.par[h - 1] ?? 0;
+    if (par >= 3) toPar += s - par;
   }
   return { thru, out, in: inn, total: out + inn, toPar, played };
 }
@@ -396,13 +410,6 @@ export function nextHole(page: PageData): number {
 
 export function setScore(page: PageData, recordId: string, hole: number, score: number | null): PageData {
   return setValues(page, recordId, { [holeKey(hole)]: score === null ? "" : String(Math.max(1, Math.round(score))) });
-}
-
-export function setPar(page: PageData, hole: number, par: number): PageData {
-  const g = page.golf!;
-  const p = g.par.slice();
-  p[hole - 1] = Math.min(6, Math.max(3, Math.round(par)));
-  return { ...page, golf: { ...g, par: p } };
 }
 
 /** Scores that a change to `holes` would hide. They are never deleted: the record keeps them and 18 brings them back. */

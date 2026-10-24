@@ -36,6 +36,8 @@ import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/
 import { todayISO, addDays } from "../schedule/calendar";
 import PageScreen, { type PendingImport } from "./pages/PageScreen";
 import { type PageKind, type PageData, KIND_NAME, newTeamPage, newOutreachPage, newScorecardPage, pageSummary, takeSnapshot, markBase } from "./pages/pageModel";
+import { findCourse, type CourseMemo } from "./pages/golf";
+import { loadCourseBook } from "./pages/golfRounds";
 import { StartRoundSheet, StartGameSheet, PageShareSheet } from "./pages/PageSheets";
 import { templateDef, newTemplatePage, isTemplateKey } from "./pages/templateDefs";
 import { newScoreboardPage } from "./pages/scoreboard";
@@ -657,6 +659,14 @@ export default function NotesFlow({
     if (id) openPage(id);
   };
   const [startGame, setStartGame] = useState(false);
+  // The courses kept on the Rounds page, read when the New Round sheet opens so a course seen before comes in with its real pars.
+  const [courseBook, setCourseBook] = useState<CourseMemo[]>([]);
+  useEffect(() => {
+    if (!startRound) return;
+    let live = true;
+    void loadCourseBook(svc).then((b) => { if (live) setCourseBook(b); }).catch(() => { /* no book yet: the sheet just has no remembered courses */ });
+    return () => { live = false; };
+  }, [startRound, svc]);
   const pickPage = async (kind: PageKind | string) => {
     if (kind.startsWith("mine:")) { await startFromMine(kind.slice(5)); return; }
     if (kind === "scorecard") { setStartRound(true); return; }
@@ -1178,9 +1188,10 @@ export default function NotesFlow({
           })()} />
         )}
         {startRound && (
-          <StartRoundSheet onCancel={() => setStartRound(false)} onStart={(o) => void (async () => {
+          <StartRoundSheet book={courseBook} onCancel={() => setStartRound(false)} onStart={(o) => void (async () => {
             setStartRound(false);
-            const id = await createPage(o.course.trim() || "Golf Round", newScorecardPage({ ...o, date: todayISO() }));
+            const memo = findCourse(courseBook, o.course);
+            const id = await createPage(o.course.trim() || "Golf Round", newScorecardPage({ ...o, holes: memo ? memo.holes : o.holes, date: todayISO(), ...(memo ? { par: memo.par, si: memo.si } : {}) }));
             if (id) openPage(id, "templates");
           })()} />
         )}

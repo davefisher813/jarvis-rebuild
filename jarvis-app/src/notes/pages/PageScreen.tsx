@@ -24,11 +24,13 @@ import type { NoteData } from "../types";
 import {
   type PageData, type PageOriginal, type RosterChange, KIND_NAME,
   addRecord, setValues, removeRecord, moveRecord, renameField, addField, removeField, confirmValue,
-  setScore, setPar, setHoles, holesImpact, nextHole, scoreOf, takeSnapshot, restoreSnapshot, markBase,
+  setScore, setHoles, holesImpact, nextHole, scoreOf, takeSnapshot, restoreSnapshot, markBase,
   rosterChanges, refreshFromRoster, newLineupPage, recordName, labelOf, newId,
 } from "./pageModel";
+import { setHolePar, setStat, applyCourse } from "./golf";
+import { keepRound } from "./golfRounds";
 import { TeamView, LineupView, OutreachView, ScorecardView, HoleEntry, U } from "./PageViews";
-import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, PageShareSheet, SectionsSheet, GameSheet, LedgerFilterSheet, BlindsSheet } from "./PageSheets";
+import { RecordSheet, FieldsSheet, ConfirmChange, fieldRemovalLines, OneFieldSheet, CourseSheet, PageShareSheet, SectionsSheet, GameSheet, LedgerFilterSheet, BlindsSheet } from "./PageSheets";
 import { setTeamSport } from "./teamSports";
 import { setOutreachKind } from "./outreachKinds";
 import { templateDef } from "./templateDefs";
@@ -426,6 +428,20 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   // card. Not undoable: it adds to the page's history and changes nothing drawn on it.
   const keepFinished = () => { const cur = noteRef.current; if (cur) void commit(takeSnapshot(cur.page, "finish", Date.now()), { undoable: false }); };
 
+  // FINISHING A ROUND (Golf decision, 2026-10-23): the round is stamped finished, kept as a dated snapshot, and its rows and its course go to
+  // the Rounds page. Finishing again replaces the rows, never doubles them. If the Rounds write fails the person is told, and the round
+  // itself is untouched.
+  const finishRound = () => {
+    const cur = noteRef.current;
+    if (!cur?.page.golf) return;
+    const done: PageData = { ...cur.page, golf: { ...cur.page.golf, finishedAt: Date.now() } };
+    void commit(takeSnapshot(done, "finish", Date.now()), { undoable: false });
+    void (async () => {
+      const ok = await attemptWrite(async () => { if (!(await keepRound(svc, noteId, done))) throw new Error("rounds"); });
+      if (ok) showToast({ message: "Round Kept in Rounds" });
+    })();
+  };
+
   // ---- the score screen of a scoreboard: one column at a time, the Golf Scorecard's hole screen for every other game
   const sc = page.score;
   if (view === "score" && sc) {
@@ -470,14 +486,10 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <div className="nav-large">Hole {hole}</div>
         <HoleEntry page={page} hole={hole}
           onScore={(id, n) => void commit(setScore(noteRef.current!.page, id, hole, n))}
-          onPar={(p) => void commit(setPar(noteRef.current!.page, hole, p))}
-          onFillPar={() => {
-            let next = noteRef.current!.page;
-            for (const r of next.records) if (scoreOf(r, hole) === null) next = setScore(next, r.id, hole, next.golf!.par[hole - 1] ?? 4);
-            void commit(next);
-          }} />
+          onPar={(p) => void commit(setHolePar(noteRef.current!.page, hole, p))}
+          onStat={(id, key, v) => void commit(setStat(noteRef.current!.page, id, key, v))} />
         <div className="pad-x exp-acts">
-          <button type="button" className="btn btn-primary btn-block" onClick={() => { if (hole < last) { setHole(hole + 1); return; } keepFinished(); setView("page"); }}>
+          <button type="button" className="btn btn-primary btn-block" onClick={() => { if (hole < last) { setHole(hole + 1); return; } finishRound(); setView("page"); }}>
             {hole < last ? `Next: Hole ${hole + 1}` : "Finish Round"}
           </button>
           {hole > 1 && <button type="button" className="btn btn-secondary btn-block" onClick={() => setHole(hole - 1)}>Back to Hole {hole - 1}</button>}
@@ -528,9 +540,10 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       )}
       {page.kind === "lineup" && teamGone && <Card><Row label="Team Sheet Deleted; This Lineup Keeps Its Names" /></Card>}
       {page.kind === "scorecard" && g && (
-        <ScorecardView page={page} onHole={() => { setHole(nextHole(page)); setView("hole"); }}
+        <ScorecardView page={page} onHole={(h) => { setHole(h ?? nextHole(page)); setView("hole"); }}
           onPlayer={(id) => setSheet({ k: "record", id })} onAddPlayer={() => setSheet({ k: "record", id: null })}
           onCourse={() => setSheet({ k: "course" })} onDate={() => setSheet({ k: "date" })}
+          onMatch={(on) => void commit({ ...page, golf: { ...g, match: on } })} onFinish={finishRound}
           onHoles={(h) => { if (h === g.holes) return; if (holesImpact(page, h) > 0) setSheet({ k: "holes", to: h }); else void commit(setHoles(page, h)); }} />
       )}
 
@@ -689,8 +702,12 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
           onSave={(v) => { setSheet(null); if (!v.trim()) return; void enqueue(async () => { if (await attemptWrite(() => svc.editTitle(noteId, v.trim()))) { await load(); onChanged(); } }); }} />
       )}
       {sheet?.k === "course" && g && (
-        <OneFieldSheet title="Course" label="Course Name" value={g.course} onCancel={() => setSheet(null)}
-          onSave={(v) => { setSheet(null); void commit({ ...noteRef.current!.page, golf: { ...g, course: v.trim() } }); }} />
+        <CourseSheet golf={g} onCancel={() => setSheet(null)}
+          onSave={(c) => {
+            setSheet(null);
+            const cur = noteRef.current!.page;
+            void commit({ ...cur, golf: { ...applyCourse(cur.golf!, null), course: c.course, par: c.par, ...(c.si ? { si: c.si } : {}) } });
+          }} />
       )}
       {sheet?.k === "date" && (
         <OneFieldSheet title="Date" label="Date" type="date" value={g?.date ?? page.score?.date ?? page.lineup?.date ?? todayISO()} onCancel={() => setSheet(null)}

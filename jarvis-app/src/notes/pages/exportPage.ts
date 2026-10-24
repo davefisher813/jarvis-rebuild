@@ -9,6 +9,7 @@
 // exposes the whole record, and naming a person grants them nothing.
 
 import { type PageData, type PageRecord, golfTotals, scoreOf, toParLabel, editableFields, recordName, labelOf } from "./pageModel";
+import { parOf, playerRound } from "./golf";
 import { ID_HEADER } from "./importMap";
 import { standingsOf } from "./templateLogic";
 import { templateDef } from "./templateDefs";
@@ -75,13 +76,21 @@ function golfTable(page: PageData, withId: boolean): string[][] {
   const holes = Array.from({ length: g.holes }, (_, i) => i + 1);
   const nine = g.holes === 18;
   const head = [...(withId ? [ID_HEADER] : []), labelOf(page, "name"), ...holes.map(String), ...(nine ? ["Out", "In"] : []), "Total", "To Par"];
-  const parOut = g.par.slice(0, 9).reduce((a, b) => a + b, 0);
-  const parIn = g.par.slice(9, 18).reduce((a, b) => a + b, 0);
-  const parRow = [...(withId ? ["par"] : []), "Par", ...holes.map((h) => String(g.par[h - 1] ?? 4)), ...(nine ? [String(parOut), String(parIn)] : []), String(nine ? parOut + parIn : parOut), ""];
+  // A hole with no par set is a blank cell, never a four; a nine's par total is only said when all of its holes have one.
+  const sumPar = (from: number, to: number): string => {
+    let n = 0;
+    for (let h = from; h <= to; h++) { const p = parOf(g, h); if (p === null) return ""; n += p; }
+    return String(n);
+  };
+  const parOut = sumPar(1, Math.min(9, g.holes));
+  const parIn = nine ? sumPar(10, 18) : "";
+  const parAll = nine ? (parOut && parIn ? String(Number(parOut) + Number(parIn)) : "") : parOut;
+  const parRow = [...(withId ? ["par"] : []), "Par", ...holes.map((h) => { const p = parOf(g, h); return p === null ? "" : String(p); }), ...(nine ? [parOut, parIn] : []), parAll, ""];
   const rows = page.records.map((r) => {
     const t = golfTotals(page, r);
+    const p = playerRound(page, r);
     return [...(withId ? [r.id] : []), r.v.name ?? "", ...holes.map((h) => { const s = scoreOf(r, h); return s === null ? "" : String(s); }),
-      ...(nine ? [t.out ? String(t.out) : "", t.in ? String(t.in) : ""] : []), t.played ? String(t.total) : "", t.played ? toParLabel(t.toPar) : ""];
+      ...(nine ? [t.out ? String(t.out) : "", t.in ? String(t.in) : ""] : []), t.played ? String(t.total) : "", t.played && p.toPar !== null ? toParLabel(p.toPar) : ""];
   });
   return [head, parRow, ...rows];
 }
@@ -167,7 +176,8 @@ export function shareText(title: string, page: PageData, fieldKeys: string[], re
   if (page.golf) {
     for (const r of page.records.filter((x) => keep.has(x.id))) {
       const t = golfTotals(page, r);
-      lines.push(`${r.v.name ?? ""}: ${t.played ? `${t.total} (${toParLabel(t.toPar)}) through ${t.thru}` : "no scores yet"}`);
+      const p = playerRound(page, r);
+      lines.push(`${r.v.name ?? ""}: ${t.played ? `${t.total}${p.toPar !== null ? ` (${toParLabel(p.toPar)})` : ""} through ${t.thru}` : "no scores yet"}`);
     }
     return lines.join("\n");
   }

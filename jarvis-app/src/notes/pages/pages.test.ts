@@ -46,7 +46,7 @@ describe("the page model", () => {
   });
 
   it("golf: running totals and to par", () => {
-    let p = newScorecardPage({ players: ["Dave", "Sam"], date: "2026-10-13" });
+    let p = newScorecardPage({ players: ["Dave", "Sam"], date: "2026-10-13", par: Array.from({ length: 18 }, () => 4) });
     const [d, s] = p.records;
     p = setScore(p, d!.id, 1, 3); // par 4: birdie
     p = setScore(p, d!.id, 2, 6);
@@ -54,6 +54,13 @@ describe("the page model", () => {
     const t = golfTotals(p, p.records[0]!);
     expect(t).toMatchObject({ thru: 2, total: 9, toPar: 1, played: 2 });
     expect(golfTotals(p, p.records[1]!).toPar).toBe(0);
+  });
+
+  it("golf: a new round has no pars, and a hole with no par is left out of to par instead of counted as a four", () => {
+    let p = newScorecardPage({ players: ["Dave"], date: "2026-10-13" });
+    expect(p.golf!.par.every((x) => x === 0)).toBe(true);
+    p = setScore(p, p.records[0]!.id, 1, 7);
+    expect(golfTotals(p, p.records[0]!)).toMatchObject({ total: 7, toPar: 0 });
   });
 
   it("golf: 18 to 9 hides back-nine scores and never discards them", () => {
@@ -262,7 +269,7 @@ describe("reimport: matched by id, local edits kept, asked only on conflicts", (
 
 describe("export", () => {
   it("the scorecard exports a par row and totals, and a person gets only what was picked", () => {
-    let p = newScorecardPage({ course: "Pebble", players: ["Dave", "Sam"], holes: 9, date: "2026-10-13" });
+    let p = newScorecardPage({ course: "Pebble", players: ["Dave", "Sam"], holes: 9, date: "2026-10-13", par: Array.from({ length: 18 }, () => 4) });
     p = setScore(p, p.records[0]!.id, 1, 5);
     const t = pageTable(p);
     expect(t[0]).toEqual([ID_HEADER, "Player", "1", "2", "3", "4", "5", "6", "7", "8", "9", "Total", "To Par"]);

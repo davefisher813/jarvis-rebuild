@@ -129,6 +129,7 @@ describe("the 16 that were ready still open as they did", () => {
   it("Golf Scorecard starts at its round sheet and opens on its round", async () => {
     await openPicker("u-ready16-golf");
     fireEvent.click(screen.getByText("Golf Scorecard"));
+    fireEvent.click(await screen.findByText("New Round"));
     fireEvent.change(await screen.findByPlaceholderText("Player 1"), { target: { value: "Ava" } });
     fireEvent.click(within(sheetOf()).getByText("Start"));
     await screen.findByLabelText("Page options", {}, { timeout: 4000 });

@@ -58,7 +58,8 @@ export const entriesOf = (key: string): { key: string; label: string }[] => {
   const kids = TEMPLATE_KEYS.filter((k) => TEMPLATES[k].parent === key);
   if (!kids.length) return [];
   const own = TEMPLATES[key as keyof typeof TEMPLATES];
-  return [{ key, label: own?.entry ?? own?.name ?? key }, ...kids.map((k) => ({ key: k as string, label: TEMPLATES[k].entry ?? TEMPLATES[k].name }))];
+  // The Golf Scorecard is a core page, not a catalog template, so its own entry is named here: a new round, then its history.
+  return [{ key, label: own?.entry ?? own?.name ?? (key === "scorecard" ? "New Round" : key) }, ...kids.map((k) => ({ key: k as string, label: TEMPLATES[k].entry ?? TEMPLATES[k].name }))];
 };
 
 /** A template the person kept from a page of their own (Save as My Template). */

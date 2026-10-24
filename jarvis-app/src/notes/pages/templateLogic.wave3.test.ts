@@ -21,7 +21,8 @@ describe("the catalog", () => {
       expect(new Set(d.fields.map((f) => f.key)).size, k).toBe(d.fields.length);
       for (const s of d.show) expect(d.fields.some((f) => f.key === s), `${k} shows ${s}`).toBe(true);
       if (d.due) expect(d.fields.some((f) => f.key === d.due!.key && f.type === "date"), `${k} due`).toBe(true);
-      if (d.parent) expect(TEMPLATES[d.parent as keyof typeof TEMPLATES], `${k} parent`).toBeTruthy();
+      // A preset hangs off a catalog template or off the Golf Scorecard, which is a core page and not in the catalog.
+      if (d.parent) expect(d.parent === "scorecard" || TEMPLATES[d.parent as keyof typeof TEMPLATES], `${k} parent`).toBeTruthy();
     }
   });
   it("wave 3 has the fourteen library templates, with their presets and entry points beside them", () => {

@@ -60,6 +60,7 @@ describe("issue #115 slice 1: the acceptance demos", () => {
     await mount("u-demo-golf");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("Golf Scorecard"));
+    fireEvent.click(await screen.findByText("New Round"));
     // The round's one sheet: a course if wanted, 9 or 18, the players. No columns.
     fireEvent.change(await screen.findByLabelText("Player 1"), { target: { value: "Dave" } });
     fireEvent.click(screen.getByText("Add a Player"));
@@ -68,9 +69,10 @@ describe("issue #115 slice 1: the acceptance demos", () => {
     fireEvent.click(screen.getByText("Start"));
     fireEvent.click(await screen.findByText("Start Hole 1", {}, { timeout: 4000 }));
     expect(await screen.findByText("Hole 1")).toBeInTheDocument();
-    // Big steppers per player, starting from par: one tap up is a bogey.
-    fireEvent.click(screen.getByLabelText("More Strokes for Dave"));
-    fireEvent.click(screen.getByLabelText("Less Strokes for Sam"));
+    // Par is set by a tap, never assumed; the strokes are big chips, one tap each: a 5 on a par 4 is a bogey, a 3 a birdie.
+    fireEvent.click(screen.getByLabelText("Par 4 for Hole 1"));
+    fireEvent.click(screen.getByLabelText("Strokes 5 for Dave"));
+    fireEvent.click(screen.getByLabelText("Strokes 3 for Sam"));
     expect(await screen.findByText("Bogey")).toBeInTheDocument();
     expect(screen.getByText("Birdie")).toBeInTheDocument();
     await waitFor(async () => {
@@ -346,7 +348,7 @@ describe("issue #115 stays alive: finishing a record keeps a dated snapshot (202
   it("Golf's Finish Round keeps the finished card as an At Finish snapshot", async () => {
     const id = await openSeeded("u-finish-golf", "Pebble Beach", newScorecardPage({ course: "Pebble Beach", holes: 9, players: ["Dave"], date: "2026-10-17" }));
     fireEvent.click(await screen.findByText("Start Hole 1", {}, { timeout: 4000 }));
-    fireEvent.click(await screen.findByLabelText("More Strokes for Dave"));
+    fireEvent.click(await screen.findByLabelText("Strokes 5 for Dave"));
     for (let h = 2; h <= 9; h++) fireEvent.click(await screen.findByText(`Next: Hole ${h}`));
     expect((await svc().note(id))!.page!.snapshots ?? []).toHaveLength(0);
     fireEvent.click(screen.getByText("Finish Round"));

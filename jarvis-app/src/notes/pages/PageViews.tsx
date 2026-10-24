@@ -1,11 +1,13 @@
-import type { ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Head, Card, Row, Foot, Menu } from "../../settings/kit";
-import Stepper from "../../shared/Stepper";
 import { monthDay } from "../../money/bills";
 import {
   type PageData, type PageRecord, type RosterChange,
-  golfTotals, holeWord, scoreOf, toParLabel, recordName, labelOf,
+  holeWord, scoreOf, toParLabel, recordName, labelOf,
 } from "./pageModel";
+import {
+  parOf, parsSet, playerRound, matchState, roundStory, winnerLine, isFinished, statsOf, girOn, puttKey, fairKey, penKey, sandKey, FAIRWAYS,
+} from "./golf";
 import { suggestedFor } from "./templateLogic";
 import { TEAM_SPORTS, teamSportOf } from "./teamSports";
 import { OUTREACH_KINDS, outreachKindOf, KNOWN_STATUS, STATUS_TONE } from "./outreachKinds";
@@ -218,83 +220,252 @@ export function OutreachView({ page, onOpen, onAdd, onFields, onKind }: {
 }
 
 // ---------------------------------------------------------------------------
-// Golf Scorecard
+// Golf Scorecard (rebuilt 2026-10-23, Dave's Golf decision): big score chips, a stats strip a tap deep, the real grid on screen,
+// net and Stableford live, and a finish that tells the round. Nothing here is guessed: a par that was never set is left out of
+// "to par" and said so, and a hole nobody scored is never filled in.
 
-export function ScorecardView({ page, onHole, onPlayer, onAddPlayer, onCourse, onHoles, onDate }: {
-  page: PageData;
-  onHole: () => void;
-  onPlayer: (recordId: string) => void;
-  onAddPlayer: () => void;
-  onCourse: () => void;
-  onHoles: (h: 9 | 18) => void;
-  onDate: () => void;
-}) {
+const playerName = (r: PageRecord) => (r.v.name ?? "").trim() || "Player";
+
+/** The facts that follow a player everywhere: where they are, what they have, to par, net, points. */
+function playerFacts(page: PageData, r: PageRecord): ReactNode {
   const g = page.golf!;
-  const anyPlayed = page.records.some((r) => golfTotals(page, r).played > 0);
-  const allDone = page.records.length > 0 && page.records.every((r) => golfTotals(page, r).played >= g.holes);
+  const p = playerRound(page, r);
+  if (!p.played) return undefined;
   return (
     <>
-      <Head label="Scores" action={{ label: allDone ? "Review Holes" : anyPlayed ? "Keep Scoring" : "Start Hole 1", onClick: onHole }} />
+      <span className="fact">{p.thru >= g.holes ? "Final" : `Thru ${p.thru}`}</span>
+      <span className="fact"><b>{p.gross}</b></span>
+      {p.toPar !== null && <span className="fact"><b>{toParLabel(p.toPar)}</b></span>}
+      {p.net !== null && <span className="fact">{p.net} Net</span>}
+      {p.points !== null && <span className="fact">{p.points} Pts</span>}
+    </>
+  );
+}
+
+/** THE REAL SCORECARD, ON SCREEN. Holes down the side and players across, which is what a phone can hold. Every score is a 44px tap
+ *  that opens that hole to fix it. Under par is ringed, over par is boxed, in the page's one ink: no colour is spent on it. */
+export function ScoreGrid({ page, onHole }: { page: PageData; onHole: (hole: number) => void }) {
+  const g = page.golf!;
+  const holes = Array.from({ length: g.holes }, (_, i) => i + 1);
+  const rounds = page.records.map((r) => playerRound(page, r));
+  const sumPar = (from: number, to: number): number | null => {
+    let n = 0;
+    for (let h = from; h <= to; h++) { const p = parOf(g, h); if (p === null) return null; n += p; }
+    return n;
+  };
+  const split = g.holes === 18;
+  // A half is drawn only for a player who scored a hole in it: an empty back nine is blank, never a 0.
+  const scoredIn = (r: PageRecord, from: number, to: number) => { for (let h = from; h <= to; h++) if (scoreOf(r, h) !== null) return true; return false; };
+  const sumRow = (label: string, par: number | null, vals: (p: ReturnType<typeof playerRound>, i: number) => number | null) => (
+    <tr className="sg-sum" key={label}>
+      <th scope="row" className="sg-hole">{label}</th>
+      <td>{par ?? ""}</td>
+      {rounds.map((p, i) => { const v = vals(p, i); return <td key={page.records[i]!.id}>{v ?? ""}</td>; })}
+    </tr>
+  );
+  return (
+    <div className="score-grid-wrap">
+      <table className="score-grid">
+        <thead>
+          <tr>
+            <th scope="col" className="sg-hole">Hole</th>
+            <th scope="col">Par</th>
+            {page.records.map((r) => <th scope="col" key={r.id}><U><span className="sg-name">{playerName(r)}</span></U></th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {holes.map((h) => (
+            <Fragment key={h}>
+              <tr>
+                <th scope="row" className="sg-hole">{h}</th>
+                <td>{parOf(g, h) ?? ""}</td>
+                {page.records.map((r) => {
+                  const s = scoreOf(r, h);
+                  const par = parOf(g, h);
+                  const cls = s === null ? "sg-empty" : par !== null && s < par ? "sg-mark sg-under" : par !== null && s > par ? "sg-mark sg-over" : "sg-mark";
+                  return (
+                    <td key={r.id}>
+                      <button type="button" className="sg-btn" aria-label={`Edit Hole ${h}, ${playerName(r)}, ${s === null ? "No Score" : s}`} onClick={() => onHole(h)}>
+                        <span className={cls}>{s ?? "–"}</span>
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+              {split && h === 9 && sumRow("Out", sumPar(1, 9), (p, i) => (scoredIn(page.records[i]!, 1, 9) ? p.out : null))}
+            </Fragment>
+          ))}
+          {split && sumRow("In", sumPar(10, 18), (p, i) => (scoredIn(page.records[i]!, 10, 18) ? p.in : null))}
+          {sumRow("Total", sumPar(1, g.holes), (p) => (p.played ? p.gross : null))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** THE ROUND, TOLD. Per player: the numbers, then what the round was. Drawn once a round is finished, and before that when every
+ *  card is full. A winner is named only when a full card makes one. */
+export function RoundStoryCard({ page }: { page: PageData }) {
+  const lines = roundStory(page);
+  const win = winnerLine(page);
+  return (
+    <>
+      <Head label="The Round" />
       <Card>
-        {page.records.map((r) => {
-          const t = golfTotals(page, r);
-          return (
-            <Row key={r.id} label={<U>{(r.v.name ?? "").trim() || "Player"}</U>} onClick={() => onPlayer(r.id)} chev
-              meta={t.played ? <>
-                <span className="fact">{t.thru >= g.holes ? "Final" : `Thru ${t.thru}`}</span>
-                <span className="fact"><b>{t.total}</b></span>
-                <span className="fact"><b>{toParLabel(t.toPar)}</b></span>
-              </> : undefined} />
-          );
-        })}
-      </Card>
-      <Head label="Round" action={{ label: "Add Player", onClick: onAddPlayer }} />
-      <Card>
-        <Row label="Course" value={g.course ? <U>{g.course}</U> : undefined} onClick={onCourse} chev />
-        <Menu label="Holes" value={String(g.holes)} options={[{ value: "9", label: "9 Holes" }, { value: "18", label: "18 Holes" }]} onPick={(v) => onHoles(v === "9" ? 9 : 18)} />
-        <Row label="Date" value={g.date ? monthDay(g.date) : ""} onClick={onDate} chev />
+        {win && <Row plain label={<U>{win}</U>} />}
+        {lines.map((l) => (
+          <Row key={l.name} plain label={<U>{l.name}</U>} meta={<>{l.facts.map((f) => <span className="fact" key={f}>{f}</span>)}</>} />
+        ))}
       </Card>
     </>
   );
 }
 
-/** ONE HOLE AT A TIME, BIG ENOUGH FOR A THUMB ON A COURSE. Par and every player's strokes for this hole, each on the
- *  app's one stepper (tap the number to type it), with the running total and score to par beside each name. */
-export function HoleEntry({ page, hole, onScore, onPar, onFillPar }: {
+export function ScorecardView({ page, onHole, onPlayer, onAddPlayer, onCourse, onHoles, onDate, onMatch, onFinish }: {
   page: PageData;
-  hole: number;
-  onScore: (recordId: string, score: number) => void;
-  onPar: (par: number) => void;
-  onFillPar?: () => void;
+  onHole: (hole?: number) => void;
+  onPlayer: (recordId: string) => void;
+  onAddPlayer: () => void;
+  onCourse: () => void;
+  onHoles: (h: 9 | 18) => void;
+  onDate: () => void;
+  onMatch: (on: boolean) => void;
+  onFinish: () => void;
 }) {
   const g = page.golf!;
-  const par = g.par[hole - 1] ?? 4;
-  const open = page.records.some((r) => scoreOf(r, hole) === null);
+  const anyPlayed = page.records.some((r) => playerRound(page, r).played > 0);
+  const allDone = page.records.length > 0 && page.records.every((r) => playerRound(page, r).played >= g.holes);
+  const finished = isFinished(g);
+  const m = matchState(page);
+  const set = parsSet(g);
+  return (
+    <>
+      <Head label="Scores" action={{ label: allDone ? "Review Holes" : anyPlayed ? "Keep Scoring" : "Start Hole 1", onClick: () => onHole() }} />
+      <Card>
+        {page.records.map((r) => (
+          <Row key={r.id} label={<U>{playerName(r)}</U>} onClick={() => onPlayer(r.id)} chev meta={playerFacts(page, r)} />
+        ))}
+      </Card>
+      {m && (
+        <>
+          <Head label="Match" />
+          <Card><Row plain label={m.words.who ? <U>{m.words.who}</U> : "Match Play"} meta={<span className="fact">{m.words.what}</span>} /></Card>
+        </>
+      )}
+      {anyPlayed && (
+        <>
+          <Head label="Scorecard" />
+          <ScoreGrid page={page} onHole={(h) => onHole(h)} />
+        </>
+      )}
+      {(finished || allDone) && <RoundStoryCard page={page} />}
+      <Head label="Round" action={{ label: "Add Player", onClick: onAddPlayer }} />
+      <Card>
+        <Row label="Course" value={g.course ? <U>{g.course}</U> : undefined} onClick={onCourse} chev />
+        <Row label="Pars" value={set >= g.holes ? "All Set" : set === 0 ? "Not Set" : `${set} of ${g.holes} Set`} onClick={onCourse} chev />
+        <Menu label="Holes" value={String(g.holes)} options={[{ value: "9", label: "9 Holes" }, { value: "18", label: "18 Holes" }]} onPick={(v) => onHoles(v === "9" ? 9 : 18)} />
+        <Row label="Date" value={g.date ? monthDay(g.date) : ""} onClick={onDate} chev />
+        {page.records.length === 2 && (
+          <Menu label="Match Play" value={g.match ? "on" : "off"} options={[{ value: "off", label: "Off" }, { value: "on", label: "On" }]} onPick={(v) => onMatch(v === "on")} />
+        )}
+      </Card>
+      {anyPlayed && (
+        <div className="pad-x exp-acts">
+          <button type="button" className="btn btn-primary btn-block" onClick={onFinish}>{finished ? "Update Rounds" : "Finish Round"}</button>
+        </div>
+      )}
+      {anyPlayed && <Foot>{finished ? "Kept in Rounds" : "Finishing Keeps the Round in Rounds"}</Foot>}
+    </>
+  );
+}
+
+/** One chip: tap it to set, tap it again to clear. Never a hue; the selected chip takes the app's one selected look. */
+function Chip({ on, label, aria, onTap, par }: { on: boolean; label: string; aria: string; onTap: () => void; par?: boolean }) {
+  return <button type="button" className={"score-chip" + (on ? " active" : "") + (par ? " is-par" : "")} aria-pressed={on} aria-label={aria} onClick={onTap}>{label}</button>;
+}
+
+const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+/** ONE HOLE AT A TIME, BIG ENOUGH FOR A THUMB ON A COURSE. Par as four chips (kept with the course once the card is full), each
+ *  player's strokes as big chips around par, and a Stats strip one tap deep: putts, fairway, penalties, sand. Green in regulation
+ *  is worked out from the score and the putts, never asked. */
+export function HoleEntry({ page, hole, onScore, onPar, onStat }: {
+  page: PageData;
+  hole: number;
+  onScore: (recordId: string, score: number | null) => void;
+  onPar: (par: number | null) => void;
+  onStat: (recordId: string, key: string, value: string) => void;
+}) {
+  const g = page.golf!;
+  const par = parOf(g, hole);
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <>
       <Card>
-        <Row label="Par" plain>
-          <Stepper value={par} step={1} min={3} max={6} label={`Par for Hole ${hole}`} onChange={onPar} />
+        <Row label="Par" plain meta={par === null ? <span className="fact">Not Set</span> : undefined}>
+          <div className="hole-chips">
+            {range(3, 6).map((p) => <Chip key={p} on={par === p} label={String(p)} aria={`Par ${p} for Hole ${hole}`} onTap={() => onPar(par === p ? null : p)} />)}
+          </div>
         </Row>
       </Card>
-      <Head label="Strokes" action={open && onFillPar ? { label: "Par for the Rest", onClick: onFillPar } : undefined} />
-      <Card>
-        {page.records.map((r) => {
-          const s = scoreOf(r, hole);
-          const t = golfTotals(page, r);
-          return (
-            <Row key={r.id} plain label={<U>{(r.v.name ?? "").trim() || "Player"}</U>}
-              meta={s !== null || t.played ? <>
-                {s !== null && <span className="fact">{holeWord(s, par)}</span>}
-                {t.played > 0 && <span className="fact"><b>{t.total}</b></span>}
-                {t.played > 0 && <span className="fact"><b>{toParLabel(t.toPar)}</b></span>}
-              </> : undefined}>
-              <Stepper value={s ?? par} step={1} min={1} max={15} label={`Strokes for ${(r.v.name ?? "").trim() || "Player"}`}
-                onChange={(n) => onScore(r.id, n)} />
-            </Row>
-          );
-        })}
-      </Card>
+      {page.records.map((r) => {
+        const name = playerName(r);
+        const s = scoreOf(r, hole);
+        const st = statsOf(r, hole);
+        const p = playerRound(page, r);
+        let base = par === null ? 2 : Math.max(1, par - 2);
+        if (s !== null && s >= base + 8) base = s - 7;
+        if (s !== null && s < base) base = Math.max(1, s);
+        const gir = girOn(s, st.putts, par);
+        const expanded = open === r.id;
+        const recorded = [st.putts !== null && `${st.putts} Putts`, st.fairway && FAIRWAYS.find((f) => f.key === st.fairway)!.label, st.penalties > 0 && `${st.penalties} Pen`, st.sand && "Sand", gir !== null && (gir ? "Green" : "No Green")].filter(Boolean) as string[];
+        return (
+          <div key={r.id}>
+            <Head label={name} />
+            <Card>
+              <Row plain label={s === null ? "Strokes" : par === null ? `${s} Strokes` : holeWord(s, par)}
+                meta={s !== null || p.played ? <>
+                  {p.played > 0 && <span className="fact"><b>{p.gross}</b></span>}
+                  {p.toPar !== null && <span className="fact"><b>{toParLabel(p.toPar)}</b></span>}
+                </> : undefined} />
+              <div className="score-chips" role="group" aria-label={`Strokes for ${name}`}>
+                {range(base, base + 7).map((n) => (
+                  <Chip key={n} on={s === n} par={par === n} label={String(n)} aria={`Strokes ${n} for ${name}`} onTap={() => onScore(r.id, s === n ? null : n)} />
+                ))}
+              </div>
+              <Row label="Stats" onClick={() => setOpen(expanded ? null : r.id)} chev
+                meta={recorded.length ? <>{recorded.map((f) => <span className="fact" key={f}>{f}</span>)}</> : undefined} />
+              {expanded && (
+                <>
+                  <Row plain label="Putts">
+                    <div className="hole-chips">
+                      {range(0, 4).map((n) => <Chip key={n} on={st.putts === n} label={String(n)} aria={`Putts ${n} for ${name}`} onTap={() => onStat(r.id, puttKey(hole), st.putts === n ? "" : String(n))} />)}
+                    </div>
+                  </Row>
+                  {par !== 3 && (
+                    <Row plain label="Fairway">
+                      <div className="hole-chips">
+                        {FAIRWAYS.map((f) => <Chip key={f.key} on={st.fairway === f.key} label={f.label} aria={`Fairway ${f.label} for ${name}`} onTap={() => onStat(r.id, fairKey(hole), st.fairway === f.key ? "" : f.key)} />)}
+                      </div>
+                    </Row>
+                  )}
+                  <Row plain label="Penalties">
+                    <div className="hole-chips">
+                      {range(1, 3).map((n) => <Chip key={n} on={st.penalties === n} label={String(n)} aria={`Penalties ${n} for ${name}`} onTap={() => onStat(r.id, penKey(hole), st.penalties === n ? "" : String(n))} />)}
+                    </div>
+                  </Row>
+                  <Row plain label="Sand">
+                    <div className="hole-chips">
+                      <Chip on={st.sand} label="Bunker" aria={`Sand shot for ${name}`} onTap={() => onStat(r.id, sandKey(hole), st.sand ? "" : "1")} />
+                    </div>
+                  </Row>
+                  {gir !== null && <Row plain label="Green in Regulation" value={gir ? "Yes" : "No"} />}
+                </>
+              )}
+            </Card>
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -305,9 +476,7 @@ export function ReadOnlyRecords({ page }: { page: PageData }) {
     return (
       <Card>
         {page.records.map((r) => {
-          const t = golfTotals(page, r);
-          return <Row key={r.id} label={<U>{(r.v.name ?? "").trim() || "Player"}</U>}
-            meta={t.played ? <><span className="fact">{t.thru >= page.golf!.holes ? "Final" : `Thru ${t.thru}`}</span><span className="fact"><b>{t.total}</b></span><span className="fact"><b>{toParLabel(t.toPar)}</b></span></> : undefined} />;
+          return <Row key={r.id} label={<U>{playerName(r)}</U>} meta={playerFacts(page, r)} />;
         })}
       </Card>
     );

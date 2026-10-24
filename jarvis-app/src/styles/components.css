@@ -7963,3 +7963,28 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .card.card-enter { animation: cardRise 220ms var(--ease-out) both; animation-delay: calc(min(var(--enter-i, 0), 5) * 40ms); }
 html[data-motion="reduce"] .card.card-enter { animation: none; }
 @media (prefers-reduced-motion: reduce) { .card.card-enter { animation: none; } }
+
+/* ===== GOLF: the score chip, the hole's chip rows, and the scorecard grid (Dave 2026-10-23, Golf decision: "Big score chips replace
+   steppers", "The real scorecard grid sits on screen, and tapping any hole lets you fix it"). Added once, here, as the rulebook asks
+   of a new primitive; no new colour (a mark is a ring in the neutral ink, never a hue) and every tap target paints at the tap minimum.
+   Tokens only. ===== */
+.score-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.score-chip { display: flex; align-items: center; justify-content: center; min-width: var(--tap-min); min-height: var(--tap-min); padding: 0 var(--s-3); border: 0; border-radius: var(--r-pill);
+  background-color: var(--press-3); color: var(--tx-1); font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-name); font-variant-numeric: tabular-nums; cursor: pointer; }
+.score-chip.active { background-color: var(--sel-bg); color: var(--sel-fg); }
+.score-chip.is-par:not(.active) { box-shadow: inset 0 0 0 1.5px var(--tx-4); }
+.hole-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); }
+.hole-chips > .score-chip { font-size: var(--t-sub); }
+.score-grid-wrap { overflow-x: auto; padding: 0 var(--s-4); scrollbar-width: none; }
+.score-grid-wrap::-webkit-scrollbar { display: none; }
+.score-grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--t-sub); color: var(--tx-1); }
+.score-grid th, .score-grid td { min-width: 48px; height: var(--tap-min); padding: 0; border-top: 0.5px solid var(--divider); text-align: center; font-weight: var(--w-regular); }
+.score-grid thead th { border-top: 0; font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); }
+.score-grid thead th .sg-name { display: block; max-width: 72px; margin: 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-grid .sg-hole { min-width: 48px; text-align: left; padding-left: var(--s-1); color: var(--tx-3); font-weight: var(--w-name); }
+.score-grid .sg-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: var(--tap-min); padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.score-grid .sg-sum th, .score-grid .sg-sum td { font-weight: var(--w-name); color: var(--tx-1); }
+.score-grid .sg-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; }
+.score-grid .sg-under { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--tx-3); }
+.score-grid .sg-over { border-radius: var(--r-xs); box-shadow: inset 0 0 0 1.5px var(--tx-4); }
+.score-grid .sg-empty { color: var(--tx-2); }
