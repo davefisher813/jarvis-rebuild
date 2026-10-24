@@ -219,7 +219,7 @@ export function untouchedTemplatePage(page: PageData): boolean {
     sections: (p.sections ?? []).map((s) => s.label),
     meta: p.meta ?? {},
     games: (p.games ?? []).length,
-    records: p.records.map((r) => ({ v: r.v, sec: (p.sections ?? []).findIndex((s) => s.key === r.sec), link: r.link ?? "", confirmedOn: r.confirmedOn ?? "" })),
+    records: p.records.filter((r) => !r.ex).map((r) => ({ v: r.v, sec: (p.sections ?? []).findIndex((s) => s.key === r.sec), link: r.link ?? "", confirmedOn: r.confirmedOn ?? "" })),
   });
   return shape(page) === shape(fresh);
 }

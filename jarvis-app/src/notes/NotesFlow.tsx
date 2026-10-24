@@ -36,6 +36,7 @@ import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/
 import { todayISO, addDays } from "../schedule/calendar";
 import PageScreen, { type PendingImport } from "./pages/PageScreen";
 import { type PageKind, type PageData, KIND_NAME, newTeamPage, newOutreachPage, newScorecardPage, pageSummary, takeSnapshot, markBase } from "./pages/pageModel";
+import { withExample } from "./pages/examples";
 import { findCourse, type CourseMemo } from "./pages/golf";
 import { loadCourseBook } from "./pages/golfRounds";
 import { StartRoundSheet, StartGameSheet, PageShareSheet } from "./pages/PageSheets";
@@ -648,7 +649,9 @@ export default function NotesFlow({
   const makePage = async (kind: PageKind) => {
     const page = kind === "team" ? newTeamPage() : kind === "outreach" ? newOutreachPage() : isTemplateKey(kind) ? newTemplatePage(kind) : null;
     if (!page) return;
-    const id = await createPage(KIND_NAME[kind], page);
+    // THE TEMPLATE STANDARD: a page opens as a filled example, clearable in one tap.
+    const filled = withExample(page);
+    const id = await createPage(KIND_NAME[kind], filled);
     if (id) openPage(id);
   };
   /** A page from the person's own template: its fields, headings and settings, fresh and empty. */

@@ -37,6 +37,14 @@ const toasts: ToastState[] = [];
 subscribeToast((t) => { if (t) toasts.push(t); });
 afterEach(() => { vi.restoreAllMocks(); resetToasts(); toasts.length = 0; });
 
+/** The template standard opens a page as a filled example. These tests measure the empty page, so they clear it first, as a person does with one tap. */
+async function clearExampleIfAny() {
+  const row = screen.queryByText("This Is an Example");
+  if (!row) return;
+  fireEvent.click(row);
+  await waitFor(() => expect(screen.queryByText("This Is an Example")).toBeNull());
+}
+
 async function openTemplates(user: string) {
   const view = await mount(user);
   fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
@@ -50,7 +58,7 @@ async function openPicked(user: string, name: string, entry?: string) {
   if (entry) {
     fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(entry));
   }
-  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
   return view;
 }
 
@@ -75,7 +83,7 @@ describe("the picker", () => {
     expect(sheet).toBeInTheDocument();
     expect([...document.querySelectorAll(".action-sheet button")].map((b) => b.textContent)).toEqual(["Recipes", "Meal Plan", "Freezer", "Cancel"]);
     fireEvent.click(screen.getByText("Meal Plan"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     await waitFor(async () => expect(await pageOf("mealplan")).toBeTruthy());
     expect(await pageOf("recipes")).toBeNull();
   });
@@ -89,7 +97,7 @@ describe("Money Map keeps pointers only", () => {
     fireEvent.change(screen.getByLabelText("Where to Find It"), { target: { value: "online login: dave / hunter2" } });
     fireEvent.click(within(sheetOf()).getByText("Add"));
     await waitFor(() => expect(toasts.some((t) => /Where to Find It Looks Like a Way In/.test(t.message))).toBe(true));
-    expect((await pageOf("moneymap"))!.page.records.length).toBe(0);
+    expect((await pageOf("moneymap"))!.page.records.filter((r) => !r.ex).length).toBe(0);
     // A place is a pointer.
     fireEvent.change(screen.getByLabelText("Where to Find It"), { target: { value: "Blue folder, file cabinet" } });
     fireEvent.click(within(sheetOf()).getByText("Add"));
@@ -97,7 +105,7 @@ describe("Money Map keeps pointers only", () => {
     expect(screen.getByText("Not Confirmed")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Confirm Everything Is Still True"));
     await waitFor(() => expect(screen.getByText(/^Confirmed /)).toBeInTheDocument());
-    await waitFor(async () => expect((await pageOf("moneymap"))!.page.records[0]?.confirmedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/));
+    await waitFor(async () => expect((await pageOf("moneymap"))!.page.records.find((r) => r.v.name === "Chase Checking")?.confirmedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/));
   });
   it("has no field for a way in", async () => {
     await openPicked("u-w3-map-fields", "Money Map", "Money Map");
@@ -116,7 +124,7 @@ describe("Debt Payoff reads Money", () => {
     await svcs!.money.create({ name: "Visa", balance: 2000, kind: "credit", asOf: "2026-10-01" });
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("Debt Payoff"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     fireEvent.click(await screen.findByText("Add From Money"));
     fireEvent.click(await screen.findByText("Visa"));
     expect((await screen.findAllByText("$2,000", {}, { timeout: 4000 })).length).toBeGreaterThan(0);
@@ -160,10 +168,10 @@ describe("People and Occasions suggests from People, and adds only on a tap", ()
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("People and Occasions"));
     expect(await screen.findByText("From People", {}, { timeout: 4000 })).toBeInTheDocument();
-    expect((await pageOf("occasions"))!.page.records.length).toBe(0);
+    expect((await pageOf("occasions"))!.page.records.filter((r) => !r.ex).length).toBe(0);
     fireEvent.click(screen.getByText("Sam Okafor"));
-    await waitFor(async () => expect((await pageOf("occasions"))!.page.records.length).toBe(1));
-    expect((await pageOf("occasions"))!.page.records[0]!.v).toMatchObject({ name: "Sam Okafor", occasion: "Birthday" });
+    await waitFor(async () => expect((await pageOf("occasions"))!.page.records.filter((r) => !r.ex).length).toBe(1));
+    expect((await pageOf("occasions"))!.page.records.find((r) => !r.ex)!.v).toMatchObject({ name: "Sam Okafor", occasion: "Birthday" });
   });
 });
 
@@ -183,7 +191,7 @@ describe("every wave 3 template opens and draws its row", () => {
       let id: string | null = null;
       id = await svcs!.notes.createPage(d.name, page, "");
       view.rerender(<NotesProvider userId={"u-w3-smoke-" + k}><Grab /><NotesFlow openId={id!} /></NotesProvider>);
-      await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+      await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
       if (!d.derived) expect(await screen.findByText("Sample " + d.noun, {}, { timeout: 4000 })).toBeInTheDocument();
       expect(screen.getByLabelText("Export or Share")).toBeInTheDocument();
       fireEvent.click(screen.getByLabelText("Page options"));

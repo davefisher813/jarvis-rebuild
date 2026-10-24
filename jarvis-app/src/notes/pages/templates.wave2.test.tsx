@@ -36,6 +36,14 @@ const count = async (kind: string) => (await svc().listNotes()).filter((n) => (n
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+/** The template standard opens a page as a filled example. These tests measure the empty page, so they clear it first, as a person does with one tap. */
+async function clearExampleIfAny() {
+  const row = screen.queryByText("This Is an Example");
+  if (!row) return;
+  fireEvent.click(row);
+  await waitFor(() => expect(screen.queryByText("This Is an Example")).toBeNull());
+}
+
 
 /** Picked from the picker; a template that is one entry of several (Training Plan's Training Log) asks which one, so the second name is that tap. */
 async function openPicked(user: string, name: string, entry?: string) {
@@ -45,7 +53,7 @@ async function openPicked(user: string, name: string, entry?: string) {
   if (entry) {
     fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(entry));
   }
-  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
   return view;
 }
 /** A template folded into another on 2026-10-23 is no longer in the picker; a page made earlier opens exactly as it did, from its id. */
@@ -54,7 +62,7 @@ async function openSeeded(user: string, key: TemplateKey) {
   let id = "";
   await act(async () => { id = (await svc().createPage(TEMPLATES[key].name, newTemplatePage(key)))!; });
   view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
-  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
   return view;
 }
 const sheetOf = () => document.querySelector(".sheet-scrim") as HTMLElement;
@@ -230,7 +238,7 @@ describe("Save as My Template", () => {
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     expect(await screen.findByText("My Templates", {}, { timeout: 4000 })).toBeInTheDocument();
     fireEvent.click(screen.getByText("Group Manager Page Template"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     await waitFor(async () => {
       const made = (await svc().listNotes()).map((n) => (n.data as unknown as { page?: { kind: string; mine?: boolean; fields: { key: string }[]; records: unknown[] } }).page).filter((p) => p && p.kind === "group" && !p.mine);
       expect(made.length).toBeGreaterThanOrEqual(2);

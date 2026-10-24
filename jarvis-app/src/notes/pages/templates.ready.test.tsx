@@ -30,6 +30,14 @@ async function mount(user: string, openId?: string) {
 const sheetOf = () => document.querySelector(".sheet-scrim") as HTMLElement;
 afterEach(() => { vi.restoreAllMocks(); });
 
+/** The template standard opens a page as a filled example. These tests measure the empty page, so they clear it first, as a person does with one tap. */
+async function clearExampleIfAny() {
+  const row = screen.queryByText("This Is an Example");
+  if (!row) return;
+  fireEvent.click(row);
+  await waitFor(() => expect(screen.queryByText("This Is an Example")).toBeNull());
+}
+
 /** The picker, open. */
 async function openPicker(user: string) {
   const view = await mount(user);
@@ -76,7 +84,7 @@ const WERE_SHELLS: { name: string; seed?: TemplateKey; pick: string[]; heads: st
   { name: "Group Manager Page", seed: "group", pick: ["Group Manager Page"], heads: ["Leaders", "Members", "Starts With"], texts: ["Role", "Dues Paid"], adds: 2 },
   { name: "Home and Vehicle Book", pick: ["Home and Vehicle Book", "Home and Vehicle Book"], heads: ["Home", "Vehicles", "Appliances", "Purchases and Warranties", "Starts With"], texts: ["Make and Model", "Next Due"], adds: 4 },
   { name: "Health Card", pick: ["Health Card", "Person"], heads: ["Allergies", "Conditions", "Doctors", "Emergency Contacts"], texts: ["Medications Live in Health; This Card Does Not Copy Them"], adds: 4 },
-  { name: "Handover Sheet", pick: ["Handover Sheet", "Handover Sheet"], heads: ["Right Now", "Every Day", "If Something Goes Wrong", "Contacts"], texts: ["What to Know"], adds: 4 },
+  { name: "Handover Sheet", pick: ["Handover Sheet", "Handover Sheet"], heads: ["Right Now", "Every Day", "If Something Goes Wrong", "Contacts"], texts: ["Write What Someone Covering for You Needs to Know"], adds: 4 },
   { name: "People and Occasions", pick: ["People and Occasions"], heads: ["Occasions", "Starts With"], texts: ["Add Occasion", "Gift Ideas", "Budget", "A Date Comes Round Every Year; the Page Says When One Is Near"] },
   { name: "Trip Sheet", pick: ["Trip Sheet", "Trip Sheet"], heads: ["Getting There", "Staying", "Doing", "Packing"], texts: ["Flights", "Hotel"], adds: 4 },
   { name: "Kitchen Page", pick: ["Kitchen Page", "Recipes"], heads: ["Mains", "Sides", "Desserts", "Other", "Starts With"], texts: ["Ingredients", "Directions"], adds: 4 },
@@ -101,7 +109,7 @@ describe("the 24 templates that opened as an empty shell open ready", () => {
         fireEvent.click(screen.getByText(t.pick[0]!));
         if (t.pick.length > 1) fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(t.pick[1]!));
       }
-      await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+      await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
       expectReady(t.name);
       const d = drawn();
       for (const h of t.heads) expect(d.heads, `${t.name}: head ${h}`).toContain(h);
@@ -138,7 +146,7 @@ describe("the 16 that were ready still open as they did", () => {
         fireEvent.click(screen.getAllByText(t.pick[0]!)[0]!);
         if (t.pick.length > 1) fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(t.pick[1]!));
       }
-      await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+      await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
       expectReady(t.name);
       for (const a of t.anchors) expect(screen.getAllByText(a).length, `${t.name}: ${a}`).toBeGreaterThan(0);
     });
@@ -149,7 +157,7 @@ describe("the 16 that were ready still open as they did", () => {
     fireEvent.click(await screen.findByText("New Round"));
     fireEvent.change(await screen.findByPlaceholderText("Player 1"), { target: { value: "Ava" } });
     fireEvent.click(within(sheetOf()).getByText("Start"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     for (const a of ["Scores", "Round", "Course", "Holes", "Start Hole 1"]) expect(screen.getAllByText(a).length, a).toBeGreaterThan(0);
   });
   it("Scoreboard picks its game and opens on the score", async () => {
@@ -159,7 +167,7 @@ describe("the 16 that were ready still open as they did", () => {
     fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Scoreboard"));
     fireEvent.click(await screen.findByText("Basketball"));
     fireEvent.click(within(sheetOf()).getByText("Start"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     for (const a of ["Score", "Game", "Sport", "Add a Side", "Start Quarter 1"]) expect(screen.getAllByText(a).length, a).toBeGreaterThan(0);
   });
   it("Lineup Card opens on its batting order", async () => {
@@ -170,7 +178,7 @@ describe("the 16 that were ready still open as they did", () => {
     const teamId = (await svcRef!.createPage("Tigers", team, ""))!;
     const id = (await svcRef!.createPage("Tigers Lineup", newLineupPage({ id: teamId, title: "Tigers", page: team }, [{ playerId: team.records[0]!.id }], "2026-10-16", Date.now()), ""))!;
     view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     for (const a of ["Batting Order", "Team Sheet", "Date", "Ava Chen"]) expect(screen.getAllByText(a).length, a).toBeGreaterThan(0);
   });
   for (const [name, anchor] of [["Meeting Notes", "Agenda"], ["Project Brief", "Objective"], ["Log / Journal", "Log"], ["Tracker", ""], ["Blank", ""]] as const) {

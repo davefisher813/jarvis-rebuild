@@ -36,11 +36,19 @@ const pageOf = async (kind: string) => { const n = (await svc().listNotes()).fin
 const sheetOf = () => document.querySelector(".sheet-scrim") as HTMLElement;
 afterEach(() => { vi.restoreAllMocks(); });
 
+/** The template standard opens a page as a filled example. These tests measure the empty page, so they clear it first, as a person does with one tap. */
+async function clearExampleIfAny() {
+  const row = screen.queryByText("This Is an Example");
+  if (!row) return;
+  fireEvent.click(row);
+  await waitFor(() => expect(screen.queryByText("This Is an Example")).toBeNull());
+}
+
 async function openPicked(user: string, name: string) {
   const view = await mount(user);
   fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
   fireEvent.click(await screen.findByText(name));
-  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
   return view;
 }
 /** A page seeded straight into the store, then opened. */
@@ -48,7 +56,7 @@ async function openSeeded(user: string, title: string, page: PageData) {
   const view = await mount(user);
   const id = (await svc().createPage(title, page, ""))!;
   view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
-  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
   return { view, id };
 }
 /** The dropdown a Menu row holds: open it and pick the option by its words. */
@@ -68,7 +76,7 @@ describe("the Game Night sheets, scored their real way", () => {
     for (const g of ["Hearts", "Spades", "Euchre", "Rummy", "Phase 10", "Yahtzee", "Farkle"]) expect(within(sheetOf()).getByText(g), g).toBeInTheDocument();
     fireEvent.click(within(sheetOf()).getByText("Hearts"));
     fireEvent.click(within(sheetOf()).getByText("Start"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     expect(screen.getByText("Lowest Total Wins; the Game Ends When a Side Reaches 100")).toBeInTheDocument();
     expect(screen.getByText("Start Hand 1")).toBeInTheDocument();
     // Nobody leads before a hand is scored: a side with no points is not ahead for having none.
@@ -104,7 +112,7 @@ describe("the Game Night sheets, scored their real way", () => {
     fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Scoreboard"));
     fireEvent.click(await within(sheetOf()).findByText("Yahtzee"));
     fireEvent.click(within(sheetOf()).getByText("Start"));
-    await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+    await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
     expect(screen.getByText("Start Scoring")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Start Scoring"));
     expect(await screen.findByText("Ones")).toBeInTheDocument();

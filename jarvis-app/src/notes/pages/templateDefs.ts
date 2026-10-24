@@ -81,6 +81,8 @@ export interface TemplateDef {
   /** The heading whose rows run on a clock from the page's Start Time (the Event Day Pack's Timeline, which is the Running Order folded
    *  in). Absent: the clock runs over every row, as the Session Plan's does. */
   timeline?: string;
+  /** What an empty page says in one plain line instead of the Starts With and Suggested rows (a reference page, not a list to work through). */
+  plainEmpty?: string;
 }
 
 const f = (key: string, label: string, type: PageField["type"] = "text", options?: string[]): PageField => ({ key, label, type, ...(options ? { options } : {}) });
@@ -239,7 +241,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "healthcard", name: "Health Card", shelf: "Life", desc: "Allergies, Conditions, Doctors, Emergency Contacts", cat: "red", icon: "person",
     noun: "Entry", plural: "Entries", headline: "name", show: ["kind", "detail", "contact"], entry: "Person",
     fields: [f("name", "Item"), f("kind", "Kind", "choice", ["Allergy", "Condition", "Doctor", "Contact", "Vaccine", "Other"]), f("detail", "Detail"), f("contact", "Phone")],
-    sections: ["Allergies", "Conditions", "Doctors", "Emergency Contacts"], suggested: [f("blood", "Blood Type"), f("insurer", "Insurance")],
+    // Emergency block FIRST (Dave's fix item): who to call, then what could hurt you, then the rest. Nothing here is a task, so no row has a check.
+    sections: ["Emergency Contacts", "Allergies", "Conditions", "Doctors"], suggested: [f("blood", "Blood Type"), f("insurer", "Insurance")],
     view: "sheet", one: true, wave: 3, confirm: true, note: "Medications Live in Health; This Card Does Not Copy Them",
   },
   petcard: {
@@ -253,7 +256,9 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     noun: "Item", plural: "Items", headline: "topic", show: ["detail", "who"], entry: "Handover Sheet",
     fields: [f("topic", "Topic"), f("detail", "What to Know"), f("who", "Who")],
     sections: ["Right Now", "Every Day", "If Something Goes Wrong", "Contacts"], suggested: [f("where", "Where It Is"), f("when", "When")],
-    view: "sheet", wave: 3, confirm: true,
+    // A REFERENCE PAGE, NOT A LIST OF THINGS TO TICK OFF (Dave's fix item): the rows are what someone needs to know, read in full. A page
+    // with none says one plain line, never rows that look like instructions to clear.
+    view: "sheet", wave: 3, confirm: true, plainEmpty: "Write What Someone Covering for You Needs to Know",
   },
   carerecord: {
     key: "carerecord", name: "Care Record", shelf: "Life", desc: "Dated Entries of Who Cared for What", cat: "teal", icon: "clock",

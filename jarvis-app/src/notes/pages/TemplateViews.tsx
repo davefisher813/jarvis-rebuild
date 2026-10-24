@@ -129,7 +129,7 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, onFields,
           {g.records.length > 0 && <Card>{g.records.map(rowOf)}</Card>}
         </div>
       ))}
-      {n === 0 && <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />}
+      {n === 0 && (d?.plainEmpty ? <Foot>{d.plainEmpty}</Foot> : <StarterCard page={page} onFields={onFields} onSuggest={onSuggest} />)}
       {onSections && <Head label="Headings" action={{ label: "Edit Headings", onClick: onSections }} />}
     </>
   );

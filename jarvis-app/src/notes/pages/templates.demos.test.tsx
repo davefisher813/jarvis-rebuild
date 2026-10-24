@@ -262,6 +262,8 @@ describe("Outreach Tracker is not Tasks, and every page edit can be undone", () 
     await mount("u-outreach");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     fireEvent.click(await screen.findByText("Outreach Tracker"));
+    fireEvent.click(await screen.findByText("This Is an Example", {}, { timeout: 4000 }));
+    await waitFor(() => expect(screen.queryByText("This Is an Example")).toBeNull());
     fireEvent.click(await screen.findByText("Add Contact", {}, { timeout: 4000 }));
     fireEvent.change(await screen.findByLabelText("Who"), { target: { value: "Coach Miller" } });
     fireEvent.change(screen.getByLabelText("Next Step"), { target: { value: "Send the schedule" } });

@@ -239,14 +239,18 @@ export function OutreachView({ page, onOpen, onAdd, onFields, onKind }: {
             const last = (r.v.last ?? "").trim();
             const known = KNOWN_STATUS.has(status);
             const tone = known ? STATUS_TONE[status] ?? "" : "";
-            const hasMeta = (who && org) || status || /^\d{4}-\d{2}-\d{2}$/.test(last);
+            const next = (r.v.next ?? "").trim();
+            const hasLast = /^\d{4}-\d{2}-\d{2}$/.test(last);
+            const hasMeta = hasLast || next || (who && org) || status;
             return (
               <Row key={r.id} label={<U>{who || org || "Unnamed Contact"}</U>} onClick={() => onOpen(r.id)} chev
                 meta={hasMeta ? <>
+                  {/* LAST TOUCH AND NEXT STEP LEAD (Dave's fix item): what you did last and what comes next, then who and where it stands. */}
+                  {hasLast && <span className="fact date">Last {monthDay(last)}</span>}
+                  {next && <span className="fact"><U>{next}</U></span>}
                   {who && org && <span className="fact"><U>{org}</U></span>}
                   {/* An app status word wears its meaning's colour (a close with nothing left to do is plain); a typed one is drawn as typed. */}
                   {status && (known ? <span className={"fact" + (tone ? " " + tone : "")}>{status}</span> : <span className="fact"><b><U>{status}</U></b></span>)}
-                  {/^\d{4}-\d{2}-\d{2}$/.test(last) && <span className="fact date">{monthDay(last)}</span>}
                 </> : undefined} />
             );
           })}

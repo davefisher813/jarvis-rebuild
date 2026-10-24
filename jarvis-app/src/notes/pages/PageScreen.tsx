@@ -8,6 +8,7 @@ import type { Goal } from "../../life/types";
 import type { Project } from "../../projects/types";
 import { flagOn } from "../../substrate/flags";
 import { heldText, savedToastText } from "../../shared/saved";
+import { hasExample, clearExample } from "./examples";
 import { attemptWrite } from "../../shared/guard";
 import { showToast } from "../../shared/toast";
 import { bindMeridiem, lineCase, titleCase } from "../../shared/casing";
@@ -540,6 +541,14 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         </div>
       </div>
       <div className="nav-large">{shownTitle}</div>
+
+      {/* THE TEMPLATE STANDARD: a page that opens as a filled example says so once and clears in one tap. Rows the person edited stay. */}
+      {hasExample(page) && (
+        <Card>
+          <Row label="This Is an Example" meta={<span className="fact">Clear It to Start Your Own</span>} value="Clear"
+            onClick={() => void commit(clearExample(noteRef.current!.page))} />
+        </Card>
+      )}
 
       {page.kind === "team" && (
         <TeamView page={page} lineups={lineups} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}

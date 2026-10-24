@@ -46,6 +46,8 @@ export interface PageRecord {
   confirmedOn?: string;
   /** The app record this row points at, by id, when one does (a Debt Payoff row's Money account). A pointer, never a copy. */
   link?: string;
+  /** An example row the template filled the page with (the template standard, 2026-10-23). Gone the moment the person edits it. */
+  ex?: boolean;
 }
 
 /** A heading the page's rows are grouped under, named and ordered by the person. Every section is drawn on the page, rows or
@@ -283,6 +285,7 @@ export function setValues(page: PageData, recordId: string, patch: Record<string
       const flags = r.flags ? { ...r.flags } : undefined;
       if (flags) for (const k of Object.keys(patch)) delete flags[k];
       const next: PageRecord = { ...r, v };
+      delete next.ex;
       if (flags && Object.keys(flags).length) next.flags = flags;
       else delete next.flags;
       return next;

@@ -33,12 +33,20 @@ const pageOf = async (kind: string) => { const n = (await svcRef!.listNotes()).f
 const sheetOf = () => document.querySelector(".sheet-scrim") as HTMLElement;
 afterEach(() => { vi.restoreAllMocks(); });
 
+/** The template standard opens a page as a filled example. These tests measure the empty page, so they clear it first, as a person does with one tap. */
+async function clearExampleIfAny() {
+  const row = screen.queryByText("This Is an Example");
+  if (!row) return;
+  fireEvent.click(row);
+  await waitFor(() => expect(screen.queryByText("This Is an Example")).toBeNull());
+}
+
 // Open a page that already holds some rows (made directly, so the test is about the page and not about typing).
 async function openWith(user: string, kind: (typeof TEMPLATE_KEYS)[number], build: (p: Pg) => Pg) {
   const view = await mount(user);
   const id = await svcRef!.createPage(TEMPLATES[kind].name, build(newTemplatePage(kind)), "");
   view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id!} /></NotesProvider>);
-  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 }); await clearExampleIfAny();
 }
 const withRows = (rows: Record<string, string>[]) => (p: Pg) => rows.reduce((acc, r) => addRecord(acc, r).page, p);
 
