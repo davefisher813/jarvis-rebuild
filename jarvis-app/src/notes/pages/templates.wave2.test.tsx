@@ -8,7 +8,7 @@ import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
 import { NotesProvider, useNotes } from "../../data/NotesProvider";
 import NotesFlow from "../NotesFlow";
-import { newTemplatePage } from "./templateDefs";
+import { newTemplatePage, TEMPLATES, type TemplateKey } from "./templateDefs";
 
 // Every read and write takes a network beat, the way the phone's does.
 class SlowAdapter extends InMemoryAdapter {
@@ -37,10 +37,23 @@ const count = async (kind: string) => (await svc().listNotes()).filter((n) => (n
 afterEach(() => { vi.restoreAllMocks(); });
 
 
-async function openPicked(user: string, name: string) {
+/** Picked from the picker; a template that is one entry of several (Training Plan's Training Log) asks which one, so the second name is that tap. */
+async function openPicked(user: string, name: string, entry?: string) {
   const view = await mount(user);
   fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
   fireEvent.click(await screen.findByText(name));
+  if (entry) {
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(entry));
+  }
+  await screen.findByLabelText("Page options", {}, { timeout: 4000 });
+  return view;
+}
+/** A template folded into another on 2026-10-23 is no longer in the picker; a page made earlier opens exactly as it did, from its id. */
+async function openSeeded(user: string, key: TemplateKey) {
+  const view = await mount(user);
+  let id = "";
+  await act(async () => { id = (await svc().createPage(TEMPLATES[key].name, newTemplatePage(key)))!; });
+  view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
   await screen.findByLabelText("Page options", {}, { timeout: 4000 });
   return view;
 }
@@ -51,7 +64,9 @@ describe("the picker", () => {
     await mount("u-w2-picker");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     await screen.findByText("Sports");
-    for (const n of ["Scoreboard", "Pitching Board", "Session Plan", "Event Day Pack", "Scouting Report", "Profile One-Pager", "Training Log", "Training Plan", "League Standings", "Group Manager Page"]) expect(screen.getByText(n)).toBeInTheDocument();
+    for (const n of ["Scoreboard", "Pitching Board", "Session Plan", "Event Day Pack", "Scouting Report", "Training Plan"]) expect(screen.getByText(n)).toBeInTheDocument();
+    // Folded into others on 2026-10-23 (Dave's cut list): not rows of their own any more.
+    for (const n of ["Profile One-Pager", "Training Log", "League Standings", "Group Manager Page", "Lineup Card"]) expect(screen.queryByText(n), n).toBeNull();
     expect(screen.getByText("Golf Scorecard")).toBeInTheDocument();
   });
 });
@@ -134,7 +149,7 @@ describe("Scoreboard: pick the sport and score it", () => {
 
 describe("League Standings: record a game and the table works itself out", () => {
   it("two teams and a game give a leader, wins, losses and points", async () => {
-    await openPicked("u-w2-standings", "League Standings");
+    await openSeeded("u-w2-standings", "standings");
     for (const n of ["Tigers", "Bears"]) {
       fireEvent.click(screen.getByText("Add Team"));
       fireEvent.change(await screen.findByLabelText("Team"), { target: { value: n } });
@@ -169,7 +184,7 @@ describe("Pitching Board: rest follows from the pitches", () => {
 
 describe("Profile One-Pager: one record, empty fields stay off the page", () => {
   it("opens with its one record and draws only what is filled in", async () => {
-    await openPicked("u-w2-profile", "Profile One-Pager");
+    await openSeeded("u-w2-profile", "profile");
     expect((await pageOf("profile"))!.page.records).toHaveLength(1);
     expect(screen.getByText("Add What You Want on the Page; Empty Fields Stay Off It")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Edit Profile"));
@@ -182,13 +197,13 @@ describe("Profile One-Pager: one record, empty fields stay off the page", () => 
 
 describe("Training Log and Training Plan", () => {
   it("the log reads Health rather than keeping workouts of its own", async () => {
-    await openPicked("u-w2-tlog", "Training Log");
+    await openPicked("u-w2-tlog", "Training Plan", "Training Log");
     expect(await screen.findByText("From Health")).toBeInTheDocument();
     expect(screen.getByText(/Workouts Are Read From Health, Never Copied/)).toBeInTheDocument();
     expect((await pageOf("traininglog"))!.page.records).toHaveLength(0);
   });
   it("the plan starts with a week and takes days", async () => {
-    await openPicked("u-w2-tplan", "Training Plan");
+    await openPicked("u-w2-tplan", "Training Plan", "Training Plan");
     fireEvent.click(screen.getByText("Add Day"));
     fireEvent.change(await screen.findByLabelText("Day"), { target: { value: "Monday" } });
     fireEvent.click(within(sheetOf()).getByText("Add"));
@@ -199,7 +214,7 @@ describe("Training Log and Training Plan", () => {
 
 describe("Save as My Template", () => {
   it("keeps the edited structure with no rows, lists it in the picker, and starts a fresh page from it", async () => {
-    await openPicked("u-w2-mine", "Group Manager Page");
+    await openSeeded("u-w2-mine", "group");
     fireEvent.click(screen.getByLabelText("Page options"));
     fireEvent.click(screen.getByText("Fields"));
     fireEvent.click(await screen.findByText("Add Coming"));

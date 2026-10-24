@@ -37,8 +37,7 @@ interface PageEntry { key: string; name: string; desc: string; cat: string; Icon
 
 const CORE: PageEntry[] = [
   { key: "scorecard", name: "Golf Scorecard", desc: "Holes, Players, Running Totals", cat: "green", Icon: Target, shelf: "Sports" },
-  { key: "team", name: "Team Sheet", desc: "A Roster: Name, Number, Position", cat: "blue", Icon: User, shelf: "Sports" },
-  { key: "lineup", name: "Lineup Card", desc: "An Order Picked from a Team Sheet", cat: "purple", Icon: ListOrdered, shelf: "Sports" },
+  { key: "team", name: "Team Sheet", desc: "A Roster, Lineups, Fees and Dates", cat: "blue", Icon: User, shelf: "Sports" },
   { key: "outreach", name: "Outreach Tracker", desc: "Who, How, Status, Next Step", cat: "orange", Icon: Send, shelf: "Sports" },
 ];
 
@@ -48,7 +47,7 @@ const CORE: PageEntry[] = [
 // each, the same key and the same page; the count of templates does not move.
 const PAGES_LIST: PageEntry[] = [
   ...CORE,
-  ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).flatMap((k) =>
+  ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent && !TEMPLATES[k].retired).flatMap((k) =>
     [TEMPLATES[k].shelf, ...(TEMPLATES[k].alsoShelves ?? [])].map((shelf) =>
       ({ key: k, name: TEMPLATES[k].shelfName ?? TEMPLATES[k].name, desc: TEMPLATES[k].desc, cat: TEMPLATES[k].cat, Icon: ICONS[TEMPLATES[k].icon], shelf }))),
 ];

@@ -100,9 +100,46 @@ export function moveField(page: PageData, key: string, by: -1 | 1): PageData {
 /** The template's suggested fields this page does not have yet. */
 export function suggestedFor(page: PageData): PageField[] {
   const d = templateDef(page.kind);
-  if (!d?.suggested) return [];
+  const list = d?.suggested ?? (page.kind === "team" ? TEAM_SUGGESTED : undefined);
+  if (!list) return [];
   const have = new Set(page.fields.map((f) => f.key));
-  return d.suggested.filter((x) => !have.has(x.key));
+  return list.filter((x) => !have.has(x.key));
+}
+
+// THE TEAM SHEET IS ALSO THE GROUP (Dave's cut list, 2026-10-23: the Group Manager Page folds into the Team Sheet: fees owed and paid,
+// key dates). Nothing is added to a roster until it is asked for: each of these is one tap on the sheet, and a sheet that never asks
+// is the roster it always was. A group's people, who is coming and what is owed are the same rows as a team's players.
+export const TEAM_SUGGESTED: PageField[] = [
+  { key: "role", label: "Role", type: "choice", options: ["Leader", "Member", "Guest"] },
+  { key: "fee", label: "Fee Owed", type: "money" },
+  { key: "paid", label: "Paid", type: "check" },
+  { key: "coming", label: "Coming", type: "check" },
+  { key: "keydate", label: "Key Date", type: "date" },
+];
+
+/** Fees owed and paid, worked out from the rows. Null until the sheet has a Fee Owed field and a fee on at least one row. */
+export function groupDues(page: PageData): { owed: number; paid: number; left: number; unpaid: number } | null {
+  if (!page.fields.some((x) => x.key === "fee")) return null;
+  const hasPaid = page.fields.some((x) => x.key === "paid");
+  let owed = 0, paid = 0, unpaid = 0, any = false;
+  for (const r of page.records) {
+    const fee = num(r.v.fee);
+    if (fee === null || fee <= 0) continue;
+    any = true;
+    owed += fee;
+    if (hasPaid && r.v.paid === "1") paid += fee; else unpaid++;
+  }
+  return any ? { owed, paid, left: owed - paid, unpaid } : null;
+}
+
+/** The dates the sheet's rows carry, soonest first, from today on. Empty when no Key Date field or none is set. */
+export function keyDates(page: PageData, today: string = todayLocal()): { id: string; name: string; date: string }[] {
+  if (!page.fields.some((x) => x.key === "keydate")) return [];
+  return page.records
+    .map((r) => ({ id: r.id, name: (r.v.name ?? "").trim(), date: (r.v.keydate ?? "").trim() }))
+    .filter((x) => isoOk(x.date) && x.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 5);
 }
 
 export function addSuggested(page: PageData, key: string): PageData {

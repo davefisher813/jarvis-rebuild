@@ -6,12 +6,12 @@
 // render here, so a lowercase word behind a leading number or a card holding nothing but a capsule fails the template that drew it.
 import "../../shared/tiptapTest";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter } from "@core";
 import { NotesProvider, useNotes } from "../../data/NotesProvider";
 import NotesFlow from "../NotesFlow";
-import { TEMPLATE_KEYS, TEMPLATES } from "./templateDefs";
+import { TEMPLATE_KEYS, TEMPLATES, newTemplatePage, type TemplateKey } from "./templateDefs";
 import { newTeamPage, newLineupPage, addRecord } from "./pageModel";
 
 vi.mock("../../data/store", async (importOriginal) => {
@@ -38,6 +38,16 @@ async function openPicker(user: string) {
   return view;
 }
 
+/** A template that is no longer in the picker (folded into another on 2026-10-23) still opens ready from a page made earlier: seeded
+ *  through the store and opened by id, exactly as a person's old page is. */
+async function openSeeded(user: string, key: TemplateKey) {
+  const view = await mount(user);
+  let id = "";
+  await act(async () => { id = (await svcRef!.createPage(TEMPLATES[key].name, newTemplatePage(key)))!; });
+  view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
+  return id;
+}
+
 /** The page's structure as drawn: section heads, rows in cards, and anything at all beyond a counter and one Add. */
 function drawn() {
   const heads = [...document.querySelectorAll(".sh2 .t")].map((h) => h.textContent ?? "");
@@ -56,38 +66,41 @@ function expectReady(name: string) {
 }
 
 // The 24 that opened as a shell, each with what a ready open shows. A "head" is a section head's words; a "text" is anywhere on the page.
-const WERE_SHELLS: { name: string; pick: string[]; heads: string[]; texts?: (string | RegExp)[]; adds?: number }[] = [
+const WERE_SHELLS: { name: string; seed?: TemplateKey; pick: string[]; heads: string[]; texts?: (string | RegExp)[]; adds?: number }[] = [
   { name: "Team Sheet", pick: ["Team Sheet"], heads: ["Players", "Starts With"], texts: ["Add Player", "Edit Fields", "Name", "Number", "Position"] },
   { name: "Outreach Tracker", pick: ["Outreach Tracker"], heads: ["Contacts", "Starts With"], texts: ["Add Contact", "Who", "Organization", "Status"] },
   { name: "Session Plan", pick: ["Session Plan"], heads: ["Warm-Up", "Drills", "Scrimmage", "Cool-Down", "Headings"], texts: ["Start Time", "15 Min"], adds: 4 },
   { name: "Event Day Pack", pick: ["Event Day Pack"], heads: ["Before You Go", "Bring", "People", "Schedule"], texts: ["Tickets", "Directions", "Water"], adds: 4 },
   { name: "Scouting Report", pick: ["Scouting Report"], heads: ["Reports", "Starts With", "Suggested"], texts: ["Add Report", "Strengths", "Weaknesses", "Position"] },
-  { name: "League Standings", pick: ["League Standings"], heads: ["Standings", "Teams"], texts: ["Add Team", "Won-Lost", "Points", "For-Against"] },
-  { name: "Group Manager Page", pick: ["Group Manager Page"], heads: ["Leaders", "Members", "Starts With"], texts: ["Role", "Dues Paid"], adds: 2 },
+  { name: "League Standings", seed: "standings", pick: ["League Standings"], heads: ["Standings", "Teams"], texts: ["Add Team", "Won-Lost", "Points", "For-Against"] },
+  { name: "Group Manager Page", seed: "group", pick: ["Group Manager Page"], heads: ["Leaders", "Members", "Starts With"], texts: ["Role", "Dues Paid"], adds: 2 },
   { name: "Home and Vehicle Book", pick: ["Home and Vehicle Book", "Home and Vehicle Book"], heads: ["Home", "Vehicles", "Appliances", "Purchases and Warranties", "Starts With"], texts: ["Make and Model", "Next Due"], adds: 4 },
   { name: "Health Card", pick: ["Health Card", "Person"], heads: ["Allergies", "Conditions", "Doctors", "Emergency Contacts"], texts: ["Medications Live in Health; This Card Does Not Copy Them"], adds: 4 },
   { name: "Handover Sheet", pick: ["Handover Sheet", "Handover Sheet"], heads: ["Right Now", "Every Day", "If Something Goes Wrong", "Contacts"], texts: ["What to Know"], adds: 4 },
   { name: "People and Occasions", pick: ["People and Occasions"], heads: ["Occasions", "Starts With"], texts: ["Add Occasion", "Gift Ideas", "Budget", "A Date Comes Round Every Year; the Page Says When One Is Near"] },
   { name: "Trip Sheet", pick: ["Trip Sheet", "Trip Sheet"], heads: ["Getting There", "Staying", "Doing", "Packing"], texts: ["Flights", "Hotel"], adds: 4 },
   { name: "Kitchen Page", pick: ["Kitchen Page", "Recipes"], heads: ["Mains", "Sides", "Desserts", "Other", "Starts With"], texts: ["Ingredients", "Directions"], adds: 4 },
-  { name: "Money Map", pick: ["Money Map"], heads: ["Banking", "Cards and Loans", "Investing", "Subscriptions and Renewals", "For My Family", "Other", "Starts With"], texts: ["Where to Find It", "Names and Places Only; No Passwords, PINs or Full Account Numbers"], adds: 6 },
-  { name: "Insurance Page", pick: ["Insurance Page"], heads: ["Home and Auto", "Health and Life", "Other", "Starts With"], texts: ["Carrier", "Renews", "Premium"], adds: 3 },
+  { name: "Money Map", pick: ["Money Map", "Money Map"], heads: ["Banking", "Cards and Loans", "Investing", "Policies", "Subscriptions and Renewals", "For My Family", "Other", "Starts With"], texts: ["Where to Find It", "Names and Places Only; No Passwords, PINs or Full Account Numbers"], adds: 7 },
+  { name: "Insurance Page", seed: "insurance", pick: ["Insurance Page"], heads: ["Home and Auto", "Health and Life", "Other", "Starts With"], texts: ["Carrier", "Renews", "Premium"], adds: 3 },
   { name: "Giving Log", pick: ["Giving Log"], heads: ["Gifts", "Starts With", "Suggested"], texts: ["Add Gift", "Amount", "Receipt"] },
   { name: "1:1 Log", pick: ["1:1 Log"], heads: ["Meetings", "Starts With"], texts: ["Add Meeting", "Topics", "Follow-Ups", "Next 1:1"] },
   { name: "Project Tracker", pick: ["Project Tracker"], heads: ["Not Started", "In Progress", "Blocked", "Done", "Starts With"], texts: ["Owner", "Due"], adds: 4 },
-  { name: "Business Ledger", pick: ["Business Ledger"], heads: ["Entries"], texts: ["Category", "Year", "Business", "Every Year", /Nothing in Money for/] },
+  { name: "Business Ledger", pick: ["Money Map", "Business Ledger"], heads: ["Entries"], texts: ["Category", "Year", "Business", "Every Year", /Nothing in Money for/] },
   { name: "Watch List", pick: ["Watch List"], heads: ["Up Next", "Watching", "Watched", "Starts With"], texts: ["Where to Watch", "How It Was"], adds: 3 },
   { name: "Party Planner", pick: ["Party Planner"], heads: ["Guests", "Food and Drink", "Supplies", "Schedule", "To Do"], texts: ["Send Invites"], adds: 5 },
-  { name: "Running Order", pick: ["Running Order"], heads: ["Before", "Show", "After"], texts: ["Doors Open", "Opening", "Strike", "Start Time"], adds: 3 },
+  { name: "Running Order", seed: "runorder", pick: ["Running Order"], heads: ["Before", "Show", "After"], texts: ["Doors Open", "Opening", "Strike", "Start Time"], adds: 3 },
   { name: "Poker Night", pick: ["Poker Night"], heads: ["Players", "Starts With", "Settle Up"], texts: ["Add Player", "Buy-In", "Rebuys", "Cash-Out", "Add Players, Their Buy-Ins and Cash-Outs to See Who Owes Whom"] },
 ];
 
 describe("the 24 templates that opened as an empty shell open ready", () => {
   for (const t of WERE_SHELLS) {
     it(t.name, async () => {
-      await openPicker("u-ready-" + t.name.replace(/\W+/g, "-").toLowerCase());
-      fireEvent.click(screen.getByText(t.pick[0]!));
-      if (t.pick.length > 1) fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(t.pick[1]!));
+      if (t.seed) await openSeeded("u-ready-" + t.name.replace(/\W+/g, "-").toLowerCase(), t.seed);
+      else {
+        await openPicker("u-ready-" + t.name.replace(/\W+/g, "-").toLowerCase());
+        fireEvent.click(screen.getByText(t.pick[0]!));
+        if (t.pick.length > 1) fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(t.pick[1]!));
+      }
       await screen.findByLabelText("Page options", {}, { timeout: 4000 });
       expectReady(t.name);
       const d = drawn();
@@ -106,21 +119,25 @@ describe("the 24 templates that opened as an empty shell open ready", () => {
 
 // The 16 that were ready keep their anchors.
 describe("the 16 that were ready still open as they did", () => {
-  const PAGES: { name: string; pick: string[]; anchors: string[] }[] = [
+  const PAGES: { name: string; seed?: TemplateKey; pick: string[]; anchors: string[] }[] = [
     { name: "Pitching Board", pick: ["Pitching Board"], anchors: ["Rules", "Daily Limit", "Add Outing"] },
-    { name: "Profile One-Pager", pick: ["Profile One-Pager"], anchors: ["Profile", "Edit Profile", "Add What You Want on the Page; Empty Fields Stay Off It"] },
-    { name: "Training Log", pick: ["Training Log"], anchors: ["From Health", "Add Note"] },
-    { name: "Training Plan", pick: ["Training Plan"], anchors: ["Week 1", "Add Day"] },
+    { name: "Profile One-Pager", seed: "profile", pick: ["Profile One-Pager"], anchors: ["Profile", "Edit Profile", "Add What You Want on the Page; Empty Fields Stay Off It"] },
+    { name: "Training Log", pick: ["Training Plan", "Training Log"], anchors: ["From Health", "Add Note"] },
+    { name: "Training Plan", pick: ["Training Plan", "Training Plan"], anchors: ["Week 1", "Add Day"] },
     { name: "Accomplishments and Milestones", pick: ["Accomplishments and Milestones"], anchors: ["Add Entry", "Starts With"] },
     { name: "Debt Payoff", pick: ["Debt Payoff"], anchors: ["Pay First", "Extra Each Month", "Add Debt"] },
     { name: "Brackets and Pools", pick: ["Brackets and Pools"], anchors: ["Format", "Single Elimination", "Add Entrant"] },
-    { name: "Fantasy Draft Board", pick: ["Fantasy Draft Board"], anchors: ["Teams", "Order", "Add Pick"] },
+    { name: "Fantasy Draft Board", seed: "draft", pick: ["Fantasy Draft Board"], anchors: ["Teams", "Order", "Add Pick"] },
   ];
   for (const t of PAGES) {
     it(t.name, async () => {
-      await openPicker("u-ready16-" + t.name.replace(/\W+/g, "-").toLowerCase());
-      // Accomplishments and Milestones sits under Life AND Professional (the 2026-10-13 spec): two rows, one template.
-      fireEvent.click(screen.getAllByText(t.pick[0]!)[0]!);
+      if (t.seed) await openSeeded("u-ready16-" + t.name.replace(/\W+/g, "-").toLowerCase(), t.seed);
+      else {
+        await openPicker("u-ready16-" + t.name.replace(/\W+/g, "-").toLowerCase());
+        // Accomplishments and Milestones sits under Life AND Professional (the 2026-10-13 spec): two rows, one template.
+        fireEvent.click(screen.getAllByText(t.pick[0]!)[0]!);
+        if (t.pick.length > 1) fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(t.pick[1]!));
+      }
       await screen.findByLabelText("Page options", {}, { timeout: 4000 });
       expectReady(t.name);
       for (const a of t.anchors) expect(screen.getAllByText(a).length, `${t.name}: ${a}`).toBeGreaterThan(0);
@@ -168,12 +185,16 @@ describe("the 16 that were ready still open as they did", () => {
   }
 });
 
-describe("the catalog covers the forty", () => {
+describe("the catalog covers what the picker holds", () => {
   it("every template in the picker is in one of the two lists above", () => {
-    const pages = ["Golf Scorecard", "Team Sheet", "Lineup Card", "Outreach Tracker", ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).map((k) => TEMPLATES[k].shelfName ?? TEMPLATES[k].name)];
+    // 2026-10-23, Dave's cut list: Lineup Card folded into the Team Sheet, six templates folded into others (retired) and two became views
+    // under their parents (presets, one tap further in). The picker lists the three core pages, every catalog template that is neither a
+    // preset nor retired, and the six note templates.
+    const pages = ["Golf Scorecard", "Team Sheet", "Outreach Tracker", ...TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent && !TEMPLATES[k].retired).map((k) => TEMPLATES[k].shelfName ?? TEMPLATES[k].name)];
     const docs = ["Blank", "Meeting Notes", "To-Do / Checklist", "Tracker", "Project Brief", "Log / Journal"];
     const all = [...pages, ...docs];
-    expect(all).toHaveLength(40);
+    expect(pages).toHaveLength(25);
+    expect(all).toHaveLength(31);
     const covered = new Set([...WERE_SHELLS.map((t) => t.name), "To-Do / Checklist", "Pitching Board", "Profile One-Pager", "Training Log", "Training Plan", "Accomplishments and Milestones", "Debt Payoff", "Brackets and Pools", "Fantasy Draft Board", "Golf Scorecard", "Scoreboard", "Lineup Card", "Meeting Notes", "Project Brief", "Log / Journal", "Tracker", "Blank"]);
     for (const n of all) expect(covered.has(n), n).toBe(true);
     expect(WERE_SHELLS.length + 1).toBe(24);

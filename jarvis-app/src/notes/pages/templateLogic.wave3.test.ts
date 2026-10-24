@@ -20,16 +20,20 @@ describe("the catalog", () => {
       expect(d.fields.some((f) => f.key === d.headline), k).toBe(true);
       expect(new Set(d.fields.map((f) => f.key)).size, k).toBe(d.fields.length);
       for (const s of d.show) expect(d.fields.some((f) => f.key === s), `${k} shows ${s}`).toBe(true);
-      if (d.due) expect(d.fields.some((f) => f.key === d.due!.key && f.type === "date"), `${k} due`).toBe(true);
+      // A due date or a total may read a field the page offers in one tap (Money Map's Renews and Premium, the folded-in Insurance Page):
+      // the arithmetic only runs once the field is on the page, and a page without it says nothing.
+      const own = [...d.fields, ...(d.suggested ?? [])];
+      if (d.due) expect(own.some((f) => f.key === d.due!.key && f.type === "date"), `${k} due`).toBe(true);
       // A preset hangs off a catalog template or off the Golf Scorecard, which is a core page and not in the catalog.
       if (d.parent) expect(d.parent === "scorecard" || TEMPLATES[d.parent as keyof typeof TEMPLATES], `${k} parent`).toBeTruthy();
     }
   });
-  it("wave 3 has the fourteen library templates, with their presets and entry points beside them", () => {
+  it("wave 3 has the library templates, with their presets and entry points beside them", () => {
     const w3 = TEMPLATE_KEYS.filter((k) => TEMPLATES[k].wave === 3);
     const top = w3.filter((k) => !TEMPLATES[k].parent);
-    expect(top.length).toBe(14);
-    expect(w3.length - top.length).toBe(6);
+    // Fourteen, less the Business Ledger, which became a view under Money Map (2026-10-23): thirteen on their own, seven presets.
+    expect(top.length).toBe(13);
+    expect(w3.length - top.length).toBe(7);
   });
 });
 
@@ -46,7 +50,7 @@ describe("the final list's definitions", () => {
     expect(TEMPLATES.inventory.fields.find((f) => f.key === "receipt")).toMatchObject({ label: "Where the Receipt Is", type: "text" });
   });
   it("Money Map has Subscriptions and Renewals and For My Family, still pointers only", () => {
-    expect(TEMPLATES.moneymap.sections).toEqual(["Banking", "Cards and Loans", "Investing", "Subscriptions and Renewals", "For My Family", "Other"]);
+    expect(TEMPLATES.moneymap.sections).toEqual(["Banking", "Cards and Loans", "Investing", "Policies", "Subscriptions and Renewals", "For My Family", "Other"]);
     expect(TEMPLATES.moneymap.fields.find((f) => f.key === "kind")!.options).toContain("Subscription");
     expect(TEMPLATES.moneymap.pointersOnly).toBe(true);
     expect(TEMPLATES.moneymap.fields.some((f) => /password|pin\b|login/i.test(f.label))).toBe(false);
@@ -65,8 +69,9 @@ describe("the final list's definitions", () => {
     expect(TEMPLATES.accomplish.shelf).toBe("Life");
     expect(TEMPLATES.accomplish.alsoShelves).toEqual(["Professional"]);
     for (const k of TEMPLATE_KEYS) for (const s of TEMPLATES[k].alsoShelves ?? []) expect(s, k).not.toBe(TEMPLATES[k].shelf);
-    // Forty in the picker: six note templates, four of slice one, and every catalog template that is not a preset.
-    expect(6 + 4 + TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent).length).toBe(40);
+    // The picker: six note templates, the three core pages (Golf, Team Sheet, Outreach), and every catalog template that is neither a preset
+    // nor folded into another (Dave's cut list, 2026-10-23).
+    expect(6 + 3 + TEMPLATE_KEYS.filter((k) => !TEMPLATES[k].parent && !TEMPLATES[k].retired).length).toBe(31);
   });
 });
 

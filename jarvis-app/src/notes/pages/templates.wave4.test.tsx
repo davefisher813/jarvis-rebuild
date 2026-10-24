@@ -43,11 +43,12 @@ async function openWith(user: string, kind: (typeof TEMPLATE_KEYS)[number], buil
 const withRows = (rows: Record<string, string>[]) => (p: Pg) => rows.reduce((acc, r) => addRecord(acc, r).page, p);
 
 describe("the picker", () => {
-  it("lists the Entertainment shelf with all six", async () => {
+  it("lists the Entertainment shelf: four rows, the Draft Board a format of Brackets and the Running Order the Event Day Pack's timeline", async () => {
     await mount("u-w4-picker");
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
     await screen.findByText("Entertainment");
-    for (const n of ["Brackets and Pools", "Fantasy Draft Board", "Watch List", "Party Planner", "Running Order", "Poker Night"]) expect(screen.getByText(n), n).toBeInTheDocument();
+    for (const n of ["Brackets and Pools", "Watch List", "Party Planner", "Poker Night"]) expect(screen.getByText(n), n).toBeInTheDocument();
+    for (const n of ["Fantasy Draft Board", "Running Order"]) expect(screen.queryByText(n), n + " folded into another template (2026-10-23)").toBeNull();
   });
 });
 

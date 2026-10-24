@@ -281,7 +281,8 @@ describe("Outreach Tracker is not Tasks, and every page edit can be undone", () 
     view.rerender(<NotesProvider userId="u-undo"><Grab /><NotesFlow openId={id} /></NotesProvider>);
     fireEvent.click(await screen.findByText("Add Player", {}, { timeout: 4000 }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Dee Park" } });
-    fireEvent.click(screen.getByText("Add"));
+    // The Team Sheet offers its group fields as rows that say Add, so the sheet's own Add is the one inside the sheet.
+    fireEvent.click(within(document.querySelector(".sheet-scrim") as HTMLElement).getByText("Add"));
     expect(await screen.findByText("Dee Park")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Undo"));
     await waitFor(() => expect(screen.queryByText("Dee Park")).toBeNull());
@@ -298,9 +299,9 @@ describe("issue #115: a page opened after a lineup is made opens as itself (2026
     await act(async () => { id = (await svc().createPage("Tigers", team3()))!; });
     view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
     expect(await screen.findByText("Tigers", {}, { timeout: 4000 })).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Use a Template"));
-    fireEvent.click(await screen.findByText("Lineup Card"));
-    fireEvent.click(await screen.findByText("Tigers"));
+    // The Lineup Card folded into the Team Sheet (2026-10-23): a lineup is made from the sheet's own Make a Lineup.
+    fireEvent.click(screen.getByText("Tigers"));
+    fireEvent.click(await screen.findByText("Make a Lineup", { selector: ".pill-action" }, { timeout: 4000 }));
     expect(await screen.findByText("New Lineup", {}, { timeout: 4000 })).toBeInTheDocument();
     fireEvent.click(screen.getByText("Cal Diaz"));
     fireEvent.click(screen.getByText("Ava Chen"));

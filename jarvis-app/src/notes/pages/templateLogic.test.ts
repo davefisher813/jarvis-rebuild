@@ -218,11 +218,13 @@ describe("what stops working, said before a field is removed (the 2026-10-13 spe
   it("every field a template's arithmetic reads names what stops; every line is plain Title Case", () => {
     for (const k of TEMPLATE_KEYS) {
       const d = TEMPLATES[k];
-      const p = newTemplatePage(k);
+      let p = newTemplatePage(k);
       const reads = new Set([...Object.keys(d.needs ?? {}), ...(d.totals ?? []).map((t) => t.key), ...(d.due ? [d.due.key] : [])]);
       for (const key of reads) {
         // A need names a field the template has, never a typo.
-        expect(d.fields.some((f) => f.key === key), `${k}.${key}`).toBe(true);
+        expect([...d.fields, ...(d.suggested ?? [])].some((f) => f.key === key), `${k}.${key}`).toBe(true);
+        // A field the page offers in one tap is put on first, as the person would, so the line says what the arithmetic loses.
+        if (!p.fields.some((f) => f.key === key)) p = addSuggested(p, key);
         const lines = fieldConsequences(p, key);
         expect(lines.length, `${k}.${key}`).toBeGreaterThan(0);
         for (const l of lines) {

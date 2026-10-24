@@ -75,6 +75,9 @@ export interface TemplateDef {
    *  Professional). The template is still ONE template on its own `shelf`; a second row is the same key, one tap to the same
    *  page, never a second template. */
   alsoShelves?: Shelf[];
+  /** FOLDED INTO ANOTHER TEMPLATE (Dave's cut list, 2026-10-23). Not a row in the picker any more, and the line says where it lives now.
+   *  The definition stays so every page already made from it opens and works exactly as it did; nothing is migrated or deleted. */
+  retired?: string;
 }
 
 const f = (key: string, label: string, type: PageField["type"] = "text", options?: string[]): PageField => ({ key, label, type, ...(options ? { options } : {}) });
@@ -136,14 +139,15 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     suggested: [f("position", "Position"), f("seen", "Last Seen", "date")], view: "sheet", wave: 2,
   },
   profile: {
-    key: "profile", name: "Profile One-Pager", shelf: "Sports", desc: "One Athlete, One Printable Page", cat: "red", icon: "person",
+    key: "profile",
+    retired: "Printed From a Scouting Report", name: "Profile One-Pager", shelf: "Sports", desc: "One Athlete, One Printable Page", cat: "red", icon: "person",
     noun: "Profile", plural: "Profiles", headline: "name", show: [],
     fields: [f("name", "Name"), f("position", "Position"), f("team", "Team"), f("year", "Class Year"), f("height", "Height"), f("weight", "Weight"), f("gpa", "GPA"), f("contact", "Contact"), f("highlights", "Highlights")],
     suggested: [f("school", "School"), f("coach", "Coach"), f("video", "Video Link")], view: "profile", one: true, wave: 2,
   },
   traininglog: {
     key: "traininglog", name: "Training Log", shelf: "Sports", desc: "Your Workouts From Health, Plus Your Notes", cat: "teal", icon: "dumbbell",
-    noun: "Note", plural: "Notes", headline: "note", show: ["date", "coach"],
+    noun: "Note", plural: "Notes", headline: "note", show: ["date", "coach"], parent: "trainingplan", entry: "Training Log",
     fields: [f("date", "Date", "date"), f("note", "Note"), f("coach", "Coach")], view: "traininglog", one: true, wave: 2,
     // TrainingLogView: the notes are drawn newest first by their date.
     needs: { date: "Notes Stop Sorting by Date" },
@@ -155,11 +159,13 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     suggested: [f("rest", "Rest"), f("notes", "Notes")], view: "trainingplan", wave: 2,
   },
   standings: {
-    key: "standings", name: "League Standings", shelf: "Sports", desc: "Teams, Games, Wins and Losses Worked Out", cat: "blue", icon: "table",
+    key: "standings",
+    retired: "Worked Out From Scored Scoreboard Games", name: "League Standings", shelf: "Sports", desc: "Teams, Games, Wins and Losses Worked Out", cat: "blue", icon: "table",
     noun: "Team", plural: "Teams", headline: "name", show: [], fields: [f("name", "Team")], view: "standings", one: true, wave: 2,
   },
   group: {
-    key: "group", name: "Group Manager Page", shelf: "Sports", desc: "Members, Roles, Dues, Who Is Coming", cat: "orange", icon: "user",
+    key: "group",
+    retired: "Folded Into the Team Sheet: Fees, Roles, Who Is Coming, Key Dates", name: "Group Manager Page", shelf: "Sports", desc: "Members, Roles, Dues, Who Is Coming", cat: "orange", icon: "user",
     noun: "Member", plural: "Members", headline: "name", show: ["role", "contact"],
     fields: [f("name", "Name"), f("role", "Role", "choice", ["Leader", "Member", "Guest"]), f("contact", "Contact"), f("dues", "Dues Paid", "check")],
     sections: ["Leaders", "Members"], suggested: [f("coming", "Coming", "check"), f("notes", "Notes")], view: "sheet", one: true, wave: 2,
@@ -167,16 +173,21 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
 
   // ---- Wave 3: Finance
   moneymap: {
-    key: "moneymap", name: "Money Map", shelf: "Finance", desc: "Where Everything Is: Pointers Only, Never Passwords", cat: "yellow", icon: "wallet",
+    key: "moneymap", name: "Money Map", shelf: "Finance", desc: "Where Everything Is, Policies, Renewals: Pointers Only, Never Passwords", cat: "yellow", icon: "wallet",
     noun: "Pointer", plural: "Pointers", headline: "name", show: ["kind", "where", "contact"],
-    fields: [f("name", "Name"), f("kind", "Kind", "choice", ["Bank", "Card", "Loan", "Investment", "Retirement", "Bill", "Subscription", "Other"]), f("where", "Where to Find It"), f("contact", "Contact"), f("notes", "Notes")],
+    fields: [f("name", "Name"), f("kind", "Kind", "choice", ["Bank", "Card", "Loan", "Investment", "Retirement", "Bill", "Subscription", "Insurance", "Other"]), f("where", "Where to Find It"), f("contact", "Contact"), f("notes", "Notes")],
     // The 2026-10-13 spec: a Subscriptions and Renewals section, and For My Family (what they would need to find, pointers only).
-    sections: ["Banking", "Cards and Loans", "Investing", "Subscriptions and Renewals", "For My Family", "Other"], suggested: [f("opened", "Opened", "date"), f("who", "Whose"), f("renews", "Renews", "date")],
+    // The Insurance Page folded in on 2026-10-23 (Dave's cut list) as the Policies section: the carrier, the renewal date and the premium
+    // are one tap each, and the renewal says how close it is. A policy number is not kept here; "Where to Find It" says where it is.
+    sections: ["Banking", "Cards and Loans", "Investing", "Policies", "Subscriptions and Renewals", "For My Family", "Other"],
+    suggested: [f("opened", "Opened", "date"), f("who", "Whose"), f("renews", "Renews", "date"), f("carrier", "Carrier"), f("premium", "Premium", "money"), f("deductible", "Deductible", "money"), f("covers", "Covers")],
+    totals: [{ key: "premium", label: "Premium", money: true }], due: { key: "renews" },
     view: "sheet", one: true, wave: 3, pointersOnly: true, confirm: true,
     note: "Names and Places Only; No Passwords, PINs or Full Account Numbers",
   },
   insurance: {
-    key: "insurance", name: "Insurance Page", shelf: "Finance", desc: "Policies, Carriers, Renewal Dates, Who to Call", cat: "sky", icon: "file",
+    key: "insurance",
+    retired: "Folded Into the Money Map as Its Policies Section", name: "Insurance Page", shelf: "Finance", desc: "Policies, Carriers, Renewal Dates, Who to Call", cat: "sky", icon: "file",
     noun: "Policy", plural: "Policies", headline: "name", show: ["kind", "carrier", "renews", "premium"],
     fields: [f("name", "Policy"), f("kind", "Kind", "choice", ["Auto", "Home", "Renters", "Health", "Life", "Umbrella", "Pet", "Other"]), f("carrier", "Carrier"), f("number", "Policy Number"), f("premium", "Premium", "money"), f("renews", "Renews", "date"), f("agent", "Agent or Phone")],
     sections: ["Home and Auto", "Health and Life", "Other"], suggested: [f("deductible", "Deductible", "money"), f("covers", "Covers")],
@@ -307,7 +318,7 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     key: "bizledger", name: "Business Ledger", shelf: "Professional", desc: "A View Over Your Money: Business Spending, Totalled", cat: "teal", icon: "table",
     noun: "Entry", plural: "Entries", headline: "vendor", show: ["date", "amount"],
     fields: [f("date", "Date", "date"), f("vendor", "Vendor"), f("category", "Category"), f("amount", "Amount", "money"), f("from", "From")],
-    view: "bizledger", wave: 3, derived: true, meta: { category: "Business", year: "" },
+    view: "bizledger", wave: 3, derived: true, meta: { category: "Business", year: "" }, parent: "moneymap", entry: "Business Ledger",
     note: "Read From Money; Nothing Here Is a Second Ledger",
   },
 
@@ -318,7 +329,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     suggested: [f("seed", "Seed"), f("contact", "Contact")], view: "bracket", wave: 4, meta: { format: "single" },
   },
   draft: {
-    key: "draft", name: "Fantasy Draft Board", shelf: "Entertainment", desc: "Teams, Snake or Straight, Who Is on the Clock", cat: "green", icon: "list",
+    key: "draft",
+    retired: "Folded Into Brackets and Pools as a Format", name: "Fantasy Draft Board", shelf: "Entertainment", desc: "Teams, Snake or Straight, Who Is on the Clock", cat: "green", icon: "list",
     noun: "Pick", plural: "Picks", headline: "player", show: ["pos", "club"],
     fields: [f("player", "Player"), f("pos", "Position", "choice", ["QB", "RB", "WR", "TE", "K", "DEF", "G", "F", "C", "SP", "RP", "Other"]), f("club", "Team")],
     suggested: [f("notes", "Notes"), f("adp", "Projected Pick", "number")], view: "draft", wave: 4, meta: { teams: "", snake: "1" },
@@ -337,7 +349,8 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
     starter: [{ sec: "To Do", v: { item: "Send Invites" } }], suggested: [f("notes", "Notes"), f("when", "When")], view: "sheet", wave: 4,
   },
   runorder: {
-    key: "runorder", name: "Running Order", shelf: "Entertainment", desc: "A Show or Event, Item by Item, Clock Times From the Start", cat: "blue", icon: "timer",
+    key: "runorder",
+    retired: "Folded Into the Event Day Pack as Its Timeline", name: "Running Order", shelf: "Entertainment", desc: "A Show or Event, Item by Item, Clock Times From the Start", cat: "blue", icon: "timer",
     noun: "Item", plural: "Items", headline: "item", show: ["min", "who"],
     fields: [f("item", "Item"), f("min", "Minutes", "number"), f("who", "Who"), f("notes", "Notes")],
     sections: ["Before", "Show", "After"], totals: [{ key: "min", label: "Min" }],

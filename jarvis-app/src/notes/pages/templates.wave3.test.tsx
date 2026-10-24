@@ -43,9 +43,13 @@ async function openTemplates(user: string) {
   await screen.findByText("Sports");
   return view;
 }
-async function openPicked(user: string, name: string) {
+/** Picked from the picker; a template with presets under it (Money Map's Business Ledger) asks which one, so the second name is that tap. */
+async function openPicked(user: string, name: string, entry?: string) {
   const view = await openTemplates(user);
   fireEvent.click(screen.getByText(name));
+  if (entry) {
+    fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText(entry));
+  }
   await screen.findByLabelText("Page options", {}, { timeout: 4000 });
   return view;
 }
@@ -53,7 +57,7 @@ async function openPicked(user: string, name: string) {
 describe("the picker", () => {
   it("lists Finance, the rest of Life and Professional, with presets one tap further in", async () => {
     await openTemplates("u-w3-picker");
-    for (const n of ["Money Map", "Insurance Page", "Debt Payoff", "Giving Log", "Home and Vehicle Book", "Health Card", "Handover Sheet", "People and Occasions", "Trip Sheet", "Kitchen Page", "1:1 Log", "Project Tracker", "Business Ledger"]) {
+    for (const n of ["Money Map", "Debt Payoff", "Giving Log", "Home and Vehicle Book", "Health Card", "Handover Sheet", "People and Occasions", "Trip Sheet", "Kitchen Page", "1:1 Log", "Project Tracker"]) {
       expect(screen.getByText(n), n).toBeInTheDocument();
     }
     // Accomplishments and Milestones is listed under Life AND Professional (the 2026-10-13 spec): two rows, one template, one page.
@@ -61,7 +65,7 @@ describe("the picker", () => {
     expect(both).toHaveLength(2);
     const shelfOf = (el: HTMLElement) => el.closest(".lib-row")!.parentElement!.querySelector(".sh2 .t")!.textContent;
     expect(both.map((el) => shelfOf(el)).sort()).toEqual(["Life", "Professional"]);
-    for (const n of ["Home Inventory", "Pet Card", "Care Record", "Expenses to Submit", "Meal Plan", "Freezer", "Recipes"]) expect(screen.queryByText(n), n + " is not a row of its own").toBeNull();
+    for (const n of ["Home Inventory", "Pet Card", "Care Record", "Expenses to Submit", "Meal Plan", "Freezer", "Recipes", "Business Ledger", "Insurance Page"]) expect(screen.queryByText(n), n + " is not a row of its own").toBeNull();
     for (const shelf of ["Finance", "Professional"]) expect(screen.getByText(shelf)).toBeInTheDocument();
   });
   it("a template with presets asks which one, and the choice is the page that opens", async () => {
@@ -79,7 +83,7 @@ describe("the picker", () => {
 
 describe("Money Map keeps pointers only", () => {
   it("refuses a password and says which field, keeps a place, and confirms when asked", async () => {
-    await openPicked("u-w3-map", "Money Map");
+    await openPicked("u-w3-map", "Money Map", "Money Map");
     fireEvent.click(screen.getByLabelText("Add Pointer Under Banking"));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Chase Checking" } });
     fireEvent.change(screen.getByLabelText("Where to Find It"), { target: { value: "online login: dave / hunter2" } });
@@ -96,7 +100,7 @@ describe("Money Map keeps pointers only", () => {
     await waitFor(async () => expect((await pageOf("moneymap"))!.page.records[0]?.confirmedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/));
   });
   it("has no field for a way in", async () => {
-    await openPicked("u-w3-map-fields", "Money Map");
+    await openPicked("u-w3-map-fields", "Money Map", "Money Map");
     fireEvent.click(screen.getByLabelText("Page options"));
     fireEvent.click(screen.getByText("Fields"));
     fireEvent.change(await screen.findByLabelText("New field name"), { target: { value: "Password" } });
@@ -137,7 +141,8 @@ describe("Business Ledger is a view over Money", () => {
     await svcs!.tracker.saveTx(null, { date: "2026-03-04", month: "2026-03", merchant: "Staples", name: "Staples", amountCents: 4599, category: "Business", account: "Visa" });
     await svcs!.tracker.saveTx(null, { date: "2026-03-05", month: "2026-03", merchant: "Grocer", name: "Grocer", amountCents: 8000, category: "Groceries", account: "Visa" });
     fireEvent.click(await screen.findByText("Use a Template", {}, { timeout: 4000 }));
-    fireEvent.click(await screen.findByText("Business Ledger"));
+    fireEvent.click(await screen.findByText("Money Map"));
+  fireEvent.click(await within(await waitFor(() => { const el = document.querySelector(".action-sheet") as HTMLElement; expect(el).toBeTruthy(); return el; })).findByText("Business Ledger"));
     expect(await screen.findByText("Staples", {}, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.queryByText("Grocer")).toBeNull();
     expect(screen.getAllByText("$45.99").length).toBeGreaterThan(0);

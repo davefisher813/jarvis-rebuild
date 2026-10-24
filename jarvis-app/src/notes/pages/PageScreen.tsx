@@ -524,7 +524,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
 
       {page.kind === "team" && (
         <TeamView page={page} lineups={lineups} onOpen={(id) => setSheet({ k: "record", id })} onAdd={() => setSheet({ k: "record", id: null })}
-          onMakeLineup={() => setView("lineup")} onOpenLineup={onOpenNote} onFields={() => setSheet({ k: "fields" })}
+          onMakeLineup={() => setView("lineup")} onOpenLineup={onOpenNote} onFields={() => setSheet({ k: "fields" })} onSuggest={suggestField}
           onSport={(k) => void commit(setTeamSport(noteRef.current!.page, k))} />
       )}
       {page.kind === "outreach" && (
@@ -677,7 +677,7 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
       {sheet?.k === "fields" && (
         <FieldsSheet page={page} onCancel={() => setSheet(null)} onRemove={(key) => setSheet({ k: "removeField", key })}
           onMove={(key, by) => void commit(moveField(noteRef.current!.page, key, by))}
-          onSuggest={def ? (key) => { void commit(addSuggested(noteRef.current!.page, key)); } : undefined}
+          onSuggest={def || page.kind === "team" ? (key) => { void commit(addSuggested(noteRef.current!.page, key)); } : undefined}
           onSave={(labels, added) => {
             let next = noteRef.current!.page;
             for (const [k, l] of Object.entries(labels)) if (l.trim() && l.trim() !== labelOf(next, k)) next = renameField(next, k, l);

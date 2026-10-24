@@ -8,7 +8,9 @@ import {
 import {
   parOf, parsSet, playerRound, matchState, roundStory, winnerLine, isFinished, statsOf, girOn, puttKey, fairKey, penKey, sandKey, FAIRWAYS,
 } from "./golf";
-import { suggestedFor } from "./templateLogic";
+import { suggestedFor, groupDues, keyDates, dueFact, num as parseNum } from "./templateLogic";
+import { formatMoney } from "../../money/types";
+import { todayISO } from "../../schedule/calendar";
 import { TEAM_SPORTS, teamSportOf } from "./teamSports";
 import { OUTREACH_KINDS, outreachKindOf, KNOWN_STATUS, STATUS_TONE } from "./outreachKinds";
 
@@ -58,7 +60,7 @@ export function StarterCard({ page, onFields, onSuggest }: { page: PageData; onF
 // ---------------------------------------------------------------------------
 // Team Sheet
 
-export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLineup, onFields, onSport }: {
+export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLineup, onFields, onSport, onSuggest }: {
   page: PageData;
   lineups: { id: string; title: string; date: string }[];
   onOpen: (recordId: string) => void;
@@ -68,9 +70,15 @@ export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLin
   onFields?: () => void;
   /** The sheet's sport: Position offers that sport's spots (the 2026-10-13 spec's flagship adjustment). */
   onSport?: (key: string) => void;
+  /** One tap adds a group field (Role, Fee Owed, Paid, Coming, Key Date) to every row: the Group Manager folded into the sheet. */
+  onSuggest?: (key: string) => void;
 }) {
   const n = page.records.length;
   const sport = teamSportOf(page.meta?.sport);
+  const dues = groupDues(page);
+  const dates = keyDates(page, todayISO());
+  const offered = onSuggest && n > 0 ? suggestedFor(page) : [];
+  const money = (x: number) => formatMoney(x, { cents: x % 1 !== 0 });
   return (
     <>
       <Head label={n === 0 ? "Players" : n === 1 ? "1 Player" : `${n} Players`} action={{ label: "Add Player", onClick: onAdd }} />
@@ -81,16 +89,54 @@ export function TeamView({ page, lineups, onOpen, onAdd, onMakeLineup, onOpenLin
             const num = (r.v.number ?? "").trim();
             const pos = (r.v.position ?? "").trim();
             const flag = flagFact(page, r);
+            const role = (r.v.role ?? "").trim();
+            const fee = parseNum(r.v.fee);
+            const owes = dues && fee !== null && fee > 0 ? (r.v.paid === "1" ? "Paid" : `Owes ${money(fee)}`) : "";
+            const coming = page.fields.some((x) => x.key === "coming") && r.v.coming === "1";
             return (
               <Row key={r.id} label={<U>{recordName(page, r) || "Unnamed Player"}</U>} onClick={() => onOpen(r.id)} chev
-                meta={num || pos || flag ? <>
+                meta={num || pos || role || owes || coming || flag ? <>
                   {num && <span className="fact"><b><U>#{num}</U></b></span>}
                   {pos && <span className="fact"><U>{pos}</U></span>}
+                  {role && <span className="fact"><U>{role}</U></span>}
+                  {owes && <span className={"fact" + (owes === "Paid" ? "" : " warn")}>{owes}</span>}
+                  {coming && <span className="fact">Coming</span>}
                   {flag}
                 </> : undefined} />
             );
           })}
         </Card>
+      )}
+      {dues && (
+        <>
+          <Head label="Dues" />
+          <Card>
+            <Row plain label="Owed" value={money(dues.owed)} />
+            <Row plain label="Paid" value={money(dues.paid)} />
+            <Row plain label="Still Due" value={money(dues.left)} meta={dues.unpaid ? <span className="fact warn">{dues.unpaid === 1 ? "1 Unpaid" : `${dues.unpaid} Unpaid`}</span> : undefined} />
+          </Card>
+        </>
+      )}
+      {dates.length > 0 && (
+        <>
+          <Head label="Key Dates" />
+          <Card>
+            {dates.map((d) => {
+              const due = dueFact(d.date, todayISO());
+              return (
+                <Row key={d.id} plain label={<U>{d.name || "Unnamed"}</U>}
+                  meta={<><span className="fact date">{monthDay(d.date)}</span>{due && <span className="fact">{due.text}</span>}</>} />
+              );
+            })}
+          </Card>
+        </>
+      )}
+      {offered.length > 0 && (
+        <>
+          <Head label="Make It a Group" />
+          <Card>{offered.map((f) => <Row key={f.key} label={f.label} value="Add" onClick={() => onSuggest!(f.key)} />)}</Card>
+          <Foot>Fees, Roles, Who Is Coming and Key Dates, One Tap Each; the Roster Stays as It Is Until You Ask</Foot>
+        </>
       )}
       {onSport && (
         <>
