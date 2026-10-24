@@ -2067,6 +2067,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "healthBench.tsx",                     // bench harness, run by hand
     "wholeDayBench.tsx",                   // the Whole Day card's bench, loaded in a real browser by laws/wholeDayRender.test.ts
     "score.ts",                            // golden-set scorer, run by hand
+    "testPdf.ts",                          // Doc AI: builds real PDFs for docai/*.test.ts; tests import it, the app never does (Phase 1, 2026-10-23)
     "rowTap.scan.ts",                      // the row-tap law's scanner, run by laws/rowTap.test.ts
     // AMENDED 2026-09-26 (round 3): the one definition of red that the
     // Colour Key, F-04 and L1 read. Laws only; the app never imports it.

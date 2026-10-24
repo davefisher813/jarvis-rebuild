@@ -16,7 +16,7 @@ export const AI_LEVELS: readonly AILevel[] = ["everything", "draft", "request", 
 // nothing changed. One runtime list now, the type derived from it, and a law
 // test (laws/aiControl.test.ts) that fails if a pin on this list is not
 // enforced anywhere in the app.
-export const AI_PIN_KEYS = ["emailDrafts", "morningPlan", "pasteFallback", "messageDrafts", "estimates"] as const;
+export const AI_PIN_KEYS = ["emailDrafts", "morningPlan", "pasteFallback", "messageDrafts", "estimates", "docExtract"] as const;
 export type AIPinKey = (typeof AI_PIN_KEYS)[number];
 
 export interface AIControlState {

@@ -25,6 +25,7 @@ import BrainSettingsPage from "../settings/BrainSettingsPage";
 import EmailSectionsPage from "../settings/EmailSectionsPage";
 import EmailSignaturesPage from "../settings/EmailSignaturesPage";
 import LearningLabPage from "../settings/LearningLabPage";
+import DocumentsFlow from "../docai/DocumentsFlow";
 import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
 const AdminPanel = lazyWithRecovery(() => import("../admin/AdminPanel"));
@@ -80,6 +81,7 @@ export default function MoreFlow({
   // and a pop coming back, whatever path led here.
   const DEPTH: Record<string, number> = {
     hub: 0,
+    documents: 1,
     settings: 1,
     appearance: 2, categories: 2, connections: 2, edittabs: 2, account: 2, notifsettings: 2, about: 2, advanced: 2, backup: 2, aicontrol: 2, learned: 2, booking: 2, emailsections: 2, emailsignatures: 2, feedbackstyle: 2,
     profile: 3, terms: 3, privacy: 3, support: 3, admin: 3,
@@ -87,6 +89,7 @@ export default function MoreFlow({
   const pushCls = usePushDepth(DEPTH[route] ?? 1);
 
   const screen = (() => {
+  if (route === "documents") return <DocumentsFlow onBack={() => setRoute("hub")} />;
   if (route === "settings") return <SettingsPage onNavigate={(r) => setRoute(r)} onBack={() => setRoute("hub")} />;
   if (route === "profile") return <ProfilePage onBack={() => setRoute("account")} />;
   if (route === "appearance") return <AppearancePage onBack={() => setRoute("settings")} />;

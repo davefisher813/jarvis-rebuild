@@ -7988,3 +7988,12 @@ html[data-motion="reduce"] .card.card-enter { animation: none; }
 .score-grid .sg-under { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--tx-3); }
 .score-grid .sg-over { border-radius: var(--r-xs); box-shadow: inset 0 0 0 1.5px var(--tx-4); }
 .score-grid .sg-empty { color: var(--tx-2); }
+
+/* ---- DOC AI: THE PASSAGE A FIELD CAME FROM (2026-10-23, build order Phase 1) ----
+   The words around a quote, with the quote itself marked, so every value is checked against the sentence it came from. One body
+   size, the row's one grey for the surround, the quote in the page ink on the amber wash that means "look here". Wraps, never scrolls
+   sideways; the section scrolls with the sheet. */
+.doc-passage { padding: var(--s-3) var(--s-4); font-size: var(--t-sub); line-height: 1.5; color: var(--tx-3); white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-passage:focus-visible { outline: 2px solid var(--warn); outline-offset: -2px; }
+.doc-mark { background: color-mix(in srgb, var(--warn) 28%, transparent); color: var(--tx-1); border-radius: var(--r-xs); padding: 0 var(--s-0h); }
+.doc-cut { color: var(--tx-2); }

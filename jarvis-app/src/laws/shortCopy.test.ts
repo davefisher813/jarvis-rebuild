@@ -105,6 +105,9 @@ const EXEMPT_FILES = new Set([
   // UP-CORE-13 (2026-09-05): the receipt prompt, same reason again. Its one
   // rendered string lives in MoneyFlow.tsx, which this law scans normally.
   "money/receiptExtract.ts",
+  // DOC AI (2026-10-23): the extraction prompt and its field guide go to the model, not the screen. Same class as the prompt files
+  // above; every string the person reads lives in docai/lifecycle.ts, proposal.ts and the two screens, which this law scans normally.
+  "docai/schemas.ts",
   "brain/docs/BrainDocPage.tsx",
   // TRACK 3 (2026-09-19): the booking confirmation and cancellation EMAILS.
   // Not rendered anywhere: these strings are the body of a message that lands

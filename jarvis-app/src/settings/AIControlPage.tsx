@@ -36,6 +36,7 @@ const PIN_LABEL: Record<AIPinKey, string> = {
   pasteFallback: "Paste Fallback",
   messageDrafts: "Message Drafts",
   estimates: "Estimates",
+  docExtract: "Document Reading",
 };
 // PLUMB-F-13 (2026-09-05): was a second hand-typed copy of the same five
 // names. The screen offers exactly the pins the gate declares, and no more.

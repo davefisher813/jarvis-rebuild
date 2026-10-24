@@ -21,6 +21,8 @@ export interface BillInput {
   payUrl?: string | null;
   /** Honoured only when a person chose it (`by: "user"`); see buildBill. */
   recurrence?: BillRecurrence | null;
+  /** The document it was filed from (Doc AI). */
+  attachmentFileId?: string | null;
 }
 
 const RECURRENCES: readonly BillRecurrence[] = ["weekly", "monthly", "yearly"];
@@ -58,6 +60,7 @@ export function buildBill(
     ...(input.autopay ? { autopay: true } : {}),
     ...(payUrl ? { payUrl } : {}),
     ...(recurrence ? { recurrence } : {}),
+    ...(input.attachmentFileId ? { attachmentFileId: input.attachmentFileId } : {}),
     source,
   }, [entry(by, source === "manual" ? "created" : "created from an email", undefined, now)]);
   return { ok: true, value: data };

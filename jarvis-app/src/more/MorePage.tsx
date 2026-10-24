@@ -1,12 +1,13 @@
 import type { Destination } from "../shell/destinations";
 import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
+import { flagOn } from "../substrate/flags";
 
 const Chev = () => (
   <div className="chev" />
 );
 
-export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections" | "aicontrol" | "learned" | "training" | "learninglab" | "booking" | "terms" | "privacy" | "support" | "admin" | "hub" | "data" | "brainsettings" | "emailsections" | "emailsignatures" | "feedbackstyle";
+export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections" | "aicontrol" | "learned" | "training" | "learninglab" | "booking" | "terms" | "privacy" | "support" | "admin" | "hub" | "data" | "brainsettings" | "emailsections" | "emailsignatures" | "feedbackstyle" | "documents";
 
 // Section tiles. Two rules, both of them load-bearing:
 //
@@ -36,6 +37,7 @@ export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "
 const TONE: Record<string, string> = {
   today: "cat-fg-orange", life: "cat-fg-red", schedule: "cat-fg-sky", brain: "cat-fg-purple", notes: "cat-fg-yellow",
   messages: "cat-fg-teal", notifications: "cat-fg-orange", money: "cat-fg-green", chat: "lib-ico-brand", settings: "cat-fg-graphite",
+  documents: "cat-fg-graphite",
 };
 const toneOf = (key: string) => TONE[key] ?? "cat-fg-graphite";
 
@@ -59,6 +61,14 @@ export default function MorePage({ extras, onOpenExtra, onNavigate }: {
             <Chev />
           </div>
         ))}
+        {/* DOC AI (2026-10-23, behind doc_ai_v1): where an uploaded or photographed document is read and proposed from. */}
+        {flagOn("doc_ai_v1") && (
+          <div className="lib-row" role="button" tabIndex={0} onClick={() => onNavigate("documents")}>
+            <div className={"lib-ico " + toneOf("documents")}>{filledIcon("documents")}</div>
+            <div className="lib-name">Documents</div>
+            <Chev />
+          </div>
+        )}
       </div></div>
 
       <div className="pad-x nav-card-gap"><div className="card list-card-ruled nav-card">

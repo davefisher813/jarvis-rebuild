@@ -14,7 +14,8 @@ export const ENTITY_FILE = "user_file";
 // a note's files ride inside the note exactly as they have since 2026-09-02.
 // A union member with no writer is scaffolding, and this codebase deletes
 // scaffolding rather than shipping it.
-export type FileScope = "money";
+// Doc AI (2026-10-23) adds "library": a document uploaded to be read, filed from and asked about, with no page of its own.
+export type FileScope = "money" | "library";
 
 export interface FileData {
   name: string;   // as picked, for the row
@@ -23,6 +24,8 @@ export interface FileData {
   bytes: number;
   scope: FileScope;
   addedAt: string; // ISO date the file was added, for the row's line
+  /** Doc AI's lifecycle for this file (src/docai). Written by the document worker and the app; absent on every older file. */
+  doc?: import("../docai/types").DocBlock;
 }
 
 export interface UserFile { id: string; data: FileData }

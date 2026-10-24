@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, PlugsConnected, Lightbulb,
-  CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench, Signature } from "@phosphor-icons/react";
+  CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench, Signature, Files } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
 
@@ -39,6 +39,8 @@ export const FILLED: Record<string, ReactNode> = {
   notifications: <BellSimple {...P} />,
   money: <Wallet {...P} />,
   chat: <Sparkle {...P} />,
+  // Doc AI (2026-10-23): the Documents row in More.
+  documents: <Files {...P} />,
   settings: <GearSix {...P} />,
 };
 

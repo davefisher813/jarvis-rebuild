@@ -69,6 +69,8 @@ export interface BillData {
   autopay?: boolean;
   payUrl?: string;
   notes?: string;
+  /** A `user_file` row id for the document this bill was filed from (Doc AI). A pointer, set only by the person's File It. */
+  attachmentFileId?: string;
   source: BillSource;
   fingerprint: string;
   history: HistoryEntry[];

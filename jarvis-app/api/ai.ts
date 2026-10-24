@@ -30,6 +30,7 @@ import {
   type BudgetErrorCode,
 } from "../src/ai/aiBudget";
 import { capEnforced, markDispatched, releaseBudget, requestHash, reserveBudget, settleBudget } from "./_aiBudget";
+import { DOC_CALL, DOC_WORKER, WORKER_HEADER, docCallIdentity, runDocWorker } from "./_docWorker";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -43,6 +44,10 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
+  // Doc AI's clock (api/_docWorker.ts, migration 0073). Reading a document is not an AI call, so this dispatch comes BEFORE the model key is
+  // checked: a missing key must not stop a PDF from being read. The clock never calls a model; when a job needs one it asks THIS handler.
+  const workerHeader = req.headers.get(WORKER_HEADER);
+  if (workerHeader === DOC_WORKER) return runDocWorker(req);
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return json({ error: "AI not configured on the server" }, 500);
 
@@ -51,12 +56,24 @@ export default async function handler(req: Request): Promise<Response> {
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const supaUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const supaAnon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!token || !supaUrl || !supaAnon) return json({ error: "Unauthorized" }, 401);
-  const who = await fetch(`${supaUrl}/auth/v1/user`, {
-    headers: { Authorization: `Bearer ${token}`, apikey: supaAnon },
-  });
-  if (!who.ok) return json({ error: "Unauthorized" }, 401);
-  const me = (await who.json()) as { id?: string; app_metadata?: unknown };
+  // The document clock's call (DOC_CALL): the same door, the same gate, caps, budget and token log below. Only who vouches for the user
+  // differs. docCallIdentity needs the cron secret AND a job claimed this instant under its own token; the person is then the job's owner,
+  // and their stored AI Control is read with the service key (there is no session token to read it under).
+  const isDocCall = workerHeader === DOC_CALL;
+  let me: { id?: string; app_metadata?: unknown };
+  if (isDocCall) {
+    if (!supaUrl) return json({ error: "Unauthorized" }, 401);
+    const idn = await docCallIdentity(req);
+    if (!idn) return json({ error: "Unauthorized" }, 401);
+    me = idn;
+  } else {
+    if (!token || !supaUrl || !supaAnon) return json({ error: "Unauthorized" }, 401);
+    const who = await fetch(`${supaUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: supaAnon },
+    });
+    if (!who.ok) return json({ error: "Unauthorized" }, 401);
+    me = (await who.json()) as { id?: string; app_metadata?: unknown };
+  }
   if (!me.id) return json({ error: "Unauthorized" }, 401);
 
   // THE ADMIN SWITCH (Dave 2026-09-30). app_metadata comes back on the very
@@ -73,7 +90,8 @@ export default async function handler(req: Request): Promise<Response> {
   // carrying exactly one bounded image (Brain doc photo reading) is allowed a
   // larger envelope. The absolute ceiling below bounds parse work either way.
   const raw = await req.text();
-  const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
+  // A document slice is cut by the worker to fit; escaping can swell it, so its envelope is twice the tight cap, still bounded.
+  const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10) * (isDocCall ? 2 : 1);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
   let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown; requestId?: unknown };
@@ -96,13 +114,16 @@ export default async function handler(req: Request): Promise<Response> {
   // What the call says it is. kind feeds What Ran (a short slug, bounded and
   // cleaned here because clients lie); background marks anything the user did
   // not just ask for, which is what AI Control gates hardest.
-  const kind = typeof body.kind === "string" ? body.kind.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) : "";
+  let kind = typeof body.kind === "string" ? body.kind.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) : "";
+  // The document clock's calls are always named as such in What Ran, whatever the body says.
+  if (isDocCall && !/^doc-(classify|extract)$/.test(kind)) kind = "doc-extract";
   const background = body.background === true;
   // UP-PLAT-03 (2026-09-06): which per-feature pin this call rides under.
   // Sanitised against the gate's own list rather than trusted: a made-up pin
   // name is simply no pin, which falls back to the master level. Clients lie,
   // same rule as kind above.
-  const pin: AIPinKey | undefined = AI_PIN_KEYS.includes(body.pin as AIPinKey) ? (body.pin as AIPinKey) : undefined;
+  // A docs call rides the docExtract pin always: Doc AI's own switch in AI Control cannot be bypassed by leaving the pin off the body.
+  const pin: AIPinKey | undefined = isDocCall ? "docExtract" : AI_PIN_KEYS.includes(body.pin as AIPinKey) ? (body.pin as AIPinKey) : undefined;
 
   // AI CONTROL, SERVER SIDE (addendum item 21). The stored profile is the
   // authority, read with the CALLER'S token under RLS, so this works with or
@@ -121,10 +142,16 @@ export default async function handler(req: Request): Promise<Response> {
   // resolve a pin identically and there is one answer to argue with.
   let aiLevel = DEFAULT_AI_LEVEL;
   try {
-    const pr = await fetch(
-      `${supaUrl}/rest/v1/item?entity_type=eq.profile&select=data&order=updated_at.desc&limit=1`,
-      { headers: { apikey: supaAnon, Authorization: `Bearer ${token}` } },
-    );
+    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    const pr = isDocCall
+      ? await fetch(
+        `${supaUrl}/rest/v1/item?entity_type=eq.profile&owner_id=eq.${me.id}&select=data&order=updated_at.desc&limit=1`,
+        { headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` } },
+      )
+      : await fetch(
+        `${supaUrl}/rest/v1/item?entity_type=eq.profile&select=data&order=updated_at.desc&limit=1`,
+        { headers: { apikey: supaAnon as string, Authorization: `Bearer ${token}` } },
+      );
     if (pr.ok) {
       const rows = (await pr.json()) as { data?: { ai?: AIControlState } }[];
       aiLevel = effectiveLevel(rows[0]?.data?.ai, pin);
@@ -301,6 +328,7 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: "Upstream error", detail }, 502);
   }
   let data: {
+    stop_reason?: string | null;
     content?: { type: string; text?: string; name?: string; input?: unknown }[];
     usage?: {
       input_tokens?: unknown;
@@ -351,7 +379,12 @@ export default async function handler(req: Request): Promise<Response> {
   // A valid answer is never thrown away over bookkeeping: if the ledger did
   // not confirm the settlement the hold stays reserved (it is conservative),
   // and the reply says so.
-  return json({ text: extractText(data.content), ...(settled ? {} : { accounting: "pending" }) });
+  return json({
+    text: extractText(data.content),
+    ...(settled ? {} : { accounting: "pending" }),
+    // Only the document clock needs to know a reply was cut off by the output cap; every other caller's envelope is unchanged.
+    ...(isDocCall ? { stop_reason: data.stop_reason ?? null } : {}),
+  });
 }
 
 // The status each refusal travels under: 402 for "you are out", 409 for a

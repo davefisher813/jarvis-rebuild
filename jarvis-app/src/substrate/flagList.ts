@@ -13,6 +13,8 @@
 //   trust_v1      the trust checkpoint: a Store backed door says Will Sync
 //                 while the write is still on this phone
 //   vyzn_sync_v1  the VYZN feed: proposals pulled into the inbox surface
+//   doc_ai_v1     Doc AI (build order 2026-10-23): the Documents screen in More, where an uploaded or photographed document is read and
+//                 proposed from. The server half (migration 0073, api/_docWorker.ts) is inert without it: nothing queues a job.
 
 export const FLAGS = [
   "substrate_v1",
@@ -22,6 +24,7 @@ export const FLAGS = [
   "memory_v1",
   "trust_v1",
   "vyzn_sync_v1",
+  "doc_ai_v1",
 ] as const;
 export type Flag = (typeof FLAGS)[number];
 
