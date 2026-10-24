@@ -24,6 +24,8 @@ export const config = { runtime: "edge" };
 import { aiCallAllowed, effectiveLevel, refusalCode, refusalMessage, adminAiAllowed, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AIPinKey } from "../src/ai/aiGate";
 import { classifyUpstream, outageCode, providerWords, retryableCode, type ProviderFailure } from "../src/ai/providerFailure";
 import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
+import { wireTools } from "../src/chat/tools/registry";
+import { shapeReply, toolBlockOk, utf8Bytes } from "../src/chat/tools/wire";
 import { tokenRow, withoutCacheCounts } from "../src/ai/tokenLog";
 import { systemPayload } from "../src/ai/systemPrompt";
 import {
@@ -76,8 +78,10 @@ export default async function handler(req: Request): Promise<Response> {
   const raw = await req.text();
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
+  // A tool turn carries the tool results of its earlier steps, so it gets a larger envelope than a plain question. Counted in BYTES.
+  const maxToolInput = parseInt(process.env.AI_MAX_TOOL_INPUT_BYTES || "65536", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
-  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown; requestId?: unknown };
+  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; tools?: unknown; pin?: unknown; requestId?: unknown };
   try {
     body = JSON.parse(raw) as typeof body;
   } catch {
@@ -90,10 +94,18 @@ export default async function handler(req: Request): Promise<Response> {
   if (body.schema !== undefined && !schemaOk(body.schema)) {
     return json({ error: "Bad schema" }, 400);
   }
+  // THE TOOLS (chat box order, 2026-10-24). The caller names tools; it never defines one. Each name is looked up in the registry here
+  // (src/chat/tools/registry.ts) and the definition attached by this function, so no body can put a tool of its own in front of the
+  // model. A name the registry does not know, a repeat, or a list that is not short refuses the whole request. A forced structured
+  // call and a tool menu are different requests and are not mixed.
+  const toolList = body.tools === undefined ? null : wireTools(body.tools);
+  if (body.tools !== undefined && !toolList) return json({ error: "Bad tools" }, 400);
+  if (toolList && body.schema !== undefined) return json({ error: "Bad request" }, 400);
+  const allowedTools = new Set((toolList ?? []).map((t) => t.name));
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (messages.length === 0) return json({ error: "No messages" }, 400);
-  if (!visionShapeOk(messages)) return json({ error: "Bad request" }, 400);
-  if (countImages(messages) === 0 && raw.length > maxInput) return json({ error: "Request too large" }, 413);
+  if (!visionShapeOk(messages, allowedTools)) return json({ error: "Bad request" }, 400);
+  if (countImages(messages) === 0 && (toolList ? utf8Bytes(raw) > maxToolInput : raw.length > maxInput)) return json({ error: "Request too large" }, 413);
   // What the call says it is. kind feeds What Ran (a short slug, bounded and
   // cleaned here because clients lie); background marks anything the user did
   // not just ask for, which is what AI Control gates hardest.
@@ -235,6 +247,8 @@ export default async function handler(req: Request): Promise<Response> {
     // src/ai/systemPrompt.ts for why the context has to be the prefix.
     ...(systemPayload(body.system) ?? {}),
     ...(schemaOk(body.schema) ? toolPayload(body.schema) : {}),
+    // The model may ask for any of the named tools or answer in words (tool_choice defaults to auto). It only ever ASKS: nothing runs here.
+    ...(toolList ? { tools: toolList } : {}),
     messages,
   };
   const permille = multiplierPermille(process.env.AI_PRICE_MULTIPLIER_PERMILLE);
@@ -248,7 +262,7 @@ export default async function handler(req: Request): Promise<Response> {
       textBytes: new TextEncoder().encode(JSON.stringify(stripImageData(upstreamBody))).length,
       imageCount: countImages(messages),
       usesCache: upstreamJson.includes('"cache_control"'),
-      usesTools: schemaOk(body.schema),
+      usesTools: schemaOk(body.schema) || !!toolList,
       maxTokens: MAX_TOKENS,
       permille,
     });
@@ -308,7 +322,8 @@ export default async function handler(req: Request): Promise<Response> {
     return providerRefusal(failure, detail);
   }
   let data: {
-    content?: { type: string; text?: string; name?: string; input?: unknown }[];
+    stop_reason?: unknown;
+    content?: { type: string; text?: string; id?: string; name?: string; input?: unknown }[];
     usage?: {
       input_tokens?: unknown;
       output_tokens?: unknown;
@@ -358,6 +373,16 @@ export default async function handler(req: Request): Promise<Response> {
   // A valid answer is never thrown away over bookkeeping: if the ledger did
   // not confirm the settlement the hold stays reserved (it is conservative),
   // and the reply says so.
+  if (toolList) {
+    // A tool turn answers in words AND in the calls the model asked for, each checked (src/chat/tools/wire.ts). `stop` says why it stopped.
+    const reply = shapeReply(data.content, allowedTools);
+    return json({
+      text: reply.text,
+      toolCalls: reply.toolCalls,
+      stop: typeof data.stop_reason === "string" ? data.stop_reason : null,
+      ...(settled ? {} : { accounting: "pending" }),
+    });
+  }
   return json({ text: extractText(data.content), ...(settled ? {} : { accounting: "pending" }) });
 }
 
@@ -428,8 +453,10 @@ function json(obj: unknown, status = 200): Response {
 }
 
 // A message's content may be a plain string, or an array of text blocks plus
-// AT MOST ONE bounded base64 image (jpeg/png/webp). Anything else is rejected
-// so the proxy can never be used to smuggle arbitrary payloads upstream.
+// AT MOST ONE bounded base64 image (jpeg/png/webp), plus, on a request that
+// NAMES tools, the tool_use and tool_result blocks of the turn so far (each
+// judged by chat/tools/wire.ts). Anything else is rejected so the proxy can
+// never be used to smuggle arbitrary payloads upstream.
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_B64 = 450000; // ~340KB binary, far above a downscaled screenshot
 
@@ -442,7 +469,7 @@ function countImages(messages: unknown[]): number {
   return n;
 }
 
-function visionShapeOk(messages: unknown[]): boolean {
+function visionShapeOk(messages: unknown[], allowedTools: ReadonlySet<string>): boolean {
   let images = 0;
   for (const m of messages) {
     const c = (m as { content?: unknown }).content;
@@ -450,7 +477,10 @@ function visionShapeOk(messages: unknown[]): boolean {
     if (!Array.isArray(c)) return false;
     for (const b of c) {
       const blk = b as { type?: string; text?: unknown; source?: { type?: string; media_type?: string; data?: unknown } };
-      if (blk.type === "text") {
+      // The two tool kinds are judged by their own rules (chat/tools/wire.ts): the role, the tool NAMED on this request, the shapes and sizes.
+      if (blk.type === "tool_use" || blk.type === "tool_result") {
+        if (!toolBlockOk(blk as Record<string, unknown>, (m as { role?: unknown }).role, allowedTools)) return false;
+      } else if (blk.type === "text") {
         if (typeof blk.text !== "string") return false;
       } else if (blk.type === "image") {
         images++;

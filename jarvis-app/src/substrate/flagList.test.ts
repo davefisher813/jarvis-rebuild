@@ -8,10 +8,10 @@ import { flagOn, flagsOn, FLAGS as REEXPORTED } from "./flags";
 // in it, so a law or a script can know the flags without Vite; flags.ts is the
 // one env read and re-exports the roster.
 describe("flagList: the roster and the parser", () => {
-  it("names the four flags that existed and the three Phase 0 adds", () => {
+  it("names the four flags that existed, the three Phase 0 adds and the chat box's", () => {
     expect([...FLAGS]).toEqual([
       "substrate_v1", "email_intake_v1", "verified_agent_adapters", "email_hold_v1",
-      "memory_v1", "trust_v1", "vyzn_sync_v1",
+      "memory_v1", "trust_v1", "vyzn_sync_v1", "chat_tools_v1",
     ]);
   });
 

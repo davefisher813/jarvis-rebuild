@@ -80,6 +80,16 @@ the hold, a 5xx or a dropped connection keeps it. The words are two fragments jo
 provenance `error` and never rides back to the model as conversation. Not done and not claimed: this is the words and the retry advice, not the
 credit itself (Dave restores that) and not a circuit breaker on the server.
 
+## The chat's model has hands, and they are a closed menu (Dave's chat box order, 2026-10-24)
+
+`src/chat/tools/`, mapped in `docs/jarvis-unified/CHAT-TOOLS.md`. The model proposes; only the dispatcher acts. The app names tools by NAME, the proxy
+attaches the definitions from the registry it holds (`registry.ts`), and the dispatcher checks every call in code: the name, the turn's budget, the
+input's schema, that every ref is one a search in this chat returned, and that only a read runs. This phase is tier 0 (reads) and ships dark behind
+`chat_tools_v1` (a `VITE_JARVIS_FLAGS` build variable: a per-deploy switch). `laws/chatTools.test.ts` holds the roster, bans escape-hatch tools
+(`run_query`, `call_api`), and keeps the read tools unable to reach a write; a new tool is a decision made in that law. Writes, drafts and the approval
+card are the next phase: the substrate's server-side approvals cover only email candidates and email-draft sends, so the chat builds the same rules
+(exact content, 5 minutes, single use, an edit voids it) in its own dispatcher, and a send is never the agent's: it ends in the composer.
+
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
 "I am sick of this shit." A thin grey subtext came back on the live Email card
