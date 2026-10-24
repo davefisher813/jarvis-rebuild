@@ -41,7 +41,7 @@ export const has = (n: number | undefined): n is number => (n ?? 0) > 0;
  *  set speaks only the numbers it actually has: "115 lb × 8", "8 reps" when
  *  no weight was said, "115 lb" when no reps were, "Done" for the bare done
  *  mark, and "Empty" for a chip with nothing in it yet. */
-export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { sided?: boolean }, s: SetLog): string {
+export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { sided?: boolean }, s: SetLog, opts: { bodyweight?: boolean } = {}): string {
   const u = ex.unit ?? "";
   const bare = s.done ? "Done" : "Empty";
   // ONE SIDE AT A TIME (2026-09-16). "8" on a Bulgarian split squat is 8 per
@@ -54,6 +54,10 @@ export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { s
       const w = has(s.w) ? `${trim(s.w)} ${u}`.trim() : null;
       const r = has(s.r) ? trim(s.r) : null;
       if (w && r) return `${w} × ${r}${side}`;
+      // NO WEIGHT IS BODYWEIGHT (Dave, 2026-10-24, live on a Hanging Leg Raise): a LOGGED set (or the button about to write one) with reps and no
+      // load is a whole set and says so. A plan that never named a weight still reads as plain reps (the 2026-10 "reads as reps, not 0 lb" rule),
+      // because an unstated plan is not a claim that the lift is bodyweight.
+      if (r && opts.bodyweight) return `Bodyweight × ${r}${side}`;
       if (r) return `${r} ${repWord(s.r)}${side}`;
       if (w) return w;
       return bare;
@@ -150,16 +154,7 @@ export function logButtonLabel(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> 
   // and it is the one place that names what is about to be written.
   const verb = warmup ? "Log Warm-Up" : "Log";
   if (!ready) return warmup ? verb : `Log ${entryNoun(ex.kind, false)}`;
-  return `${verb} ${lineCase(formatSet(ex, next!))}`;
-}
-
-/** The equipment whose number is help or nothing, so a set on it is whole
- *  with reps alone: bodyweight, a band, the assisted machine, and any lift
- *  counted as added to or taken off the body. */
-function weightOptional(style: LoadStyle | undefined): boolean {
-  if (!style) return false;
-  if (style.equipment === "bodyweight" || style.equipment === "band" || style.equipment === "assisted") return true;
-  return style.counted === "added" || style.counted === "assist";
+  return `${verb} ${lineCase(formatSet(ex, next!, { bodyweight: true }))}`;
 }
 
 /** CAN THIS SET BE WRITTEN (2026-10-17, defects B and H)? The Log button
@@ -171,12 +166,14 @@ function weightOptional(style: LoadStyle | undefined): boolean {
  *  distance-and-time attempt. A done mark needs nothing. The button reads
  *  it for `disabled`, log() reads it as its guard, and both read the same
  *  pending entry, so there is one answer. */
-export function isLoggable(kind: MeasureKind, style: LoadStyle | undefined, entry: SetLog | null): boolean {
+export function isLoggable(kind: MeasureKind, _style: LoadStyle | undefined, entry: SetLog | null): boolean {
   if (kind === "done") return true;
   if (!entry) return false;
   switch (kind) {
     case "weight_reps":
-      return has(entry.r) && (has(entry.w) || weightOptional(style));
+      // WEIGHT IS NEVER REQUIRED (Dave, 2026-10-24: "the app does not allow logging when there is no weight", a Hanging Leg Raise with REPS 12
+      // would not log). An empty weight is bodyweight, for every exercise and every equipment; the reps are the set.
+      return has(entry.r);
     case "reps":
     case "rounds":
       return has(entry.r);
@@ -187,6 +184,29 @@ export function isLoggable(kind: MeasureKind, style: LoadStyle | undefined, entr
       return has(entry.v);
     case "distance_time":
       return has(entry.v) || has(entry.t);
+  }
+}
+
+/** WHY THE BUTTON IS DIM, IN WORDS (Dave, 2026-10-24: a block must say why, never fail silently). Null when the set can be logged. Names the
+ *  one thing missing, in the app's Title Case voice. */
+export function notLoggableWhy(kind: MeasureKind, entry: SetLog | null): string | null {
+  if (isLoggable(kind, undefined, entry)) return null;
+  switch (kind) {
+    case "weight_reps":
+    case "reps":
+    case "rounds":
+      return kind === "rounds" ? "Add the Rounds to Log" : "Add the Reps to Log";
+    case "time_faster":
+    case "time_longer":
+      return "Add the Time to Log";
+    case "distance":
+      return "Add the Distance to Log";
+    case "height":
+      return "Add the Height to Log";
+    case "distance_time":
+      return "Add a Distance or a Time to Log";
+    default:
+      return null;
   }
 }
 

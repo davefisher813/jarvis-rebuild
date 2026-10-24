@@ -71,7 +71,7 @@ describe("the red button names exactly what the fields hold", () => {
     // Plan 20 lb x 10; last session logged 10 reps with no weight.
     renderScreen({ history: [workout([{ id: "l1", r: 10 }])] });
     expect(screen.getByLabelText("Set 1 Weight")).toHaveValue(null);
-    expect(cta()).toHaveTextContent("Log 10 Reps");
+    expect(cta(), "no weight is bodyweight (Dave 2026-10-24)").toHaveTextContent("Log Bodyweight × 10");
   });
 
   it("follows every keystroke, in the same frame", () => {
@@ -82,7 +82,7 @@ describe("the red button names exactly what the fields hold", () => {
     fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "8" } });
     expect(cta()).toHaveTextContent("Log 25 Lb × 8");
     fireEvent.change(screen.getByLabelText("Set 1 Weight"), { target: { value: "" } });
-    expect(cta(), "an emptied weight comes off the label").toHaveTextContent("Log 8 Reps");
+    expect(cta(), "an emptied weight comes off the label").toHaveTextContent("Log Bodyweight × 8");
   });
 
   it("writes the numbers it names, with one receipt and an Undo", () => {

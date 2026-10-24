@@ -4020,3 +4020,7 @@ html[data-theme] .ruled.health-ruled .h-hero-head > .see-all.pill-action { color
 .ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact, .ruled.health-ruled.wo-screen .h-hero-go > .facts > .fact + .fact::before {
   color: inherit; white-space: normal; overflow: visible; }
 .ruled.health-ruled.wo-screen .h-hero-cta .day-acts { margin-top: 0; }
+
+/* ---- A DIM LOG BUTTON SAYS WHY (Dave 2026-10-24: logging is never blocked silently) ----
+   One line under the button, the row's one grey, centred like the capsules beneath it. */
+.ruled.health-ruled .logbar-why { text-align: center; margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-2); }
