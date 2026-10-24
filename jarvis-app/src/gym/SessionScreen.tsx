@@ -10,6 +10,7 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { REST_FLOOR_SEC } from "./pacing";
+import GymSwipeRow from "./GymSwipeRow";
 import { logButtonLabel, entryNoun, formatSet, fieldsFor, isLoggable, notLoggableWhy } from "./measures";
 import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
 import { nextSetEntry } from "./nextSet";
@@ -94,6 +95,7 @@ export default function SessionScreen({
   onLog,
   onSetLogged,
   onSkip,
+  onRemoveExercise,
   onMove,
   onGroupToday,
   onGroupProgram,
@@ -147,6 +149,9 @@ export default function SessionScreen({
    *  index, exactly as before. */
   onSetLogged: (sets: SetEntry[], at?: number) => void;
   onSkip: () => void;
+  /** SWIPE AN EXERCISE OUT OF TODAY (Dave, 2026-10-24): drops list row `i` from this session only, with an Undo from the owner. Absent, the
+   *  list rows do not swipe. */
+  onRemoveExercise?: (idx: number) => void;
   onMove: (idx: number) => void;
   /** SUPERSET, ONE ACTION (2026-09-26, the workout logging pass-off, Dave:
    *  "Superset linking between exercises is broken and hard to use"). The
@@ -1394,7 +1399,10 @@ export default function SessionScreen({
           // RED IS A VERB: "you are here" is a fact, not an action, so the
           // current exercise marks itself with weight and a quiet Now pill,
           // never a red name (spec sweep 2026-09-01).
-          <div className={"row" + (labels.has(e.exerciseId) ? " se-grp" : "")} role="button" tabIndex={0} key={e.exerciseId + i} onClick={() => onMove(i)}>
+          <GymSwipeRow key={e.exerciseId + i} name={liftTitle(e.name)} enabled={!!onRemoveExercise && live.exercises.length > 1}
+            onDelete={onRemoveExercise && live.exercises.length > 1 ? () => onRemoveExercise(i) : undefined} deleteLabel="Remove"
+            menu={onRemoveExercise && live.exercises.length > 1 ? [{ label: "Remove From This Workout", destructive: true, onPick: () => onRemoveExercise(i) }] : []}>
+          <div className={"row" + (labels.has(e.exerciseId) ? " se-grp" : "")} role="button" tabIndex={0} onClick={() => onMove(i)}>
             <div className="row-grow">
               <div className="conn-name truncate">{liftTitle(e.name)}</div>
               {/* THREE STATES, THREE COLOURS, NO SENTENCE (Dave 2026-09-10:
@@ -1448,6 +1456,7 @@ export default function SessionScreen({
                 control rather than a position. It takes the ramp's cyan. */}
             {i === idx ? <span className="se-now">Now</span> : CHEV}
           </div>
+          </GymSwipeRow>
         ))}
       </div></div>
       {/* THE FOOT IS THE LOG BAR'S OWN HEIGHT (2026-09-21, the first audit

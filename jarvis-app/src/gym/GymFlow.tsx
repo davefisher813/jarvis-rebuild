@@ -23,7 +23,7 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, unskipExercise, swapExercise, unswapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
+import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, unskipExercise, swapExercise, unswapExercise, removeExercise, restoreExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
 import { composeLibrary, newExerciseKey, planOf, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
@@ -3140,6 +3140,15 @@ export default function GymFlow({ onBack, backLabel = "Health", door, startDayId
           const name = live.exercises[at]?.name ?? "";
           patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }));
           showToast({ message: lineCase(`Skipped ${liftTitle(name)}`), actionLabel: "Undo", onAction: () => patchLive((l) => unskipExercise(l, at)) });
+        }}
+        // SWIPE AN EXERCISE OUT OF TODAY (Dave, 2026-10-24, live in a workout). This session only: the program day and the library are not
+        // touched. The receipt's Undo puts the exercise back in its slot with its sets, and him back where he stood (liveSession.restoreExercise).
+        onRemoveExercise={(i) => {
+          const gone = live.exercises[i];
+          if (!gone || live.exercises.length <= 1) return;
+          const wasAt = live.idx;
+          patchLive((l) => removeExercise(l, i));
+          showToast({ message: lineCase(`Removed ${liftTitle(gone.name)} From Today`), actionLabel: "Undo", onAction: () => patchLive((l) => restoreExercise(l, gone, i, wasAt)) });
         }}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         // A free-text swap mints a lift the library has never seen, same as
