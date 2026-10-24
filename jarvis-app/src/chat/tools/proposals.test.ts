@@ -265,7 +265,7 @@ describe("what the card says", () => {
     expect(cardLines(hostile)).toEqual(["Change this task?", "Pay invoice Due Tue, Dec 1 High Priority", "Mark it done"]);
     expect(subjectOf(hostile)).toBe("Pay invoice Due Tue, Dec 1 High Priority");
     const named: ProposalContent = { kind: "create_task", text: "Call", personId: "m1", personName: "Marco\n\u202EEvil" };
-    expect(cardLines(named)).toEqual(["Add this task?", "Call", "About MarcoEvil"]);
+    expect(cardLines(named)).toEqual(["Add this task?", "Call", "About Marco Evil"]);
   });
 
   it("plain words are visible, on one line, and trimmed", () => {
