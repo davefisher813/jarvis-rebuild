@@ -286,6 +286,31 @@ export function unswapExercise(s: LiveSession, original: WorkoutExercise, at: nu
 
 
 /**
+ * REMOVE FROM TODAY (Dave, 2026-10-24, live in a workout: "swipe an exercise row ... remove that exercise from today's session"). The
+ * exercise leaves THIS session only: the program day, the template and the library are never touched, and whatever was logged on it leaves
+ * with it. The screen stays on the same place in the list (the next lift slides up into it), clamped to the end. Refuses to empty the
+ * session: a workout with no exercise on it has nothing to stand on.
+ */
+export function removeExercise(s: LiveSession, idx: number): LiveSession {
+  if (!s.exercises[idx] || s.exercises.length <= 1) return s;
+  const exercises = s.exercises.filter((_, i) => i !== idx);
+  const at = s.idx > idx ? s.idx - 1 : s.idx;
+  return { ...s, exercises, idx: Math.min(Math.max(at, 0), exercises.length - 1) };
+}
+
+/**
+ * UNDO ON REMOVE (Logging Standard rule 5: an Undo, never a dead end). Puts the exercise back exactly as it was, sets and all, in the slot it
+ * left, and returns the athlete to where he was standing. The snapshot rule (SHARED-F-03): a late or second tap lands on the same answer, so
+ * an exercise that is already back is not added twice.
+ */
+export function restoreExercise(s: LiveSession, ex: WorkoutExercise, at: number, idx: number): LiveSession {
+  if (s.exercises.some((e) => e.exerciseId === ex.exerciseId)) return s;
+  const exercises = [...s.exercises];
+  exercises.splice(Math.min(Math.max(at, 0), exercises.length), 0, ex);
+  return { ...s, exercises, idx: Math.min(Math.max(idx, 0), exercises.length - 1) };
+}
+
+/**
  * ADD MID-SESSION (catalog §3.10). Append an exercise that was never in the
  * plan, without touching the program. `plan` carries the picked target strip
  * forward as ghost chips, same as a normal planned exercise would.
