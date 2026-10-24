@@ -26,6 +26,10 @@ import { chatFailure } from "./failureWords";
 import { chatToolPrompt } from "./tools/toolPrompt";
 import { citedRefs } from "./tools/turn";
 import { chatToolsOn, useChatTools } from "./tools/useChatTools";
+import ProposalCards from "./tools/ProposalCards";
+import { subjectOf, type Proposal } from "./tools/proposals";
+import { asksForChange, looksLikeEdit, notDoneLine, screenClaims } from "./tools/turnWords";
+import { WRITE_TOOL_NAMES } from "./tools/registry";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
 import { answerQuestion, looksLikeQuestion, rewriteFollowUp, detectDecision, type AnswerSnapshot, type Prior } from "./answers";
@@ -34,7 +38,7 @@ import { answerQuestion, looksLikeQuestion, rewriteFollowUp, detectDecision, typ
 import { loadMailSnapshot } from "../messages/home";
 import { parseCommand, resolveTarget, type ChatCommand, type CommandTarget } from "./commands";
 import { smartPasteSave, undoSaved } from "../paste/smartPaste";
-import { attemptWrite } from "../shared/guard";
+import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { ChatMessage } from "./ChatService";
 import type { ChatProvenance } from "./types";
@@ -231,7 +235,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     return list;
   }, [chat]);
   useEffect(() => { void reload(); }, [reload]);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs.length, choice, tools.working]);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs.length, choice, tools.working, tools.proposals.length]);
 
   const say = async (role: "user" | "jarvis", text: string, provenance?: ChatProvenance) => {
     await chat.append({ role, text, ...(provenance ? { provenance } : {}) });
@@ -444,6 +448,40 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
      
   }, [askPersonId, askNonce]);
 
+  // THE CARDS (2026-10-24, chat box order). A tap is the only thing that makes a change the model asked for: the hook's approve checks the
+  // card is still open, inside its five minutes and the very content this tap drew, and only then makes it. The receipt in the thread comes
+  // from what was made, never from the model's words; the card stays, resting, until the receipt is written, and Undo comes with the toast.
+  const approveCard = async (p: Proposal) => {
+    let r: Awaited<ReturnType<typeof tools.approve>>;
+    try {
+      r = await tools.approve(p.id, p.hash);
+    } catch {
+      // Nothing was claimed or written (the only thing that can throw before a write is checking the card), so the card is still there.
+      showToast({ message: WRITE_FAILED_MESSAGE });
+      return;
+    }
+    // A tap that could not count (it ran out, was replaced, was already handled) says so and changes nothing.
+    if (!r.ok && r.reason !== "failed") { showToast({ message: r.message }); return; }
+    try {
+      if (!r.ok) { await say("jarvis", r.message, { kind: "error" }); return; }
+      haptics.confirm();
+      logAnswered("action");
+      // The toast first: it carries the Undo, and it is feedback even if the thread's own write is the thing that is failing.
+      const undo = r.undo;
+      showToast({ message: r.toast, actionLabel: "Undo", onAction: async () => { await attemptWrite(() => undo()); } });
+      await say("jarvis", r.receipt, { kind: "action", refs: r.refs });
+    } catch {
+      // The change was made and the toast said so; only the line in the thread did not land.
+    } finally {
+      tools.settle(p.id, r.ok);
+    }
+  };
+
+  const cancelCard = async (p: Proposal) => {
+    if (!tools.cancel(p.id)) return;
+    await say("jarvis", `Left it alone: ${subjectOf(p.content)}`, { kind: "records" });
+  };
+
   // `retryOf` is Try Again (2026-10-24): the words of a turn that already sits in the thread, answered again. It stores no second copy of
   // them and leaves whatever is in the box alone.
   const send = async (retryOf?: string) => {
@@ -536,8 +574,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         }
 
         // 2. Deterministic Q&A, still before any AI call.
-        if (looksLikeQuestion(asked)) {
-          const ans = await answerQuestion(asked, await snapshot());
+        // With the tools on, a sentence that opens by changing something that exists ("move the plumber to Friday") is not a new task and
+        // is not a question the rules can read: it goes straight to the model, which finds the task and puts the change on a card.
+        const editAsk = toolsOn && ai.available && looksLikeEdit(asked);
+        if (looksLikeQuestion(asked) || editAsk) {
+          const ans = editAsk ? null : await answerQuestion(asked, await snapshot());
           if (ans) {
             // The turn that a follow-up will resolve against next.
             if (!ans.choose) setPrior({ question: asked, ...(ans.provenance.refs ? { refs: ans.provenance.refs } : {}) });
@@ -573,8 +614,25 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
               const turn = await tools.run(recentTurns(history, text), chatToolPrompt(contextToText(ctx), filedInstructions));
               setPrior({ question: asked });
               logAnswered("ai");
+              // WHAT THE TURN ACTUALLY DID. The cards it put up, and where each stands now (the person may have tapped one while the model was
+              // still writing). Nothing a tool does is a change until a tap, so a claim in the model's words that something was done is
+              // never true: those sentences come out, and the thread says where the person really stands. A turn that is about changing
+              // something is read strictly; one that only read the activity log is reporting earlier work, which is true and is left alone.
+              const cards = tools.tally(turn.outcomes.flatMap((o) => (o.state === "proposed" && o.proposalId ? [o.proposalId] : [])));
+              const strict = turn.outcomes.some((o) => (WRITE_TOOL_NAMES as readonly string[]).includes(o.call.name)) || asksForChange(text) || asksForChange(asked);
+              const reportOnly = !strict && turn.outcomes.some((o) => o.call.name === "get_activity" && o.state === "ran");
+              const said = reportOnly ? { text: turn.text, screened: false } : screenClaims(turn.text, cards, strict);
               if (turn.ended === "cap") {
                 await say("jarvis", "That took more lookups than one question gets · Try asking it a narrower way", { kind: "error" });
+              } else if (said.screened || (!turn.text && cards.opened > 0)) {
+                // Something is left to say, or the cards' own lines already said it all. What the model kept is still its answer; the line
+                // after it is the app's.
+                const line = notDoneLine(cards);
+                const kept = said.screened ? said.text : line ?? "";
+                if (kept) {
+                  const cited = kept === line ? [] : citedRefs(kept, turn.outcomes);
+                  await say("jarvis", kept, { kind: kept === line ? "records" : "ai", ...(cited.length ? { refs: cited } : {}) });
+                }
               } else if (!turn.text) {
                 setRetryText(text);
                 await say("jarvis", "I didn't get an answer back · Try again", { kind: "error" });
@@ -949,6 +1007,13 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             <div className="chip" role="button" tabIndex={0} onClick={() => setChoice(null)}>Never Mind</div>
           </div>
         )}
+        {/* THE CARDS: a change the model asked for, shown whole, waiting for a tap. Not stored: they last five minutes and no longer. */}
+        <ProposalCards
+          proposals={tools.proposals}
+          onApprove={(p) => void approveCard(p)}
+          onCancel={(p) => void cancelCard(p)}
+          onDismiss={(p) => tools.dismiss(p.id)}
+        />
         {/* While the model looks things up, one honest line of what is being looked at. Not stored: it is gone when the answer lands. */}
         {tools.working && (
           <div className="chat-bubble chat-jarvis" role="status" aria-live="polite"><div className="chat-text">{tools.working}…</div></div>

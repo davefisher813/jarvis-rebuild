@@ -12,14 +12,15 @@
 // TIERS, enforced at the dispatcher with every tool visible to the model (a tool the model can see but is not allowed to run is refused
 // with its reason, which is how it learns to ask a different way):
 //   0  reads. Free: no approval, capped, search-first.
-//   1  local reversible writes. Each lands with a receipt and Undo; a tap on the exact content first. (Phase: writes.)
-//   2  inert drafts. Words and a composer, nothing sent. (Phase: writes.)
-//   3  propose only: send, delete, share. Rendered as the full exact content; the agent can never dispatch them. (Phase: writes.)
-// This phase registers tier 0 only: the dispatcher cannot run the others yet, and a tool it cannot run is not offered.
+//   1  local reversible writes. The model PROPOSES: the dispatcher turns the call into a card that shows the exact content, and only the
+//      person's tap on that card (bound to a hash of what it shows, five minutes, once) makes the change, with a receipt and Undo.
+//   2  inert drafts. Words and a composer, nothing sent. (Not built yet.)
+//   3  propose only: send, delete, share. Rendered as the full exact content; the agent can never dispatch them. (Not built yet.)
+// A tool the dispatcher cannot honour yet is not on the menu: the menu is exactly what is built.
 
 export type ToolTier = 0 | 1 | 2 | 3;
 
-export const TOOL_NAMES = [
+export const READ_TOOL_NAMES = [
   "search_items",
   "read_document",
   "get_schedule",
@@ -27,7 +28,17 @@ export const TOOL_NAMES = [
   "recall_facts",
   "get_activity",
 ] as const;
-export type ToolName = (typeof TOOL_NAMES)[number];
+export type ReadToolName = (typeof READ_TOOL_NAMES)[number];
+
+export const WRITE_TOOL_NAMES = [
+  "create_task",
+  "update_task",
+  "capture_decision",
+] as const;
+export type WriteToolName = (typeof WRITE_TOOL_NAMES)[number];
+
+export const TOOL_NAMES = [...READ_TOOL_NAMES, ...WRITE_TOOL_NAMES] as const;
+export type ToolName = ReadToolName | WriteToolName;
 
 export function isToolName(v: unknown): v is ToolName {
   return typeof v === "string" && (TOOL_NAMES as readonly string[]).includes(v);
@@ -147,6 +158,70 @@ export const TOOL_REGISTRY: Record<ToolName, ToolDef> = {
         limit: { type: "integer", minimum: 1, maximum: 8 },
       },
       required: ["query"],
+      additionalProperties: false,
+    },
+  },
+  create_task: {
+    name: "create_task",
+    tier: 1,
+    working: "Preparing the task",
+    description: [
+      "Propose a new task for the person: its words, and optionally a due date, a priority, and a person it is about (a `person_ref` that a search returned).",
+      "This puts a card in the thread that shows the task exactly as it would be saved, with a button.",
+      "Nothing is created until the person taps it, so say that it is waiting for their OK and never that it is done.",
+    ].join(" "),
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", minLength: 1, maxLength: 200 },
+        due: { type: "string", pattern: DAY },
+        priority: { type: "string", enum: ["high", "low"] },
+        person_ref: { type: "string", pattern: REF_PATTERN, maxLength: 100 },
+      },
+      required: ["text"],
+      additionalProperties: false,
+    },
+  },
+  update_task: {
+    name: "update_task",
+    tier: 1,
+    working: "Preparing the change",
+    description: [
+      "Propose a change to one of the person's open tasks, by a `ref` that a search returned: a new due date, clearing the due date, marking it done, new words, or a priority.",
+      "This puts a card in the thread that shows exactly what would change, with a button.",
+      "Nothing changes until the person taps it, so say that it is waiting for their OK and never that it is done.",
+    ].join(" "),
+    input_schema: {
+      type: "object",
+      properties: {
+        ref: { type: "string", pattern: REF_PATTERN, maxLength: 100 },
+        due: { type: "string", pattern: DAY },
+        clear_due: { type: "boolean" },
+        mark_done: { type: "boolean" },
+        text: { type: "string", minLength: 1, maxLength: 200 },
+        priority: { type: "string", enum: ["high", "low", "none"] },
+      },
+      required: ["ref"],
+      additionalProperties: false,
+    },
+  },
+  capture_decision: {
+    name: "capture_decision",
+    tier: 1,
+    working: "Preparing the decision",
+    description: [
+      "Propose recording a decision the person has made, in their own words, with the reason and the option it ruled out when they gave them.",
+      "This puts a card in the thread that shows the decision exactly as it would be saved, with a button.",
+      "Nothing is saved until the person taps it, so say that it is waiting for their OK and never that it is done.",
+    ].join(" "),
+    input_schema: {
+      type: "object",
+      properties: {
+        decision: { type: "string", minLength: 1, maxLength: 300 },
+        why: { type: "string", maxLength: 300 },
+        ruled_out: { type: "string", maxLength: 200 },
+      },
+      required: ["decision"],
       additionalProperties: false,
     },
   },

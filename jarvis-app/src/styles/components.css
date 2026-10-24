@@ -2993,6 +2993,12 @@ button {
    the accent, chat-jarvis rides press-3, iOS Messages corner treatment, and
    the provenance line is eyebrow-size uppercase. */
 .chat-thread { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+/* A THREAD LONGER THAN THE SCREEN SCROLLS; IT NEVER SQUEEZES A CHIP ROW (2026-10-24, found measuring the approval cards). A chip row
+   scrolls sideways, which gives it an automatic minimum height of nothing, so once the thread outgrew the screen the flex column took the
+   whole shortfall out of the chip rows and left a 16px sliver where Move Task and Not Now were (Try Again and Open in Email under a long
+   thread had the same fate). The row keeps its own height and the thread's own scroll takes the rest. The empty state is left to shrink
+   (.chat-empty), as it always did, and bubbles already hold their content. */
+.chat-thread > .chip-row { flex-shrink: 0; }
 .chat-bubble { max-width: 78%; padding: var(--s-2h) var(--s-3h); border-radius: var(--r-lg); }
 .chat-user { align-self: flex-end; background: var(--accent-fill); color: #fff; border-bottom-right-radius: 6px; }
 .chat-jarvis { align-self: flex-start; background: var(--press-3); color: var(--tx-1); border-bottom-left-radius: 6px; }

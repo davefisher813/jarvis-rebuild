@@ -8,8 +8,9 @@
 //   3. THE INPUT passes the tool's own schema (validate.ts), or the call is refused with the reason.
 //   4. THE IDS are ones this conversation was handed. Any field shaped like a ref must be a ref a search in this chat already returned
 //      (`seen`). The model cannot invent a record, and cannot point at one it never found: it searches first.
-//   5. THE TIER decides what may run. Tier 0 reads run. Everything above it is refused here with the reason, because a write needs the
-//      person's tap on its exact content and a send is never the agent's to dispatch; those paths are not this one.
+//   5. THE TIER decides what happens. Tier 0 reads run. Tier 1 is PROPOSED: the call becomes a card that shows the exact content, and
+//      nothing is written here, ever; the change is made only by the person's tap (proposals.ts approves it, execute.ts makes it). Tier 2
+//      and 3 are refused with the reason until they are built: a send is never the agent's to dispatch.
 //
 // What a tool returns is bounded before the model sees it (RESULT_BYTES a call, TURN_RESULT_BYTES a turn), so one big note or one hostile
 // mailbox cannot flood the context.
@@ -21,10 +22,12 @@
 // outside text fence it (readTools.ts) and the system prompt says so; this module only guarantees it arrives bounded, as JSON, labelled
 // with when it was read.
 
-import { TOOL_REGISTRY, REF_PATTERN, isToolName, type ToolDef, type ToolName, type ToolSchema } from "./registry";
+import { TOOL_REGISTRY, REF_PATTERN, WRITE_TOOL_NAMES, type ReadToolName, type ToolDef, type ToolSchema, type WriteToolName } from "./registry";
 import { validateInput } from "./validate";
-import { REFUSAL_TEXT } from "./toolPrompt";
+import { PROPOSED_NOTE, REFUSAL_TEXT } from "./toolPrompt";
 import { utf8Bytes, type ToolCall } from "./wire";
+import { MAX_PROPOSALS_PER_TURN, cardLines, type ProposalStore } from "./proposals";
+import type { Proposer } from "./propose";
 
 /** Model calls in one turn. The last one must answer: it is shown no further results. */
 export const MAX_STEPS = 5;
@@ -70,8 +73,13 @@ export type ToolRefusal = "unknown_tool" | "not_available" | "bad_input" | "unse
 
 export interface Outcome {
   call: ToolCall;
-  /** ran: it returned data. refused: the dispatcher said no before running it. failed: it ran and could not answer. */
-  state: "ran" | "refused" | "failed";
+  /**
+   * ran: it returned data. proposed: a card is waiting for the person's tap, and nothing has changed. refused: the dispatcher said no
+   * before running it. failed: it ran and could not answer.
+   */
+  state: "ran" | "proposed" | "refused" | "failed";
+  /** For a proposal: the card in the thread. */
+  proposalId?: string;
   /** Why, for a refusal or a failure. */
   code?: ToolRefusal | "failed" | string;
   /** What goes back to the model: a JSON string, already bounded. */
@@ -84,14 +92,20 @@ export interface Outcome {
 export interface TurnBudget {
   calls: number;
   bytes: number;
+  /** Cards this turn has put in the thread. */
+  proposals: number;
 }
 
 export function newBudget(): TurnBudget {
-  return { calls: 0, bytes: 0 };
+  return { calls: 0, bytes: 0, proposals: 0 };
 }
 
 export interface DispatchDeps {
-  impls: Partial<Record<ToolName, ToolImpl>>;
+  impls: Partial<Record<ReadToolName, ToolImpl>>;
+  /** Tier 1: what turns a call into the content of a card. Read-only (propose.ts). */
+  proposers?: Partial<Record<WriteToolName, Proposer>>;
+  /** Where the cards live. Without it a tier 1 call is refused. */
+  proposals?: ProposalStore;
   ctx: ToolContext;
   budget: TurnBudget;
   /** The menu. Tests pass their own to prove a tier-1 tool is refused; the app always uses the real one. */
@@ -143,8 +157,9 @@ export async function dispatch(call: ToolCall, d: DispatchDeps): Promise<Outcome
     }
   }
 
-  // THE TIER RULE. Only a read runs on this path.
-  const impl = def.tier === 0 && isToolName(def.name) ? d.impls[def.name] : undefined;
+  // THE TIER RULE. A read runs. A write is proposed, never made. Anything above that is not built.
+  if (def.tier === 1) return propose(call, def, d);
+  const impl = def.tier === 0 ? d.impls[def.name as ReadToolName] : undefined;
   if (!impl) {
     return refuse(call, "not_available", REFUSAL_TEXT.not_available);
   }
@@ -165,6 +180,30 @@ export async function dispatch(call: ToolCall, d: DispatchDeps): Promise<Outcome
   const content = boundedJson({ ok: true, ...run.data, asOf: d.ctx.now.toISOString() }, room);
   d.budget.bytes += utf8Bytes(content);
   return { call, state: "ran", content, isError: false, refs };
+}
+
+// Tier 1. The call becomes a card; the model is told one is waiting and that nothing has changed. The proposer only READS (propose.ts);
+// the write itself is execute.ts, reached from the person's tap and from nowhere in here.
+async function propose(call: ToolCall, def: ToolDef, d: DispatchDeps): Promise<Outcome> {
+  const proposer = (WRITE_TOOL_NAMES as readonly string[]).includes(def.name) ? d.proposers?.[def.name as WriteToolName] : undefined;
+  if (!proposer || !d.proposals) return refuse(call, "not_available", REFUSAL_TEXT.not_available);
+  if (d.budget.proposals >= MAX_PROPOSALS_PER_TURN) return refuse(call, "cap", REFUSAL_TEXT.too_many_cards);
+  d.budget.calls += 1;
+  try {
+    const content = await proposer(call.input);
+    const p = await d.proposals.open(def.name as WriteToolName, content);
+    d.budget.proposals += 1;
+    // What the model is shown is the card's own lines, so what it says about the proposal cannot differ from what the person reads.
+    // A card that took the place of an older one for the same thing says so, with what the older one asked, so the model does not describe
+    // both as waiting when the person sees one.
+    const replaced = (p.replaced ?? []).map((r) => cardLines(r));
+    const body = JSON.stringify({ ok: true, status: "awaiting_approval", card: cardLines(content), ...(replaced.length ? { replaced_earlier_card: replaced } : {}), note: PROPOSED_NOTE });
+    d.budget.bytes += utf8Bytes(body);
+    return { call, state: "proposed", proposalId: p.id, content: body, isError: false, refs: [] };
+  } catch (e) {
+    if (e instanceof ToolFailure) return outcome(call, "failed", e.code, { ok: false, error: { code: e.code, message: e.message } });
+    return outcome(call, "failed", "failed", { ok: false, error: { code: "failed", message: REFUSAL_TEXT.failed } });
+  }
 }
 
 /**

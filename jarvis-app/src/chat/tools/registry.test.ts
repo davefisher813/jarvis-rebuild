@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAX_WIRE_TOOLS, REF_PATTERN, TOOL_NAMES, TOOL_REGISTRY, isToolName, wireTools } from "./registry";
+import { MAX_WIRE_TOOLS, READ_TOOL_NAMES, REF_PATTERN, TOOL_NAMES, TOOL_REGISTRY, WRITE_TOOL_NAMES, isToolName, wireTools } from "./registry";
 import { validateInput } from "./validate";
 
 // THE MENU (chat box order, 2026-10-24). The model is offered tools by name from this registry and nowhere else; these hold the registry
@@ -12,8 +12,19 @@ describe("the registry", () => {
     expect(Object.keys(TOOL_REGISTRY).sort()).toEqual([...TOOL_NAMES].sort());
   });
 
-  it("this phase offers reads only: every registered tool is tier 0", () => {
-    for (const n of TOOL_NAMES) expect(TOOL_REGISTRY[n].tier, n).toBe(0);
+  it("reads are tier 0 and the three writes are tier 1: the menu has nothing above a card", () => {
+    expect([...READ_TOOL_NAMES, ...WRITE_TOOL_NAMES]).toEqual([...TOOL_NAMES]);
+    for (const n of READ_TOOL_NAMES) expect(TOOL_REGISTRY[n].tier, n).toBe(0);
+    for (const n of WRITE_TOOL_NAMES) expect(TOOL_REGISTRY[n].tier, n).toBe(1);
+    expect([...WRITE_TOOL_NAMES]).toEqual(["create_task", "update_task", "capture_decision"]);
+  });
+
+  it("a write names a record only by a ref, so the id rule covers it; a new task names nothing it was not handed", () => {
+    const refFieldsOf = (n: keyof typeof TOOL_REGISTRY) => Object.entries((TOOL_REGISTRY[n].input_schema.properties ?? {}) as Record<string, { pattern?: string }>).filter(([, v]) => v.pattern === REF_PATTERN).map(([k]) => k);
+    expect(refFieldsOf("update_task")).toEqual(["ref"]);
+    expect(refFieldsOf("create_task")).toEqual(["person_ref"]);
+    expect(refFieldsOf("capture_decision")).toEqual([]);
+    expect(TOOL_REGISTRY.update_task.input_schema.required).toEqual(["ref"]);
   });
 
   it("every tool says what it does, says what it is doing while it runs, and takes a closed object", () => {
@@ -71,6 +82,9 @@ describe("wireTools: what the proxy may build the provider's list from", () => {
       search_email: { query: "invoice", limit: 3 },
       recall_facts: { query: "dentist" },
       get_activity: {},
+      create_task: { text: "Call the plumber", due: "2026-10-30", priority: "high", person_ref: "person:m1" },
+      update_task: { ref: "task:t1", due: "2026-10-30", priority: "none" },
+      capture_decision: { decision: "Use Ridgeline", why: "Best warranty", ruled_out: "Summit" },
     };
     for (const n of TOOL_NAMES) expect(validateInput(TOOL_REGISTRY[n].input_schema, fine[n]), n).toBeNull();
   });
