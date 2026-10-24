@@ -13,6 +13,9 @@
 //   trust_v1      the trust checkpoint: a Store backed door says Will Sync
 //                 while the write is still on this phone
 //   vyzn_sync_v1  the VYZN feed: proposals pulled into the inbox surface
+//
+// The chat box order (2026-10-24) adds one:
+//   chat_tools_v1 the chat's model may look things up through the dispatcher (chat/tools). Reads only; off, the chat is exactly what it was
 
 export const FLAGS = [
   "substrate_v1",
@@ -22,6 +25,7 @@ export const FLAGS = [
   "memory_v1",
   "trust_v1",
   "vyzn_sync_v1",
+  "chat_tools_v1",
 ] as const;
 export type Flag = (typeof FLAGS)[number];
 

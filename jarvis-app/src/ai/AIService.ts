@@ -7,6 +7,8 @@ import { AIBudgetError, isBudgetCode } from "./aiBudget";
 import { budgetBlocked, clearBudgetBlock, noteBudgetRefusal } from "./budgetBlock";
 import { parseProviderRefusal } from "./providerFailure";
 import { clearProviderBlock, noteProviderFailure, providerBlocked } from "./providerBlock";
+import type { ToolName } from "../chat/tools/registry";
+import type { ToolCall } from "../chat/tools/wire";
 
 export type { AISystem } from "./systemPrompt";
 
@@ -17,9 +19,28 @@ export interface AIMessage {
 
 // Content blocks for vision requests: text plus at most one base64 image (the
 // proxy enforces the same shape server-side).
+//
+// A tool turn (chat/tools) adds the two blocks a tool call is made of: the model's own tool_use, and the tool_result the dispatcher answers
+// it with. The proxy judges both (chat/tools/wire.ts) and only on a request that names the tool.
 export type AIBlock =
   | { type: "text"; text: string }
-  | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
+
+/** What one step of a tool turn comes back with: the model's words, the calls it asked for, and why it stopped. */
+export interface AITurn {
+  text: string;
+  toolCalls: ToolCall[];
+  stop: string | null;
+}
+
+// The proxy's reply envelope. { text } for every ordinary call; a tool turn adds the calls and the stop reason.
+interface WireReply {
+  text?: string;
+  toolCalls?: unknown;
+  stop?: unknown;
+}
 
 // One user message carrying a photo and an instruction, in the exact shape
 // the proxy and Anthropic expect. Pure; tested.
@@ -82,6 +103,27 @@ export class AIService {
     system?: string | AISystem,
     opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown>; signal?: AbortSignal },
   ): Promise<string> {
+    return (await this.send(messages, system, opts)).text ?? "";
+  }
+
+  // ONE STEP OF A TOOL TURN (chat box order, 2026-10-24). The same gate, the same budget and the same failure words as complete(), with the
+  // names of the tools the model may ask for (never their definitions: the proxy holds those, chat/tools/registry.ts). It returns what the
+  // model said and the calls it asked for; running them is the dispatcher's job, never this client's, and the next step carries their
+  // results back. A call is re-checked here against the same shape the proxy checked, so a malformed one never reaches the dispatcher.
+  async completeTurn(
+    messages: AIMessage[],
+    system: string | AISystem | undefined,
+    opts: { tools: readonly ToolName[]; kind?: string; pin?: AIPinKey; signal?: AbortSignal },
+  ): Promise<AITurn> {
+    const r = await this.send(messages, system, opts);
+    return { text: r.text ?? "", toolCalls: sanitizeCalls(r.toolCalls), stop: typeof r.stop === "string" ? r.stop : null };
+  }
+
+  private async send(
+    messages: AIMessage[],
+    system?: string | AISystem,
+    opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown>; signal?: AbortSignal; tools?: readonly ToolName[] },
+  ): Promise<WireReply> {
     // Every "AI is not available" below is a typed error (aiGate.AIUnavailableError) carrying the same sentence it always did, so a
     // caller that wants to tell "you turned AI off" from "the provider is down" reads a code instead of English.
     if (!this.available) throw new AIUnavailableError("AI_NOT_CONFIGURED", "AI is not configured in this build.");
@@ -125,6 +167,7 @@ export class AIService {
         ...(opts?.pin ? { pin: opts.pin } : {}),
         ...(background ? { background: true } : {}),
         ...(opts?.schema ? { schema: opts.schema } : {}),
+        ...(opts?.tools ? { tools: opts.tools } : {}),
       }),
     });
     if (!res.ok) {
@@ -156,9 +199,21 @@ export class AIService {
     }
     clearBudgetBlock();
     clearProviderBlock();
-    const data = (await res.json()) as { text?: string };
-    return data.text ?? "";
+    return (await res.json()) as WireReply;
   }
+}
+
+// The calls in a proxy reply, kept only if each is shaped as the proxy sends them. The proxy already dropped anything else; this is the
+// second look, so the dispatcher only ever sees { id, name, input } with a plain-object input.
+function sanitizeCalls(raw: unknown): ToolCall[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ToolCall[] = [];
+  for (const c of raw) {
+    const o = c as { id?: unknown; name?: unknown; input?: unknown } | null;
+    if (!o || typeof o.id !== "string" || typeof o.name !== "string" || typeof o.input !== "object" || o.input === null || Array.isArray(o.input)) continue;
+    out.push({ id: o.id, name: o.name as ToolName, input: o.input as Record<string, unknown> });
+  }
+  return out;
 }
 
 function adminRefusal(detail: string): boolean {

@@ -48,6 +48,9 @@ const EXEMPT_FILES = new Set([
   // purpose. The file holds nothing else that renders.
   "ai/aiBudget.ts",
   "chat/chatPrompt.ts",
+  // The chat box order (2026-10-24): every sentence the tool layer says to the model (the rules it works under and the words a refusal
+  // comes back in), kept in this one file. Never drawn: the person reads the thread's own lines, which the app writes in its own voice.
+  "chat/tools/toolPrompt.ts",
   "tasks/breakdown.ts",
   "ai/capture.ts",
   "ai/suggestions.ts",

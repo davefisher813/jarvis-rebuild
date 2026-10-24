@@ -23,6 +23,9 @@ import { useAIContext, todayISO, gatherFiledMemory } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
 import { chatFailure } from "./failureWords";
+import { chatToolPrompt } from "./tools/toolPrompt";
+import { citedRefs } from "./tools/turn";
+import { chatToolsOn, useChatTools } from "./tools/useChatTools";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
 import { answerQuestion, looksLikeQuestion, rewriteFollowUp, detectDecision, type AnswerSnapshot, type Prior } from "./answers";
@@ -141,6 +144,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   const google = useOptionalGoogle();
   const ai = useAI();
   const gather = useAIContext();
+  // 2026-10-24 (chat box order): the model's tools, behind chat_tools_v1. Off, nothing below changes.
+  const tools = useChatTools(ai);
+  const toolsOn = chatToolsOn();
 
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -225,7 +231,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     return list;
   }, [chat]);
   useEffect(() => { void reload(); }, [reload]);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs.length, choice]);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs.length, choice, tools.working]);
 
   const say = async (role: "user" | "jarvis", text: string, provenance?: ChatProvenance) => {
     await chat.append({ role, text, ...(provenance ? { provenance } : {}) });
@@ -560,6 +566,24 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             const filedInstructions = await gatherFiledMemory(brainMemory, await peopleSvc.list().catch(() => []), { message: text })
               .then((f) => f.instructions)
               .catch(() => "");
+            if (toolsOn) {
+              // THE MODEL MAY LOOK THINGS UP (2026-10-24, chat box order). It can search the person's records, read a note, check the
+              // schedule, search mail and recall what they have told JARVIS, through the dispatcher and nothing else. It reads and
+              // answers; it changes nothing, and what the thread says about the turn comes from what the dispatcher did.
+              const turn = await tools.run(recentTurns(history, text), chatToolPrompt(contextToText(ctx), filedInstructions));
+              setPrior({ question: asked });
+              logAnswered("ai");
+              if (turn.ended === "cap") {
+                await say("jarvis", "That took more lookups than one question gets · Try asking it a narrower way", { kind: "error" });
+              } else if (!turn.text) {
+                setRetryText(text);
+                await say("jarvis", "I didn't get an answer back · Try again", { kind: "error" });
+              } else {
+                const cited = citedRefs(turn.text, turn.outcomes);
+                await say("jarvis", turn.text, { kind: "ai", ...(cited.length ? { refs: cited } : {}) });
+              }
+              return;
+            }
             const raw = await ai.complete(
               // UP-MIND-04: the last six turns ride along, so "and what
               // about the week after" is a question rather than a fragment.
@@ -924,6 +948,10 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             ))}
             <div className="chip" role="button" tabIndex={0} onClick={() => setChoice(null)}>Never Mind</div>
           </div>
+        )}
+        {/* While the model looks things up, one honest line of what is being looked at. Not stored: it is gone when the answer lands. */}
+        {tools.working && (
+          <div className="chat-bubble chat-jarvis" role="status" aria-live="polite"><div className="chat-text">{tools.working}…</div></div>
         )}
         {/* 2026-10-24: only after a failure that asking again can fix. An account out of credit or AI turned off shows the cause and
             nothing to tap: a button that cannot work would be the old "Try again" lying in a new place. */}
