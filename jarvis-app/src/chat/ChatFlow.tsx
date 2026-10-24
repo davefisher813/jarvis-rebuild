@@ -22,6 +22,7 @@ import { useAI } from "../ai/useAI";
 import { useAIContext, todayISO, gatherFiledMemory } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
+import { chatFailure } from "./failureWords";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
 import { answerQuestion, looksLikeQuestion, rewriteFollowUp, detectDecision, type AnswerSnapshot, type Prior } from "./answers";
@@ -83,11 +84,14 @@ const HISTORY_TURNS = 6;
 const HISTORY_CHARS = 6000;
 
 export function recentTurns(
-  stored: { data: { role: "user" | "jarvis"; text: string } }[],
+  stored: { data: { role: "user" | "jarvis"; text: string; provenance?: { kind: string } } }[],
   latest: string,
 ): { role: "user" | "assistant"; content: string }[] {
-  const prior = stored
-    .slice(0, -1) // the message just stored is `latest`, added below
+  // 2026-10-24: a turn that FAILED is on screen and in the store, but it is not something JARVIS said, so it never rides back to the
+  // model as if it were (it would read its own "the AI is out of credit" as part of the conversation).
+  const said = stored.filter((m) => m.data.provenance?.kind !== "error");
+  // The message just stored is `latest`, added below. On a retry it is the one that failed, still the last thing the person said.
+  const prior = (said[said.length - 1]?.data.role === "user" ? said.slice(0, -1) : said)
     .slice(-HISTORY_TURNS)
     .map((m) => ({ role: m.data.role === "user" ? "user" as const : "assistant" as const, content: m.data.text }));
   while (prior.length && (prior[0]!.role !== "user" || prior.reduce((n, t) => n + t.content.length, 0) > HISTORY_CHARS)) {
@@ -141,6 +145,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // 2026-10-24: the words of a turn that failed in a way asking again can fix (the provider was busy, the connection dropped). Set only
+  // then: a failure that retrying cannot fix (out of credit, AI turned off) leaves nothing to tap, because there is nothing to retry.
+  const [retryText, setRetryText] = useState<string | null>(null);
   const [choice, setChoice] = useState<PendingChoice | null>(null);
   // UP-MIND-04 (2026-09-05): the last question this conversation actually
   // answered, and the records it cited. "And tomorrow?" resolves against
@@ -295,7 +302,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // register, and hands them over. NOTHING here sends: the email path opens
   // the composer and the text path opens the system message sheet, and both
   // end in a tap the user makes.
-  const runDraft = async (cmd: Extract<ChatCommand, { kind: "draft" }>, person: Person) => {
+  const runDraft = async (cmd: Extract<ChatCommand, { kind: "draft" }>, person: Person, retryWith?: string) => {
     if (!ai.available) {
       await say("jarvis", "I can draft that when you're back online", { kind: "records" });
       return;
@@ -331,8 +338,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         draftSystemPrompt(person.data, "direct", cmd.about || undefined, { medium: "email", voice }),
         { kind: "message", pin: "messageDrafts", tier: "write" },
       )).trim();
-    } catch {
-      await say("jarvis", "Couldn't reach JARVIS · Nothing was written", { kind: "records" });
+    } catch (e) {
+      // Say what actually failed (credit, AI off, a dropped connection); only a failure a second try can fix offers Try Again.
+      const f = chatFailure(e);
+      if (f.retryable && retryWith) setRetryText(retryWith);
+      await say("jarvis", `${f.text} · Nothing was written`, { kind: "error" });
       return;
     }
     if (!body) {
@@ -428,10 +438,13 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
      
   }, [askPersonId, askNonce]);
 
-  const send = async () => {
-    const text = draft.trim();
+  // `retryOf` is Try Again (2026-10-24): the words of a turn that already sits in the thread, answered again. It stores no second copy of
+  // them and leaves whatever is in the box alone.
+  const send = async (retryOf?: string) => {
+    const text = retryOf ?? draft.trim();
     if (!text || busy) return;
     setBusy(true);
+    setRetryText(null);
     try {
       // SHELL-F-17 (2026-09-05): the box used to empty BEFORE the first
       // write, inside a try/finally with no catch, so a store that rejected
@@ -439,9 +452,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       // and no text: the message was gone. The user's bubble is stored first,
       // guarded; the draft clears only once it is. A failure leaves the words
       // in the box with the standard toast, ready for another tap.
-      const stored = await attemptWrite(() => chat.append({ role: "user", text }));
-      if (!stored) return;
-      setDraft("");
+      if (retryOf === undefined) {
+        const stored = await attemptWrite(() => chat.append({ role: "user", text }));
+        if (!stored) return;
+        setDraft("");
+      }
       try {
         const history = await reload();
 
@@ -457,7 +472,8 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         // it closed. Deterministic, user turn only (law 9), a receipt with
         // Undo, nothing sent, nothing made a rule.
         if (decisionsSvc) {
-          const prevJ = [...history].reverse().find((m) => m.data.role === "jarvis");
+          // A failure bubble is not something JARVIS proposed, so a "yes" never resolves against one.
+          const prevJ = [...history].reverse().find((m) => m.data.role === "jarvis" && m.data.provenance?.kind !== "error");
           const mine = [...history].reverse().find((m) => m.data.role === "user");
           const cap = detectDecision({ role: "user", text }, prevJ ? { role: "assistant", text: prevJ.data.text } : null);
           if (cap) {
@@ -496,7 +512,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             setChoice({ command: cmd, options: matches.slice(0, 4).map((p) => ({ id: p.id, text: p.data.name })) });
             return;
           }
-          await runDraft(cmd, matches[0]!);
+          await runDraft(cmd, matches[0]!, text);
           return;
         }
         if (cmd) {
@@ -557,8 +573,12 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             setPrior({ question: asked });
             logAnswered("ai");
             await say("jarvis", raw.trim(), { kind: "ai" });
-          } catch {
-            await say("jarvis", "Couldn't reach the AI · Try again", { kind: "records" });
+          } catch (e) {
+            // 2026-10-24: this one sentence stood in for every way the AI can fail. Name the cause (credit, a spending limit, AI turned
+            // off, a dropped connection); Try Again is offered only when a second try can actually help.
+            const f = chatFailure(e);
+            if (f.retryable) setRetryText(text);
+            await say("jarvis", f.text, { kind: "error" });
           }
           return;
         }
@@ -903,6 +923,13 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
               <div key={o.id} className="chip" role="button" tabIndex={0} onClick={() => void pickChoice(o)}>{o.text}</div>
             ))}
             <div className="chip" role="button" tabIndex={0} onClick={() => setChoice(null)}>Never Mind</div>
+          </div>
+        )}
+        {/* 2026-10-24: only after a failure that asking again can fix. An account out of credit or AI turned off shows the cause and
+            nothing to tap: a button that cannot work would be the old "Try again" lying in a new place. */}
+        {retryText && !busy && (
+          <div className="chip-row chat-refs">
+            <button type="button" className="chip chip-act" onClick={() => void send(retryText)}>Try Again</button>
           </div>
         )}
         {/* UP-MIND-22: the draft, and the tap that opens it. The words are

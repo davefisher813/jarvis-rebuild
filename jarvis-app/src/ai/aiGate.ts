@@ -73,3 +73,36 @@ export function refusalMessage(level: AILevel, background: boolean): string {
   if (background) return "Background drafting is off at this AI level.";
   return "This call is not allowed at the current AI level.";
 }
+
+// THE CODE EACH REFUSAL TRAVELS UNDER (Dave 2026-10-24, "the thread says what is actually wrong"). The sentence above was the only
+// thing a refusal carried, so a caller that wanted to tell "you turned AI off" from "the provider is down" had to read English. The
+// proxy now sends the code beside the sentence and the client throws it as a typed error; the sentences are unchanged.
+export type RefusalCode = "AI_OFF" | "AI_BACKGROUND_OFF" | "AI_LEVEL";
+export const REFUSAL_CODES: readonly RefusalCode[] = ["AI_OFF", "AI_BACKGROUND_OFF", "AI_LEVEL"];
+
+export function refusalCode(level: AILevel, background: boolean): RefusalCode {
+  if (level === "off") return "AI_OFF";
+  if (background) return "AI_BACKGROUND_OFF";
+  return "AI_LEVEL";
+}
+
+export function isRefusalCode(v: unknown): v is RefusalCode {
+  return REFUSAL_CODES.includes(v as RefusalCode);
+}
+
+/** Every reason AI is unavailable BEFORE the provider is asked: the level, the admin switch, or a build with no backend. */
+export type UnavailableCode = RefusalCode | typeof ADMIN_AI_CODE | "AI_NOT_CONFIGURED";
+
+/** What the client throws when AI is not available at all (as opposed to the provider failing). The message is the same sentence as ever. */
+export class AIUnavailableError extends Error {
+  readonly code: UnavailableCode;
+  constructor(code: UnavailableCode, message: string) {
+    super(message);
+    this.name = "AIUnavailableError";
+    this.code = code;
+  }
+}
+
+export function isUnavailableError(e: unknown): e is AIUnavailableError {
+  return e instanceof AIUnavailableError;
+}

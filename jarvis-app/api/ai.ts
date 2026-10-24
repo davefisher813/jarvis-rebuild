@@ -21,7 +21,8 @@
 // never slip under the counter (the old version logged after, which under-counted).
 export const config = { runtime: "edge" };
 
-import { aiCallAllowed, effectiveLevel, refusalMessage, adminAiAllowed, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AIPinKey } from "../src/ai/aiGate";
+import { aiCallAllowed, effectiveLevel, refusalCode, refusalMessage, adminAiAllowed, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AIPinKey } from "../src/ai/aiGate";
+import { classifyUpstream, outageCode, providerWords, retryableCode, type ProviderFailure } from "../src/ai/providerFailure";
 import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
 import { tokenRow, withoutCacheCounts } from "../src/ai/tokenLog";
 import { systemPayload } from "../src/ai/systemPrompt";
@@ -131,7 +132,8 @@ export default async function handler(req: Request): Promise<Response> {
     }
   } catch { /* default level applies; see above */ }
   if (!aiCallAllowed(aiLevel, background)) {
-    return json({ error: refusalMessage(aiLevel, background) }, 403);
+    // The code travels beside the sentence (aiGate.refusalCode) so the app can tell "AI is off" from "the provider failed".
+    return json({ error: refusalMessage(aiLevel, background), code: refusalCode(aiLevel, background) }, 403);
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -290,7 +292,7 @@ export default async function handler(req: Request): Promise<Response> {
     // The request may or may not have reached the provider, so it may or may
     // not have been billed. The hold STAYS until it is reconciled; releasing
     // on a guess is how a cap gets exceeded.
-    return json({ error: "Upstream error" }, 502);
+    return providerRefusal(classifyUpstream(502, ""));
   }
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => "");
@@ -298,7 +300,12 @@ export default async function handler(req: Request): Promise<Response> {
     // nothing was billed, so the hold can go back. A 5xx or 529 is not that
     // certain, so it stays held.
     if (capOn && upstream.status >= 400 && upstream.status < 500) await releaseBudget(benv, me.id, requestId, true);
-    return json({ error: "Upstream error", detail }, 502);
+    // WHAT IT MEANS comes from the body, not the status (providerFailure): an account out of credit is a 400 here. The hold rule
+    // above stays on the status on purpose; only the words, the retry advice and the outage memory read the body.
+    const failure = classifyUpstream(upstream.status, detail);
+    // The one line the operator reads in the log when the account itself is the problem. The code and the status, never the request.
+    if (outageCode(failure.code)) console.error(`[ai] the provider refused: ${failure.code} (status ${upstream.status})`);
+    return providerRefusal(failure, detail);
   }
   let data: {
     content?: { type: string; text?: string; name?: string; input?: unknown }[];
@@ -315,7 +322,7 @@ export default async function handler(req: Request): Promise<Response> {
     // Billed but unreadable: settle at the reserved maximum, the worst case,
     // rather than at zero.
     if (capOn) await settleBudget(benv, me.id, requestId, maxCost);
-    return json({ error: "Upstream error" }, 502);
+    return providerRefusal(classifyUpstream(502, ""));
   }
 
   // Settle from what the provider says it used. Usage that is missing or
@@ -364,6 +371,17 @@ const BUDGET_STATUS: Record<BudgetErrorCode, number> = {
   AI_BUDGET_UNAVAILABLE: 503,
   AI_BUDGET_REPLAY: 409,
 };
+
+// A provider failure, answered as { error, code, retryable, detail }: plain words for a person, a stable code for the app, and the
+// provider's own body in `detail` for anything that wants it (failureLine reads it). The status is the code's own (providerFailure).
+function providerRefusal(f: ProviderFailure, detail?: string): Response {
+  return json({
+    error: providerWords(f.code, f.said),
+    code: f.code,
+    retryable: retryableCode(f.code),
+    ...(detail ? { detail } : {}),
+  }, f.status);
+}
 
 function budgetRefusal(code: BudgetErrorCode, limitMicrousd?: number, remainingMicrousd?: number): Response {
   return json({
