@@ -9,6 +9,8 @@
 
 import { humanError } from "../connections/google/humanError";
 import { isBudgetError } from "./aiBudget";
+import { isUnavailableError } from "./aiGate";
+import { isProviderError } from "./providerFailure";
 
 const MAX = 140;
 
@@ -52,6 +54,10 @@ export function aiFailure(e: unknown, fallback: string): AIFailure {
   // The spending limit speaks for itself, in its own plain words, never as
   // "Server said 402" and never as raw JSON.
   if (isBudgetError(e)) return { line: e.message, reason: e.message };
+  // 2026-10-24: the provider and the AI level now say what is wrong in their own plain words too (an account out of credit, AI turned
+  // off in Settings), already typed by AIService. Those sentences are the whole line: a "Server said 502" in front of them would be
+  // the same noise the spending limit's words never carried.
+  if (isProviderError(e) || isUnavailableError(e)) return { line: e.message, reason: e.message };
   const raw = e instanceof Error ? e.message : typeof e === "string" ? e : "";
   const m = /^AI request failed \((\d{3})\)\.?\s*([\s\S]*)$/.exec(raw);
   if (!m) return { line: humanError(e, fallback), reason: null };

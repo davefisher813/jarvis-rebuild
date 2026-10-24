@@ -65,6 +65,21 @@ chooses one (or the sheet opens into one, or it is an edit); a Project pick brin
 they draw, so a new editor with the same pair fails until it is wired. Not covered by this rule: the Event picker on the task sheet, and the reminder sheet's
 Linked Item (a mixed-type link, not a Project, Person or Goal field).
 
+## AI failures are read from the provider's body, and the thread says which (Dave, 2026-10-24, the chat box order)
+
+Anthropic sends an account out of credit as a 400 `invalid_request_error` whose message says so, never as a 402, so a status alone files it with
+client bugs, and every AI-lane failure read "Couldn't reach the AI · Try again". `src/ai/providerFailure.ts` (shared by `api/ai.ts` and the app)
+reads the body first (its words, then its type, the status only for a body with nothing in it) and the proxy answers
+`{ error, code, retryable, detail }` with a stable code (`AI_PROVIDER_CREDIT`, `_LIMIT`, `_AUTH`, `_ACCESS`, `_RATE`, `_BUSY`, `_TOO_LARGE`,
+`_REJECTED`). The app throws it typed (`AIProviderError`; `AIUnavailableError` for Off, the admin switch and a build with no backend),
+`chat/failureWords.ts` turns what was thrown into the thread's line, and Try Again appears only where a second try can work (busy, rate, a
+dropped connection). An outage only a person can fix (credit, usage limit, key, model access) is remembered in `providerBlock.ts` so background
+callers stop knocking, and lapses after 15 minutes because the fix happens outside the app. The money rules did not move: a provider 4xx releases
+the hold, a 5xx or a dropped connection keeps it. The words are two fragments joined by a middle dot, cause then fix, because the short-copy law
+(2026-08-15) is Dave's; the spending limit's two sentences are its one exemption and are his words, not a precedent. A failure bubble is stored with
+provenance `error` and never rides back to the model as conversation. Not done and not claimed: this is the words and the retry advice, not the
+credit itself (Dave restores that) and not a circuit breaker on the server.
+
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
 "I am sick of this shit." A thin grey subtext came back on the live Email card

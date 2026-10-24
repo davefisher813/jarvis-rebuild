@@ -1,10 +1,12 @@
 import { apiUrl } from "../shared/apiBase";
 import { backendConfigured } from "../data/store";
-import { aiCallAllowed, effectiveLevel, refusalMessage, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, type AIPinKey } from "./aiGate";
+import { aiCallAllowed, effectiveLevel, refusalCode, refusalMessage, isRefusalCode, AIUnavailableError, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, type AIPinKey } from "./aiGate";
 import { getAIControl, isAdminAiBlocked, setAdminAiBlocked } from "./levelStore";
 import { wireSystem, type AISystem } from "./systemPrompt";
 import { AIBudgetError, isBudgetCode } from "./aiBudget";
 import { budgetBlocked, clearBudgetBlock, noteBudgetRefusal } from "./budgetBlock";
+import { parseProviderRefusal } from "./providerFailure";
+import { clearProviderBlock, noteProviderFailure, providerBlocked } from "./providerBlock";
 
 export type { AISystem } from "./systemPrompt";
 
@@ -80,19 +82,24 @@ export class AIService {
     system?: string | AISystem,
     opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown>; signal?: AbortSignal },
   ): Promise<string> {
-    if (!this.available) throw new Error("AI is not configured in this build.");
+    // Every "AI is not available" below is a typed error (aiGate.AIUnavailableError) carrying the same sentence it always did, so a
+    // caller that wants to tell "you turned AI off" from "the provider is down" reads a code instead of English.
+    if (!this.available) throw new AIUnavailableError("AI_NOT_CONFIGURED", "AI is not configured in this build.");
     // The admin switch is checked first and says its own reason: a user whose
     // AI was turned off for them should not be told to look in Settings.
-    if (isAdminAiBlocked()) throw new Error(ADMIN_AI_MESSAGE);
+    if (isAdminAiBlocked()) throw new AIUnavailableError(ADMIN_AI_CODE, ADMIN_AI_MESSAGE);
     const level = effectiveLevel(getAIControl(), opts?.pin);
     const background = opts?.background ?? false;
-    if (!aiCallAllowed(level, background)) throw new Error(refusalMessage(level, background));
+    if (!aiCallAllowed(level, background)) throw new AIUnavailableError(refusalCode(level, background), refusalMessage(level, background));
     // A budget refusal is remembered. Anything the user did not just ask for
     // stops here, with the same error and no request, until the limit changes
     // or a call they DID ask for gets through. Without this a feature that
     // retries on failure spends its whole day knocking on a closed door.
     const blocked = budgetBlocked();
     if (background && blocked) throw blocked;
+    // The same for a provider that cannot serve (out of credit, usage limit, key refused): see providerBlock for why it also lapses.
+    const down = providerBlocked();
+    if (background && down) throw down;
     const token = this.getToken?.();
     const res = await this.fetchImpl(this.endpoint, {
       // A caller that must never wait forever (a read the person is staring at) passes a signal; absent, nothing changes.
@@ -128,17 +135,27 @@ export class AIService {
       // remember it so the rest of the session stops trying, and say why.
       if (res.status === 403 && adminRefusal(detail)) {
         setAdminAiBlocked(true);
-        throw new Error(ADMIN_AI_MESSAGE);
+        throw new AIUnavailableError(ADMIN_AI_CODE, ADMIN_AI_MESSAGE);
       }
+      // The proxy read the stored profile and said no: this client's copy of the level was out of date (changed on another device).
+      const gate = res.status === 403 ? parseGateRefusal(detail) : null;
+      if (gate) throw gate;
       const refusal = parseBudgetRefusal(detail);
       if (refusal) {
         const err = new AIBudgetError(refusal);
         noteBudgetRefusal(err);
         throw err;
       }
+      // The provider refused, and the proxy has already read WHY from its body (api/ai.ts, providerFailure).
+      const provider = parseProviderRefusal(detail);
+      if (provider) {
+        noteProviderFailure(provider);
+        throw provider;
+      }
       throw new Error(`AI request failed (${res.status}). ${detail}`.trim());
     }
     clearBudgetBlock();
+    clearProviderBlock();
     const data = (await res.json()) as { text?: string };
     return data.text ?? "";
   }
@@ -146,6 +163,16 @@ export class AIService {
 
 function adminRefusal(detail: string): boolean {
   try { return (JSON.parse(detail) as { code?: unknown }).code === ADMIN_AI_CODE; } catch { return false; }
+}
+
+// The level's own refusal, as the proxy sends it: { error, code }. Only a known code with its sentence counts.
+function parseGateRefusal(detail: string): AIUnavailableError | null {
+  try {
+    const j = JSON.parse(detail) as { code?: unknown; error?: unknown };
+    return isRefusalCode(j.code) && typeof j.error === "string" && j.error ? new AIUnavailableError(j.code, j.error) : null;
+  } catch {
+    return null;
+  }
 }
 
 function newRequestId(): string {

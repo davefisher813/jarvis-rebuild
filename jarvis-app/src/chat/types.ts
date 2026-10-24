@@ -9,7 +9,9 @@ export const ENTITY_CHAT = "chat_message";
 // Grounded answers cite records; AI answers say so; action receipts say what
 // changed. Facts, not editable.
 export interface ChatProvenance {
-  kind: "records" | "ai" | "action";
+  // "error" marks a turn that failed (the AI could not answer, a draft was not written). It is shown, and it is never sent back to
+  // the model as if it were part of the conversation.
+  kind: "records" | "ai" | "action" | "error";
   refs?: { kind: string; id: string; label: string }[];
 }
 
