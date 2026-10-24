@@ -90,8 +90,11 @@ input's schema, that every ref is one a search in this chat returned, and the ti
 **A write is a card, and only a tap makes it real.** The dispatcher turns a tier 1 call into a proposal (`proposals.ts`): the exact content, a hash of it in
 the app's one canonical form, five minutes, one use. The thread draws it as a bubble of the card's own lines with the change named on a capsule beside Not Now
 (`ProposalCards.tsx`). The tap goes through `approval.ts`, the only module that imports `execute.ts`, and `writeDeps.ts` is the only tool-layer file that
-calls a service write. The receipt in the thread is built from what was made, with an Undo from the record as it was; a claim of a change in the model's own
-words is replaced in code (`turnWords.ts`), because in the tool lane nothing is done until a tap. `laws/chatTools.test.ts` holds the roster, bans escape-hatch
+calls a service write. The receipt in the thread is built from what was made, with an Undo from the record as it was (a write the service refuses, or that
+wrote nothing, is no success; a step that will not go back is said to be "saved in part", never "nothing changed"); a repeating task's tick says it is done for
+today and gives the date it moved to. A claim of a change in the model's own words is taken out sentence by sentence in code (`turnWords.ts`, and what is said
+instead comes from the live state of the turn's cards), because in the tool lane nothing is done until a tap. The cards live per signed-in USER: the provider
+rebuilds every service on each token refresh, so a store keyed to a service lost the card. `laws/chatTools.test.ts` holds the roster, bans escape-hatch
 tools (`run_query`, `call_api`), and holds the path above in its shape; a new tool, or tier 2 or 3, is a decision made in that law. The substrate's
 server-side approvals cover only email candidates and email-draft sends, so the chat keeps the same rules in its own store, and a send is never the agent's: it
 ends in the composer. "Move X to today or tomorrow", "complete X" and "delete task X" are still read by the app itself first and act on the spot with their own

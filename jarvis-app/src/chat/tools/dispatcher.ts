@@ -194,7 +194,10 @@ async function propose(call: ToolCall, def: ToolDef, d: DispatchDeps): Promise<O
     const p = await d.proposals.open(def.name as WriteToolName, content);
     d.budget.proposals += 1;
     // What the model is shown is the card's own lines, so what it says about the proposal cannot differ from what the person reads.
-    const body = JSON.stringify({ ok: true, status: "awaiting_approval", card: cardLines(content), note: PROPOSED_NOTE });
+    // A card that took the place of an older one for the same thing says so, with what the older one asked, so the model does not describe
+    // both as waiting when the person sees one.
+    const replaced = (p.replaced ?? []).map((r) => cardLines(r));
+    const body = JSON.stringify({ ok: true, status: "awaiting_approval", card: cardLines(content), ...(replaced.length ? { replaced_earlier_card: replaced } : {}), note: PROPOSED_NOTE });
     d.budget.bytes += utf8Bytes(body);
     return { call, state: "proposed", proposalId: p.id, content: body, isError: false, refs: [] };
   } catch (e) {

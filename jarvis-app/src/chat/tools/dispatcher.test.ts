@@ -191,6 +191,16 @@ describe("check 5, tier 1: a write is proposed, never made", () => {
     expect(o.refs).toEqual([]);
   });
 
+  it("a card that takes the place of an older one for the same task says so, with what the older one asked", async () => {
+    const { store, d } = withCards({ ctx: ctx(["task:t1"]) });
+    const first = await dispatch(call("update_task", { ref: "task:t1", due: "2026-10-30" }, "toolu_00000001"), d);
+    expect(body(first)).not.toHaveProperty("replaced_earlier_card");
+    const second = await dispatch(call("update_task", { ref: "task:t1", mark_done: true }, "toolu_00000002"), d);
+    expect(second.state).toBe("proposed");
+    expect(body(second).replaced_earlier_card).toEqual([["Change this task?", "Call the plumber", "Due Fri, Oct 30"]]);
+    expect(store.list()).toHaveLength(1);
+  });
+
   it("what the model is shown of the card is the card's own lines, so it cannot describe a different change", async () => {
     const { store, d } = withCards({ ctx: ctx(["task:t1"]) });
     const o = await dispatch(call("update_task", { ref: "task:t1", due: "2026-10-30" }), d);

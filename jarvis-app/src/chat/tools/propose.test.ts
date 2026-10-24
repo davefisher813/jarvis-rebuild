@@ -6,12 +6,15 @@ import { makeProposers, type ProposeDeps } from "./propose";
 // THE TIER 1 TOOLS AS PROPOSALS (chat box order, 2026-10-24): a request for a write is judged against the record as it is NOW and becomes
 // the content of a card. It changes nothing; it is handed two reads.
 
+// The day the cards are drawn on: the dates below are all inside the window a sensible date lives in.
+const TODAY = "2026-10-26";
 const task = (over: Partial<TaskData> = {}): TaskData => ({ text: "Call the plumber", category: "", done: false, due: "2026-10-29", ...over });
 
 function setup(tasks: Record<string, TaskData> = { t1: task() }, people: Record<string, { name: string }> = { m1: { name: "Marco" } }) {
   const deps = {
     task: vi.fn(async (id: string) => tasks[id] ?? null),
     person: vi.fn(async (id: string) => people[id] ?? null),
+    today: vi.fn(() => TODAY),
   } satisfies ProposeDeps;
   return { deps, p: makeProposers(deps) };
 }
@@ -122,6 +125,65 @@ describe("update_task", () => {
   });
 });
 
+describe("a date has to be one the model can have meant", () => {
+  it("a year it got wrong is refused, with today's date so it can try again, not turned into a card", async () => {
+    const { p } = setup();
+    for (const due of ["2025-10-31", "2026-10-11", "2031-12-31", "2040-01-01"]) {
+      const e = await failure(p.create_task({ text: "Call", due }));
+      expect(e.code, due).toBe("bad_input");
+      expect(e.message, due).toContain(TODAY);
+    }
+    expect((await failure(p.update_task({ ref: "task:t1", due: "2025-10-31" }))).code).toBe("bad_input");
+  });
+
+  it("two weeks back and five years on are the edges: inside is fine, a day outside is not", async () => {
+    const { p } = setup();
+    expect(await p.create_task({ text: "Call", due: "2026-10-12" })).toMatchObject({ due: "2026-10-12" });
+    expect((await failure(p.create_task({ text: "Call", due: "2026-10-11" }))).code).toBe("bad_input");
+    expect(await p.create_task({ text: "Call", due: "2031-10-24" })).toMatchObject({ due: "2031-10-24" });
+    expect((await failure(p.create_task({ text: "Call", due: "2031-11-30" }))).code).toBe("bad_input");
+  });
+});
+
+describe("ticking off a task that repeats", () => {
+  const daily = (over: Partial<TaskData> = {}) => task({ text: "Water the plants", recurrence: "daily", due: TODAY, ...over });
+
+  it("is not finishing it: the card says it is done for today and gives the date it moves to", async () => {
+    const { p } = setup({ t1: daily() });
+    expect(await p.update_task({ ref: "task:t1", mark_done: true })).toEqual({
+      kind: "update_task", taskId: "t1", title: "Water the plants",
+      basis: { text: "Water the plants", due: TODAY, done: false, priority: null },
+      change: { done: true }, rollsTo: "2026-10-27",
+    });
+  });
+
+  it("moves to the next date the way the service does it, for each way of repeating", async () => {
+    const weekly = await makeProposers(setup({ t1: daily({ recurrence: "weekly" }) }).deps).update_task({ ref: "task:t1", mark_done: true });
+    expect(weekly).toMatchObject({ rollsTo: "2026-11-02" });
+    // A weekly task last due three weeks ago comes back past today in one tick, on its own weekday.
+    const late = await makeProposers(setup({ t1: daily({ recurrence: "weekly", due: "2026-10-05" }) }).deps).update_task({ ref: "task:t1", mark_done: true });
+    expect(late).toMatchObject({ rollsTo: "2026-11-02" });
+    const monthly = await makeProposers(setup({ t1: daily({ recurrence: "monthly", due: "2026-10-26" }) }).deps).update_task({ ref: "task:t1", mark_done: true });
+    expect(monthly).toMatchObject({ rollsTo: "2026-11-26" });
+  });
+
+  it("a task that does not repeat has no next date on its card", async () => {
+    const { p } = setup();
+    expect(await p.update_task({ ref: "task:t1", mark_done: true })).not.toHaveProperty("rollsTo");
+  });
+
+  it("asked together with another change is refused: the tick moves the date by itself", async () => {
+    const { p } = setup({ t1: daily() });
+    expect((await failure(p.update_task({ ref: "task:t1", mark_done: true, due: "2026-10-30" }))).code).toBe("bad_input");
+    expect((await failure(p.update_task({ ref: "task:t1", mark_done: true, priority: "high" }))).code).toBe("bad_input");
+  });
+
+  it("already ticked off today is no card at all, as the service would write nothing", async () => {
+    const { p } = setup({ t1: daily({ lastDone: TODAY, due: "2026-10-27" }) });
+    expect((await failure(p.update_task({ ref: "task:t1", mark_done: true }))).code).toBe("already_done");
+  });
+});
+
 describe("capture_decision", () => {
   it("is the decision in the person's words, with the reason and the road not taken only when given", async () => {
     const { p } = setup();
@@ -138,12 +200,12 @@ describe("capture_decision", () => {
 });
 
 describe("all of them only read", () => {
-  it("touch nothing but the two reads they were handed", async () => {
+  it("touch nothing but the reads they were handed: the task, the person, and what day it is", async () => {
     const { p, deps } = setup();
     await p.create_task({ text: "x", person_ref: "person:m1" });
     await p.update_task({ ref: "task:t1", due: "2026-11-02" });
     await p.capture_decision({ decision: "y" });
-    expect(Object.keys(deps).sort()).toEqual(["person", "task"]);
+    expect(Object.keys(deps).sort()).toEqual(["person", "task", "today"]);
     expect(deps.task.mock.calls.length + deps.person.mock.calls.length).toBe(2);
   });
 });

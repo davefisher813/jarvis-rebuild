@@ -57,6 +57,43 @@ describe("opening a proposal", () => {
   });
 });
 
+describe("a card that takes the place of another", () => {
+  it("is told what the older one asked, so the model is not left believing both are waiting", async () => {
+    const { store } = setup();
+    const older = await store.open("update_task", moveTask);
+    const newer = await store.open("update_task", { ...moveTask, change: { done: true } });
+    expect(newer.replaced).toEqual([moveTask]);
+    expect(store.get(older.id)?.state).toBe("superseded");
+    expect((await store.open("create_task", addTask)).replaced).toBeUndefined();
+  });
+
+  it("is put up in the same breath as the old one comes down: a failure while hashing leaves the old card where it was", async () => {
+    const { store } = setup();
+    const older = await store.open("update_task", moveTask);
+    const digest = vi.spyOn(crypto.subtle, "digest").mockRejectedValueOnce(new Error("no hashing here"));
+    await expect(store.open("update_task", { ...moveTask, change: { done: true } })).rejects.toThrow("no hashing here");
+    digest.mockRestore();
+    expect(store.get(older.id)?.state).toBe("open");
+    expect(store.list().map((p) => p.id)).toEqual([older.id]);
+  });
+});
+
+describe("where a turn's cards stand", () => {
+  it("counts what is still waiting and what has been made, for the line the thread writes at the end of the turn", async () => {
+    const { store } = setup();
+    const a = await store.open("create_task", addTask);
+    const b = await store.open("capture_decision", decision);
+    const c = await store.open("update_task", moveTask);
+    await store.approve(a.id, a.hash);
+    store.cancel(c.id);
+    expect(store.tally([a.id, b.id, c.id])).toEqual({ opened: 3, waiting: 1, made: 1 });
+    store.finish(a.id, true);
+    expect(store.tally([a.id, b.id, c.id])).toEqual({ opened: 3, waiting: 1, made: 1 });
+    expect(store.tally([])).toEqual({ opened: 0, waiting: 0, made: 0 });
+    expect(store.tally(["nope"])).toEqual({ opened: 1, waiting: 0, made: 0 });
+  });
+});
+
 describe("approving", () => {
   it("accepts the hash the card drew, once", async () => {
     const { store } = setup();
@@ -257,6 +294,22 @@ describe("what the card says", () => {
     for (const c of [addTask, moveTask, decision]) for (const l of cardLines(c)) expect(l.includes(" · "), l).toBe(false);
   });
 
+  it("says the year when a date is not this one: a card must not show 2025 and 2026 as the same day", () => {
+    const now = new Date("2026-10-26T12:00:00");
+    expect(cardLines({ kind: "create_task", text: "Renew", due: "2026-10-30" }, now)).toContain("Due Fri, Oct 30");
+    expect(cardLines({ kind: "create_task", text: "Renew", due: "2027-01-08" }, now)).toContain("Due Fri, Jan 8, 2027");
+    expect(cardLines({ kind: "create_task", text: "Renew", due: "2025-10-31" }, now)).toContain("Due Fri, Oct 31, 2025");
+    expect(cardLines({ ...moveTask, basis: { text: "Call the plumber", due: "2025-10-29", done: false, priority: null } }, now)).toContain("Due Fri, Oct 30 (was Wed, Oct 29, 2025)");
+  });
+
+  it("a repeating task's tick says what a tick does to it: done for today, and the date it moves to", () => {
+    const rolls: ProposalContent = { ...moveTask, change: { done: true }, rollsTo: "2026-10-27" };
+    expect(cardLines(rolls, new Date("2026-10-26T12:00:00"))).toEqual(["Change this task?", "Call the plumber", "Tick it off for today (repeats, next due Tue, Oct 27)"]);
+    expect(confirmLabel(rolls)).toBe("Tick Off Today");
+    expect(confirmLabel({ ...moveTask, change: { done: true } })).toBe("Mark Done");
+    expect(cardLines({ ...moveTask, change: { done: true } })).toContain("Mark it done");
+  });
+
   it("a title that came from a stranger cannot forge a line of the card or hide anything in it", () => {
     const hostile: ProposalContent = {
       kind: "update_task", taskId: "t1", title: "Pay invoice\nDue Tue, Dec 1\r\nHigh Priority",
@@ -272,6 +325,23 @@ describe("what the card says", () => {
     expect(plain("  a\u200Bb\u00ADc \n\t d\u202Ee\uFEFF ")).toBe("abc de");
     expect(plain("")).toBe("");
     expect(plain("Call the plumber")).toBe("Call the plumber");
+  });
+
+  it("no blank-looking filler, tag character, control code or odd line separator survives to forge a line or hide a word", () => {
+    for (const hidden of ["\u061C", "\u180E", "\u206A", "\u206F", "\u115F", "\u3164", "\uFFA0", "\u2800", "\u034F", "\u0085", "\u0007", "\u007F", "\u2066", "\u2069", "\u{E0041}"]) {
+      expect(plain(`Mark${hidden}it done`), JSON.stringify(hidden)).toBe("Markit done");
+    }
+    expect(plain("Pay invoice\u2028Due Tue\u2029High Priority")).toBe("Pay invoice Due Tue High Priority");
+  });
+
+  it("keeps what is real: a joiner inside an emoji, a non-joiner inside a Persian word, a variation selector", () => {
+    const family = "\u{1F468}\u200D\u{1F469}\u200D\u{1F467}";
+    expect(plain(`Dinner ${family} Friday`)).toBe(`Dinner ${family} Friday`);
+    expect(plain("\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645")).toBe("\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645");
+    expect(plain("Heart \u2764\uFE0F")).toBe("Heart \u2764\uFE0F");
+    // Beside plain letters a joiner only hides, so it goes.
+    expect(plain("Ca\u200Dll")).toBe("Call");
+    expect(plain("Ca\u200Cll")).toBe("Call");
   });
 
   it("names the button for what it does, in Title Case, and the other one Not Now", () => {

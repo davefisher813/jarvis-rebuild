@@ -28,7 +28,7 @@ import { citedRefs } from "./tools/turn";
 import { chatToolsOn, useChatTools } from "./tools/useChatTools";
 import ProposalCards from "./tools/ProposalCards";
 import { subjectOf, type Proposal } from "./tools/proposals";
-import { claimsDone, looksLikeEdit, notDoneLine } from "./tools/turnWords";
+import { asksForChange, looksLikeEdit, notDoneLine, screenClaims } from "./tools/turnWords";
 import { WRITE_TOOL_NAMES } from "./tools/registry";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
@@ -614,19 +614,25 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
               const turn = await tools.run(recentTurns(history, text), chatToolPrompt(contextToText(ctx), filedInstructions));
               setPrior({ question: asked });
               logAnswered("ai");
-              const proposed = turn.outcomes.filter((o) => o.state === "proposed").length;
-              // The model asked for a change this turn, or was asked for one, and said it was done. Nothing a tool does is a change until a
-              // tap, so that is never true, and the thread says what the dispatcher did instead. (A report of what JARVIS did earlier,
-              // from get_activity, is true and is left alone.)
-              const asserted = !turn.outcomes.some((o) => o.call.name === "get_activity")
-                && (editAsk || turn.outcomes.some((o) => (WRITE_TOOL_NAMES as readonly string[]).includes(o.call.name)))
-                && claimsDone(turn.text);
+              // WHAT THE TURN ACTUALLY DID. The cards it put up, and where each stands now (the person may have tapped one while the model was
+              // still writing). Nothing a tool does is a change until a tap, so a claim in the model's words that something was done is
+              // never true: those sentences come out, and the thread says where the person really stands. A turn that is about changing
+              // something is read strictly; one that only read the activity log is reporting earlier work, which is true and is left alone.
+              const cards = tools.tally(turn.outcomes.flatMap((o) => (o.state === "proposed" && o.proposalId ? [o.proposalId] : [])));
+              const strict = turn.outcomes.some((o) => (WRITE_TOOL_NAMES as readonly string[]).includes(o.call.name)) || asksForChange(text) || asksForChange(asked);
+              const reportOnly = !strict && turn.outcomes.some((o) => o.call.name === "get_activity" && o.state === "ran");
+              const said = reportOnly ? { text: turn.text, screened: false } : screenClaims(turn.text, cards, strict);
               if (turn.ended === "cap") {
                 await say("jarvis", "That took more lookups than one question gets · Try asking it a narrower way", { kind: "error" });
-              } else if (asserted) {
-                await say("jarvis", notDoneLine(proposed), { kind: "records" });
-              } else if (!turn.text && proposed > 0) {
-                await say("jarvis", notDoneLine(proposed), { kind: "records" });
+              } else if (said.screened || (!turn.text && cards.opened > 0)) {
+                // Something is left to say, or the cards' own lines already said it all. What the model kept is still its answer; the line
+                // after it is the app's.
+                const line = notDoneLine(cards);
+                const kept = said.screened ? said.text : line ?? "";
+                if (kept) {
+                  const cited = kept === line ? [] : citedRefs(kept, turn.outcomes);
+                  await say("jarvis", kept, { kind: kept === line ? "records" : "ai", ...(cited.length ? { refs: cited } : {}) });
+                }
               } else if (!turn.text) {
                 setRetryText(text);
                 await say("jarvis", "I didn't get an answer back · Try again", { kind: "error" });

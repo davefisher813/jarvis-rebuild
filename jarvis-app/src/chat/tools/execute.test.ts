@@ -23,7 +23,12 @@ function world(start: Record<string, TaskData> = { t1: base() }) {
     }),
     deleteTask: vi.fn(async (id: string) => { tasks.delete(id); }),
     setDue: vi.fn(async (id: string, due: string | null) => { const t = tasks.get(id); if (!t) return false; t.due = due; return true; }),
-    completeTask: vi.fn(async (id: string) => { const t = tasks.get(id); if (!t) return { ok: false }; t.done = true; return { ok: true }; }),
+    completeTask: vi.fn(async (id: string): Promise<{ ok: boolean; rolled: boolean; changed: boolean; nextDue?: string }> => {
+      const t = tasks.get(id);
+      if (!t) return { ok: false, rolled: false, changed: false };
+      t.done = true;
+      return { ok: true, rolled: false, changed: true };
+    }),
     restoreCompletion: vi.fn(async (id: string, before: TaskData) => { const t = tasks.get(id); if (!t) return false; t.done = before.done; t.due = before.due ?? null; return true; }),
     editText: vi.fn(async (id: string, text: string) => { const t = tasks.get(id); if (!t || !text.trim()) return false; t.text = text.trim(); return true; }),
     setPriority: vi.fn(async (id: string, p: "high" | "low" | null) => { const t = tasks.get(id); if (!t) return false; if (p) t.priority = p; else delete t.priority; return true; }),
@@ -174,6 +179,80 @@ describe("a change to a task", () => {
     const r = await executeProposal(update({ text: "Call the plumber today", priority: "high" }), w.deps);
     expect(r).toMatchObject({ ok: false, message: "That change could not be saved · Nothing was changed" });
     expect(w.tasks.get("t1")!.text).toBe("Call the plumber");
+  });
+});
+
+describe("a task that repeats is done for today, not finished, and the thread says so", () => {
+  const repeating = (): ReturnType<typeof world> => {
+    const w = world({ t1: base({ text: "Water the plants", due: "2026-10-26" }) });
+    w.deps.completeTask.mockImplementation(async (id: string) => {
+      const t = w.tasks.get(id)!;
+      t.due = "2026-10-27"; // rolled, not done
+      return { ok: true, rolled: true, changed: true, nextDue: "2026-10-27" };
+    });
+    return w;
+  };
+  const tick = (rollsTo = "2026-10-27"): ProposalContent => ({
+    kind: "update_task", taskId: "t1", title: "Water the plants",
+    basis: { text: "Water the plants", due: "2026-10-26", done: false, priority: null }, change: { done: true }, rollsTo,
+  });
+
+  it("the receipt and the toast say what happened to it: done for today, and the date it moved to", async () => {
+    const w = repeating();
+    const r = ok(await executeProposal(tick(), w.deps));
+    expect(r.receipt).toBe("Done for today: Water the plants · Next Tue, Oct 27");
+    expect(r.toast).toBe("Ticked off for today");
+    expect(w.tasks.get("t1")).toMatchObject({ done: false, due: "2026-10-27" });
+  });
+
+  it("Undo puts it back through the app's own restore", async () => {
+    const w = repeating();
+    w.deps.restoreCompletion.mockImplementation(async (id: string, before: TaskData) => { w.tasks.get(id)!.due = before.due ?? null; return true; });
+    const r = ok(await executeProposal(tick(), w.deps));
+    await r.undo();
+    expect(w.tasks.get("t1")!.due).toBe("2026-10-26");
+    expect(w.deps.restoreCompletion).toHaveBeenCalledTimes(1);
+  });
+
+  it("a tick that wrote nothing (already ticked today) is no success: no receipt, and it says so", async () => {
+    const w = world({ t1: base({ text: "Water the plants", due: "2026-10-26" }) });
+    w.deps.completeTask.mockResolvedValueOnce({ ok: true, rolled: true, changed: false, nextDue: "2026-10-27" });
+    expect(await executeProposal(tick(), w.deps)).toEqual({ ok: false, message: "That change could not be saved · Nothing was changed" });
+    expect(w.deps.restoreCompletion).not.toHaveBeenCalled();
+  });
+
+  it("a next date other than the one the card showed (the day turned over) is put back, and the card's promise is not broken quietly", async () => {
+    const w = repeating();
+    w.deps.restoreCompletion.mockImplementation(async (id: string, before: TaskData) => { w.tasks.get(id)!.due = before.due ?? null; return true; });
+    const r = await executeProposal(tick("2026-10-28"), w.deps);
+    expect(r).toEqual({ ok: false, message: "That repeating task's next date is not the one this card showed · Nothing was changed" });
+    expect(w.tasks.get("t1")!.due).toBe("2026-10-26");
+  });
+});
+
+describe("what could not be put back is not said to be nothing", () => {
+  it("a failure part-way where a step will not go back says the change was saved in part", async () => {
+    const w = world();
+    w.deps.setDue.mockResolvedValueOnce(false);
+    w.deps.editText.mockResolvedValueOnce(true).mockRejectedValueOnce(new Error("offline"));
+    const r = await executeProposal(update({ text: "Call the plumber today", due: "2026-10-30" }), w.deps);
+    expect(r).toEqual({ ok: false, message: "That change was only saved in part · Check the task" });
+    expect(w.deps.editText).toHaveBeenCalledTimes(2);
+  });
+
+  it("a step the service refuses on the way back (it answers false) counts the same", async () => {
+    const w = world();
+    w.deps.setDue.mockResolvedValueOnce(false);
+    w.deps.editText.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const r = await executeProposal(update({ text: "Call the plumber today", due: "2026-10-30" }), w.deps);
+    expect(r).toEqual({ ok: false, message: "That change was only saved in part · Check the task" });
+  });
+
+  it("an Undo that a step refuses (the task is gone) fails loudly instead of ending as though it worked", async () => {
+    const w = world();
+    const r = ok(await executeProposal(update({ due: "2026-10-31" }), w.deps));
+    w.tasks.delete("t1");
+    await expect(r.undo()).rejects.toThrow("undo incomplete");
   });
 });
 

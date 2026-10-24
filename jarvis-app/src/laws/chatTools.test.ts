@@ -119,7 +119,7 @@ describe("a write is a card, and the card is made real only by a tap", () => {
   });
 
   it("every write tool has a proposer, and a proposer for nothing else", () => {
-    const proposers = makeProposers({ task: async () => null, person: async () => null });
+    const proposers = makeProposers({ task: async () => null, person: async () => null, today: () => "2026-10-26" });
     expect(Object.keys(proposers).sort()).toEqual([...WRITE_TOOL_NAMES].sort());
   });
 
@@ -183,6 +183,13 @@ describe("a write is a card, and the card is made real only by a tap", () => {
     expect(cards.match(/onApprove\(p\)/g)!.length).toBe(cards.match(/onClick=\{\(\) => onApprove\(p\)/g)!.length);
   });
 
+  it("the cards belong to the signed-in user, not to a service the provider rebuilds on every token refresh", () => {
+    const src = read(join(TOOLS_DIR, "useChatTools.ts"));
+    expect(src).toMatch(/useUserId\(\)/);
+    expect(src).toMatch(/storeFor\(userId \?\? /);
+    expect(src).not.toMatch(/new WeakMap/);
+  });
+
   it("the wiring hook itself calls no write on any service it holds", () => {
     const src = read(join(TOOLS_DIR, "useChatTools.ts"));
     const writes = [...src.matchAll(/\.\s*(create\w*|update\w*|delete\w*|remove\w*|add\w*|set[A-Z]\w*|complete(?!Turn)\w*|toggle\w*|append|clearAll|save\w*|put\w*|restore\w*|recreate\w*)\(/g)].map((m) => m[0]);
@@ -197,7 +204,9 @@ describe("a write is a card, and the card is made real only by a tap", () => {
 
   it("no text the model wrote reaches a write: a claim of a change is replaced, in code, by what the dispatcher did", () => {
     const chat = read(join(SRC, "chat", "ChatFlow.tsx"));
-    expect(chat).toMatch(/claimsDone\(turn\.text\)/);
-    expect(chat).toMatch(/notDoneLine\(proposed\)/);
+    expect(chat).toMatch(/screenClaims\(turn\.text, cards, strict\)/);
+    expect(chat).toMatch(/tools\.tally\(/);
+    // The model's raw text is stored in one place only: the branch that found nothing to screen.
+    expect(chat.match(/say\("jarvis", turn\.text/g)).toHaveLength(1);
   });
 });

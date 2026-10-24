@@ -17,7 +17,7 @@ function setup() {
     createTask: vi.fn(async () => "new1"),
     deleteTask: vi.fn(async () => {}),
     setDue: vi.fn(async (id: string, due: string | null) => { tasks.get(id)!.due = due; return true; }),
-    completeTask: vi.fn(async () => ({ ok: true })),
+    completeTask: vi.fn(async () => ({ ok: true, rolled: false, changed: true })),
     restoreCompletion: vi.fn(async () => true),
     editText: vi.fn(async () => true),
     setPriority: vi.fn(async () => true),

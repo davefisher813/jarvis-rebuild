@@ -7,15 +7,17 @@
 
 import type { TasksService } from "../../tasks/TasksService";
 import type { DecisionService } from "../../decisions/DecisionService";
+import { madeBy } from "../../shared/provenance";
 import type { WriteDeps } from "./execute";
 
 export function makeWriteDeps(s: { tasks: TasksService; decisions: DecisionService }): WriteDeps {
   return {
     task: (id) => s.tasks.task(id),
-    createTask: (text, o) => s.tasks.createTask(text, { ...(o.due ? { due: o.due } : {}), ...(o.priority ? { priority: o.priority } : {}), ...(o.personId ? { personId: o.personId } : {}) }),
+    // Words the model wrote and the person approved: the task says where it came from, as the chat's other model-made tasks (a split) do.
+    createTask: (text, o) => s.tasks.createTask(text, { source: madeBy("chat"), ...(o.due ? { due: o.due } : {}), ...(o.priority ? { priority: o.priority } : {}), ...(o.personId ? { personId: o.personId } : {}) }),
     deleteTask: (id) => s.tasks.deleteTask(id),
     setDue: (id, due) => s.tasks.setDue(id, due),
-    completeTask: async (id) => ({ ok: (await s.tasks.completeTask(id)).ok }),
+    completeTask: (id) => s.tasks.completeTask(id),
     restoreCompletion: (id, before) => s.tasks.restoreCompletion(id, before),
     editText: (id, text) => s.tasks.editText(id, text),
     setPriority: (id, priority) => s.tasks.setPriority(id, priority),

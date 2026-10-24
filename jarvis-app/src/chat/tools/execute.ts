@@ -9,6 +9,10 @@
 //
 // The record is looked at once more before it is touched. A card is a promise about a task as the person saw it; if the task has changed since
 // (edited, finished, deleted somewhere else) the change is not made, and the person is told, instead of a stale card overwriting something new.
+//
+// HONESTY ABOUT WHAT WAS DONE. A write the service refuses (it answers false), or that did nothing, is not a success and gets no receipt. A
+// change that fails part-way is put back step by step, and if a step cannot be put back the person is told it was saved in part, never that
+// nothing changed. An Undo that cannot put a step back says so too (it throws, and the screen's standard failure toast speaks).
 
 import type { TaskData } from "../../notes/types";
 import { weekdayShortDate } from "../../shared/dateFormat";
@@ -21,7 +25,8 @@ export interface WriteDeps {
   createTask(text: string, opts: { due?: string; priority?: Priority; personId?: string }): Promise<string | null>;
   deleteTask(id: string): Promise<void>;
   setDue(id: string, due: string | null): Promise<boolean>;
-  completeTask(id: string): Promise<{ ok: boolean }>;
+  /** `changed` is false when nothing was written (a repeating task already ticked off today); `rolled` when it moved to `nextDue` instead of finishing. */
+  completeTask(id: string): Promise<{ ok: boolean; rolled: boolean; changed: boolean; nextDue?: string }>;
   restoreCompletion(id: string, before: TaskData): Promise<boolean>;
   editText(id: string, text: string): Promise<boolean>;
   setPriority(id: string, priority: Priority | null): Promise<boolean>;
@@ -42,6 +47,20 @@ export type Executed =
   | { ok: false; message: string };
 
 const failed = (message: string): Executed => ({ ok: false, message });
+
+/** A step that did not land, ending the change. `said` is what the person is told when everything before it was put back cleanly. */
+class StepStopped extends Error {
+  constructor(readonly said = "That change could not be saved · Nothing was changed") { super("step stopped"); }
+}
+
+/** Put steps back, last first, every one of them even if one will not go. True when any step could not be put back. */
+async function putBack(steps: readonly (() => Promise<unknown>)[]): Promise<boolean> {
+  let missed = false;
+  for (const undo of steps) {
+    try { if ((await undo()) === false) missed = true; } catch { missed = true; }
+  }
+  return missed;
+}
 
 export async function executeProposal(c: ProposalContent, deps: WriteDeps): Promise<Executed> {
   try {
@@ -68,32 +87,34 @@ export async function executeProposal(c: ProposalContent, deps: WriteDeps): Prom
           return failed("That task changed since this card was drawn · Nothing was changed");
         }
         const ch = c.change;
-        // Each step is recorded as it lands, so a failure part-way undoes what did land and says it was partial, never success.
-        const undone: (() => Promise<unknown>)[] = [];
-        const step = async (ok: boolean, undo: () => Promise<unknown>) => { if (!ok) throw new Error("step failed"); undone.unshift(undo); };
+        // Each step is recorded as it lands, with the way to put it back, so a failure part-way undoes what did land.
+        const landed: (() => Promise<unknown>)[] = [];
+        const land = (ok: boolean, undo: () => Promise<unknown>) => { if (!ok) throw new StepStopped(); landed.unshift(undo); };
+        let ticked: { rolled: boolean; nextDue?: string } | null = null;
         try {
-          if (ch.text !== undefined) await step(await deps.editText(c.taskId, ch.text), () => deps.editText(c.taskId, now.text));
-          if (ch.priority !== undefined) await step(await deps.setPriority(c.taskId, ch.priority), () => deps.setPriority(c.taskId, (now.priority ?? null) as Priority | null));
-          if (ch.due !== undefined) await step(await deps.setDue(c.taskId, ch.due), () => deps.setDue(c.taskId, now.due ?? null));
+          if (ch.text !== undefined) land(await deps.editText(c.taskId, ch.text), () => deps.editText(c.taskId, now.text));
+          if (ch.priority !== undefined) land(await deps.setPriority(c.taskId, ch.priority), () => deps.setPriority(c.taskId, (now.priority ?? null) as Priority | null));
+          if (ch.due !== undefined) land(await deps.setDue(c.taskId, ch.due), () => deps.setDue(c.taskId, now.due ?? null));
           if (ch.done) {
             const r = await deps.completeTask(c.taskId);
-            await step(r.ok, () => deps.restoreCompletion(c.taskId, now));
+            // Nothing written is not a tick: no receipt for it.
+            land(r.ok && r.changed, () => deps.restoreCompletion(c.taskId, now));
+            ticked = { rolled: r.rolled, ...(r.nextDue ? { nextDue: r.nextDue } : {}) };
+            // The card promised a next date. A different one (the day turned over since) is not what was shown, so it is put back.
+            if (c.rollsTo && r.nextDue !== c.rollsTo) throw new StepStopped("That repeating task's next date is not the one this card showed · Nothing was changed");
           }
-        } catch {
-          for (const u of undone) await u().catch(() => undefined);
-          return failed("That change could not be saved · Nothing was changed");
+        } catch (e) {
+          const missed = await putBack(landed);
+          return failed(missed
+            ? "That change was only saved in part · Check the task"
+            : e instanceof StepStopped ? e.said : "That change could not be saved · Nothing was changed");
         }
         return {
           ok: true,
-          receipt: receiptFor(c),
-          toast: ch.done ? "Task completed" : ch.due !== undefined ? "Task moved" : "Task changed",
+          receipt: receiptFor(c, ticked),
+          toast: ticked?.rolled ? "Ticked off for today" : ch.done ? "Task completed" : ch.due !== undefined ? "Task moved" : "Task changed",
           refs: [{ kind: "task", id: c.taskId, label: ch.text ?? plain(c.title) }],
-          // Every step is put back even if one will not go, and the caller is told when any did not.
-          undo: async () => {
-            let missed = false;
-            for (const u of undone) { try { await u(); } catch { missed = true; } }
-            if (missed) throw new Error("undo incomplete");
-          },
+          undo: async () => { if (await putBack(landed)) throw new Error("undo incomplete"); },
         };
       }
 
@@ -115,10 +136,12 @@ export async function executeProposal(c: ProposalContent, deps: WriteDeps): Prom
 }
 
 /** The thread's line for an update, from the change that was made. */
-function receiptFor(c: Extract<ProposalContent, { kind: "update_task" }>): string {
+function receiptFor(c: Extract<ProposalContent, { kind: "update_task" }>, ticked: { rolled: boolean; nextDue?: string } | null): string {
   const ch = c.change;
   const title = plain(c.title);
   const keys = Object.keys(ch).filter((k) => (ch as Record<string, unknown>)[k] !== undefined);
+  // A repeating task is done for today and moves on; the line says that, with the date it actually moved to.
+  if (keys.length === 1 && ch.done && ticked?.rolled) return `Done for today: ${title}${ticked.nextDue ? ` · Next ${weekdayShortDate(ticked.nextDue)}` : ""}`;
   if (keys.length === 1 && ch.done) return `Done: ${title}`;
   if (keys.length === 1 && ch.due !== undefined) return ch.due === null ? `Cleared the date: ${title}` : `Moved to ${weekdayShortDate(ch.due)}: ${title}`;
   if (keys.length === 1 && ch.text !== undefined) return `Renamed: ${ch.text}`;

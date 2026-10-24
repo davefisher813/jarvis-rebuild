@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories, useDecisions, useChat, useOptionalFiles, useOptionalStrands, useOptionalBrainMemory } from "../../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories, useDecisions, useChat, useUserId, useOptionalFiles, useOptionalStrands, useOptionalBrainMemory } from "../../data/NotesProvider";
 import { useOptionalGoogle } from "../../connections/google/GoogleSession";
 import { noteBlockText } from "../../search/search";
 import { todayISO } from "../../ai/useAIContext";
@@ -25,17 +25,19 @@ import { approveAndRun } from "./approval";
 //
 // THE CARDS. A write the model asks for becomes a proposal in a ProposalStore (proposals.ts), and the screen draws one card for each. The
 // store outlives the screen for the five minutes a card is good for, so leaving Chat for another tab and coming back does not lose a card
-// the thread still says is waiting; it is keyed to the account's task service, so another account never sees it. The hook hands the screen
-// three things to do with a card: approve (the only road to a write, approval.ts), cancel, and settle (the receipt is written; the card goes).
+// the thread still says is waiting; it is keyed to the SIGNED-IN USER, so another account never sees it. (Not to the task service: the
+// provider rebuilds every service whenever the session's token refreshes, which happens on its own, and a card must not vanish then, nor a
+// turn already in flight file its card where nobody is looking.) The hook hands the screen three things to do with a card: approve (the only
+// road to a write, approval.ts), cancel, and settle (the receipt is written; the card goes).
 
 /** Is the model's tool layer switched on in this build? (VITE_JARVIS_FLAGS, per deploy; unset means the chat is exactly what it was.) */
 export const chatToolsOn = (): boolean => flagOn("chat_tools_v1");
 
-// One store per account session, found by the task service that account's screens share.
-const stores = new WeakMap<object, ProposalStore>();
-function storeFor(key: object): ProposalStore {
-  let s = stores.get(key);
-  if (!s) { s = new ProposalStore(); stores.set(key, s); }
+// One store per signed-in user, for as long as the page lives.
+const stores = new Map<string, ProposalStore>();
+function storeFor(userId: string): ProposalStore {
+  let s = stores.get(userId);
+  if (!s) { s = new ProposalStore(); stores.set(userId, s); }
   return s;
 }
 
@@ -54,12 +56,13 @@ export function useChatTools(ai: AIService) {
   const strands = useOptionalStrands();
   const brainMemory = useOptionalBrainMemory();
   const google = useOptionalGoogle();
+  const userId = useUserId();
 
   const [working, setWorking] = useState<string | null>(null);
   const ctx = useRef<ToolContext>({ seen: new Set(), now: new Date() });
 
   // The cards. A subscription redraws the screen when one changes; a timer marks the next one that runs out of time.
-  const store = useMemo(() => storeFor(tasks), [tasks]);
+  const store = useMemo(() => storeFor(userId ?? "signed-out"), [userId]);
   const [version, bump] = useReducer((n: number) => n + 1, 0);
   useEffect(() => { store.sweep(); return store.subscribe(bump); }, [store]);
   useEffect(() => {
@@ -109,6 +112,7 @@ export function useChatTools(ai: AIService) {
       const p = await people.get(id);
       return p ? { name: p.data.name } : null;
     },
+    today: () => todayISO(),
   }), [tasks, people]);
 
   // The writes a tap may make. Handed to the approval path and to nothing else.
@@ -129,6 +133,8 @@ export function useChatTools(ai: AIService) {
   const dismiss = useCallback((id: string) => store.dismiss(id), [store]);
   /** The receipt is written (or the failure said): the card has done its job. */
   const settle = useCallback((id: string, ok: boolean) => store.finish(id, ok), [store]);
+  /** Where this turn's cards stand NOW (still waiting, already made), for the line the thread writes when the turn ends. */
+  const tally = useCallback((ids: readonly string[]) => store.tally(ids), [store]);
 
-  return { run, working, proposals: store.list(), approve, cancel, dismiss, settle };
+  return { run, working, proposals: store.list(), approve, cancel, dismiss, settle, tally };
 }

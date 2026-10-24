@@ -29,9 +29,13 @@ export const MAX_PROPOSALS_PER_TURN = 3;
 
 export type Priority = "high" | "low";
 
-// Text a person cannot see (zero-width characters, a soft hyphen, the byte-order mark) or that reorders what they read (the bidirectional
-// marks and overrides). Written as escapes, never literal bytes (laws/controlBytes.test.ts).
-const HIDDEN = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+// Text a person cannot see (zero-width characters, a soft hyphen, the byte-order mark, the blank fillers, tag characters, control codes) or
+// that reorders what they read (the bidirectional marks, overrides and isolates). Written as escapes, never literal bytes
+// (laws/controlBytes.test.ts). The tab, line feed and the rest of the ordinary whitespace are collapsed to one space below.
+const HIDDEN = /[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B\u200E\u200F\u202A-\u202E\u2060-\u206F\u2800\u3164\uFEFF\uFFA0\u{E0000}-\u{E007F}]/gu;
+// A zero-width joiner is real inside an emoji sequence and a word in a script that needs one, and does nothing in Latin text, where it can
+// only hide. One with plain ASCII beside it is removed; one between two such characters is left alone.
+const LATIN_JOINER = /(?<=[\u0000-\u007F])[\u200C\u200D]|[\u200C\u200D](?=[\u0000-\u007F])/g;
 
 /**
  * One line of plain, visible words. A task's words can come from a stranger (an email subject filed as a task), and a card is the one place
@@ -39,7 +43,7 @@ const HIDDEN = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEF
  * along. New text is made plain BEFORE it is hashed, so what the card shows is exactly what would be saved.
  */
 export function plain(s: string): string {
-  return s.replace(HIDDEN, "").replace(/\s+/g, " ").trim();
+  return s.replace(HIDDEN, "").replace(LATIN_JOINER, "").replace(/\s+/g, " ").trim();
 }
 
 export type ProposalContent =
@@ -52,6 +56,8 @@ export type ProposalContent =
       /** What the task was, so the change is judged against the record the person saw and not whatever it has become. */
       basis: { text: string; due: string | null; done: boolean; priority: Priority | null };
       change: { due?: string | null; done?: true; text?: string; priority?: Priority | null };
+      /** A repeating task is not finished when it is ticked off: it moves to its next date. This is that date, so the card says what will happen. */
+      rollsTo?: string;
     }
   | { kind: "capture_decision"; decision: string; why?: string; ruledOut?: string };
 
@@ -65,6 +71,8 @@ export interface Proposal {
   createdAt: number;
   expiresAt: number;
   state: ProposalState;
+  /** What this card took the place of (an older open card for the same thing), so the model can be told. Not part of the hash. */
+  replaced?: ProposalContent[];
 }
 
 /** The hash an approval is bound to: the canonical form of exactly what the card shows. */
@@ -102,16 +110,33 @@ export class ProposalStore {
 
   private changed() { for (const fn of this.subs) fn(); }
 
-  /** Open a proposal. Any open one for the same thing is superseded, and can no longer be approved. */
+  /**
+   * Open a proposal. Any open one for the same thing is superseded, and can no longer be approved. The hash is made first, so the older card
+   * is only taken away in the same breath as the newer one is put up: a failure while hashing leaves the person's card where it was.
+   */
   async open(tool: WriteToolName, content: ProposalContent): Promise<Proposal> {
+    const hash = await contentHash(content);
     const slot = slotOf(content);
-    for (const p of this.all.values()) if (p.state === "open" && slotOf(p.content) === slot) p.state = "superseded";
+    const replaced: ProposalContent[] = [];
+    for (const p of this.all.values()) if (p.state === "open" && slotOf(p.content) === slot) { p.state = "superseded"; replaced.push(p.content); }
     this.prune();
     const createdAt = this.now();
-    const p: Proposal = { id: this.newId(), tool, content, hash: await contentHash(content), createdAt, expiresAt: createdAt + APPROVAL_MS, state: "open" };
+    const p: Proposal = { id: this.newId(), tool, content, hash, createdAt, expiresAt: createdAt + APPROVAL_MS, state: "open", ...(replaced.length ? { replaced } : {}) };
     this.all.set(p.id, p);
     this.changed();
     return p;
+  }
+
+  /** Where each of these cards stands now, for the line the thread writes at the end of a turn (what is still waiting, what was made). */
+  tally(ids: readonly string[]): { opened: number; waiting: number; made: number } {
+    let waiting = 0;
+    let made = 0;
+    for (const id of ids) {
+      const st = this.all.get(id)?.state;
+      if (st === "open") waiting++;
+      else if (st === "approved" || st === "executed") made++;
+    }
+    return { opened: ids.length, waiting, made };
   }
 
   get(id: string): Proposal | undefined {
@@ -189,24 +214,30 @@ export class ProposalStore {
 // Drawn from the content alone, as lines of text: the question first, then the facts of the change, one to a line. A line is never a run of
 // facts joined by a separator (the catalog draws those as spans), and nothing is cut: a task's words show whole, however long.
 
-export function cardLines(c: ProposalContent): string[] {
+/** "Fri, Oct 30", and the year when it is not this one: a card must not show 2025 and 2026 as the same day. */
+function dayLabel(iso: string, now: Date): string {
+  const year = Number(iso.slice(0, 4));
+  return year === now.getFullYear() ? weekdayShortDate(iso) : `${weekdayShortDate(iso)}, ${year}`;
+}
+
+export function cardLines(c: ProposalContent, now: Date = new Date()): string[] {
   switch (c.kind) {
     case "create_task":
       return [
         "Add this task?",
         c.text,
-        ...(c.due ? [`Due ${weekdayShortDate(c.due)}`] : []),
+        ...(c.due ? [`Due ${dayLabel(c.due, now)}`] : []),
         ...(c.priority ? [`${titleCase(c.priority)} Priority`] : []),
         ...(c.personName ? [`About ${plain(c.personName)}`] : []),
       ];
     case "update_task": {
       const lines = ["Change this task?", plain(c.title)];
       const ch = c.change;
-      if (ch.done) lines.push("Mark it done");
+      if (ch.done) lines.push(c.rollsTo ? `Tick it off for today (repeats, next due ${dayLabel(c.rollsTo, now)})` : "Mark it done");
       if (ch.text !== undefined) lines.push(`New words: ${ch.text}`);
       if (ch.due !== undefined) {
-        const was = c.basis.due ? ` (was ${weekdayShortDate(c.basis.due)})` : "";
-        lines.push(ch.due === null ? `Clear the due date${was}` : `Due ${weekdayShortDate(ch.due)}${was}`);
+        const was = c.basis.due ? ` (was ${dayLabel(c.basis.due, now)})` : "";
+        lines.push(ch.due === null ? `Clear the due date${was}` : `Due ${dayLabel(ch.due, now)}${was}`);
       }
       if (ch.priority !== undefined) lines.push(ch.priority === null ? "Clear the priority" : `${titleCase(ch.priority)} Priority`);
       return lines;
@@ -224,7 +255,7 @@ export function confirmLabel(c: ProposalContent): string {
     case "update_task": {
       const ch = c.change;
       const keys = Object.keys(ch).filter((k) => (ch as Record<string, unknown>)[k] !== undefined);
-      if (keys.length === 1 && ch.done) return "Mark Done";
+      if (keys.length === 1 && ch.done) return c.rollsTo ? "Tick Off Today" : "Mark Done";
       if (keys.length === 1 && ch.due !== undefined) return ch.due === null ? "Clear Date" : "Move Task";
       return "Change Task";
     }

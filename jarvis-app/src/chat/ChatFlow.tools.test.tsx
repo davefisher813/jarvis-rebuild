@@ -147,14 +147,16 @@ describe("when the turn does not end in an answer", () => {
     expect(screen.queryByRole("button", { name: "Try Again" })).toBeNull();
   });
 
-  it("nothing a tool does is ever written to the person's records", async () => {
+  it("nothing a tool does is ever written to the person's records, and a model that says it was is not believed", async () => {
     ai.completeTurn.mockResolvedValueOnce(asks("search_items", { query: "plumber" })).mockResolvedValueOnce(says("Done."));
     renderChat("u-tools-readonly");
     await waitFor(() => expect(tasksRef).not.toBeNull());
     await tasksRef!.createTask("Call the plumber");
     const before = JSON.stringify(await tasksRef!.listTasks());
     await ask(Q);
-    await screen.findByText("Done.");
+    // "Done." after a lookup is a claim nothing backs, so the thread says so instead.
+    await screen.findByText("Nothing was changed · Ask again and I'll put it on a card for you to confirm");
+    expect(screen.queryByText("Done.")).toBeNull();
     expect(JSON.stringify(await tasksRef!.listTasks())).toBe(before);
   });
 });
@@ -482,6 +484,151 @@ describe("the routing", () => {
     await waitFor(() => expect(tasksRef).not.toBeNull());
     await ask(MOVE);
     await screen.findByText(/^Saved: /);
+    expect(ai.completeTurn).not.toHaveBeenCalled();
+  });
+});
+
+// ---- THE INDEPENDENT REVIEW OF THE WRITE PATH (2026-10-24): what it found, held as tests ----
+
+describe("the model's words cannot switch the guard off", () => {
+  it("an unrelated lookup in the same turn does not exempt a claim", async () => {
+    const id = await setUpPlumber("u-g-activity");
+    ai.completeTurn
+      .mockResolvedValueOnce(asks("get_activity", {}, "toolu_01ACTIVE1"))
+      .mockResolvedValueOnce(asks("search_items", { query: "plumber" }, "toolu_01SEARCH1"))
+      .mockResolvedValueOnce(asks("update_task", { ref: `task:${id}`, due: "2026-10-30" }, "toolu_01UPDATE1"))
+      .mockResolvedValueOnce(says("I've moved the plumber task to Friday."));
+    await ask(MOVE);
+    expect(await screen.findByText("Waiting for your OK on the card below · Nothing has changed yet")).toBeInTheDocument();
+    expect((await stored()).some((m) => /I've moved/.test(m.text))).toBe(false);
+    expect((await tasksRef!.task(id))!.due).toBe("2026-10-29");
+  });
+
+  it("a polite way of asking is still a request for a change: 'Can you please move it' answered 'Done! I've moved it' is not believed", async () => {
+    const id = await setUpPlumber("u-g-polite");
+    ai.completeTurn.mockResolvedValueOnce(says("Done! I've moved it."));
+    await ask("Can you please move the plumber task to Friday?");
+    expect(await screen.findByText("Nothing was changed · Ask again and I'll put it on a card for you to confirm")).toBeInTheDocument();
+    expect((await stored()).some((m) => /moved it/.test(m.text))).toBe(false);
+    expect((await tasksRef!.task(id))!.due).toBe("2026-10-29");
+  });
+
+  it("a claim that comes with a cheerful 'no problem' is still a claim", async () => {
+    const id = await setUpPlumber("u-g-noprob");
+    scriptMove(id, "I've moved the plumber task to Friday, no problem.");
+    await ask(MOVE);
+    await screen.findByText("Waiting for your OK on the card below · Nothing has changed yet");
+    expect((await stored()).some((m) => /no problem/.test(m.text))).toBe(false);
+  });
+
+  it("only the claiming sentences go: the rest of the answer is kept as the model wrote it, and the app's own line follows", async () => {
+    const id = await setUpPlumber("u-g-surgery");
+    scriptMove(id, "You have the dentist at 3. I've moved the plumber task to Friday. Anything else?");
+    await ask(MOVE);
+    await waitFor(async () => expect((await stored()).some((m) => m.role === "jarvis")).toBe(true));
+    const bubble = (await stored()).find((m) => m.role === "jarvis")!;
+    expect(bubble.text).toBe("You have the dentist at 3. Anything else?\nWaiting for your OK on the card below · Nothing has changed yet");
+    // What the model kept is still its answer, so it still says so; the card stays up.
+    expect(bubble.kind).toBe("ai");
+    expect(await screen.findByRole("button", { name: "Move Task" })).toBeInTheDocument();
+  });
+
+  it("a turn that only reads what JARVIS did earlier is a report, and a true one", async () => {
+    renderChat("u-g-report");
+    ai.completeTurn.mockResolvedValueOnce(asks("get_activity", {})).mockResolvedValueOnce(says("I added Call the plumber at 9:12. I moved Pay rent to Friday."));
+    await ask("What did you do for me today?");
+    expect(await screen.findByText("I added Call the plumber at 9:12. I moved Pay rent to Friday.")).toBeInTheDocument();
+  });
+});
+
+describe("the thread tells the truth about the cards when the turn ends", () => {
+  it("a card tapped while the model is still writing is not described as waiting, and a pointer to it is dropped with nothing false in its place", async () => {
+    const id = await setUpPlumber("u-g-race");
+    let release!: (t: AITurn) => void;
+    ai.completeTurn
+      .mockResolvedValueOnce(asks("search_items", { query: "plumber" }, "toolu_01SEARCH1"))
+      .mockResolvedValueOnce(asks("update_task", { ref: `task:${id}`, due: "2026-10-30" }, "toolu_01UPDATE1"))
+      .mockImplementationOnce(() => new Promise<AITurn>((r) => { release = r; }));
+    await ask(MOVE);
+    fireEvent.click(await screen.findByRole("button", { name: "Move Task" }));
+    await screen.findByText("Moved to Fri, Oct 30: Call the plumber");
+    expect((await tasksRef!.task(id))!.due).toBe("2026-10-30");
+
+    release(says("I put the move on a card. Tap Move Task to confirm."));
+    await waitFor(() => expect(ai.completeTurn).toHaveBeenCalledTimes(3));
+    // The turn ends with a handful of promise ticks; give it them, then look at what was stored.
+    await new Promise((r) => setTimeout(r, 80));
+    expect((await stored()).map((m) => m.text)).toEqual([MOVE, "Moved to Fri, Oct 30: Call the plumber"]);
+    expect(screen.queryByText(/Waiting for your OK/)).toBeNull();
+  });
+
+  it("two requests for one task in one reply leave one card, and the model is told which card replaced which", async () => {
+    const id = await setUpPlumber("u-g-twice");
+    ai.completeTurn
+      .mockResolvedValueOnce(asks("search_items", { query: "plumber" }, "toolu_01SEARCH1"))
+      .mockResolvedValueOnce({
+        text: "",
+        toolCalls: [
+          { id: "toolu_01UPDATE1", name: "update_task" as never, input: { ref: `task:${id}`, due: "2026-10-30" } },
+          { id: "toolu_01UPDATE2", name: "update_task" as never, input: { ref: `task:${id}`, mark_done: true } },
+        ],
+        stop: "tool_use",
+      })
+      .mockResolvedValueOnce(says("Only the last change is on a card now."));
+    await ask(MOVE);
+    await screen.findByText("Only the last change is on a card now.");
+    const groups = await screen.findAllByRole("group", { name: "Proposed Change" });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.textContent).toContain("Mark it done");
+    expect(groups[0]!.textContent).not.toContain("Fri, Oct 30");
+
+    const third = ai.completeTurn.mock.calls[2]![0] as { content: { content?: string }[] }[];
+    const results = third[4]!.content.map((b) => JSON.parse(b.content!));
+    expect(results[0]).not.toHaveProperty("replaced_earlier_card");
+    expect(results[1].replaced_earlier_card).toEqual([["Change this task?", "Call the plumber", "Due Fri, Oct 30 (was Thu, Oct 29)"]]);
+  });
+});
+
+describe("a card survives the session's token being refreshed", () => {
+  it("the provider rebuilds every service on a new token; the card is the person's, and stays", async () => {
+    const tree = (token: string, withChat = true) => (
+      <NotesProvider userId="u-g-token" accessToken={token}><Capture />{withChat && <ChatFlow />}</NotesProvider>
+    );
+    const view = render(tree("tok-1"));
+    await waitFor(() => expect(tasksRef).not.toBeNull());
+    const id = (await tasksRef!.createTask("Call the plumber", { due: "2026-10-29" }))!;
+    scriptMove(id);
+    await ask(MOVE);
+    await screen.findByRole("button", { name: "Move Task" });
+
+    view.rerender(tree("tok-2"));
+    expect(await screen.findByRole("button", { name: "Move Task" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Proposed Change" }).textContent).toContain("Due Fri, Oct 30 (was Thu, Oct 29)");
+  });
+});
+
+describe("a task made from a card says where it came from", () => {
+  it("is stamped as made in Chat, and carries nothing the card did not show", async () => {
+    renderChat("u-g-source");
+    await waitFor(() => expect(tasksRef).not.toBeNull());
+    ai.completeTurn
+      .mockResolvedValueOnce(asks("create_task", { text: "Call the plumber about the leak" }))
+      .mockResolvedValueOnce(says("It is on a card."));
+    await ask("Can you add a task to call the plumber about the leak?");
+    fireEvent.click(await screen.findByRole("button", { name: "Add Task" }));
+    await screen.findByText("Added: Call the plumber about the leak");
+    const [made] = await tasksRef!.listTasks();
+    expect(made!.data.source).toMatchObject({ type: "chat" });
+    expect(Object.keys(made!.data).sort()).toEqual(["category", "done", "source", "text"]);
+  });
+});
+
+describe("a new thing that happens to open with an edit verb stays a capture", () => {
+  it("'Clear the gutters before Friday' is a task to save, not a request to change one", async () => {
+    renderChat("u-g-gutters");
+    await waitFor(() => expect(tasksRef).not.toBeNull());
+    await ask("Clear the gutters before Friday");
+    expect(await screen.findByText(/^Saved: /)).toBeInTheDocument();
     expect(ai.completeTurn).not.toHaveBeenCalled();
   });
 });
