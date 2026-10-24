@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, isUniformStrip } from "./measures";
+import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, isUniformStrip, isLoggable, notLoggableWhy } from "./measures";
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
 
 // Nine measure kinds, and the direction lives IN the kind. These pin the two
@@ -49,7 +49,8 @@ describe("the one-tap button names exactly the entry it will write", () => {
   });
   it("never reads the plan on its own: an entry with reps alone says reps alone", () => {
     const heavy = ex("weight_reps", { unit: "lb", sets: strip(2, { w: 135, r: 8 }) });
-    expect(logButtonLabel(heavy, { r: 10 })).toBe("Log 10 Reps");
+    // No weight is bodyweight (Dave, 2026-10-24): the button names what it will write.
+    expect(logButtonLabel(heavy, { r: 10 })).toBe("Log Bodyweight × 10");
     // With no entry at all there is nothing to name.
     expect(logButtonLabel(heavy, null)).toBe("Log Set");
   });
@@ -248,5 +249,45 @@ describe("a drop segment counts in tonnage and nowhere else", () => {
     expect(setVolume("weight_reps", drop, "lb")).toBe(185 * 8);
     expect(scoreOf("weight_reps", drop, "lb")).toBeNull();
     expect(scoreOf("weight_reps", { w: 185, r: 8 }, "lb")).not.toBeNull();
+  });
+});
+
+describe("the Log gate: no field that does not apply blocks a set (Dave 2026-10-24)", () => {
+  it("weight is optional on every equipment: reps alone logs", () => {
+    for (const style of [undefined, {}, { equipment: "barbell" as const }, { equipment: "bodyweight" as const }, { equipment: "machine" as const }]) {
+      expect(isLoggable("weight_reps", style, { r: 12 }), JSON.stringify(style)).toBe(true);
+    }
+  });
+  it("the reps are the set: weight alone, or nothing, does not log, and the card says what is missing", () => {
+    expect(isLoggable("weight_reps", undefined, { w: 135 })).toBe(false);
+    expect(isLoggable("weight_reps", undefined, null)).toBe(false);
+    expect(notLoggableWhy("weight_reps", { w: 135 })).toBe("Add the Reps to Log");
+    expect(notLoggableWhy("weight_reps", { r: 12 })).toBeNull();
+  });
+  it("reps-only, rounds, timed, distance, height and distance-and-time need only their own number", () => {
+    expect(isLoggable("reps", undefined, { r: 10 })).toBe(true);
+    expect(isLoggable("rounds", undefined, { r: 5 })).toBe(true);
+    expect(isLoggable("time_longer", undefined, { v: 60 })).toBe(true);
+    expect(isLoggable("time_faster", undefined, { v: 60 })).toBe(true);
+    expect(isLoggable("distance", undefined, { v: 400 })).toBe(true);
+    expect(isLoggable("height", undefined, { v: 30 })).toBe(true);
+    expect(isLoggable("distance_time", undefined, { v: 400 })).toBe(true);
+    expect(isLoggable("distance_time", undefined, { t: 65 })).toBe(true);
+    expect(isLoggable("done", undefined, null)).toBe(true);
+  });
+  it("every kind that can be blocked has its reason in words", () => {
+    expect(notLoggableWhy("reps", {})).toBe("Add the Reps to Log");
+    expect(notLoggableWhy("rounds", {})).toBe("Add the Rounds to Log");
+    expect(notLoggableWhy("time_longer", {})).toBe("Add the Time to Log");
+    expect(notLoggableWhy("distance", {})).toBe("Add the Distance to Log");
+    expect(notLoggableWhy("height", {})).toBe("Add the Height to Log");
+    expect(notLoggableWhy("distance_time", {})).toBe("Add a Distance or a Time to Log");
+    expect(notLoggableWhy("done", null)).toBeNull();
+  });
+  it("a logged set with no weight reads as bodyweight; a plan that never named a weight still reads as reps", () => {
+    const ex = { kind: "weight_reps" as const, unit: "lb" as const };
+    expect(formatSet(ex, { r: 12 }, { bodyweight: true })).toBe("Bodyweight × 12");
+    expect(formatSet(ex, { r: 12 })).toBe("12 reps");
+    expect(formatSet(ex, { w: 25, r: 12 }, { bodyweight: true })).toBe("25 lb × 12");
   });
 });

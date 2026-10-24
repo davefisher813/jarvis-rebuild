@@ -411,7 +411,7 @@ function SetChipRow({
   // Skipped, so the line under it is the planned numbers it would have been,
   // or nothing at all when it never had any (a row with nothing to say shows
   // nothing).
-  const planned = kind === "done" ? "" : formatSet(fx, entry);
+  const planned = kind === "done" ? "" : formatSet(fx, entry, { bodyweight: !entry.skipped });
   const label = entry.skipped ? (planned === "Empty" ? "" : planned) : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : planned;
   // The chip prints the whole rule's casing ("185 Lb × 5"); the aria-label
   // keeps the raw reading, since casing is inaudible (laws.test.ts).
