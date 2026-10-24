@@ -349,6 +349,16 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
   // field, from the starter a page with no rows draws. A suggested field is added on the tap alone, and Undo takes it back.
   const addRow = (sec?: string) => setSheet({ k: "record", id: null, ...(sec ? { sec } : {}) });
   const openFields = () => setSheet({ k: "fields" });
+  const quickAdd = (text: string) => {
+    const cur = noteRef.current!.page;
+    const head = def?.headline ?? "name";
+    const secs = cur.sections ?? [];
+    const sec = [...cur.records].reverse().find((r) => !r.ex && r.sec && secs.some((x) => x.key === r.sec))?.sec ?? secs[0]?.key;
+    const values: Record<string, string> = { [head]: text };
+    if (head !== "date" && cur.fields.some((f) => f.key === "date" && f.type === "date")) values.date = todayISO();
+    const made = addRecord(cur, values);
+    void commit(sec ? setSection(made.page, made.id, sec) : made.page);
+  };
   const suggestField = (key: string) => {
     void commit(addSuggested(noteRef.current!.page, key));
     // Honest about where the field is: while the Store still holds the write on this phone alone, the toast says Will Sync.
@@ -579,11 +589,11 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           onConfirmAll={def.confirm ? confirmEverything : undefined}
-          onFields={openFields} onSuggest={suggestField}
+          onFields={openFields} onSuggest={suggestField} onQuick={quickAdd}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined} />
       )}
       {(def?.view === "occasions" || def?.view === "accomplish") && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField} onQuick={quickAdd}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           belowHead={offered.length > 0 ? (
             <SuggestCard title={def.view === "occasions" ? "From People" : "Suggested From Your Goals and Projects"} items={offered}
@@ -629,14 +639,14 @@ export default function PageScreen({ noteId, backLabel = "Notes", onBack, onOpen
         <BizLedgerView page={page} rows={ledgerRows} category={lf.category} year={lf.year} onFilter={() => setSheet({ k: "ledgerFilter" })} />
       )}
       {def?.view === "session" && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField} onQuick={quickAdd}
           timeOf={sessionClock(page)}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined}
           belowHead={<Card><Row label="Start Time" value={(page.meta?.start ?? "") ? bindMeridiem(clock12(page.meta!.start!) || page.meta!.start!) : "Not Set"} onClick={() => setSheet({ k: "start" })} chev /></Card>} />
       )}
       {def?.view === "trainingplan" && (
-        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField}
+        <SheetView page={page} onOpen={(id) => setSheet({ k: "record", id })} onAdd={addRow} onFields={openFields} onSuggest={suggestField} onQuick={quickAdd}
           onToggle={(id, key) => void commit(setValues(noteRef.current!.page, id, { [key]: noteRef.current!.page.records.find((r) => r.id === id)?.v[key] === "1" ? "" : "1" }))}
           onSections={(page.sections ?? []).length > 0 ? () => setSheet({ k: "sections" }) : undefined}
           belowHead={programs.length > 0 ? <Card><Row label="Start From a Program" onClick={() => setSheet({ k: "program" })} chev /></Card> : undefined} />

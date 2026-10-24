@@ -15,6 +15,8 @@ import { findCourse, type CourseMemo } from "./golf";
 import { SPORTS, SPORT_GROUPS } from "./scoreboard";
 import { suggestedFor, fieldConsequences } from "./templateLogic";
 import { RowCheck } from "./TemplateViews";
+import { U } from "./PageViews";
+import { todayISO } from "../../schedule/calendar";
 import RowActionSheet from "../../shared/RowActionSheet";
 import { PAGE_FORMATS, buildPageFile, shareText, type PageFormat } from "./exportPage";
 
@@ -52,7 +54,11 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   onPrint?: () => void;
 }) {
   const fields = editableFields(page);
-  const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? (isNew ? initial?.[f.key] : undefined) ?? ""])));
+  // THE TEMPLATE STANDARD: the obvious fields come filled. A new row's date is today, unless the row came with values of its own.
+  const dateSeed: Record<string, string> = isNew && !initial ? Object.fromEntries(fields.filter((f) => f.type === "date" && f.key === "date").map((f) => [f.key, todayISO()])) : {};
+  const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, record?.v[f.key] ?? (isNew ? initial?.[f.key] : undefined) ?? dateSeed[f.key] ?? ""])));
+  // REPEAT LAST: a new row can start as a copy of the last one the person made (an example row is not theirs, so it is not offered).
+  const lastRow = isNew && !initial ? [...page.records].reverse().find((r) => !r.ex && fields.some((f) => f.type !== "check" && (r.v[f.key] ?? "").trim())) : undefined;
   const set = (k: string, v: string) => setDraft((d) => ({ ...d, [k]: v }));
   const changed = () => Object.fromEntries(Object.entries(draft).filter(([k, v]) => (record?.v[k] ?? "") !== v));
   const sections = page.sections ?? [];
@@ -78,7 +84,13 @@ export function RecordSheet({ page, record, isNew, onSave, onCancel, onRemove, o
   };
   return (
     <FormSheet title={title} saveLabel={isNew ? "Add" : "Save"} onCancel={onCancel} onSave={() => onSave(isNew ? draft : changed(), sections.length && (isNew || secChanged) ? (sec || null) : undefined)}
-      saveDisabled={isNew && !Object.values(draft).some((v) => v.trim())}>
+      saveDisabled={isNew && !Object.entries(draft).some(([k, v]) => v.trim() && v !== dateSeed[k])}>
+      {lastRow && (
+        <Group label="Quick">
+          <Row label="Repeat Last" meta={<span className="fact"><U>{recordName(page, lastRow) || "Last " + noun(page)}</U></span>}
+            onClick={() => setDraft((d) => ({ ...d, ...Object.fromEntries(fields.filter((f) => f.type !== "check" && (lastRow.v[f.key] ?? "").trim() && f.key !== "date").map((f) => [f.key, lastRow.v[f.key]!])) }))} />
+        </Group>
+      )}
       <Group label={page.kind === "lineup" ? "Player" : noun(page)}>
         {(page.kind === "lineup" ? fields.filter((f) => f.key === "position") : fields).map(fieldRow)}
       </Group>

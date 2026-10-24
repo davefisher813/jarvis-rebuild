@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { FieldRow } from "../../shared/FormSheet";
 import { Head, Card, Row, Foot, Menu } from "../../settings/kit";
 import Stepper from "../../shared/Stepper";
 import { monthDay } from "../../money/bills";
@@ -71,7 +72,7 @@ export function rowFacts(page: PageData, r: PageRecord, extra?: ReactNode): Reac
 // ---------------------------------------------------------------------------
 // The shared list.
 
-export function SheetView({ page, onOpen, onAdd, onToggle, onSections, onFields, onSuggest, timeOf, belowHead, onConfirmAll }: {
+export function SheetView({ page, onOpen, onAdd, onToggle, onSections, onFields, onSuggest, timeOf, belowHead, onConfirmAll, onQuick }: {
   page: PageData;
   onOpen: (recordId: string) => void;
   /** Add a row, under the heading whose head was tapped (none: the page has no headings). */
@@ -87,8 +88,11 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, onFields,
   belowHead?: ReactNode;
   /** A sensitive page: confirm every row still true, on the person's tap alone. */
   onConfirmAll?: () => void;
+  /** QUICK ENTRY INSIDE THE PAGE (the template standard): type a name, press Return, and the row is made under the first heading. */
+  onQuick?: (text: string) => void;
 }) {
   const d = templateDef(page.kind);
+  const [quick, setQuick] = useState("");
   const noun = d?.noun ?? "Row";
   const plural = d?.plural ?? "Rows";
   const n = page.records.length;
@@ -120,6 +124,12 @@ export function SheetView({ page, onOpen, onAdd, onToggle, onSections, onFields,
         <Card><Row label="Confirm Everything Is Still True" meta={<span className="fact warn">{unconfirmedCount(page, todayLocalISO())} To Confirm</span>} onClick={onConfirmAll} chev /></Card>
       )}
       {belowHead}
+      {onQuick && (
+        <Card>
+          <FieldRow ariaLabel={"Quick Add " + noun} placeholder={"Type a " + noun + " and Press Return"} value={quick} onChange={setQuick} enterKeyHint="done"
+            onEnter={() => { const t = quick.trim(); if (!t) return; onQuick(t); setQuick(""); }} />
+        </Card>
+      )}
       {groups.map((g) => (
         <div key={g.section?.key ?? "loose"}>
           {g.section && (
