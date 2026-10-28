@@ -176,6 +176,7 @@ const STORE_PENDING_RULING: Record<string, string> = {
   "brain/BrainTop.tsx · message: outcome === \"full\" ? \"The Brain Is ": RULING + " (svc.accept on a derived principle; the other branch says the brain is full)",
   "brain/docs/BrainDocPage.tsx · Saved to Writing": RULING + " (strandsSvc.add)",
   "brain/manual/MemorySheet.tsx · message: svc.pending() ? \"Edited · Will Sync": "already branches on svc.pending() (Dave 2026-09-28) with its own two forms; routing it through savedToastText is Phase 0.5 housekeeping, not a word change",
+  "chat/ChatFlow.tsx · Saved": RULING + " (the manual path of an unreadable line, J-01: the same Store write as the chat capture, tasksSvc or notes)",
   "chat/ChatFlow.tsx · Saved decision": RULING + " (decisionsSvc.create)",
   "chat/ChatFlow.tsx · message: justSaved.length === 1 ? \"Saved\" : ": RULING + " (the chat capture's Store writes)",
   "chat/ChatFlow.tsx · Filed to Money": RULING + " (filesSvc.create plus the ledger row; the upload is answered, the rows are Store writes)",

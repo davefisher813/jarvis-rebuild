@@ -36,9 +36,11 @@ function Seed({ children }: { children: React.ReactNode }) {
   return ready ? <>{children}</> : null;
 }
 
-async function captureInChat(userId: string) {
+// A line the rules read with confidence ("Call ..."), so it is saved with no AI to ask: since J-01 (2026-10-27) a line the rules cannot read
+// is handed back unsaved when there is no AI (chat/chatter.test.tsx), and this file is about WHO a saved capture is filed under.
+async function captureInChat(userId: string, line = "Need to follow up with Mike about summer roster") {
   render(<NotesProvider userId={userId}><Seed><ChatFlow /></Seed></NotesProvider>);
-  fireEvent.change(await screen.findByPlaceholderText("Ask, Tell or Paste"), { target: { value: "Need to follow up with Mike about summer roster" } });
+  fireEvent.change(await screen.findByPlaceholderText("Ask, Tell or Paste"), { target: { value: line } });
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await waitFor(() => expect(screen.getByText(/^Saved: /)).toBeInTheDocument());
   return (await tasksRef!.listTasks()).find((t) => /summer roster/i.test(t.data.text))!;
@@ -55,7 +57,7 @@ describe("Chat: a capture links the one contact it names (memory_v1)", () => {
 
   it("flag off, exactly as before: nobody is filed", async () => {
     flags.memoryOn = false;
-    const t = await captureInChat("u-chat-loop-off");
+    const t = await captureInChat("u-chat-loop-off", "Call Mike about summer roster");
     expect(t.data.personId).toBeUndefined();
   });
 });

@@ -31,6 +31,14 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 // newest one.
 let queued: { t: ToastState; ms: number; at: number } | null = null;
 let shownAt = 0;
+let shownMs = 0;
+// J-08 (Dave, 2026-10-27): SEQUENTIAL DELETES, ONE UNDO. Deleting a second row while the first Undo was still up REPLACED that toast, so
+// Undo restored only the second delete and the first was gone for good. An Undo is the app's whole answer to "no confirm", so a new
+// Undo no longer evicts a live one: the older one is set aside with its OWN deadline (when it would have expired, had nothing
+// replaced it), and comes back the moment the newer is taken or expires, for whatever is left of that window. Each Undo still
+// restores its own delete (the snapshot rule above), the chain never outlives any one toast's own clock, and a stale one is dropped.
+const HELD_MAX = 5;
+let held: { t: ToastState; deadline: number; at: number }[] = [];
 // A LABEL WITHOUT A HANDLER IS NOT AN ACTION (audit 2026-09-16). The two are
 // separate optionals, so `{ message, actionLabel: "Undo" }` with no onAction
 // type-checks; it used to count as an action here and draw a real capsule in
@@ -52,8 +60,13 @@ export function showToast(t: ToastState, ms = hasAction(t) ? UNDO_TOAST_MS : TOA
     queued = { t, ms, at: Date.now() };
     return;
   }
+  if (hasAction(current) && hasAction(t) && current) {
+    held.push({ t: current, deadline: shownAt + shownMs, at: shownAt });
+    if (held.length > HELD_MAX) held = held.slice(-HELD_MAX);
+  }
   current = t;
   shownAt = Date.now();
+  shownMs = ms;
   subs.forEach((s) => s(current));
   if (timer) clearTimeout(timer);
   timer = setTimeout(hideToast, ms);
@@ -61,6 +74,18 @@ export function showToast(t: ToastState, ms = hasAction(t) ? UNDO_TOAST_MS : TOA
 export function hideToast(): void {
   current = null;
   if (timer) clearTimeout(timer);
+  // The newest set-aside Undo that still has time comes back first, for the time it has left.
+  const now = Date.now();
+  held = held.filter((h) => h.deadline > now);
+  const back = held.pop();
+  if (back) {
+    current = back.t;
+    shownAt = back.at;
+    shownMs = back.deadline - back.at;
+    subs.forEach((s) => s(current));
+    timer = setTimeout(hideToast, back.deadline - now);
+    return;
+  }
   subs.forEach((s) => s(null));
   const next = queued;
   queued = null;
@@ -78,6 +103,8 @@ export const TOAST_NAV_GRACE_MS = 600;
 export function dismissForNavigation(): void {
   const q = queued;
   if (q && Date.now() - q.at > TOAST_NAV_GRACE_MS) queued = null;
+  // An Undo set aside belongs to the screen it was raised on, like the one showing.
+  held = held.filter((h) => Date.now() - h.at <= TOAST_NAV_GRACE_MS);
   if (current && Date.now() - shownAt > TOAST_NAV_GRACE_MS) hideToast();
 }
 // The store listens for the shell's one "the screen changed" signal (shared/screenChange.ts).
@@ -85,6 +112,7 @@ onScreenChange(dismissForNavigation);
 /** Tests only: drop anything in flight so one case cannot leak into the next. */
 export function resetToasts(): void {
   queued = null;
+  held = [];
   hideToast();
 }
 export function subscribeToast(fn: Sub): () => void {

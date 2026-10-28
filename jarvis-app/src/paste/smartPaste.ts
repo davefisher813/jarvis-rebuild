@@ -90,6 +90,10 @@ export interface PasteDeps {
   // refused out loud through onBillNote and is never made a task instead.
   tracker?: Pick<TrackerService, "saveTx" | "load" | "removeTx">;
   ai: AIService;
+  // J-01 (2026-10-27): where a line the rules could not read, and the model could not be asked, is HANDED BACK instead of saved. Set
+  // by a surface where saving a guess is the wrong default (Chat); absent, the old read stands for the surfaces whose whole job is to
+  // capture (Quick Capture, Smart Paste), which show what they made and let it be moved or undone.
+  onUnread?: (line: string) => void;
   gather: () => Promise<AIContext>;
   tasks: TasksService;
   schedule: ScheduleService;
@@ -450,6 +454,8 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       // accounts". It gets the line as pasted; that is the only version of it
       // that still holds every word.
       const answer = await aiImprove(e.body ?? e.raw, deps);
+      // J-01: no model answer exists and the surface does not want a guess saved. Nothing is written, and the caller says so.
+      if (answer.kind === "refused" && deps.onUnread) { deps.onUnread(e.raw); continue; }
       // Behind memory_v1 (D11): only a model that answered and could not be
       // read makes the note; a refused or unreachable AI leaves the
       // deterministic reading standing, personId and all. Flag off, today's

@@ -53,6 +53,10 @@ import type { Person } from "../people/types";
 import ChatMessageRow from "./ChatMessageRow";
 import { haptics } from "../shared/haptics";
 import { useDictation, spokenInto } from "../shared/useDictation";
+import { readChatter } from "./chatter";
+import { applyCapture } from "../ai/capture";
+import { titleCase } from "../paste/deterministic";
+import { madeBy } from "../shared/provenance";
 import FilingSheet from "../ai/FilingSheet";
 import { chatFilingText } from "./filingText";
 import { flagOn } from "../substrate/flags";
@@ -167,6 +171,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // 2026-10-24: the words of a turn that failed in a way asking again can fix (the provider was busy, the connection dropped). Set only
   // then: a failure that retrying cannot fix (out of credit, AI turned off) leaves nothing to tap, because there is nothing to retry.
   const [retryText, setRetryText] = useState<string | null>(null);
+  // J-01: a line the chat could not read without the AI, handed back unsaved. The two chips are the manual path (the person decides
+  // what it is); nothing is filed until one is tapped.
+  const [unread, setUnread] = useState<string | null>(null);
   const [choice, setChoice] = useState<PendingChoice | null>(null);
   // UP-MIND-04 (2026-09-05): the last question this conversation actually
   // answered, and the records it cited. "And tomorrow?" resolves against
@@ -491,6 +498,33 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     await say("jarvis", `Left it alone: ${subjectOf(p.content)}`, { kind: "records" });
   };
 
+  // THE MANUAL PATH (J-01). The person says what the line is; it is filed exactly as written, with the same receipt and Undo as any
+  // capture. Only a tap gets here.
+  const saveUnread = async (kind: "task" | "note") => {
+    const text = unread;
+    if (!text || busy) return;
+    setUnread(null);
+    setRetryText(null);
+    const cats = await catsSvc.list().catch(() => []);
+    let made: { id: string } | null = null;
+    const ok = await attemptWrite(async () => {
+      const applied = await applyCapture(
+        { kind, title: titleCase(text.trim()), ...(kind === "note" ? { notes: text.trim() } : {}) },
+        { tasks: tasksSvc, schedule, notes }, cats, todayISO(), madeBy("paste"), "",
+      );
+      if (applied.id) made = { id: applied.id };
+    });
+    if (!ok || !made) return;
+    const entity = { id: (made as { id: string }).id, kind, title: titleCase(text.trim()), raw: text.trim() } as const;
+    haptics.confirm();
+    await say("jarvis", `Saved: ${entity.title}`, { kind: "action", refs: [{ kind, id: entity.id, label: entity.title }] });
+    showToast({
+      message: "Saved",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => undoSaved(entity, { tasks: tasksSvc, schedule, notes })); },
+    });
+  };
+
   // `retryOf` is Try Again (2026-10-24): the words of a turn that already sits in the thread, answered again. It stores no second copy of
   // them and leaves whatever is in the box alone.
   const send = async (retryOf?: string) => {
@@ -498,6 +532,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     if (!text || busy) return;
     setBusy(true);
     setRetryText(null);
+    setUnread(null);
     try {
       // SHELL-F-17 (2026-09-05): the box used to empty BEFORE the first
       // write, inside a try/finally with no catch, so a store that rejected
@@ -582,12 +617,21 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           return;
         }
 
+        // 1b. TALK IS NOT A CAPTURE (J-01). A greeting, a thanks, an acknowledgement, a laugh or a feeling is conversation: it is answered
+        // here in words, or goes to the AI lane as a turn, and the capture lane below never sees it. Nothing is written for it.
+        const chatter = readChatter(asked);
+        if (chatter?.reply) {
+          logAnswered("records");
+          await say("jarvis", chatter.reply, { kind: "records" });
+          return;
+        }
+
         // 2. Deterministic Q&A, still before any AI call.
         // With the tools on, a sentence that opens by changing something that exists ("move the plumber to Friday") is not a new task and
         // is not a question the rules can read: it goes straight to the model, which finds the task and puts the change on a card.
         const editAsk = toolsOn && ai.available && looksLikeEdit(asked);
-        if (looksLikeQuestion(asked) || editAsk) {
-          const ans = editAsk ? null : await answerQuestion(asked, await snapshot());
+        if (looksLikeQuestion(asked) || editAsk || chatter) {
+          const ans = editAsk || chatter ? null : await answerQuestion(asked, await snapshot());
           if (ans) {
             // The turn that a follow-up will resolve against next.
             if (!ans.choose) setPrior({ question: asked, ...(ans.provenance.refs ? { refs: ans.provenance.refs } : {}) });
@@ -681,6 +725,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         const ps = flagOn("memory_v1") ? capturePeople(await peopleSvc.list().catch(() => [])) : undefined;
         let saved: Awaited<ReturnType<typeof smartPasteSave>> = [];
         let refusedFact = false;
+        const unreadLines: string[] = [];
         const ok = await attemptWrite(async () => {
           // The genome rides along (Quick Add, handoff 5.0): "I never work out
           // on Sundays" typed into chat is a fact about the person, and the one
@@ -695,9 +740,19 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             peopleSvc,
             ...(ps ? { people: ps } : {}),
             onFactRefused: () => { refusedFact = true; },
+            // J-01: where the rules cannot read a line and the AI cannot be asked, nothing is saved (it used to become a task).
+            onUnread: (l) => { unreadLines.push(l); },
           });
         });
         if (!ok) return;
+        if (saved.length === 0 && unreadLines.length > 0) {
+          // THE BRAIN CANNOT RUN: SAY SO, AND OFFER THE MANUAL PATH. Try Again where a second try can work, and for one line the two
+          // chips that let the person say what it is.
+          setRetryText(text);
+          if (unreadLines.length === 1) setUnread(text);
+          await say("jarvis", "I couldn't read that without the AI · Nothing was saved", { kind: "records" });
+          return;
+        }
         if (saved.length === 0) {
           await say("jarvis", refusedFact ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that", { kind: "records" });
           return;
@@ -714,6 +769,10 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             : `Saved ${saved.length} items`,
           { kind: "action", refs: saved.map((s) => ({ kind: s.kind, id: s.id, label: s.title })) },
         );
+        // J-01: some lines of a paste were read and some could not be; the ones that could not were not saved, and the thread says so.
+        if (unreadLines.length > 0) {
+          await say("jarvis", `Not saved · I couldn't read ${unreadLines.length === 1 ? "one line" : "more than one line"} without the AI`, { kind: "records" });
+        }
         // S4-Q23 (2026-09-04): provLine below has always printed "Done · Undo
         // on the toast" for this reply, and nothing here ever raised one, on
         // every kind of capture chat can produce, facts included. A told-rank
@@ -1032,6 +1091,8 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         {retryText && !busy && (
           <div className="chip-row chat-refs">
             <button type="button" className="chip chip-act" onClick={() => void send(retryText)}>Try Again</button>
+            {unread && <button type="button" className="chip" onClick={() => void saveUnread("task")}>Save as Task</button>}
+            {unread && <button type="button" className="chip" onClick={() => void saveUnread("note")}>Save as Note</button>}
           </div>
         )}
         {/* UP-MIND-22: the draft, and the tap that opens it. The words are
