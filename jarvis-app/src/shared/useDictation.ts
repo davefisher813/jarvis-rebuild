@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useOptionalSession } from "../auth/AuthProvider";
+import { backendConfigured } from "../data/store";
+import { recordingSupported, startRecording, type Recording } from "../speech/recorder";
+import { TranscribeError, transcribeAudio } from "../speech/transcribeClient";
 
 // DICTATION INTO THE DRAFT (the Logging Standard, 2026-10-17). Speak used to
 // focus the field and point at the keyboard's own mic, and where the field was
@@ -18,12 +22,18 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 //   - where the API is absent, status is "unsupported" and the caller keeps
 //     the keyboard-mic hint, shown every time, so the button never does nothing
 //
+// THE SPEECH BOX (2026-10-27, Dave's order). Where the page can record audio (MediaRecorder and a microphone) and the app has its
+// backend, Speak RECORDS, and the recording goes to the server to be turned into words (speech/, api/_transcribe.ts). The browser's
+// SpeechRecognition below is what is left for a page that cannot record, because it is not dependable in the installed iOS app.
+// The contract is unchanged for every caller: the words arrive once, `final` true, into the editable draft, and this hook commits
+// nothing. A recording has no interim words, so the person sees Listening, then Writing It Down, then the draft.
+//
 // The native path for the iOS build is @capacitor-community/speech-recognition,
 // a pod install and a real build, so it is deferred the way the keyboard
 // accessory note in CLAUDE.md is; nothing here depends on it, and the hook is
 // the one place that path would be wired in.
 
-export type DictationStatus = "unsupported" | "idle" | "listening" | "error";
+export type DictationStatus = "unsupported" | "idle" | "listening" | "transcribing" | "error";
 
 export interface Dictation {
   status: DictationStatus;
@@ -75,24 +85,92 @@ export function dictationErrorLine(code: string): string {
   }
 }
 
+/** The browser's own error name for a refused microphone, as the recognizer's code, so one set of lines serves both paths. */
+function micErrorCode(e: unknown): string {
+  const name = e instanceof Error ? e.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") return "not-allowed";
+  if (name === "NotFoundError" || name === "OverconstrainedError") return "audio-capture";
+  return "";
+}
+
 export function useDictation({ onText, lang = "en-US" }: {
   /** The words so far: `final` false is the phrase still being said and will be
    *  replaced by the next call; `final` true is a phrase that is done and stays. */
   onText: (text: string, final: boolean) => void;
   lang?: string;
 }): Dictation {
-  const [supported] = useState(() => recognizerCtor() !== null);
+  const session = useOptionalSession();
+  const tokenRef = useRef<string | undefined>(session?.access_token);
+  tokenRef.current = session?.access_token;
+  const [canRecord] = useState(() => backendConfigured && recordingSupported());
+  const [supported] = useState(() => canRecord || recognizerCtor() !== null);
   const [status, setStatus] = useState<DictationStatus>(supported ? "idle" : "unsupported");
   const [error, setError] = useState<string | null>(null);
   const rec = useRef<Recognizer | null>(null);
+  const clip = useRef<Recording | null>(null);
+  const starting = useRef(false);
+  const stopWanted = useRef(false); // a second tap that landed while the microphone was still being granted
+  const working = useRef(false); // the clip is being turned into words: a new recording waits
+  const gone = useRef(false);
+  const abort = useRef<AbortController | null>(null);
   const onTextRef = useRef(onText);
   onTextRef.current = onText;
 
+  const fail = useCallback((line: string) => { if (!gone.current) { setError(line); setStatus("error"); } }, []);
+
+  // The recording path: stop the clip, send it, put the words in the draft. Leaving the screen drops the words.
+  const finishRecording = useCallback(async () => {
+    const r = clip.current;
+    if (!r) return;
+    clip.current = null;
+    working.current = true;
+    setStatus("transcribing");
+    const blob = await r.stop();
+    if (gone.current) { working.current = false; return; }
+    if (!blob) { working.current = false; fail(dictationErrorLine("no-speech")); return; }
+    const ctl = new AbortController();
+    abort.current = ctl;
+    try {
+      const words = await transcribeAudio(blob, { token: tokenRef.current, signal: ctl.signal });
+      if (gone.current) return;
+      if (!words) { fail(dictationErrorLine("no-speech")); return; }
+      setError(null);
+      setStatus("idle");
+      onTextRef.current(words, true);
+    } catch (e) {
+      if (gone.current || (e instanceof DOMException && e.name === "AbortError")) return;
+      fail(e instanceof TranscribeError ? e.message : dictationErrorLine(""));
+    } finally {
+      abort.current = null;
+      working.current = false;
+    }
+  }, [fail]);
+
   const stop = useCallback(() => {
+    if (clip.current) { void finishRecording(); return; }
+    if (starting.current) { stopWanted.current = true; return; }
     rec.current?.stop();
-  }, []);
+  }, [finishRecording]);
+
+  const startRecorded = useCallback(() => {
+    if (clip.current || starting.current || working.current) return;
+    starting.current = true;
+    stopWanted.current = false;
+    setError(null);
+    setStatus("listening");
+    startRecording({ onAutoStop: () => { void finishRecording(); } }).then(
+      (r) => {
+        starting.current = false;
+        if (gone.current) { r.cancel(); return; }
+        clip.current = r;
+        if (stopWanted.current) { stopWanted.current = false; void finishRecording(); }
+      },
+      (e: unknown) => { starting.current = false; fail(dictationErrorLine(micErrorCode(e))); },
+    );
+  }, [fail, finishRecording]);
 
   const start = useCallback(() => {
+    if (canRecord) { startRecorded(); return; }
     const Ctor = recognizerCtor();
     if (!Ctor) { setStatus("unsupported"); return; }
     if (rec.current) return;
@@ -127,10 +205,20 @@ export function useDictation({ onText, lang = "en-US" }: {
     setError(null);
     setStatus("listening");
     try { r.start(); } catch { rec.current = null; setError(dictationErrorLine("")); setStatus("error"); }
-  }, [lang]);
+  }, [lang, canRecord, startRecorded]);
 
   // Leaving the screen ends the session; words that have nowhere to land are dropped.
-  useEffect(() => () => { rec.current?.abort(); rec.current = null; }, []);
+  useEffect(() => {
+    gone.current = false;
+    return () => {
+      gone.current = true;
+      rec.current?.abort();
+      rec.current = null;
+      clip.current?.cancel();
+      clip.current = null;
+      abort.current?.abort();
+    };
+  }, []);
 
   return { status, error, supported, start, stop };
 }

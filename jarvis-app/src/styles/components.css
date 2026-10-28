@@ -3032,6 +3032,8 @@ button {
    control was the one he uses least). Attach is a quiet tonal circle with a neutral glyph; Send is the one red circle, and
    tonal while there is nothing to send, at full strength and not faded to a muddy maroon. */
 .chat-inputbar .chat-attach { background-color: var(--press-3); color: var(--tx-2); }
+.chat-inputbar .chat-mic[aria-pressed="true"] { background-color: var(--accent-fill); color: #fff; }
+.chat-voice-why { padding: 0 var(--s-4); margin: 0; }
 .chat-inputbar .chat-send:disabled { background-color: var(--press-3); color: var(--tx-3); opacity: 1; }
 
 /* === CATALOG V3.1 (approved 2026-08-18, LOCKED-CSS CHANGE FLAGGED) ===
