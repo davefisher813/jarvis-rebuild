@@ -35,7 +35,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; clientId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2; projectId?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; clientId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2; projectId?: string; personId?: string },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -89,6 +89,7 @@ export class ScheduleService {
     // The project it is for (2026-09-26), written at creation because that
     // is when the sheet knows it.
     if (opts.projectId) data.projectId = opts.projectId;
+    if (opts.personId) data.personId = opts.personId;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;
@@ -217,6 +218,12 @@ export class ScheduleService {
   // a stale id would keep it on that project's page.
   async editProject(id: string, projectId: string | null): Promise<boolean> {
     return this.patch(id, { projectId: projectId ?? undefined });
+  }
+
+  // WHO IT IS WITH (2026-10-27): the person, set, changed or taken off from
+  // the sheet. Undefined clears, so None really removes the link.
+  async editPerson(id: string, personId: string | null): Promise<boolean> {
+    return this.patch(id, { personId: personId ?? undefined });
   }
 
   async editLocation(id: string, location: string): Promise<boolean> {

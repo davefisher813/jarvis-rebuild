@@ -2469,6 +2469,7 @@ export default function CategoryDetail({
           mode="new"
           categories={sheetCats}
           projects={sheetProjects(projects, goals)}
+          people={sheetPeople(allPeople)}
           initial={{ date: today, category: categoryId }}
           onSave={async (d) => {
             // Field for field with ScheduleFlow's own createEvent. This call
@@ -2484,6 +2485,7 @@ export default function CategoryDetail({
                 travelMin: d.travelMin ?? undefined, bufferMin: d.bufferMin ?? undefined,
                 url: d.url, notes: d.notes,
                 projectId: d.projectId || undefined,
+                personId: d.personId || undefined,
               });
               if (made && d.gym) await schedule.editGymDoor(made, true);
             });

@@ -5,7 +5,7 @@ import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
 import { sortPicks } from "../../shared/pickerSort";
-import { listInAreas, keepIfTied, projectAreas, useWhenAreasChange } from "../../shared/areaLinks";
+import { listInAreas, keepIfTied, homeArea, projectAreas, useWhenAreasChange } from "../../shared/areaLinks";
 import { notePick, recentPicks } from "../../shared/recentPicks";
 import { titleCase } from "../../shared/casing";
 import RowCtxAction from "../../shared/RowCtxAction";
@@ -107,6 +107,10 @@ export interface EventDraft {
   // like every other id on this draft. No goal row here: a project carries
   // its own goal, and the event sheet had no goal row to fix.
   projectId?: string;
+  // WHO IT IS WITH (Dave, 2026-10-27: the Edit Event screen "has no Person
+  // field at all", so a wrong person could not be taken off). The contact, by
+  // id, as a task's sheet files it. "" clears.
+  personId?: string;
   // THE TRAINING DOOR (D4-C): this block opens the gym. By the athlete's own
   // hand only -- the sheet never guesses from the title.
   gym?: boolean;
@@ -153,6 +157,7 @@ export default function EventSheet({
   onOpenPerson,
   onAddPerson,
   projects = [],
+  people = [],
   noScope = false,
 }: {
   mode: "new" | "edit";
@@ -204,6 +209,10 @@ export default function EventSheet({
   // task sheet takes; without it the row does not render, so a caller that
   // cannot save it never shows a control that would lie.
   projects?: SheetProject[];
+  // THE PERSON PICKER (2026-10-27): the task sheet's, on the event. The areas
+  // each contact belongs to ride along so the Area narrows the list. Without
+  // it the row does not render.
+  people?: { id: string; name: string; areas?: string[] }[];
   // Hides Apply To (2026-10-04). A staged import row is not a stored series:
   // there is no other occurrence to apply a choice to, so the row asked a
   // question the save never read.
@@ -222,6 +231,7 @@ export default function EventSheet({
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  const [personId, setPersonId] = useState(initial?.personId ?? "");
   // A project already knows its area, so picking one answers the Area row
   // (the task sheet's rule: only a blank is filled). The area on an event is
   // never blank (it defaults to the first), so until somebody chooses one it
@@ -235,11 +245,19 @@ export default function EventSheet({
     const p = projects.find((x) => x.id === id);
     if (p?.category && !areaSet) changeArea(p.category);
   };
+  // The reverse rule for a person (shared/areaLinks): a pick brings its own area in only while none is chosen. None is always allowed.
+  const pickPerson = (id: string) => {
+    setPersonId(id);
+    const home = id ? homeArea(people.find((x) => x.id === id)?.areas, categories.map((c) => c.id)) : undefined;
+    if (home && !areaSet) changeArea(home);
+  };
   // The Area in force, for the linked menus; and rule 3, a change of it sends a project that no longer fits back to None (never on open).
   const chosenAreas = areaSet && category ? [category] : [];
   useWhenAreasChange(chosenAreas, (chosen) => {
     const next = keepIfTied(projectId, projects, (p) => projectAreas(p.category), chosen);
     if (next !== projectId) setProjectId(next);
+    const nextPerson = keepIfTied(personId, people, (p) => p.areas, chosen);
+    if (nextPerson !== personId) setPersonId(nextPerson);
   });
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
   const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
@@ -250,6 +268,8 @@ export default function EventSheet({
   const projectOptions = sortPicks(listInAreas(projects, (p) => projectAreas(p.category), chosenAreas, projectId).map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId, recentPicks("project"))
     .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
+  const personsHere = listInAreas(people, (p) => p.areas, chosenAreas, personId);
+  const personWord = people.find((p) => p.id === personId)?.name ?? "None";
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
   const [gym, setGym] = useState(!!initial?.gym);
   // UP-CORE-07 (2026-09-05): how long it takes to get there. Typed once per
@@ -322,6 +342,7 @@ export default function EventSheet({
       // The link rides only where its row rendered (sheetFields law: a
       // hidden row must not write its empty default over a real value).
       ...(projects.length > 0 ? { projectId } : {}),
+      ...(people.length > 0 ? { personId } : {}),
     };
     if (projects.length > 0 && projectId) notePick("project", projectId);
     const done = recurringEdit ? onSave(draft, scope) : onSave(draft);
@@ -639,6 +660,17 @@ export default function EventSheet({
                   options={[{ value: "", label: "None" }, ...projectOptions]}
                   search="Search Projects"
                   onPick={pickProject} />
+              </div>
+            )}
+            {/* WHO IT IS WITH (2026-10-27). The task sheet's Person row, on the
+                event, so a person can be changed or taken off (None). */}
+            {people.length > 0 && (
+              <div onClick={tapField} className="row xs-row">
+                <Tile tone="teal"><User className="ic" /></Tile>
+                <div className="conn-name">Person</div>
+                <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
+                  options={[{ value: "", label: "None" }, ...personsHere.map((p) => ({ value: p.id, label: p.name }))]}
+                  onPick={pickPerson} />
               </div>
             )}
             <div onClick={tapField} className="row xs-row">

@@ -59,7 +59,7 @@ export function duplicateOf(e: EventData, date = e.date): EventData {
 // came to be, not the copy), and attendees (a copy of a Google meeting must not
 // carry its guest list into a second event that could re-invite them; copy the
 // guests by hand if the copy is meant to have them).
-export function carriedFields(e: EventData): { gym?: true; url?: string; notes?: string; travelMin?: number; bufferMin?: number; projectId?: string } {
+export function carriedFields(e: EventData): { gym?: true; url?: string; notes?: string; travelMin?: number; bufferMin?: number; projectId?: string; personId?: string } {
   return {
     ...(e.gym ? { gym: true as const } : {}),
     ...(e.url ? { url: e.url } : {}),
@@ -67,6 +67,7 @@ export function carriedFields(e: EventData): { gym?: true; url?: string; notes?:
     ...(typeof e.travelMin === "number" ? { travelMin: e.travelMin } : {}),
     ...(typeof e.bufferMin === "number" ? { bufferMin: e.bufferMin } : {}),
     ...(e.projectId ? { projectId: e.projectId } : {}),
+    ...(e.personId ? { personId: e.personId } : {}),
   };
 }
 

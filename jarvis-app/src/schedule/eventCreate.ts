@@ -17,7 +17,7 @@ export async function createEventFromDraft(draft: EventDraft, events: EventMaker
     recurrence: draft.recurrence, until: draft.until || undefined,
     days: draft.days, interval: draft.interval, taskIds: draft.taskIds,
     travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined,
-    url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined,
+    url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, personId: draft.personId || undefined,
   });
   if (id && draft.gym) await events.editGymDoor(id, true);
   return id;
