@@ -9,6 +9,7 @@ import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
 import type { Category } from "../categories/types";
 import { smartPasteSave, undoSaved, refileSaved, recategorizeSaved, recategorizeFact, type SavedEntity } from "../paste/smartPaste";
+import { correctionLead, resolveCorrection, applyCorrection, type Fixed } from "../paste/correction";
 import { parseSetPhrase } from "../gym/parseSet";
 import { readLive, writeLive, logSet, setLoggedSets, skipExercise, isStillActive } from "../gym/liveSession";
 import { newSetId, duplicateEntry } from "../gym/strip";
@@ -337,11 +338,37 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     return true;
   };
 
+  const unfixable = useRef<string | null>(null);
   const capture = async (force = false) => {
     const t = text.trim();
     if (!t || phase === "saving") return;
     setError("");
     if (logToSession(t)) return;
+    // A CORRECTION EDITS THE RECEIPT ABOVE IT (Dave, 2026-10-27: "no, Josh Rudd" was saved as a second task). Right after a capture, a line
+    // that rejects or restates the filing fixes that item and is never captured. If it cannot be read as a fix, it says so and saves
+    // nothing; the same words sent a second time are a capture.
+    const lastReceipt = saved.length > 0 ? saved[saved.length - 1] : undefined;
+    const lead = lastReceipt && !lastReceipt.removed && unfixable.current !== t ? correctionLead(t) : null;
+    if (lastReceipt && lead) {
+      setPhase("saving");
+      const pl = await peopleSvc.list().catch(() => []);
+      const c = resolveCorrection(lead, pl.map((p) => ({ id: p.id, name: p.data.name, ...(p.data.aliases?.length ? { aliases: p.data.aliases } : {}) })));
+      const got: { fixed: Fixed | null } = { fixed: null };
+      const wrote = await attemptWrite(async () => { got.fixed = await applyCorrection(c, lastReceipt, { tasks, schedule }); });
+      const f = got.fixed;
+      setPhase("saved");
+      if (!wrote) return;
+      if (!f) { unfixable.current = t; setError("I couldn't tell what to fix · Send it again to save it"); return; }
+      haptics.confirm();
+      setPeople(capturePeople(pl));
+      CAPTURE_DRAFT.clear();
+      setTextState("");
+      const chosen = f.entity.personId;
+      const entity = { ...f.entity, ...(chosen ? { personChoices: [...new Set([...(lastReceipt.personChoices ?? []), chosen])] } : {}) };
+      setSaved(saved.map((x) => (x.id === lastReceipt.id ? entity : x)));
+      return;
+    }
+    unfixable.current = null;
     // Exact-text 7-day dedupe: a fact and a choice, never a silent block.
     if (!force) {
       const age = pasteSeenAge(t);
