@@ -48,11 +48,12 @@ async function captureInChat(userId: string, line = "Need to follow up with Mike
 
 beforeEach(() => { tasksRef = null; mikeId = ""; });
 
-describe("Chat: a capture links the one contact it names (memory_v1)", () => {
-  it("flag on, the task is Mike's", async () => {
+describe("Chat: a capture files nobody from a name in its words (memory_v1)", () => {
+  it("flag on, a first name does not make the task Mike's", async () => {
     flags.memoryOn = true;
     const t = await captureInChat("u-chat-loop-on");
-    expect(t.data.personId).toBe(mikeId);
+    expect(mikeId).not.toBe("");
+    expect(t.data.personId).toBeUndefined();
   });
 
   it("flag off, exactly as before: nobody is filed", async () => {

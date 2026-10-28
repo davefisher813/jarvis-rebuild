@@ -64,8 +64,8 @@ export function liveRead(text: string, today: string, ctx: CaptureContext, lanes
     ...(e.factCategory ? { factCategory: e.factCategory } : {}),
     inferred: e.inferred,
   };
-  // Two contacts answer to the line: nobody is filed and the receipt asks, so the live line names nobody either.
-  const asking = (e.personChoices?.length ?? 0) > 1;
+  // A contact's exact name is in the line: nobody is filed and the receipt offers them, so the live line names nobody either.
+  const asking = (e.personChoices?.length ?? 0) > 0;
   const person = !asking && e.personId ? ctx.people?.find((p) => p.id === e.personId)?.name : undefined;
   const project = e.projectId ? ctx.projects?.find((p) => p.id === e.projectId)?.title : undefined;
   return { entity, names: { ...(person ? { person } : {}), ...(project ? { project } : {}) }, ...(e.category ? { area: e.category } : {}) };

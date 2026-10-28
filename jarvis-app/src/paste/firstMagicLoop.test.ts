@@ -75,12 +75,18 @@ describe("Phase 0.5 exit test: a captured thought is found again through search,
     expect(asked).toBe(0);
     expect(saved).toHaveLength(1);
     const s = saved[0]!;
-    // Saved: the thought (a task, the possible follow up), the person, the stamp.
-    expect(s).toMatchObject({ kind: "task", title: "Need to Follow Up with Mike About Summer Roster", personId: w.mikeId, inferred: ["personId"] });
-    const t = await w.tasks.task(s.id);
-    expect(t).toMatchObject({ text: "Need to Follow Up with Mike About Summer Roster", personId: w.mikeId, done: false });
+    // Saved: the thought (a task, the possible follow up), and NO person: a
+    // first name in the words never attaches anyone (Dave, 2026-10-27).
+    expect(s).toMatchObject({ kind: "task", title: "Need to Follow Up with Mike About Summer Roster" });
+    expect(s.personId).toBeUndefined();
+    let t = await w.tasks.task(s.id);
+    expect(t).toMatchObject({ text: "Need to Follow Up with Mike About Summer Roster", done: false });
+    expect(t?.personId).toBeUndefined();
     expect(t?.due ?? null).toBeNull();
-    expect(t?.source).toMatchObject({ type: "paste", inferred: ["personId"] });
+    // Dave taps Mike on the receipt: that is the one way a person gets attached.
+    await w.tasks.setPerson(s.id, w.mikeId);
+    t = await w.tasks.task(s.id);
+    expect(t?.personId).toBe(w.mikeId);
 
     vi.setSystemTime(new Date("2026-10-14T09:00:00"));
     const search = w.later();
@@ -97,7 +103,8 @@ describe("Phase 0.5 exit test: a captured thought is found again through search,
   it("found through the relationship, not the spelling: Michael, also called Mike", async () => {
     const w = await world({ name: "Michael Rossi", aliases: ["Mike"] });
     const [s] = await smartPasteSave(SENTENCE, w.deps);
-    expect(s!.personId).toBe(w.mikeId);
+    expect(s!.personId).toBeUndefined();
+    await w.tasks.setPerson(s!.id, w.mikeId);
     const byAlias = await w.search("Mike");
     expect(byAlias.people).toEqual([{ id: w.mikeId, name: "Michael Rossi", why: "Also Called: Mike" }]);
     expect(byAlias.tasks.map((x) => x.id)).toEqual([s!.id]);
@@ -120,7 +127,8 @@ describe("Phase 0.5 exit test: a captured thought is found again through search,
     w.store.goOffline();
     const [s] = await smartPasteSave(SENTENCE, w.deps);
     expect(asked).toBe(0);
-    expect(s).toMatchObject({ kind: "task", personId: w.mikeId });
+    expect(s).toMatchObject({ kind: "task" });
+    expect(s!.personId).toBeUndefined();
     expect((await w.search("Mike")).tasks.map((x) => x.id)).toEqual([s!.id]);
     await w.store.reconnect();
     vi.setSystemTime(new Date("2026-10-14T09:00:00"));

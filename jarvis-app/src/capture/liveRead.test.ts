@@ -12,10 +12,10 @@ const CTX = {
 const read = (t: string, lanes: Partial<LiveLanes> = {}) => liveRead(t, TODAY, CTX, { ...ALL, ...lanes });
 
 describe("liveRead: the facts the receipt will draw, read while the line is typed", () => {
-  it("an event reads its day and time, and the contact the line named", () => {
+  it("an event reads its day and time, and names no contact: a name in the words files nobody", () => {
     const r = read("Dinner with Marco Thursday 7pm")!;
     expect(r.entity).toMatchObject({ kind: "event", date: "2026-10-22", start: "19:00" });
-    expect(r.names).toEqual({ person: "Marco" });
+    expect(r.names).toEqual({});
   });
 
   it("a payment already made reads as an expense; with no tracker it is not one, and claims no day", () => {

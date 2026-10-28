@@ -490,11 +490,19 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // Uncertainty Protocol in one row of chips: JARVIS says what it is unsure
   // about and the person decides in one tap. Only a task carries a person,
   // so this never appears on an event or a note.
+  // 2026-10-27: nobody is filed from a name in the words. An exact name is
+  // offered as a chip; a tap attaches that person, a tap on the lit chip takes
+  // them off again (Dave: "no way to take him off").
   const onPerson = async (s: SavedEntity, personId: string) => {
-    if (s.kind !== "task" || personId === s.personId) return;
-    const ok = await attemptWrite(() => tasks.setPerson(s.id, personId));
+    if (s.kind !== "task") return;
+    const next = personId === s.personId ? null : personId;
+    const ok = await attemptWrite(() => tasks.setPerson(s.id, next));
     if (!ok) return;
-    setSaved(saved.map((x) => (x.id === s.id ? { ...x, personId } : x)));
+    setSaved(saved.map((x) => {
+      if (x.id !== s.id) return x;
+      const { personId: _gone, ...rest } = x;
+      return next ? { ...rest, personId: next } : rest;
+    }));
   };
 
   const onFactCat = async (s: SavedEntity, category: StrandCategory) => {
@@ -576,7 +584,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                 }
                 // Two Marcos: the choice chips below name the person, lit
                 // once one is picked, so the line does not say it again.
-                const asking = s.kind === "task" && (s.personChoices?.length ?? 0) > 1;
+                const asking = s.kind === "task" && (s.personChoices?.length ?? 0) > 0;
                 const facts = receiptFacts(s, {
                   person: asking ? undefined : people.find((p) => p.id === s.personId)?.name,
                   project: projects.find((p) => p.id === s.projectId)?.title,
@@ -646,7 +654,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                         {s.personChoices!.map((id) => {
                           const p = people.find((x) => x.id === id);
                           return p ? (
-                            <div key={id} className={"chip" + (s.personId === id ? " active" : "")} role="radio" aria-checked={s.personId === id} tabIndex={0} onClick={() => void onPerson(s, id)}>
+                            <div key={id} className={"chip" + (s.personId === id ? " active" : "")} role="checkbox" aria-checked={s.personId === id} tabIndex={0} onClick={() => void onPerson(s, id)}>
                               {p.name}
                             </div>
                           ) : null;

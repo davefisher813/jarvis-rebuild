@@ -44,9 +44,10 @@ export interface ParsedEntity {
   // task and never a bill (a bill is owed; this is paid). Stated words only.
   expense?: { amountCents: number; merchant: string };
   personId?: string;
-  // More than one contact answers to this line. Never a guess (the
-  // Uncertainty Protocol): the receipt offers these as chips and the person
-  // picks, which is the whole reason this is a list and not a best match.
+  // The contacts whose whole name (or alias) the line wrote. Never filed, only
+  // offered (2026-10-27): the receipt shows them as chips and a tap attaches
+  // one, a second tap takes it off. A first name alone is not offered.
+  // personId stays on the type for a person the PERSON chose; no rule sets it.
   personChoices?: string[];
   projectId?: string;
   // THE LOGGING STANDARD, rule 3 (2026-10-17): how long, and which area, read
@@ -87,7 +88,7 @@ import { decisionLine } from "./decisionLine";
 import { personLine, type PersonLine } from "./personLine";
 import type { StrandCategory } from "../brain/strands/types";
 import type { Recurrence } from "../notes/types";
-import { mentions } from "../people/mentions";
+import { exactMentions } from "../people/mentions";
 import { readDuration, readAreaTag, cutWords } from "../tasks/quickWords";
 import { addMinutes } from "../schedule/calendar";
 
@@ -312,11 +313,12 @@ function matchMonthDay(lower: string, today: string): DayHit | null {
 // "remind me", the one phrase that says outright which lane this belongs in.
 const REMIND_RE = /\bremind me\b(?:\s+to\b)?/i;
 
-// The people this line names, by the app's own narrow matcher (mentions.ts),
-// which already refuses first names that are ordinary English words. One
-// match is filed; two are offered; none is silence.
+// The contacts whose WHOLE name (or alias) is written in this line. Never a
+// first name, never a best guess (Dave, 2026-10-27: "Text Josh Rudd" was filed
+// under "Josh (Bucknell)"). What this returns is only ever OFFERED, as chips on
+// the receipt; nobody is attached until the person taps one.
 function matchPeople(raw: string, people: NonNullable<CaptureContext["people"]>): string[] {
-  return people.filter((p) => mentions(raw, p.name, p.aliases ?? [])).map((p) => p.id);
+  return people.filter((p) => exactMentions(raw, p.name, p.aliases ?? [])).map((p) => p.id);
 }
 
 // "for Kitchen remodel": the project by its own title, whole and
@@ -377,12 +379,13 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   const peopleHits = matchPeople(t, ctx.people ?? []);
   const projectId = matchProject(t, ctx.projects ?? []);
   const who: Pick<ParsedEntity, "personId" | "personChoices" | "projectId" | "inferred"> = {
-    ...(peopleHits.length === 1 ? { personId: peopleHits[0]! } : {}),
-    ...(peopleHits.length > 1 ? { personChoices: peopleHits } : {}),
+    // A name in a title never attaches a person on its own. An exact name is
+    // offered on the receipt and the person decides (2026-10-27).
+    ...(peopleHits.length > 0 ? { personChoices: peopleHits } : {}),
     ...(projectId ? { projectId } : {}),
     // The ids a rule chose (see ParsedEntity.inferred); the date joins below
     // on the one branch that assumes a day.
-    inferred: [...(peopleHits.length === 1 ? ["personId"] : []), ...(projectId ? ["projectId"] : [])],
+    inferred: [...(projectId ? ["projectId"] : [])],
   };
 
   // HOW LONG, AND WHICH AREA (the Logging Standard, rule 3, 2026-10-17): the

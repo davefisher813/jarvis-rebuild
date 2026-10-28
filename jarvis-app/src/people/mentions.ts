@@ -69,6 +69,26 @@ export function mentions(text: string, fullName: string, aliases: string[] = [])
   return namePatterns(fullName, aliases).some((re) => re.test(t));
 }
 
+// THE EXACT NAME, AND NOTHING SHORTER (Dave, 2026-10-27: "Text Josh Rudd" was
+// filed under the contact "Josh (Bucknell)" because the first word matched).
+// Capture offers a person only when the line carries the contact's WHOLE name
+// or one of their aliases, as whole words. A first name on its own never
+// counts here, however safe it looks: it is how a different Josh got filed.
+// The offer is still only an offer; the person taps to attach it.
+export function exactMentions(text: string, fullName: string, aliases: string[] = []): boolean {
+  const t = text ?? "";
+  if (!t.trim()) return false;
+  const matches = (raw: string): boolean => {
+    const name = (raw ?? "").trim();
+    if (name.length < 3) return false;
+    // A one-word name is its own full name, so the ambiguity rule applies.
+    if (!/\s/.test(name) && AMBIGUOUS.has(name.toLowerCase())) return false;
+    const re = new RegExp(`(?<![\\p{L}\\p{N}])${esc(name)}(?:'s|s)?(?![\\p{L}\\p{N}])`, "iu");
+    return re.test(t);
+  };
+  return [fullName, ...aliases].some(matches);
+}
+
 export interface MentionItem {
   id: string;
   kind: "task" | "event";
