@@ -26,6 +26,9 @@ export interface PrepPerson { id: string; name: string; email?: string }
 
 export interface PrepEvent {
   id: string;
+  // The contact chosen on the event's own sheet (2026-10-27): a link made by
+  // hand, so it outranks any reading of the guests or the title.
+  personId?: string;
   title: string;
   date: string;
   start: string;
@@ -62,6 +65,8 @@ const toMin = (hhmm: string) => Number(hhmm.split(":")[0] ?? 0) * 60 + Number(hh
  *  second. Address equality is the link that is not a guess; the title
  *  matcher is the same narrow one the person card uses. */
 export function personOfEvent(e: PrepEvent, people: PrepPerson[]): PrepPerson | null {
+  const chosen = e.personId ? people.find((p) => p.id === e.personId) : undefined;
+  if (chosen) return chosen;
   const emails = new Set((e.attendees ?? []).map((a) => a.email.trim().toLowerCase()).filter(Boolean));
   if (emails.size > 0) {
     const byEmail = people.find((p) => p.email && emails.has(p.email.trim().toLowerCase()));

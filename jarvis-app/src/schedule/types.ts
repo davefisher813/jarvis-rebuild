@@ -22,6 +22,11 @@ export interface EventData {
   // picked on its sheet the way a task's is. Optional and additive, on the
   // event itself, like every field here: no migration.
   projectId?: string;
+  // WHO IT IS WITH (2026-10-27). The contact the person chose on the event's
+  // sheet, never read from the title. Optional and additive, on the event
+  // itself: no migration. Not in the item_link registry yet (that is SQL), so
+  // the person's card reads it straight off the event.
+  personId?: string;
   // UP-CORE-10 (2026-09-05): the video link, the description and the guest
   // list an imported Google event carries. url and notes are editable here
   // (and settable on a hand-made event); attendees are Google's own list and

@@ -982,7 +982,7 @@ export default function TodayFlow({
     // section of the sheet was unusable from the tab today's events live on.
     // Travel, the weekday set and the guest list were missing for the same
     // reason and told the same lie. One literal now, matching openEdit's.
-    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "" } });
+    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", personId: e.personId ?? "" } });
   };
   // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
   // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
@@ -1292,7 +1292,7 @@ export default function TodayFlow({
         // The split copy carries the meeting and the travel too: "This
         // Event" on a recurring Zoom used to stand the occurrence up without
         // its link, which is the same disappearance by another route.
-        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined });
+        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, personId: draft.personId || undefined });
         if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
       });
     } else {
@@ -1320,6 +1320,7 @@ export default function TodayFlow({
         await schedule.editTaskIds(id, draft.taskIds ?? []);
         await schedule.editGymDoor(id, !!draft.gym);
         await schedule.editProject(id, draft.projectId || null);
+        if (draft.personId !== undefined) await schedule.editPerson(id, draft.personId || null);
       });
     }
     setEventSheet(null);
@@ -2625,6 +2626,7 @@ export default function TodayFlow({
       id: e.id, title: e.data.title, date: e.data.date, start: e.data.start,
       ...(e.data.location ? { location: e.data.location } : {}),
       ...(e.data.attendees?.length ? { attendees: e.data.attendees } : {}),
+      ...(e.data.personId ? { personId: e.data.personId } : {}),
     })),
     prepPeople,
     taskItems.map((t) => ({
@@ -4697,6 +4699,7 @@ export default function TodayFlow({
         initial={eventSheet.initial}
         categories={categories}
         projects={sheetProjects(projList, goalList)}
+        people={sheetPeople(peopleList)}
         conflictLine={(d, st, en) => lineFor(d, st, en, eventSheet.id)}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
@@ -4724,6 +4727,7 @@ export default function TodayFlow({
         initial={{ date: today, start: newEventStart() }}
         categories={categories}
         projects={sheetProjects(projList, goalList)}
+        people={sheetPeople(peopleList)}
         conflictLine={(d, st, en) => lineFor(d, st, en)}
         onSave={onCreateEvent}
         onCancel={() => setNewEventOpen(false)}

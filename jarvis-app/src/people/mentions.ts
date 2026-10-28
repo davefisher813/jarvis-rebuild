@@ -116,7 +116,7 @@ export interface MentionItem {
 export function openWith(
   person: { id?: string; name: string; aliases?: string[] },
   tasks: { id: string; text: string; done?: boolean; due?: string | null; personId?: string; reminderAt?: string }[],
-  events: { id: string; title: string; date: string; start?: string; location?: string }[],
+  events: { id: string; title: string; date: string; start?: string; location?: string; personId?: string }[],
   today: string,
   max = 6,
 ): MentionItem[] {
@@ -143,12 +143,13 @@ export function openWith(
       ...(t.reminderAt ? { reminder: true } : {}),
     });
   }
-  // With no usable name patterns the events half has nothing to match on;
-  // events carry no person link of their own yet.
-  if (pats.length === 0) return out.slice(0, max);
+  // An event whose sheet names this person (2026-10-27) is theirs whatever its
+  // title says; with no usable name patterns the title half has nothing to
+  // match on, so only the chosen ones are listed.
   for (const e of events) {
     if (e.date < today) continue;
-    if (!hit(e.title) && !hit(e.location ?? "")) continue;
+    const chosen = !!person.id && e.personId === person.id;
+    if (!chosen && (pats.length === 0 || (!hit(e.title) && !hit(e.location ?? "")))) continue;
     out.push({ id: e.id, kind: "event", title: e.title, sub: e.date });
   }
   return out.slice(0, max);

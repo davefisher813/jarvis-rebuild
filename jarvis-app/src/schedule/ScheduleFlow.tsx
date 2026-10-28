@@ -636,7 +636,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "" } });
+    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", personId: e.personId ?? "" } });
     // UP-PLAT-26 (2026-09-06): Where You Were declared four kinds and only
     // two ever fired (restore/whereYouWere.ts:8-13). This is the third: an
     // event sheet opened is a spot, the same way a note editor opened is one
@@ -665,7 +665,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
       setSelected(occurrence);
       syncView(occurrence);
-      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "" } });
+      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", personId: e.personId ?? "" } });
       onOpenConsumed?.();
     })();
     return () => { on = false; };
@@ -706,7 +706,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
-        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, days: draft.days, interval: draft.interval, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined });
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, days: draft.days, interval: draft.interval, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, personId: draft.personId || undefined });
         if (newEventId && draft.gym) await svc.editGymDoor(newEventId, true);
       });
       if (!created) newEventId = null;
@@ -726,7 +726,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           // one occurrence off a recurring Zoom used to stand it up with no
           // link and no notes, so the call he was about to join lost the way
           // in at the moment he edited it.
-          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined });
+          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, personId: draft.personId || undefined });
           if (splitId && draft.gym) await svc.editGymDoor(splitId, true);
         });
       } else {
@@ -756,6 +756,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           await svc.editTaskIds(id, draft.taskIds ?? []);
           await svc.editGymDoor(id, !!draft.gym);
           await svc.editProject(id, draft.projectId || null);
+          if (draft.personId !== undefined) await svc.editPerson(id, draft.personId || null);
         });
       }
     }
@@ -1835,6 +1836,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           suggestSlot={suggestSlot}
           onSave={onSave}
           projects={sheetProjects(projList, goalList)}
+          people={sheetPeople(people)}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onDuplicate={sheet.mode === "edit" ? () => void duplicateEvent(sheet.id) : undefined}
           onLogDecision={sheet.mode === "edit" && brain ? () => setLogDecision({ id: sheet.id, title: sheet.initial.title }) : undefined}
