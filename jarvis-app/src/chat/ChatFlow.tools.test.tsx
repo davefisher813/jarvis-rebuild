@@ -4,6 +4,7 @@ import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/re
 import "@testing-library/jest-dom";
 import { NotesProvider, useTasks, useChat, useDecisions } from "../data/NotesProvider";
 import ChatFlow from "./ChatFlow";
+import { todayISO } from "../ai/useAIContext";
 import type { AIService, AITurn } from "../ai/AIService";
 import { AIProviderError } from "../ai/providerFailure";
 import { MAX_STEPS } from "./tools/dispatcher";
@@ -465,7 +466,10 @@ describe("the routing", () => {
     await ask("Move the plumber to tomorrow");
     expect(await screen.findByText(/^Moved to tomorrow: Call the plumber/)).toBeInTheDocument();
     expect(ai.completeTurn).not.toHaveBeenCalled();
-    expect((await tasksRef!.task(id))!.due).not.toBe("2026-10-29");
+    // Tomorrow is read off the clock: this once asserted "not 2026-10-29", which is itself tomorrow from the evening of 2026-10-27 (UTC) on, and
+    // failed CI for every branch the moment the date turned.
+    const t = new Date(); t.setDate(t.getDate() + 1);
+    expect((await tasksRef!.task(id))!.due).toBe(todayISO(t));
   });
 
   it("with the tools off, nothing is different: the sentence is a capture, as it always was", async () => {
