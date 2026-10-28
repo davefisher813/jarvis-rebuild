@@ -482,12 +482,15 @@ describe("the routing", () => {
     expect(screen.queryByRole("group", { name: "Proposed Change" })).toBeNull();
   });
 
-  it("with the AI unavailable the sentence is a capture too: there is no model to route it to", async () => {
+  it("with the AI unavailable the sentence is NOT turned into a task: it says so and nothing is saved (J-01)", async () => {
     ai.available = false;
     renderChat("u-w-noai");
     await waitFor(() => expect(tasksRef).not.toBeNull());
+    const before = (await tasksRef!.listTasks()).length;
     await ask(MOVE);
-    await screen.findByText(/^Saved: /);
+    await screen.findByText("I couldn't read that without the AI · Nothing was saved");
+    expect(screen.queryByText(/^Saved: /)).toBeNull();
+    expect((await tasksRef!.listTasks()).length).toBe(before);
     expect(ai.completeTurn).not.toHaveBeenCalled();
   });
 });
