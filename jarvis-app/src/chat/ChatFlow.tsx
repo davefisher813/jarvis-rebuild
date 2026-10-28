@@ -54,6 +54,7 @@ import ChatMessageRow from "./ChatMessageRow";
 import { haptics } from "../shared/haptics";
 import { useDictation, spokenInto } from "../shared/useDictation";
 import { readChatter } from "./chatter";
+import { correctionLead, resolveCorrection, applyCorrection, type Fixed } from "../paste/correction";
 import { applyCapture } from "../ai/capture";
 import { titleCase } from "../paste/deterministic";
 import { madeBy } from "../shared/provenance";
@@ -174,6 +175,8 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // J-01: a line the chat could not read without the AI, handed back unsaved. The two chips are the manual path (the person decides
   // what it is); nothing is filed until one is tapped.
   const [unread, setUnread] = useState<string | null>(null);
+  // The one item the last turn captured, for a correction to edit (paste/correction.ts). Cleared by any other turn, and stale after ten minutes.
+  const lastCapture = useRef<{ entity: Awaited<ReturnType<typeof smartPasteSave>>[number]; at: number } | null>(null);
   const [choice, setChoice] = useState<PendingChoice | null>(null);
   // UP-MIND-04 (2026-09-05): the last question this conversation actually
   // answered, and the records it cited. "And tomorrow?" resolves against
@@ -548,6 +551,31 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       try {
         const history = await reload();
 
+        // A CORRECTION EDITS WHAT WAS JUST CAPTURED (Dave, 2026-10-27: "no, Josh Rudd" was saved as a second task). Read before anything else
+        // can take the line, and never handed to the capture lane: it fixes the item, or says it could not and offers the manual buttons.
+        const prevCapture = lastCapture.current;
+        lastCapture.current = null;
+        const lead = prevCapture && Date.now() - prevCapture.at < 10 * 60_000 ? correctionLead(text) : null;
+        if (prevCapture && lead) {
+          const people = (await peopleSvc.list().catch(() => [])).map((p) => ({ id: p.id, name: p.data.name, ...(p.data.aliases?.length ? { aliases: p.data.aliases } : {}) }));
+          const c = resolveCorrection(lead, people);
+          const got: { fixed: Fixed | null } = { fixed: null };
+          const wrote = await attemptWrite(async () => { got.fixed = await applyCorrection(c, prevCapture.entity, { tasks: tasksSvc, schedule }); });
+          if (!wrote) { lastCapture.current = prevCapture; return; }
+          const f = got.fixed;
+          if (f) {
+            lastCapture.current = { entity: f.entity, at: Date.now() };
+            haptics.confirm();
+            await say("jarvis", f.words, { kind: "action", refs: [{ kind: f.entity.kind, id: f.entity.id, label: f.entity.title }] });
+            showToast({ message: "Fixed", actionLabel: "Undo", onAction: () => void attemptWrite(f.undo) });
+          } else {
+            lastCapture.current = prevCapture;
+            setUnread(text);
+            await say("jarvis", "I couldn't tell what to fix · Nothing was saved", { kind: "records" });
+          }
+          return;
+        }
+
         // UP-MIND-04: "and tomorrow", "move it to Friday", "where is it".
         // Rewritten into a whole sentence BEFORE the command parser and the
         // Q&A shapes see it, so both stay stateless. The user's own words
@@ -760,6 +788,8 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         logAnswered("capture");
         haptics.confirm();
         const first = saved[0]!;
+        // The item a correction in the next turn would edit: one task or event, never a paste of several.
+        lastCapture.current = saved.length === 1 && (first.kind === "task" || first.kind === "event") ? { entity: first, at: Date.now() } : null;
         await say(
           "jarvis",
           saved.length === 1
@@ -1088,9 +1118,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         )}
         {/* 2026-10-24: only after a failure that asking again can fix. An account out of credit or AI turned off shows the cause and
             nothing to tap: a button that cannot work would be the old "Try again" lying in a new place. */}
-        {retryText && !busy && (
+        {(retryText || unread) && !busy && (
           <div className="chip-row chat-refs">
-            <button type="button" className="chip chip-act" onClick={() => void send(retryText)}>Try Again</button>
+            {retryText && <button type="button" className="chip chip-act" onClick={() => void send(retryText)}>Try Again</button>}
             {unread && <button type="button" className="chip" onClick={() => void saveUnread("task")}>Save as Task</button>}
             {unread && <button type="button" className="chip" onClick={() => void saveUnread("note")}>Save as Note</button>}
           </div>
