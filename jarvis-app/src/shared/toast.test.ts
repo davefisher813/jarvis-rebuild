@@ -83,6 +83,78 @@ describe("SHARED-F-09: a plain toast never eats an Undo", () => {
   });
 });
 
+// J-08 (Dave, 2026-10-27): delete a row, delete another, tap Undo: only the SECOND came back, because the second Undo toast replaced the
+// first. Each Undo now restores its own delete; the older one returns when the newer is taken or expires, for the time it has left.
+describe("J-08: sequential Undo toasts keep every Undo", () => {
+  const mk = (name: string) => { const fn = vi.fn(); return { fn, t: { message: `Deleted ${name}`, actionLabel: "Undo", onAction: fn } }; };
+
+  it("taking the second Undo brings the first back, and taking that restores the first delete", () => {
+    const a = mk("A"); const b = mk("B");
+    showToast(a.t);
+    vi.advanceTimersByTime(2000);
+    showToast(b.t);
+    expect(seen.at(-1)).toEqual(b.t);
+    seen.at(-1)!.onAction!(); hideToast(); // the tap, as ToastHost does it
+    expect(b.fn).toHaveBeenCalledTimes(1);
+    expect(a.fn).not.toHaveBeenCalled();
+    expect(seen.at(-1)).toEqual(a.t);
+    seen.at(-1)!.onAction!(); hideToast();
+    expect(a.fn).toHaveBeenCalledTimes(1);
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("the first Undo keeps only what was left of its own window, never a fresh one", () => {
+    const a = mk("A"); const b = mk("B");
+    showToast(a.t);                       // expires at 8000
+    vi.advanceTimersByTime(3000);
+    showToast(b.t);                       // expires at 11000
+    hideToast();                          // B taken at 3000
+    expect(seen.at(-1)).toEqual(a.t);
+    vi.advanceTimersByTime(4999);
+    expect(seen.at(-1)).toEqual(a.t);
+    vi.advanceTimersByTime(1);            // 8000: A's own clock
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("an older Undo whose window has passed is not brought back", () => {
+    const a = mk("A"); const b = mk("B");
+    showToast(a.t);
+    vi.advanceTimersByTime(6000);
+    showToast(b.t);
+    vi.advanceTimersByTime(UNDO_TOAST_MS);   // B runs out at 14000; A ran out at 8000
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("three deletes leave three Undos, newest first", () => {
+    const a = mk("A"); const b = mk("B"); const c = mk("C");
+    showToast(a.t); showToast(b.t); showToast(c.t);
+    const order: string[] = [];
+    for (let i = 0; i < 3; i++) { const t = seen.at(-1)!; order.push(t.message); t.onAction!(); hideToast(); }
+    expect(order).toEqual(["Deleted C", "Deleted B", "Deleted A"]);
+    expect(a.fn).toHaveBeenCalledTimes(1);
+    expect(b.fn).toHaveBeenCalledTimes(1);
+    expect(c.fn).toHaveBeenCalledTimes(1);
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("a plain toast still waits behind the whole chain", () => {
+    const a = mk("A"); const b = mk("B");
+    showToast(a.t); showToast(b.t); showToast(plain);
+    hideToast();
+    expect(seen.at(-1)).toEqual(a.t);
+    hideToast();
+    expect(seen.at(-1)).toEqual(plain);
+  });
+
+  it("leaving the screen drops the set-aside Undos too", () => {
+    const a = mk("A"); const b = mk("B");
+    showToast(a.t); showToast(b.t);
+    vi.advanceTimersByTime(TOAST_NAV_GRACE_MS + 1);
+    dismissForNavigation();
+    expect(seen.at(-1)).toBeNull();
+  });
+});
+
 // A TOAST BELONGS TO THE SCREEN IT WAS RAISED ON (Dave 2026-10-05). "Moved Rent to Tomorrow" rode along into the next tab
 // and sat over a page it had nothing to do with, Undo and all.
 describe("dismissForNavigation: a receipt does not follow you to another screen", () => {
