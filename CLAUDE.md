@@ -101,6 +101,19 @@ ends in the composer. "Move X to today or tomorrow", "complete X" and "delete ta
 receipt and Undo (addendum item 23, the Uncertainty Protocol, built before the tools); the model is reached for the rest. Whether those three
 should also ask first is Dave's call, not made here.
 
+## Speech, chat talk and stacked Undos (Dave's order, 2026-10-27)
+
+- **Speech is recorded, not recognised in the page.** `useDictation` records audio (`src/speech/recorder.ts`) and POSTs it to `/api/ai` with the `x-jarvis-transcribe` header,
+  answered by `api/_transcribe.ts` (a branch of the one AI route: the function budget law allows no new route file). The words land ONCE in an editable draft; voice never
+  saves or sends (Logging Standard rule 10). `TRANSCRIBE_API_KEY` (any OpenAI-compatible provider) must be set in Vercel; unset, the app says "Voice Isn't Set Up Yet" in
+  words. The browser recognizer remains only for a page that cannot record. AI Off turns server voice off; calls count on the hourly AI counter as kind `speech`.
+- **Chat talk is not a capture (J-01).** `chat/chatter.ts` keeps greetings, thanks, acknowledgements, feelings and requests out of the capture lane, and Chat passes
+  `onUnread` to Smart Paste so a line the rules cannot read, with no AI to ask, is handed back unsaved (Try Again, Save as Task, Save as Note) instead of becoming a
+  task. Quick Capture and Smart Paste keep the old read on purpose: their job is to capture and they show what they made.
+- **A new Undo toast never evicts a live one (J-08).** `shared/toast.ts` sets the older Undo aside with its own deadline and brings it back when the newer is taken or
+  expires, for the time it has left. Each Undo still restores its own action (the snapshot rule).
+- **A test must not hard-code a date.** One asserted "not 2026-10-29", which is tomorrow once the UTC date turns, and failed CI on every branch. Read the clock.
+
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
 "I am sick of this shit." A thin grey subtext came back on the live Email card
