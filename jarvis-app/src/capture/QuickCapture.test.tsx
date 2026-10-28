@@ -304,10 +304,11 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     expect(bill.querySelector("b")?.textContent).not.toContain("Bill");
   });
 
-  // §AK (2026-09-26): the word Bill is already the line's one grey run, so a
-  // bill for somebody names them inside that fact ("Bill $50 for Marco")
-  // instead of a second grey fact beside it.
-  it("a bill for a person is one fact, and the person is not a second grey", async () => {
+  // §AK (2026-09-26): the word Bill is already the line's one grey run. A bill
+  // names a person inside that fact ("Bill $50 for Marco") only when the person
+  // was attached; since 2026-10-27 a name in the words attaches nobody, so the
+  // bill is one fact and names no one.
+  it("a bill is one fact, and a name in its words does not put a person on it", async () => {
     let peopleRef: ReturnType<typeof usePeople> | null = null;
     function CapturePeople() { peopleRef = usePeople(); return null; }
     render(
@@ -323,10 +324,10 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     const facts = receiptFacts();
-    expect(facts.map((f) => f.textContent)).toEqual(["Monthly", expect.stringMatching(/^Bill \$50(\.00)? for Marco$/)]);
+    expect(facts.map((f) => f.textContent)).toEqual(["Monthly", expect.stringMatching(/^Bill \$50(\.00)?$/)]);
     expect(facts[1]!.className).toBe("fact");
     expect(facts[1]!.querySelector("b")?.textContent).toMatch(/^\$50/);
-    // The only plain grey fact on the line is the bill; Marco is inside it.
+    // The only plain grey fact on the line is the bill.
     expect(facts.filter((f) => f.className === "fact")).toHaveLength(1);
   });
 
@@ -824,7 +825,8 @@ describe("QuickCapture: the trust checkpoint (trust_v1)", () => {
 });
 
 // Phase 0 D11: a contact's aliases reach the capture behind memory_v1, so
-// "Mom" files onto Linda's card the way "Linda" does.
+// "Mom" OFFERS Linda's card the way her whole name does. Offered, never filed
+// (Dave, 2026-10-27): a tap on her chip attaches her, a second tap removes her.
 let seededPeople: ReturnType<typeof usePeople> | null = null;
 function SeedMom({ children }: { children: React.ReactNode }) {
   const people = usePeople();
@@ -851,23 +853,30 @@ describe("QuickCapture: aliases reach the capture (memory_v1)", () => {
     await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
   }
 
-  it("flag on, Mom is Linda on the receipt", async () => {
+  it("flag on, Mom offers Linda on the receipt, and only a tap files her, and a second tap takes her off", async () => {
     flags.memoryOn = true;
     await captureMom("u-alias-on");
-    expect(screen.getByText("Linda Fisher", { selector: ".fact" })).toBeInTheDocument();
     expect(seededPeople).not.toBeNull();
+    const chip = screen.getByRole("checkbox", { name: "Linda Fisher" });
+    expect(chip).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByText("Linda Fisher", { selector: ".fact" })).toBeNull();
+    fireEvent.click(chip);
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Linda Fisher" })).toHaveAttribute("aria-checked", "true"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Linda Fisher" }));
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Linda Fisher" })).toHaveAttribute("aria-checked", "false"));
   });
 
   it("flag off, the alias is not read and nobody is filed", async () => {
     flags.memoryOn = false;
     await captureMom("u-alias-off");
     expect(screen.queryByText("Linda Fisher", { selector: ".fact" })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Linda Fisher" })).toBeNull();
   });
 });
 
 // Phase 0.5 (PHASE05-DESIGN.md): the package's sentence is a confident task
-// behind memory_v1, so the receipt names Mike at once and no model is asked,
-// even with AI available.
+// behind memory_v1, so no model is asked, even with AI available. Since
+// 2026-10-27 the receipt does not name Mike: a first name files nobody.
 function SeedMike({ children }: { children: React.ReactNode }) {
   const people = usePeople();
   const [ready, setReady] = useState(false);
@@ -878,7 +887,7 @@ function SeedMike({ children }: { children: React.ReactNode }) {
 }
 
 describe("QuickCapture: the first magic loop (memory_v1)", () => {
-  it("the follow up line names Mike on the receipt and never asks the model", async () => {
+  it("the follow up line files nobody on the receipt and never asks the model", async () => {
     flags.memoryOn = true;
     const complete = vi.fn(async () => "{}");
     const ai = { available: true, complete } as unknown as AIService;
@@ -891,7 +900,8 @@ describe("QuickCapture: the first magic loop (memory_v1)", () => {
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
     expect(screen.getByText("Need to Follow Up with Mike About Summer Roster")).toBeInTheDocument();
-    expect(screen.getByText("Mike Rossi", { selector: ".fact" })).toBeInTheDocument();
+    expect(screen.queryByText("Mike Rossi", { selector: ".fact" })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Mike Rossi" })).toBeNull();
     expect(complete).not.toHaveBeenCalled();
     flags.memoryOn = false;
   });

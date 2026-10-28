@@ -79,23 +79,25 @@ export const CAPTURE_GOLD: CaptureGold[] = [
 
 // ---- The deterministic layer (Phase 0.5) ----
 // Scored through classifyLine, never sent to the model, so the live harness's
-// capture score stays comparable run to run. The follow up opener (Phase 0
+// capture score stays comparable run to run. Since 2026-10-27 no rule files a
+// person from the words (Dave: Text Josh Rudd went to Josh (Bucknell)), so
+// neither case carries a personId. The follow up opener (Phase 0
 // D11) is what makes the first case confident; the last guards against the
 // opener reading a plain sentence as a to-do.
 export const RULE_GOLD: CaptureGold[] = [
   {
-    name: "follow up with a contact is a task about them",
+    name: "follow up with a contact is a task, and a first name files nobody",
     input: "Need to follow up with Mike about summer roster",
     today: "2026-10-11",
     people: [{ id: "mike", name: "Mike Rossi" }],
-    expect: { kind: "task", title: "Need to Follow Up with Mike About Summer Roster", personId: "mike" },
+    expect: { kind: "task", title: "Need to Follow Up with Mike About Summer Roster" },
   },
   {
-    name: "check in with a contact by alias",
+    name: "check in with a contact by alias is a task, and files nobody",
     input: "should check in with Mom about thanksgiving",
     today: "2026-10-11",
     people: [{ id: "linda", name: "Linda Fisher", aliases: ["Mom"] }],
-    expect: { kind: "task", title: "Should Check in with Mom About Thanksgiving", personId: "linda" },
+    expect: { kind: "task", title: "Should Check in with Mom About Thanksgiving" },
   },
 ];
 
