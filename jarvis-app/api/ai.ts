@@ -32,6 +32,8 @@ import {
   PRICE_VERSION, actualCostMicrousd, budgetMessage, maxCostMicrousd, multiplierPermille,
   type BudgetErrorCode,
 } from "../src/ai/aiBudget";
+import { TRANSCRIBE_HEADER } from "../src/speech/wire";
+import { transcribeRequest } from "./_transcribe";
 import { capEnforced, markDispatched, releaseBudget, requestHash, reserveBudget, settleBudget } from "./_aiBudget";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -47,7 +49,10 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: "Method not allowed" }, 405);
   }
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return json({ error: "AI not configured on the server" }, 500);
+  // THE SPEECH BOX (2026-10-27): a recording is the same door with one header, answered by api/_transcribe.ts. It needs no Anthropic
+  // key (its own provider key is checked there), so the check below is for every other call.
+  const speech = req.headers.get(TRANSCRIBE_HEADER) === "1";
+  if (!key && !speech) return json({ error: "AI not configured on the server" }, 500);
 
   // Require a Supabase session token, and verify it against Supabase.
   const auth = req.headers.get("authorization") || "";
@@ -70,6 +75,8 @@ export default async function handler(req: Request): Promise<Response> {
   // writable only with the service key, so the account's own user (or a
   // hostile client) cannot clear it, unlike everything in the profile below.
   if (!adminAiAllowed(me.app_metadata)) return json({ error: ADMIN_AI_MESSAGE, code: ADMIN_AI_CODE }, 403);
+  if (speech) return transcribeRequest(req, { supaUrl, supaAnon, token, userId: me.id });
+  if (!key) return json({ error: "AI not configured on the server" }, 500); // narrows the type; the speech branch has already returned
 
   // Parse and size-check the input BEFORE any counting or upstream work.
   // Two size regimes: plain text requests keep the tight cap; a request

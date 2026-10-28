@@ -55,6 +55,7 @@ export default function Dictate({
   const d = useDictation({ onText: (t, f) => sink.current?.(t, f) });
   const live = d.supported && !!onText;
   const listening = d.status === "listening";
+  const writing = d.status === "transcribing";
   return (
     <>
       <button
@@ -65,9 +66,10 @@ export default function Dictate({
           haptics.selection();
           target.current?.focus();
           if (!live) { markHintSeen(); showToast({ message: DICTATION_HINT }); return; }
+          if (writing) return; // the recording is being turned into words: a tap now would start another
           if (listening) d.stop(); else d.start();
         }}
-      >{listening ? "Listening" : label}</button>
+      >{writing ? "Writing It Down" : listening ? "Listening" : label}</button>
       {live && d.status === "error" && d.error && <span className="input-error" role="alert">{d.error}</span>}
     </>
   );

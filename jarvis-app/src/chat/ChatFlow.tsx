@@ -52,6 +52,7 @@ import MessageDraftSheet from "../people/MessageDraftSheet";
 import type { Person } from "../people/types";
 import ChatMessageRow from "./ChatMessageRow";
 import { haptics } from "../shared/haptics";
+import { useDictation, spokenInto } from "../shared/useDictation";
 import FilingSheet from "../ai/FilingSheet";
 import { chatFilingText } from "./filingText";
 import { flagOn } from "../substrate/flags";
@@ -76,6 +77,10 @@ import { capturePeople } from "../paste/captureContext";
 // The paperclip. Same 24px stroke grammar as SEND below it.
 const CLIP = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+);
+
+const MIC = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
 );
 
 const SEND = (
@@ -154,6 +159,10 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
 
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  // THE SPEECH BOX (2026-10-27): Speak records, the server writes the words down, and they land in THIS box as a draft. Nothing is sent
+  // by speaking; Send is the person's own tap (Logging Standard rule 10).
+  const spokenBase = useRef<string | null>(null);
+  const dictation = useDictation({ onText: (words, final) => setDraft((cur) => spokenInto(spokenBase, cur, words, final)) });
   const [busy, setBusy] = useState(false);
   // 2026-10-24: the words of a turn that failed in a way asking again can fix (the provider was busy, the connection dropped). Set only
   // then: a failure that retrying cannot fix (out of credit, AI turned off) leaves nothing to tap, because there is nothing to retry.
@@ -1061,6 +1070,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           onClose={() => setTextTo(null)}
         />
       )}
+      {dictation.status === "error" && dictation.error && <div className="input-error chat-voice-why" role="alert">{dictation.error}</div>}
       <div className="chat-inputbar">
         {/* UP-PLAT-08 (2026-09-06): the attach button. One picker, the
             phone's own sheet (camera, library, Files), same seam Money and
@@ -1072,11 +1082,20 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           onClick={() => picker.open(PICK_ANY)}
           disabled={attaching || busy}
         >{CLIP}</button>
+        {dictation.supported && (
+          <button
+            className="convo-send chat-attach chat-mic"
+            aria-label={dictation.status === "listening" ? "Stop Listening" : dictation.status === "transcribing" ? "Writing It Down" : "Speak"}
+            aria-pressed={dictation.status === "listening"}
+            disabled={busy || dictation.status === "transcribing"}
+            onClick={() => { haptics.selection(); if (dictation.status === "listening") dictation.stop(); else dictation.start(); }}
+          >{MIC}</button>
+        )}
         <input
           className="input"
-          placeholder="Ask, Tell or Paste"
+          placeholder={dictation.status === "listening" ? "Listening" : dictation.status === "transcribing" ? "Writing It Down" : "Ask, Tell or Paste"}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => { spokenBase.current = null; setDraft(e.target.value); }}
           onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
         />
         {/* BROWSER-F-12 (2026-09-05): disabled on an empty box, not just
