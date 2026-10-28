@@ -114,6 +114,19 @@ should also ask first is Dave's call, not made here.
   expires, for the time it has left. Each Undo still restores its own action (the snapshot rule).
 - **A test must not hard-code a date.** One asserted "not 2026-10-29", which is tomorrow once the UTC date turns, and failed CI on every branch. Read the clock.
 
+## A name in the words never picks a person (Dave, 2026-10-27, "Text Josh Rudd")
+
+It was filed under the contact "Josh (Bucknell)": the matcher counted a contact's first word. Now: **capture attaches nobody from title text**
+(`paste/deterministic.ts`, nothing is stamped `inferred: personId`). A contact whose WHOLE name or alias is in the line is only OFFERED, as a chip on
+the Quick Capture receipt (`people/mentions.ts` `exactMentions`); a tap attaches, a tap on the lit chip takes it off. Chat capture attaches nobody.
+Looking someone up (a question, meeting prep, the card's Still Open) still reads names with the older `namePatterns`; that is reading, not filing.
+- **Events carry a person** (`EventData.personId`, `ScheduleService.editPerson`, the event sheet's Person row, None removes). It is NOT in the
+  item_link registry: that is SQL (`jarvis_link_paths()` in 0060), so a DB projection needs a migration and the linkLaw change with it.
+- **A correction edits, it never creates** (`paste/correction.ts`). Right after a capture, "no, Josh Rudd" / "I meant ..." / "change it to ..." is read
+  before the capture lane in Chat and Quick Capture. An exact contact name files that person on the same item, "nobody" takes the person off, an
+  explicit lead-in retitles a task. Anything unreadable changes nothing, saves nothing, and offers Save as Task / Note. "No" needs its punctuation:
+  "No meeting Friday" is still a capture.
+
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
 "I am sick of this shit." A thin grey subtext came back on the live Email card
