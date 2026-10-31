@@ -863,7 +863,11 @@ const AUDIT = () => {
   // hairlines between rows... like every other grouped list in the app").
   // Two of its own rows sharing that ancestor are not the bug this check
   // exists to catch; only cards OUTSIDE a shared group are.
-  const groupOf = (e) => e.closest(".stream-grouped");
+  // A RULED LIST CARD IS A GROUP TOO (2026-10-30). Brain's sections and the
+  // monthly recap draw their rows as .notice-swipe inside one
+  // .card.list-card-ruled, flush with a hairline between, exactly like
+  // .stream-grouped; they were reported as stacked cards.
+  const groupOf = (e) => e.closest(".stream-grouped, .list-card-ruled");
   for (let i = 1; i < cards.length; i++) {
     const a = cards[i-1].getBoundingClientRect(), c = cards[i].getBoundingClientRect();
     if (cards[i-1].contains(cards[i]) || cards[i].contains(cards[i-1])) continue;
