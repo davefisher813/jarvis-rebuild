@@ -1455,6 +1455,12 @@ const layerOf = (page) => page.evaluate((sel) => {
     if (r.width * r.height < area * 0.33) continue;
     if (r.top > window.innerHeight * 0.8) continue;        // a docked bar, not a layer
     if (e.closest(".tab-bar, .voice-dock")) continue;      // permanent chrome
+    // THE SHELL IS NOT A LAYER (2026-10-30). .app-shell is fixed to the
+    // viewport once past onboarding, so it covered the whole screen and was
+    // reported as an open layer before every tab ("a layer would not close"),
+    // and every close attempt spent its full run of doors on it. A layer is
+    // laid OVER the app; anything holding the tab bar is the app itself.
+    if (e.querySelector(".tab-bar")) continue;
     const h = e.querySelector("h1, h2, .sheet-title, .nav-title, .pagehead-title, input[placeholder]");
     const t = (h?.getAttribute?.("placeholder") || h?.textContent || e.textContent || "").trim();
     return (t || "overlay").slice(0, 34);
