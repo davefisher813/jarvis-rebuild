@@ -112,6 +112,29 @@ ends in the composer. "Move X to today or tomorrow", "complete X" and "delete ta
 receipt and Undo (addendum item 23, the Uncertainty Protocol, built before the tools); the model is reached for the rest. Whether those three
 should also ask first is Dave's call, not made here.
 
+## The speech box (Alfred's order on Dave's game plan, 2026-10-31; spec: JARVIS-The-Record, Oct 28, in Dave's Drive)
+
+The Oct 28 live test filed both workout sets and both questions as Notes, a reminder on the wrong day repeating daily, and Dave's
+spoken "Dinner with Marco Thursday 7 p.m." as a Note. Each is pinned by its words in `capture/speechBox.test.ts`. Built on #186 to #190:
+- **What a line is FOR comes before filing** (`capture/intent.ts`): a question goes to Chat (`QuickCapture onAsk`, `ChatFlow askText`)
+  and is never saved; a workout set (`capture/spokenSet.ts`, matched against his library and the starters, never invented) goes to the
+  live session's lift or to today's Quick Log workout (`capture/logSpokenSet.ts`, dayId `quick-log`), with Undo.
+- **Speech is read as written** (`paste/spoken.ts`, run by `classifyLine`): "7 p.m.", "seven thirty pm", "42 dollars". `raw` and a
+  note's body keep the original words. "Remind me" on a day is a one-time reminder (`repeat: once`, `startDate`); "tomorrow morning"
+  uses his morning setting. "Note to self ..." is a Note.
+- **Ask, don't guess:** the capture model returns `confidence` and `alternative`; a close call is put to him as two big buttons
+  (`PasteDeps.askKind`) and nothing saves until one is tapped. An event is never offered without a day and a time.
+- **The bar** (`shell/VoiceBar.tsx`): the pill's words open typing, its red mic opens recording. The words rotate through examples for
+  the screen (`capture/examples.ts`) for the first 20 captures, then stand still. Every example in What Can I Say? must file as its
+  group says (`capture/examples.test.ts`).
+- **Recording** (`capture/RecordingCard.tsx`): the level from the same stream, the time, Done Talking (the sheet's one red while it
+  records), Writing It Down. A failed clip is kept for Try Again when the error is retryable. The browser's own recognizer is never
+  used on an iPhone or in the installed app (`recognizerBarred`, Alfred's order).
+- **One step from anywhere:** `/capture?mode=voice` (and `/?capture=voice`) opens the box recording; the words are taken out of the
+  address after. Also in the manifest's shortcuts. Dave ties it to a Siri phrase or Back Tap.
+- **Blocker, Dave's at a computer:** `TRANSCRIBE_API_KEY` is not set in Vercel (checked 2026-10-31). Until it is, the box records and
+  then says "Voice Isn't Set Up Yet". Never fake a transcript.
+
 ## Speech, chat talk and stacked Undos (Dave's order, 2026-10-27)
 
 - **Speech is recorded, not recognised in the page.** `useDictation` records audio (`src/speech/recorder.ts`) and POSTs it to `/api/ai` with the `x-jarvis-transcribe` header,
@@ -137,6 +160,12 @@ Looking someone up (a question, meeting prep, the card's Still Open) still reads
   before the capture lane in Chat and Quick Capture. An exact contact name files that person on the same item, "nobody" takes the person off, an
   explicit lead-in retitles a task. Anything unreadable changes nothing, saves nothing, and offers Save as Task / Note. "No" needs its punctuation:
   "No meeting Friday" is still a capture.
+
+## Money Tracker categories are Quiet Rows (Punch 11, Dave 2026-10-31, Option A)
+
+"It looks terrible." The budget's categories are flat rows in one card: the dot, the name, the amount ("$60.00 of $100.00" with a
+limit), the house hairline. Over its limit the amount is the key's red. The Limit field and Remove live on the category's own sheet,
+opened by tapping the row (`CategorySheet` in `TrackerScreen.tsx`); Done updates the month's form and Save This Month still writes it.
 
 ## The visual catalog is a hard gate (Dave, 2026-10-05)
 
