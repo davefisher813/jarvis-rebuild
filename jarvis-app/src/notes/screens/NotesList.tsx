@@ -6,12 +6,12 @@ import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
 import { deleteAskTitle } from "../deleteAsk";
 import { useRowMenu } from "../../shared/useRowMenu";
-import { Archive, Check, FileText, RotateCcw, Trash2, PenLine, Table, ListOrdered } from "../../shared/icons";
+import { Archive, Check, RotateCcw, Trash2, PenLine, Table, ListOrdered } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
-import { catColor, catName } from "../../shared/categories";
-import { CatChip } from "../../shared/CatChipLine";
+import { catColor, catIds, catName } from "../../shared/categories";
+import { CatChip, chipArea } from "../../shared/CatChipLine";
 import WordFit from "../../shared/WordFit";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
@@ -22,15 +22,20 @@ import LoadFailed from "../../shared/LoadFailed";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
 // locked frame #46 (2026-08-18) are gone from this page; the note is a row
-// in the same card every task list wears, its second line the one every
-// task row already uses. The real iOS chrome (status bar, home indicator)
-// is drawn by the device; this uses the canonical .screen container.
+// in the same card every task list wears. The real iOS chrome (status bar,
+// home indicator) is drawn by the device; this uses the canonical .screen
+// container.
+//
+// THE AREA LIBRARY (Punch 12, Dave 2026-10-31: Direction B with the Capsule mark). The page is one section per area, the
+// area's mark drawn ONCE, as the app's unified chip (shared/CatChipLine CatChip) on the section's head beside its count;
+// notes with no area close the page under a muted "No Area" chip. A note row carries no mark at all: its title, one
+// preview line, and its date, indented so its words start where the area's name starts inside the head's chip.
 
 export interface NoteListItem {
   id: string;
   title: string;
   edited: number; // epoch ms of the last write; 0 when the store cannot say
-  category: string; // drives the area dot's colour
+  category: string; // which area section the note sits in
   first: string; // the body's first line, as words; "" for a title-only note
   // S6-Q37 (2026-09-04): "in-page search ignores note bodies." Built via
   // search.ts's noteBlockText (the same haystack global search matches
@@ -133,16 +138,6 @@ function NoteSwipeRow({ enabled, label, verb, onDelete, forever = false, holdAct
     </div>
   );
 }
-
-// THE ROW AND THE GROUPING are the catalog's first two picks; the constants
-// are the switches. Row: "line" is the area dot and name with the edit date
-// on the kicker line (recommended); "glyph" is one line with the page glyph
-// in the area's colour; "first" is that glyph and the note's own first line
-// in grey. Grouping: "when" is Today / Yesterday / Earlier (recommended);
-// "area" is Tasks' Group by, one card per area; "flat" is one card, newest
-// first.
-const NOTES_ROW = "line" as "line" | "glyph" | "first";
-const NOTES_GROUP = "when" as "when" | "area" | "flat";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -341,58 +336,34 @@ export default function NotesList({
   // hidden behind a query would be the worst possible version of this.
   const sel = useSelection(shown.map((n) => n.id));
 
-  // The groups. Under "when" the heads are the day the note was touched;
-  // notes the store cannot date fall into Earlier. Under "area" every note
-  // sits under its area, unfiled ones last under their own yellow head.
-  type Group = { key: string; head: string; color: string | null; items: NoteListItem[] };
-  const groups: Group[] = [];
-  const put = (key: string, head: string, color: string | null, n: NoteListItem) => {
-    let g = groups.find((x) => x.key === key);
-    if (!g) { g = { key, head, color, items: [] }; groups.push(g); }
-    g.items.push(n);
-  };
-  if (NOTES_GROUP === "when") {
-    for (const n of shown) {
-      // C-18: pinned notes lead, under their own head.
-      if (n.pinned && !n.archived && filter.kind !== "archived") { put("pinned", "Pinned", null, n); continue; }
-      const d = n.edited ? dayDiff(n.edited, now) : 99;
-      if (d <= 0) put("today", "Today", null, n);
-      else if (d === 1) put("yesterday", "Yesterday", null, n);
-      else put("earlier", "Earlier", null, n);
-    }
-    // Pinned leads the page whatever its notes' dates (issue #115: Search, Pinned, Recent). Groups are made in the
-    // order their first note appears, newest first, so an old pinned note used to put its head under Today's.
-    const pin = groups.findIndex((g) => g.key === "pinned");
-    if (pin > 0) groups.unshift(groups.splice(pin, 1)[0]!);
-  } else if (NOTES_GROUP === "area") {
-    for (const n of shown) {
-      const name = n.category ? catName(n.category) : "";
-      if (name) put(n.category, name, catColor(n.category), n);
-      else put("", "Not Filed", "yellow", n);
-    }
-    const idx = groups.findIndex((g) => g.key === "");
-    if (idx >= 0) groups.push(groups.splice(idx, 1)[0]!);
-  } else {
-    for (const n of shown) put("all", "All Notes", null, n);
+  // THE AREA SECTIONS (Punch 12, Dave 2026-10-31). One section per area, in the order his areas are kept (Settings),
+  // any other named area after them by name, and the notes with no area (or an area with no live name) last, under No
+  // Area. Inside a section a pinned note leads, then newest first, as the page has always read. The day heads (Pinned,
+  // Today, Yesterday, Earlier) went with the grouping they belonged to; Pinned is still a view in the header's menu.
+  type Group = { key: string; area: string | null; items: NoteListItem[] };
+  const byArea = new Map<string, NoteListItem[]>();
+  for (const n of shown) {
+    const key = chipArea(n.category) ? n.category : "";
+    const list = byArea.get(key) ?? [];
+    list.push(n);
+    byArea.set(key, list);
   }
+  const settingsOrder = catIds();
+  const areaOrder = [...byArea.keys()].filter((k) => k).sort((a, b) => {
+    const ia = settingsOrder.indexOf(a), ib = settingsOrder.indexOf(b);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
+    return catName(a).localeCompare(catName(b));
+  });
+  const leadsPinned = (n: NoteListItem) => !!n.pinned && !n.archived && !n.deleted;
+  const pinFirst = (items: NoteListItem[]) => [...items.filter(leadsPinned), ...items.filter((n) => !leadsPinned(n))];
+  const groups: Group[] = [
+    ...areaOrder.map((k) => ({ key: k, area: k as string | null, items: pinFirst(byArea.get(k)!) })),
+    ...(byArea.has("") ? [{ key: "", area: null, items: pinFirst(byArea.get("")!) }] : []),
+  ];
 
-  // `group` is the head the row sits under, so the row can tell when the
-  // head already said its day.
-  const row = (n: NoteListItem, group: string, remember: ReturnType<typeof useRemember>) => {
+  const row = (n: NoteListItem, remember: ReturnType<typeof useRemember>) => {
     const picked = sel.isSelected(n.id);
-    // An unfiled note wears yellow (Dave 2026-08-29: "default should be
-    // yellow"), a legal-pad colour that says "a note", deliberately not any
-    // category's claim. A filed note keeps its category's own colour, which
-    // is what makes the yellow readable as "not filed yet".
-    const tone = "cat-fg-" + (n.category ? catColor(n.category) : "yellow");
-    const area = n.category ? catName(n.category) : "";
-    // THE DAY IS SAID ONCE, ABOVE THE GROUP (catalog §B: "the day said once
-    // above a group, never repeated per row"; the pass-off, 2026-09-26).
-    // Under the Today and Yesterday heads every row used to repeat the head
-    // as EDITED TODAY / YESTERDAY. Under those two heads the row says no
-    // date; under Earlier, Pinned, Archived and Recently Deleted the head
-    // is not a day, so the date stays.
-    const dayHead = NOTES_GROUP === "when" && (group === "today" || group === "yesterday");
     // ONE DATE PER ROW (Dave 2026-10-11: "Aug 24 · Attendees OCT 1" was two
     // dates). A meeting note's body opens with the meeting's own date; that is
     // the date that means something, so it moves out of the preview into the
@@ -402,8 +373,8 @@ export default function NotesList({
     const second = said.with.length ? "With: " + said.with.join(", ") : said.preview;
     // ONE DATE, ON THE TITLE LINE (the approved mock, 2026-10-09 .note-date): when it was last touched, at the right of
     // the title. A meeting note's own opening date ("Aug 24 · Attendees") is taken off its preview, so the row never
-    // says two dates.
-    const when = dayHead ? "" : editedLabel(n.edited, now);
+    // says two dates. The heads are areas now (Punch 12), never a day, so every dated row says its own date.
+    const when = editedLabel(n.edited, now);
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
@@ -434,8 +405,6 @@ export default function NotesList({
               onClick={(e) => { e.stopPropagation(); sel.toggle(n.id); }}
             >{picked && <Check className="ic" />}</button>
           </div>
-        ) : NOTES_ROW !== "line" ? (
-          <div className="task-check-tap"><span className={"gm-slot " + tone}><FileText className="ic" /></span></div>
         ) : null}
         <div className="task-title">
           {/* HIS TITLE, SHOWN IN TITLE CASE (Dave 2026-09-26, the pass-off:
@@ -443,27 +412,23 @@ export default function NotesList({
               unchanged). Only the drawn text is cased: n.title stays raw for
               search, selection and the aria labels. */}
           {/* THE APPROVED ROW (Dave 2026-10-11, "match the mock exactly": unified-chip-system-mockup-2026-10-09). Line
-              one is the title, and the date small and letter-spaced at its right. Line two is the area chip and the
-              note's preview beside it; an unfiled note has no chip and its preview stands alone, and a note with
-              neither has no second line. */}
+              one is the title, and the date small and letter-spaced at its right. Line two is the note's preview (the
+              area chip that sat beside it moved to the section head, Punch 12). */}
           <div className="note-line1">
             <span className="task-name">{titleCase(n.title)}</span>
             {when && <span className="note-date">{when}</span>}
           </div>
           {/* The preview is one thing (rowLine): who the meeting was with, or the note's own words; never a label with
               nothing after it. It gives up whole words to fit (WordFit). Tags and what JARVIS found are not on the row. */}
-          {/* ONE ROW GRAMMAR ON EVERY ROW (Dave 2026-10-18, Notes screen order item 5): title, then the chip and the preview. A note
-              with no area wears a muted "No Area" chip, and one with nothing written says so in the preview's slot, so the rhythm
-              never breaks. */}
-          {NOTES_ROW === "line" && (
-            <div className="r-k note-sub">
-              <CatChip category={n.category} empty="No Area" />
-              {second
-                ? <WordFit text={second} className="r-goal note-preview" data-sentence="" />
-                : <span className="r-goal note-preview note-preview-none">Empty Note</span>}
-            </div>
-          )}
-          {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}
+          {/* ONE ROW GRAMMAR ON EVERY ROW (Dave 2026-10-18, Notes screen order item 5): a note with nothing written says so in
+              the preview's slot, so the rhythm never breaks. */}
+          {/* NO MARK ON THE ROW (Punch 12, Dave 2026-10-31: the capsule once per area, on the head, "is the whole point").
+              The chip that led this line is gone; the section's head names the area once. Line two is the preview alone. */}
+          <div className="r-k note-sub">
+            {second
+              ? <WordFit text={second} className="r-goal note-preview" data-sentence="" />
+              : <span className="r-goal note-preview note-preview-none">Empty Note</span>}
+          </div>
         </div>
         {!sel.active && !n.deleted && <div className="chev"></div>}
       </div>
@@ -592,17 +557,17 @@ export default function NotesList({
       {/* RED IS A VERB (Dave 2026-08-30, chapter three, history on LAW 11):
           this head spent one deploy in accent as "Notes' one red head"; his
           phone verdict made Today the reference, and Today's heads are quiet.
-          A library index is information, not a verb. Under "area" the head
-          is Tasks' own group head, the dot in the area's colour. */}
+          A library index is information, not a verb. */}
       {failedEmpty && <LoadFailed what="Your Notes" onRetry={() => onRetryLoad?.()} />}
+      {/* THE AREA'S HEAD (Punch 12): the section head every page wears (.sh2, its dotted leader and its count), with the
+          area's unified chip where the head's words go. That chip is the area's ONE mark on the page. */}
       {groups.map((g) => (
         <Fragment key={g.key}>
-          {g.color ? (
-            <div className="grp-head"><span className={"cat-dot cat-bg-" + g.color} />{g.head}<span className="n">{g.items.length}</span></div>
-          ) : (
-            <div className="sh2 sh2-quiet"><span className="t">{g.head}</span><span className="n">{g.items.length}</span></div>
-          )}
-          <div className="pad-x"><div className="card list-card-ruled note-card">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, g.key, remember)}</RememberGate>)}</div></div>
+          <div className="sh2 sh2-quiet note-area-head" role="heading" aria-level={2}>
+            <CatChip category={g.area} empty="No Area" />
+            <span className="n">{g.items.length}</span>
+          </div>
+          <div className="pad-x"><div className="card list-card-ruled note-card">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, remember)}</RememberGate>)}</div></div>
         </Fragment>
       ))}
       {query && shown.length === 0 && !failedEmpty && (

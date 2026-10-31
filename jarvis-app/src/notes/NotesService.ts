@@ -68,6 +68,17 @@ export class NotesService {
     return this.getNote(id);
   }
 
+  /** When a note was made and last written, epoch ms, for the note's details footer (Punch 12). A read only. A value
+   *  that does not read as a real date (the in-memory store's counter, a double with no created stamp) is left out, so
+   *  the footer says nothing rather than something wrong. */
+  async noteTimes(id: string): Promise<{ created?: number; edited?: number }> {
+    const item = await this.store.read(this.ownerId, id);
+    if (!item || item.entityType !== ENTITY_NOTE) return {};
+    const real = (t: unknown) => (typeof t === "number" && t > 1e12 ? t : undefined);
+    const created = real(item.createdAt), edited = real(item.serverTime);
+    return { ...(created ? { created } : {}), ...(edited ? { edited } : {}) };
+  }
+
   // PICK 27 (2026-08-24): a note may be BORN linked. A note written while
   // inside a project belongs to that project, and asking the user to go find
   // the link picker afterwards is how the link never gets made. The reverse

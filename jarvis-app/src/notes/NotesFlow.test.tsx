@@ -432,11 +432,13 @@ describe("NotesFlow: delete asks first", () => {
     resetToasts();
   });
 
-  it("the editor's More menu Delete Note leaves the store untouched until the sheet is confirmed", async () => {
+  // AMENDED 2026-10-31 (Punch 12, Dave: "plain full-width buttons: Convert to Task / Convert to Event / Delete" at the
+  // note's foot). Delete moved out of the More menu to the foot; the ask and the delete behind it are unchanged.
+  it("the editor's foot Delete leaves the store untouched until the sheet is confirmed", async () => {
     resetToasts();
     const { svc, id } = await openNoteWith([{ type: "text", text: "keep me" }]);
-    fireEvent.click(screen.getByLabelText("Note options"));
-    fireEvent.click(screen.getByText("Delete Note"));
+    const footDelete = () => within(document.querySelector(".note-foot-acts") as HTMLElement).getByText("Delete");
+    fireEvent.click(footDelete());
     expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Delete \u201cRace\u201d, Restore It Within 30 Days");
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
     expect((await svc.note(id))!.deletedAt).toBeFalsy();
@@ -444,8 +446,7 @@ describe("NotesFlow: delete asks first", () => {
     fireEvent.click(screen.getByText("Cancel"));
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
     expect((await svc.note(id))!.deletedAt).toBeFalsy();
-    fireEvent.click(screen.getByLabelText("Note options"));
-    fireEvent.click(screen.getByText("Delete Note"));
+    fireEvent.click(footDelete());
     fireEvent.click(within(document.querySelector(".sheet-scrim .action-sheet") as HTMLElement).getByText("Delete Note"));
     await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeTruthy(), { timeout: 4000 });
     resetToasts();
@@ -699,5 +700,82 @@ describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-
       const titles = (await svcRef!.list()).map((n) => (n as { title: string }).title);
       expect(titles).toContain("Menu");
     }, { timeout: 4000 });
+  });
+});
+
+// PUNCH 12 (Dave 2026-10-31): the note's foot offers Convert to Task and Convert to Event. Neither existed, so both are
+// built on the services' own creates: the record takes the note's title and words, the note stays where it is (with the
+// connection back), and the toast's Undo takes the record and the link away again.
+describe("NotesFlow: Convert to Task and Convert to Event (Punch 12)", () => {
+  async function openForConvert() {
+    svcRef = null; tasksRef = null; schedRef = null;
+    const user = "u-convert-" + Math.random().toString(36).slice(2);
+    const view = render(<NotesProvider userId={user}><GrabAll /></NotesProvider>);
+    await waitFor(() => expect(svcRef && tasksRef && schedRef).toBeTruthy());
+    let id = "";
+    await act(async () => {
+      id = (await svcRef!.createNote("Race Day", ""))!;
+      await svcRef!.addBlock(id, { type: "text", text: "Bring the bib" });
+    });
+    view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
+    return id;
+  }
+  const foot = (label: string) => within(document.querySelector(".note-foot-acts") as HTMLElement).getByText(label);
+  type Seen = { message: string; onAction?: () => void };
+
+  it("Convert to Task makes a task from the note, leaves the note, and Undo takes the task back", async () => {
+    resetToasts();
+    const toasts: Seen[] = [];
+    const stop = subscribeToast((t) => { if (t) toasts.push(t as Seen); });
+    try {
+      const id = await openForConvert();
+      fireEvent.click(foot("Convert to Task"));
+      await waitFor(async () => {
+        const made = (await tasksRef!.listTasks()).filter((t) => t.data.text === "Race Day");
+        expect(made).toHaveLength(1);
+        expect(made[0]!.data.fromNote).toBe(id);
+        expect(made[0]!.data.notes).toBe("Bring the bib");
+      }, { timeout: 4000 });
+      // The link back is written right after the task, over the same slow store.
+      await waitFor(async () => expect((await svcRef!.note(id))!.connections.some((c) => c.kind === "task")).toBe(true), { timeout: 4000 });
+      expect((await svcRef!.note(id))!.deletedAt, "the note stays").toBeFalsy();
+      expect(screen.getByLabelText("Note")).toBeInTheDocument();
+      await waitFor(() => expect(toasts.some((x) => x.message === "Task Made from the Note")).toBe(true));
+      const t = toasts.find((x) => x.message === "Task Made from the Note")!;
+      await act(async () => { t.onAction!(); });
+      await waitFor(async () => {
+        expect((await tasksRef!.listTasks()).filter((x) => x.data.text === "Race Day")).toHaveLength(0);
+        expect((await svcRef!.note(id))!.connections.some((c) => c.kind === "task")).toBe(false);
+      }, { timeout: 4000 });
+    } finally {
+      stop();
+      resetToasts();
+    }
+  });
+
+  it("Convert to Event makes today's event from the note, leaves the note, and Undo takes the event back", async () => {
+    resetToasts();
+    const toasts: Seen[] = [];
+    const stop = subscribeToast((t) => { if (t) toasts.push(t as Seen); });
+    try {
+      const id = await openForConvert();
+      fireEvent.click(foot("Convert to Event"));
+      await waitFor(async () => {
+        const made = (await schedRef!.listEvents()).filter((e) => e.data.title === "Race Day");
+        expect(made).toHaveLength(1);
+        expect(made[0]!.data.date).toBe(todayISO());
+      }, { timeout: 4000 });
+      expect((await svcRef!.note(id))!.deletedAt).toBeFalsy();
+      await waitFor(() => expect(toasts.some((x) => x.message === "Event Made from the Note")).toBe(true));
+      const t = toasts.find((x) => x.message === "Event Made from the Note")!;
+      await act(async () => { t.onAction!(); });
+      await waitFor(async () => {
+        expect((await schedRef!.listEvents()).filter((e) => e.data.title === "Race Day")).toHaveLength(0);
+      }, { timeout: 4000 });
+    } finally {
+      stop();
+      resetToasts();
+    }
   });
 });

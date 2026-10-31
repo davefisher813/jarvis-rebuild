@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock, Brain, CalendarDays } from "../../shared/icons";
 import type { FoundCandidate, NoteVersion } from "../types";
-import { catColor } from "../../shared/categories";
+import { catName } from "../../shared/categories";
+import { WholeDayChip } from "../../schedule/screens/rowChip";
+import { chipArea } from "../../shared/CatChipLine";
+import { monthDay } from "../../money/bills";
+import { todayISO } from "../../tasks/grouping";
 import InlineEdit from "../../shared/InlineEdit";
 import { titleCase } from "../../shared/casing";
 import DocEditor, { type DocEditorHandle } from "../../shared/DocEditor";
@@ -128,6 +132,20 @@ function CopyFallback({ text, onClose }: { text: string; onClose: () => void }) 
 }
 
 type CopyKind = "full" | "body" | "plain" | "markdown";
+
+/** A day as the details footer says it: "Today", "Yesterday", "Oct 3", or "Oct 3, 2025" for another year. Against the
+ *  calendar, not the clock. Empty for a time the store could not give. */
+export function footDay(at: number | undefined, now: Date = new Date()): string {
+  if (!at) return "";
+  const then = new Date(at);
+  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const b = new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime();
+  const d = Math.round((a - b) / 86400000);
+  if (d <= 0) return "Today";
+  if (d === 1) return "Yesterday";
+  const md = monthDay(todayISO(then));
+  return then.getFullYear() === now.getFullYear() ? md : `${md}, ${then.getFullYear()}`;
+}
 
 // When a version was kept, as words a person reads: the time on its day.
 function versionWhen(at: number, now = Date.now()): string {
@@ -283,8 +301,21 @@ export default function NoteEditor({
   ai,
   onCreateLinkedTask,
   fresh = false,
+  projectName,
+  created,
+  edited,
+  onConvertToTask,
+  onConvertToEvent,
 }: {
   note: EditorNote;
+  /** The project the note is linked to, said after the area's chip on the Whole Day line under the title. */
+  projectName?: string | null;
+  /** When the note was made and last written, epoch ms; absent when the store cannot say. The details footer reads them. */
+  created?: number;
+  edited?: number;
+  /** The foot's Convert to Task and Convert to Event: a task or an event made from the note, the note left in place. */
+  onConvertToTask?: () => void;
+  onConvertToEvent?: () => void;
   /** A note made a moment ago, opened for the first time: the body is its primary field and takes the caret with the
    *  keyboard up (the Logging Standard, 2026-10-17). A note opened to read stays quiet. */
   fresh?: boolean;
@@ -490,9 +521,7 @@ export default function NoteEditor({
                 {onArchive && (
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onArchive(); }}><Archive className="ic" /> {archived ? "Unarchive" : "Archive"}</button>
                 )}
-                {onDeleteNote && (
-                  <button className="block-menu-item danger" role="menuitem" onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}><Trash2 className="ic" /> Delete Note</button>
-                )}
+                {/* Delete Note moved to the foot of the note (Punch 12, Dave 2026-10-31): the same ask, the same delete. */}
               </div>
             </>
           )}
@@ -500,14 +529,11 @@ export default function NoteEditor({
       </div>
 
       <div className="doc doc-write">
-        {note.eyebrow && (
-          <div className="doc-eyebrow">
-            <span className={"cat-dot cat-bg-" + catColor(note.category)} />
-            {/* The dot carries the area's hue; the words stay grey (§AM). */}
-            <span className="eyebrow">{note.eyebrow}</span>
-          </div>
-        )}
         <InlineEdit tag="div" className="doc-title" value={note.title} display={titleCase} placeholder="Title" onSave={onEditTitle} />
+        {/* THE WHOLE DAY LINE, UNDER THE TITLE (Punch 12, Dave 2026-10-31, from Direction A). The area eyebrow that sat above
+            the title is gone; the area is the app's one unified chip, its project's name after it in grey, drawn by the
+            Whole Day rows' own piece (schedule/screens/rowChip WholeDayChip). No area marked: no line. Then the body. */}
+        {chipArea(note.category) && <div className="note-whole-day"><WholeDayChip category={note.category} words={projectName ?? null} /></div>}
         {findOpen && <FindBar editor={editorRef.current} onClose={() => setFindOpen(false)} />}
         <DocEditor
           ref={editorRef}
@@ -646,6 +672,27 @@ export default function NoteEditor({
       )}
 
       {words > 0 && <div className="doc-count">{lineCase(words === 1 ? "1 word" : words + " words")}</div>}
+
+      {/* THE DETAILS FOOTER (Punch 12, Dave 2026-10-31): what this is, its area, when it was made and when it was last
+          written, one line of facts with the dots drawn by CSS. "Note" is the kind, a small-caps label like the two
+          dates (R8); the area's name is the line's one grey run. A time the store cannot give is left out. */}
+      <div className="pad-x note-details">
+        <div className="facts">
+          <span className="fact date">Note</span>
+          <span className="fact">{catName(note.category) || "No Area"}</span>
+          {footDay(created) && <span className="fact date">{"Created " + footDay(created)}</span>}
+          {footDay(edited) && <span className="fact date">{"Edited " + footDay(edited)}</span>}
+        </div>
+      </div>
+      {/* THE FOOT'S THREE ACTIONS (Punch 12): plain full-width buttons. Delete asks first, in the same sheet the More menu
+          used to open, and then runs the flow's one delete (trash, with Undo in the toast); only where it sits moved. */}
+      {(onConvertToTask || onConvertToEvent || onDeleteNote) && (
+        <div className="pad-x note-foot-acts">
+          {onConvertToTask && <button type="button" className="btn btn-block btn-secondary" onClick={onConvertToTask}>Convert to Task</button>}
+          {onConvertToEvent && <button type="button" className="btn btn-block btn-secondary" onClick={onConvertToEvent}>Convert to Event</button>}
+          {onDeleteNote && <button type="button" className="btn btn-block btn-secondary btn-danger-text" onClick={() => setConfirmDelete(true)}>Delete</button>}
+        </div>
+      )}
 
       {copyAsOpen && (
         <RowActionSheet

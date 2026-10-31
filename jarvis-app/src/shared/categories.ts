@@ -16,6 +16,11 @@ export function setCategoryRegistry(
   for (const c of cats) REGISTRY[c.id] = { name: c.name, color: c.color };
 }
 
+/** The live areas' ids in the order the shell registered them (Settings order), for a page that lays its areas out in sequence. */
+export function catIds(): string[] {
+  return Object.keys(REGISTRY);
+}
+
 const isSlot = (v: string): v is ColorSlot => (COLOR_SLOTS as string[]).includes(v);
 
 // Resolve a category reference (a category id) to a color slot. Falls back to
