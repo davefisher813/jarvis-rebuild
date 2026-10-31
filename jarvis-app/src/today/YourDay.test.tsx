@@ -62,6 +62,16 @@ describe("YourDay", () => {
     expect(container.querySelector(".empty-state")).toBeTruthy();
   });
 
+  // THE SWEEP'S ONE DEFERRED FINDING (2026-10-30; Dave: "Whatever is best"). A day of protected blocks and nothing else said
+  // "Nothing Scheduled Today" and drew none of them. It reaches the guide now, which draws the block like any other day.
+  it("a day holding only protected blocks is not empty: the guide draws them", () => {
+    const gymBlock = { s: 18 * 60, e: 19 * 60, label: "Gym", kind: "focus" };
+    const { container } = render(<YourDay events={[]} locked={[gymBlock]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} />);
+    expect(container.querySelector(".empty-state"), "no empty state").toBeNull();
+    expect(container.querySelector(".sched-ticker"), "the guide renders").not.toBeNull();
+    expect(container.querySelector(".sched-row.sched-locked"), "and draws the block").not.toBeNull();
+  });
+
   // UP-ATH-02 (2026-09-06): Schedule has shown the Training Door on a gym
   // block since D4-C, off this same DayRow. Today did not, so the page the
   // athlete is on at six in the evening was the one page that could not

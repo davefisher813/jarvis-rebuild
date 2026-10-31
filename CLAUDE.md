@@ -6,7 +6,7 @@ the ones a future session would otherwise get wrong.
 ## The Colour Key sweep closed (2026-10-30)
 
 The sweep that made the 2026-09-22 rulings (§AK one grey, §AL the capsule, §AM the Colour Key) hold on every screen is closed:
-676 findings, 593 done, 82 rejected with reasons, 1 deferred (the TV guide's empty-day card, frozen, Dave's word only). The
+676 findings, 594 done, 82 rejected with reasons. The
 record is `qa/findings/2026-09-22-RESUME.md` and the findings JSON beside it. The on-screen proof is
 `tools/visual-audit.mjs` at 390 in both themes: 106 screens, 42 sheets, nothing outside its ruled exemptions but two dark
 reds below. Two things about that tool a future session must not undo:
@@ -15,8 +15,9 @@ reds below. Two things about that tool a future session must not undo:
 - A form row that forwards its tap in code must say so in the DOM: spread `fieldDoor` (shared/FormSheet) instead of
   `onClick={tapField}`, or give `Row` a `forwardTo`. The audit reads `data-forwards`; without it a 44px row is measured
   as its 11px chevron.
-Waiting on Dave: red text on a sheet's grouped card in dark. The edit-event Today/Tomorrow pair's red reads 3.30:1 there
-(white, the sheet's usual red, would erase the pair's difference) and the late date's #FF6961 reads 4.46:1.
+Dave settled the last three on 2026-10-30. In dark, a sheet row's quick action (`.xs-row .row-ctx`) is `--tint-on-sheet`
+(white) and Edit Event's picked day sits on a filled capsule ("White, chosen day filled"); dark `--sys-red-on-sheet` is
+#FF6B63 ("Nudge to #FF6B63", 4.52:1 on the grouped card). The deferred finding closed too (below).
 
 ## The Today TV guide is frozen (Dave, 2026-09-27)
 
@@ -44,6 +45,10 @@ project's name after it in grey, as a task row draws it; no area marked, no chip
 gone (Oct 13). It lives in the rows (`schedule/screens/DayRow.tsx` and `ProposedRow.tsx`, plain mode, via `rowChip.tsx`), and the
 project names reach them through `RowChipWordsContext`, provided by `TodayFlow`, so the frozen region and its hash did not change.
 Nothing else about the section is unfrozen.
+
+Amended (2026-10-30): a day holding only protected blocks reaches the guide. Asked, Dave said "Whatever is best". It said
+"Nothing Scheduled Today" and drew none of the blocks, because the emptiness test in `YourDay.tsx` (above the frozen region)
+counted events and proposals only; it counts `locked` too now. The frozen region and its hash did not change.
 
 
 ## The Whole Day card is measured in a real browser (Dave, 2026-10-19: "The schedule is broke")
