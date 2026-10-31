@@ -434,6 +434,14 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
     };
   }
 
+  // "NOTE TO SELF" SAYS WHERE IT GOES (the speech box, 2026-10-31). A stated destination beats a guessed one (C-49): the words
+  // after it are kept verbatim as the note, even when they carry a day or a time ("Note to self: the gate code changes Friday").
+  // Bare "note" with no colon or comma is left alone, because "Note the score" is something to do.
+  const noteLead = orig.match(/^\s*(?:note to self\s*[:,.\-]?|note\s*[:,])\s*(.+)$/is);
+  if (noteLead && noteLead[1]!.trim()) {
+    const body = noteLead[1]!.trim();
+    return { kind: "note", title: titleCase(body.split(/\s+/).slice(0, 6).join(" ")), body, confident: true, raw: orig, inferred: [] };
+  }
   // "REMIND ME" ON A DAY IS A REMINDER THAT RUNS ONCE (the speech box, 2026-10-31). "Remind me to email the landlord tomorrow
   // morning" was filed for today, repeating every day: a reminder could not run once when this lane was written, so a dated
   // "remind me" was sent to the event branch instead and the model filled the gap. A reminder runs once on its start date now

@@ -145,7 +145,12 @@ html.overlay-open { overflow: hidden; }
 
 /* Voice bar docked above the tab bar (real app, was preview-only). */
 .voice-dock { padding-bottom: var(--s-3); }
-button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: left; cursor: pointer; }
+/* THE SPEECH BOX (2026-10-31): the pill holds two doors. The words are the typing door and fill the pill; the red mic at the
+   trailing end is the recording door, its reach the pill's own height. */
+.voice-field { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; background: none; border: 0; padding: 0;
+  font-family: var(--f); text-align: left; cursor: pointer; color: inherit; }
+button.voice-mic { border: 0; padding: 0; cursor: pointer; position: relative; }
+button.voice-mic::after { content: ""; position: absolute; inset: -8px; }
 
 /* ===== Schedule: month calendar grid (RULE 9 component, no canonical calendar
    existed) + timeline category line. Tokens only; selected/today use --accent
@@ -7991,3 +7996,29 @@ html[data-motion="reduce"] .card.card-enter { animation: none; }
    centred over the buttons it asks about. */
 .ask-kind-q { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); text-align: center; padding: var(--s-1) 0 var(--s-2); }
 .sheet-actions.ask-kind { gap: var(--s-2); }
+
+/* THE SPEECH BOX'S RECORDING CARD (2026-10-31). The voice's level as bars, the state and the time on one line, and Done
+   Talking as the sheet's one filled primary while it records. The bars are ink, not the red: the accent fill means tap this,
+   and the one thing to tap is Done Talking. Drawn as a scaled strip so nothing reflows while they move; Writing It Down
+   freezes them at rest in the quiet ink. Reduce Motion stills them. */
+.rec-card { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3); margin-bottom: var(--s-2);
+  border-radius: var(--r-field); background: var(--press-3); }
+.rec-wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 40px; }
+.rec-bar { width: 4px; height: 100%; border-radius: var(--r-pill); background: var(--tx-1); transform: scaleY(0.12);
+  transform-origin: center; transition: transform 80ms linear; }
+.rec-writing .rec-bar { transform: scaleY(0.12); background: var(--tx-4); }
+@media (prefers-reduced-motion: reduce) { .rec-bar { transition: none; } }
+.rec-line { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.rec-state { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
+.rec-clock { font-size: var(--t-meta); color: var(--tx-2); font-variant-numeric: tabular-nums; }
+.rec-fail { display: flex; flex-direction: column; gap: var(--s-1); }
+/* TRY SAYING: three examples while the box is empty, as lines of text under a small caps label, not capsules: they are words
+   to say, and a capsule here would read as one more control beside Speak. One ink per line; a tap fills the box. */
+.say-try { display: flex; flex-direction: column; margin-top: var(--s-3); }
+.say-try > .eyebrow { margin-bottom: var(--s-1); }
+.say-try-row { display: flex; align-items: center; min-height: var(--tap-min); padding: 0; background: none; border: 0;
+  border-top: 0.5px solid var(--divider); font-family: var(--f); font-size: var(--t-body); color: var(--tx-2); text-align: left; cursor: pointer; }
+.say-row { width: 100%; background: none; border: 0; text-align: left; font-family: var(--f); cursor: pointer; }
+.rec-fail > .msg-quiet-acts { flex-direction: row; flex-wrap: wrap; align-items: center; margin-top: var(--s-1); }
+/* What Can I Say? teaches whole sentences, so a sentence is never cut: it wraps, balanced. */
+.say-row .conn-name { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; }
