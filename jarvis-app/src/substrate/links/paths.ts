@@ -59,6 +59,8 @@ export const LINK_PATHS: readonly LinkPath[] = [
   { entityType: "event", path: "sourceTaskId", kind: "from" },
   { entityType: "event", path: "taskIds[]", kind: "has" },
   { entityType: "event", path: "projectId", kind: "in" },
+  // 0073 (2026-10-31, prepared for review): the event sheet's Person row (2026-10-27).
+  { entityType: "event", path: "personId", kind: "about" },
   { entityType: "note", path: "connections[].targetId", kind: "about", only: { key: "kind", is: "person" } },
   { entityType: "note", path: "connections[].targetId", kind: "mentions", only: { key: "kind", isNot: "person" } },
   { entityType: "note", path: "blocks[].items[].taskId", kind: "has" },
