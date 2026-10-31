@@ -96,6 +96,10 @@ const AUDIT = () => {
       if (cs.position !== "fixed" && cs.position !== "absolute") continue;
       if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.2) continue;
       if (e.closest(".tab-bar, .voice-dock")) continue;
+      // The fixed .app-shell holds the tab bar and the page itself; taking it
+      // as the modal measured the page UNDER an open overlay (2026-10-30: the
+      // select bar beneath Plan My Day, a dimmed Delete). See layerOf.
+      if (e.querySelector(".tab-bar")) continue;
       const r = e.getBoundingClientRect();
       if (r.width * r.height < area * 0.33) continue;
       if (r.top > window.innerHeight * 0.8) continue;
