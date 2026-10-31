@@ -1,5 +1,5 @@
 // THE NOTE SCREEN (the writing system, 2026-09-14): one document under a
-// title, Back and More in the header, Delete inside More, the connections
+// title, Back and More in the header, Delete at the foot (Punch 12), the connections
 // and the word count under the writing, and a save line that says only what
 // is true. These pin the shape.
 // @vitest-environment jsdom
@@ -7,8 +7,9 @@ import "../../shared/tiptapTest";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import NoteEditor, { type EditorNote } from "./NoteEditor";
+import NoteEditor, { footDay, type EditorNote } from "./NoteEditor";
 import { blocksToDoc } from "../docModel";
+import { setCategoryRegistry } from "../../shared/categories";
 import { subscribeToast, resetToasts } from "../../shared/toast";
 
 const NOTE: EditorNote = {
@@ -51,7 +52,9 @@ describe("a fresh note opens writing", () => {
 });
 
 describe("the header", () => {
-  it("is Back and More; Delete, Connections, Pin, Tags, Archive and the checklist door live inside More", () => {
+  // AMENDED 2026-10-31 (Punch 12, Dave: the note's foot is "plain full-width buttons: Convert to Task / Convert to Event /
+  // Delete"). Delete left the More menu for the foot; it still asks first, in the same sheet, before it deletes.
+  it("is Back and More; Connections, Pin, Tags, Archive and the checklist door live inside More, Delete at the foot", () => {
     const onDeleteNote = vi.fn();
     const onCreateTasks = vi.fn();
     render(<NoteEditor {...base} onDeleteNote={onDeleteNote} onConnections={() => {}} onPin={() => {}} onTags={() => {}} onArchive={() => {}} onCreateTasks={onCreateTasks} />);
@@ -60,9 +63,9 @@ describe("the header", () => {
     fireEvent.click(screen.getByLabelText("Note options"));
     const items = screen.getAllByRole("menuitem").map((b) => b.textContent?.trim());
     // The caret opens inside the first section, so the section actions are offered too.
-    expect(items).toEqual(["Connections", "Pin Note", "Tags", "Copy As", "Find in Note", "Outline", "Move Section Up", "Move Section Down", "Copy Section", "Make Tasks from Checklist", "Archive", "Delete Note"]);
-    fireEvent.click(screen.getByText("Delete Note"));
-    // The menu item asks first (issue 105); the sheet's destructive button deletes.
+    expect(items).toEqual(["Connections", "Pin Note", "Tags", "Copy As", "Find in Note", "Outline", "Move Section Up", "Move Section Down", "Copy Section", "Make Tasks from Checklist", "Archive"]);
+    fireEvent.click(within(document.querySelector(".note-foot-acts") as HTMLElement).getByText("Delete"));
+    // The foot's Delete asks first (issue 105); the sheet's destructive button deletes.
     expect(onDeleteNote).not.toHaveBeenCalled();
     fireEvent.click(within(document.querySelector(".action-sheet") as HTMLElement).getByText("Delete Note"));
     expect(onDeleteNote).toHaveBeenCalledTimes(1);
@@ -324,12 +327,15 @@ describe("the connection strip, under the writing now", () => {
 // kind has no key colour, the tags are one run of the line's one grey, and
 // the find bar's verbs that change the words are the red capsule.
 describe("the Colour Key on the note screen", () => {
+  // AMENDED 2026-10-31 (Punch 12): the area eyebrow above the title became the Whole Day line under it (pinned in "the
+  // open note" below). The rule this pinned holds there: the hue rides the chip's dot, the name stays grey.
   it("the area's name stays grey beside its dot", () => {
     const { container } = render(<NoteEditor {...base} />);
-    const eyebrow = container.querySelector(".doc-eyebrow .eyebrow")!;
-    expect(eyebrow).toHaveTextContent("Family");
-    expect(eyebrow.className).not.toMatch(/cat-fg-/);
-    expect(container.querySelector(".doc-eyebrow .cat-dot")).toBeInTheDocument();
+    const chip = container.querySelector(".note-whole-day .cat-chip")!;
+    expect(chip).toHaveTextContent("Family");
+    expect(chip.className).not.toMatch(/cat-fg-/);
+    expect(chip.querySelector(".cat-chip-dot")).toBeInTheDocument();
+    expect(container.querySelector(".doc-eyebrow")).toBeNull();
   });
 
   it("an attachment's glyph takes the neutral glyph ink, not red or blue", () => {
@@ -380,5 +386,99 @@ describe("JARVIS Found", () => {
     expect(onFoundAdd).toHaveBeenCalledWith(0);
     fireEvent.click(screen.getByRole("button", { name: "Link Berto" }));
     expect(onFoundLink).toHaveBeenCalledWith(1);
+  });
+});
+
+// PUNCH 12 (Dave 2026-10-31, the open note from Direction A): the Whole Day line directly under the title and before the
+// body (the area as the unified chip, the project's name after it in grey, nothing without an area); then the body; at the
+// foot a details line (Note, the area, created, edited) and three plain full-width buttons.
+describe("the open note (Punch 12)", () => {
+  const NOW = new Date(2026, 9, 31, 15, 0, 0);
+  const KIDS: EditorNote = { ...NOTE, category: "c-kids" };
+  const setup = () => setCategoryRegistry([{ id: "c-kids", name: "Kids", color: "green" }]);
+
+  it("draws the Whole Day line directly under the title, before the body: the chip, then the project in grey", () => {
+    setup();
+    const { container } = render(<NoteEditor {...base} note={KIDS} projectName="Spring Season" />);
+    const title = container.querySelector(".doc-write .doc-title")!;
+    const line = title.nextElementSibling!;
+    expect(line).toHaveClass("note-whole-day");
+    // The Whole Day rows' own piece (rowChip WholeDayChip > CatChipLine), not a new one.
+    expect(line.querySelector(":scope > .r-k > .r-goal.r-parent > .cat-chip")).toHaveTextContent("Kids");
+    expect(line.querySelector(".cat-chip-dot")).toHaveClass("cat-bg-green");
+    expect(line.querySelector(".r-goal-t")).toHaveTextContent("Spring Season");
+    const body = container.querySelector(".doc-pm")!;
+    expect(line.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING, "the body comes after the line").toBeTruthy();
+    expect(line.textContent).not.toMatch(/·/);
+  });
+
+  it("an area without a project is the chip alone; no area is no line at all", () => {
+    setup();
+    const { container, unmount } = render(<NoteEditor {...base} note={KIDS} />);
+    expect(container.querySelector(".note-whole-day .cat-chip")).toHaveTextContent("Kids");
+    expect(container.querySelector(".note-whole-day .r-goal-t")).toBeNull();
+    unmount();
+    const { container: c2 } = render(<NoteEditor {...base} note={{ ...NOTE, category: "" }} projectName="Spring Season" />);
+    expect(c2.querySelector(".note-whole-day")).toBeNull();
+    expect(c2.querySelector(".doc-write .cat-chip")).toBeNull();
+  });
+
+  it("the details footer reads Note, the area, created and edited, as fact spans with no typed dot", () => {
+    setup();
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    try {
+      const created = new Date(2026, 9, 3, 9).getTime();
+      const edited = new Date(2026, 9, 31, 11).getTime();
+      const { container } = render(<NoteEditor {...base} note={KIDS} created={created} edited={edited} />);
+      const facts = [...container.querySelectorAll(".note-details .facts > .fact")];
+      expect(facts.map((f) => f.textContent)).toEqual(["Note", "Kids", "Created Oct 3", "Edited Today"]);
+      expect(facts.map((f) => f.className)).toEqual(["fact date", "fact", "fact date", "fact date"]);
+      expect(container.querySelector(".note-details")!.textContent).not.toMatch(/·/);
+      // It sits at the foot: after the body, before the buttons.
+      const foot = container.querySelector(".note-details")!;
+      expect(container.querySelector(".doc-pm")!.compareDocumentPosition(foot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the footer says No Area for an unfiled note and leaves out a date the store cannot give", () => {
+    setup();
+    const { container } = render(<NoteEditor {...base} note={{ ...NOTE, category: "" }} />);
+    expect([...container.querySelectorAll(".note-details .fact")].map((f) => f.textContent)).toEqual(["Note", "No Area"]);
+  });
+
+  it("footDay reads the calendar and names another year", () => {
+    expect(footDay(new Date(2026, 9, 31, 0, 5).getTime(), NOW)).toBe("Today");
+    expect(footDay(new Date(2026, 9, 30, 23).getTime(), NOW)).toBe("Yesterday");
+    expect(footDay(new Date(2026, 9, 3).getTime(), NOW)).toBe("Oct 3");
+    expect(footDay(new Date(2025, 11, 31).getTime(), NOW)).toBe("Dec 31, 2025");
+    expect(footDay(undefined, NOW)).toBe("");
+  });
+
+  it("the foot is three plain full-width buttons in order, Convert to Task, Convert to Event, Delete; Delete asks first", () => {
+    setup();
+    const onConvertToTask = vi.fn();
+    const onConvertToEvent = vi.fn();
+    const onDeleteNote = vi.fn();
+    const { container } = render(<NoteEditor {...base} note={KIDS} onConvertToTask={onConvertToTask} onConvertToEvent={onConvertToEvent} onDeleteNote={onDeleteNote} />);
+    const acts = container.querySelector(".note-foot-acts")!;
+    const buttons = [...acts.querySelectorAll("button")];
+    expect(buttons.map((b) => b.textContent)).toEqual(["Convert to Task", "Convert to Event", "Delete"]);
+    for (const b of buttons) {
+      expect(b).toHaveClass("btn", "btn-block");
+      expect(b).not.toHaveClass("pill-act");
+      expect(b).not.toHaveClass("btn-primary");
+    }
+    // The foot comes after the details line, at the very end of the note.
+    expect(container.querySelector(".note-details")!.compareDocumentPosition(acts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(buttons[0]!);
+    expect(onConvertToTask).toHaveBeenCalledTimes(1);
+    fireEvent.click(buttons[1]!);
+    expect(onConvertToEvent).toHaveBeenCalledTimes(1);
+    fireEvent.click(buttons[2]!);
+    expect(onDeleteNote, "nothing is deleted before the sheet's own Delete Note").not.toHaveBeenCalled();
+    fireEvent.click(within(document.querySelector(".action-sheet") as HTMLElement).getByText("Delete Note"));
+    expect(onDeleteNote).toHaveBeenCalledTimes(1);
   });
 });

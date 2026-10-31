@@ -1513,9 +1513,18 @@ html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--g
   content: ""; position: absolute; top: 0; bottom: 0; left: var(--s-2h); width: 1.5px; background: var(--tint); opacity: 0.45; pointer-events: none; z-index: 1;
 }
 .ruled.notes-list.notes-trial .note-row .note-preview { font-style: italic; }
-/* The "first" row shape: the note's own first line, in grey, one line. */
-.ruled .note-first { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: var(--s-1); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; min-width: 0; }
+/* THE AREA LIBRARY (Punch 12, Dave 2026-10-31: Direction B, the Capsule mark). Each section's head is the page's quiet
+   section head (.sh2: the dotted leader, the count at the right) with the area's unified chip where its words go, the
+   area's one mark on the page. The rows under it carry no mark, and their words start where the area's NAME starts
+   inside the chip, not at the chip's edge: the head and the card share the page margin (--s-4), so the row's own inset
+   is the chip's padding, its dot and the gap after it (.cat-chip, .cat-chip-dot), less the card's 1px rim, which the
+   chip (drawn with inset shadows) does not have. Measured at 390 in both themes: name and title on one x. The hairline
+   between two rows starts at the same edge. Geometry only, so light and dark are the same; the chip keeps its colours. */
+.ruled.notes-list { --note-indent: calc(var(--s-3) + 8px + var(--s-1h) - 1px); }
+.ruled.notes-list .note-area-head { align-items: center; }
+.ruled.notes-list .note-area-head > .cat-chip { order: 0; }
+.ruled.notes-list .note-card .note-row { padding-left: var(--note-indent); }
+.ruled.notes-list .note-card > .task-swipe + .task-swipe::before { left: var(--note-indent); }
 .ruled .note-row .gm-slot .ic { width: 20px; height: 20px; }
 /* A file's row (a receipt on Money): the type glyph in the check column,
    the name, the date and size under it, the trash at the right. */

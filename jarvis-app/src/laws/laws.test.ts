@@ -4061,8 +4061,16 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     expect(flow, "creation passes no category")
       .toMatch(/createNote\(TEMPLATE_TITLE\[key\], ""\)/);
     const list = read(join(SRC, "notes/screens/NotesList.tsx"));
-    expect(list, "unfiled renders yellow; filed keeps its category's colour")
-      .toMatch(/n\.category \? catColor\(n\.category\) : "yellow"/);
+    // AMENDED 2026-10-31 (Punch 12, Dave's pick, relayed by Alfred: "Direction B, Area Library, with the Capsule mark";
+    // "Note rows carry NO mark (no capsule, no dot, no chip on the row)"; "Notes with no area go in a final section (e.g.
+    // 'No Area')"). The yellow this pinned was the row's own area colour, and the row has no colour now. What it was
+    // guarding still holds and is pinned instead: an unfiled note never borrows a category's colour. It sits in the last
+    // section under the muted No Area chip (the grey dot of Dave's 2026-10-18 item 5), and a filed note's area is said
+    // once, by its section's chip.
+    expect(list, "unfiled notes gather under the muted No Area chip; a filed note's section wears its own area's chip")
+      .toMatch(/<CatChip category=\{g\.area\} empty="No Area" \/>/);
+    expect(list, "an area with no live name is not a section of its own, so it never shows a borrowed colour")
+      .toMatch(/const key = chipArea\(n\.category\) \? n\.category : "";/);
   });
 
   // FINDING 4, SECOND HALF: THE GREAT UNFILING (2026-08-30). Fixing creation

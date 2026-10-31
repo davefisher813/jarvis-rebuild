@@ -13,6 +13,7 @@ import { noteBlockText } from "../search/search";
 import NoteEditor, { type EditorNote, type SaveState } from "./screens/NoteEditor";
 import QuickAppendSheet from "./screens/QuickAppendSheet";
 import { taskFromPassage } from "./aiActions";
+import { docToPlainText } from "./markdown";
 import { blocksToDoc, contentLines, displayTitle, firstLineOf, listTitle, type Doc } from "./docModel";
 import Templates from "./screens/Templates";
 import { usePushDepth } from "../shared/pushNav";
@@ -245,6 +246,44 @@ export default function NotesFlow({
       }),
     });
   };
+  // CONVERT TO TASK, CONVERT TO EVENT (Punch 12, Dave 2026-10-31: the note's foot). Neither existed, so both are built on
+  // the services' own creates, the way a task from a passage is: the note's title is the new record's title, its words
+  // are the record's notes, its area comes along, and the note is its source. The note STAYS where it is; it only gains
+  // the connection back, as every task made from a note does. An event lands today at the next half hour, the same
+  // default the link picker's quick create uses, to be moved on its own sheet. Undo removes the record and the link.
+  const [times, setTimes] = useState<{ created?: number; edited?: number }>({});
+  const convertNote = async (kind: "task" | "event") => {
+    if (!currentId || !current) return;
+    await flushDoc();
+    const noteId = currentId;
+    const title = current.title.trim() || firstLineOf(current.doc) || "Untitled";
+    const words = docToPlainText(current.doc, { includeTitle: false }).trim();
+    const source = { type: "note" as const, ref: noteId, ts: Date.now() };
+    const made: { id: string | null } = { id: null };
+    const ok = await attemptWrite(async () => {
+      made.id = kind === "task"
+        ? await tasksSvc.createTask(title, { category: current.category || undefined, fromNote: noteId, source, ...(words ? { notes: words } : {}) })
+        : await schedSvc.createEvent(title, { date: todayISO(), start: nextHalfHour(), category: current.category || undefined, source, ...(words ? { notes: words } : {}) });
+      if (made.id) await svc.addConnection(noteId, kind, title, made.id);
+    });
+    await loadCurrent(noteId);
+    const madeId = made.id;
+    if (!ok || !madeId) return;
+    showToast({
+      message: kind === "task" ? "Task Made from the Note" : "Event Made from the Note",
+      actionLabel: "Undo",
+      onAction: () => void enqueue(async () => {
+        await attemptWrite(async () => {
+          if (kind === "task") await tasksSvc.deleteTask(madeId);
+          else await schedSvc.deleteEvent(madeId);
+          const d = await svc.note(noteId);
+          const conn = (d?.connections ?? []).find((c) => c.targetId === madeId);
+          if (conn) await svc.removeConnection(noteId, conn.id);
+        });
+        if (currentIdRef.current === noteId) await loadCurrent(noteId);
+      }),
+    });
+  };
   // VERSION HISTORY (wave 3b): the open note's kept versions.
   const [versions, setVersions] = useState<NoteVersion[]>([]);
   const restoreVersion = (at: number) => enqueue(async () => {
@@ -372,6 +411,9 @@ export default function NotesFlow({
       if (!aliveRef.current || currentIdRef.current !== id) return;
       setCurrent(d ? toEditorNote(d) : null);
       setVersions(d?.versions ?? []);
+      // The details footer's two dates (Punch 12). Best effort: a read that fails leaves them out.
+      setTimes({});
+      if (d) void svc.noteTimes(id).then((t) => { if (currentIdRef.current === id) setTimes(t); }).catch(() => { /* the footer says no dates */ });
       const cs = d?.connections ?? [];
       setConns(cs);
       if (d) {
@@ -1381,6 +1423,13 @@ export default function NotesFlow({
           onRestoreVersion={(at) => void restoreVersion(at)}
           ai={ai.available ? ai : null}
           onCreateLinkedTask={(p) => void createLinkedTask(p)}
+          // Punch 12: the Whole Day line's project (the first project the note links to that still exists), the
+          // footer's dates, and the foot's two converts.
+          projectName={conns.find((c) => c.kind === "project" && !goneConns.has(c.id))?.label ?? null}
+          created={times.created}
+          edited={times.edited}
+          onConvertToTask={() => void convertNote("task")}
+          onConvertToEvent={() => void convertNote("event")}
           connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId, gone: goneConns.has(c.id) }))}
           onAddLink={() => void openLinkPicker("editor")}
           onRemoveConnection={(connId) => void enqueue(async () => {

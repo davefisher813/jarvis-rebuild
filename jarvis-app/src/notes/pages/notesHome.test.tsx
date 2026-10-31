@@ -21,8 +21,11 @@ describe("Notes home order", () => {
   it("search, pinned, recent and the area filter come before New Note, Use a Template and Import", () => {
     const { container } = render(<NotesList notes={notes} onNewNote={vi.fn()} onBlankNote={vi.fn()} onImportTable={vi.fn()} onPasteRows={vi.fn()} />);
     // The heads down the page, in order: what he has first, then the way to start something.
-    const heads = [...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent);
-    expect(heads).toEqual(["Pinned", "Today", "Start Something"]);
+    // AMENDED 2026-10-31 (Punch 12, Dave: "Direction B, Area Library"): what he has is laid out by area now, each head the
+    // area's chip, No Area last, the pinned note leading its own section; Start Something still follows all of it.
+    const heads = [...container.querySelectorAll(".sh2")].map((e) => e.querySelector(".cat-chip")?.textContent ?? e.querySelector(".t")?.textContent);
+    expect(heads).toEqual(["Kids", "No Area", "Start Something"]);
+    expect([...container.querySelectorAll(".note-row .task-name")].map((e) => e.textContent)).toEqual(["Tigers", "Pinned Plan", "Groceries"]);
     expect(screen.getByPlaceholderText("Search Notes")).toBeInTheDocument();
     expect(screen.getByLabelText("Area")).toBeInTheDocument();
     const start = [...container.querySelectorAll(".set-card .conn-name")].map((e) => e.textContent);
