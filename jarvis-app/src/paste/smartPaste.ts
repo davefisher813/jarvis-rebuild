@@ -28,6 +28,7 @@ import type { StrandsService } from "../brain/strands/StrandsService";
 import type { StrandCategory } from "../brain/strands/types";
 import type { LedgerService } from "../money/ledger/LedgerService";
 import type { TrackerService } from "../money/TrackerService";
+import { morningTime } from "../tasks/quickReminder";
 
 export interface SavedEntity {
   id: string;
@@ -52,7 +53,7 @@ export interface SavedEntity {
   // UP-CORE-01 (2026-09-05): what else the capture read, so the receipt can
   // show it ("Reminder · 9:00 PM · Daily") and the person can flip it there.
   recurrence?: import("../notes/types").Recurrence;
-  reminder?: { time: string; days?: number[] };
+  reminder?: { time: string; days?: number[]; repeat?: import("../notes/types").RepeatRule; startDate?: string };
   bill?: { amount: number };
   // "expense": a payment already made, filed in Money's tracker; Undo removes it.
   expense?: { amountCents: number; merchant: string };
@@ -94,6 +95,10 @@ export interface PasteDeps {
   // by a surface where saving a guess is the wrong default (Chat); absent, the old read stands for the surfaces whose whole job is to
   // capture (Quick Capture, Smart Paste), which show what they made and let it be moved or undone.
   onUnread?: (line: string) => void;
+  // ASK, DON'T GUESS (the speech box, 2026-10-31). When the model is torn between two kinds, the surface puts both to him as
+  // two big buttons and answers with his pick, or null when he backs out (nothing is saved). Absent, the model's first choice
+  // stands, as it always did.
+  askKind?: (line: string, choices: readonly ["task" | "event" | "note", "task" | "event" | "note"]) => Promise<"task" | "event" | "note" | null>;
   gather: () => Promise<AIContext>;
   tasks: TasksService;
   schedule: ScheduleService;
@@ -355,6 +360,8 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
     // The areas a #tag can name (rule 3, 2026-10-17).
     categories: deps.categories.map((c) => ({ id: c.id, name: c.data.name })),
     ...(loop ? { followUp: true } : {}),
+    // "Remind me tomorrow morning" means his morning (the speech box, 2026-10-31).
+    morning: morningTime(),
   });
   for (const e of entities) {
     // QUICK ADD (handoff 5.0). A standing fact about the user goes straight
@@ -456,11 +463,35 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       const answer = await aiImprove(e.body ?? e.raw, deps);
       // J-01: no model answer exists and the surface does not want a guess saved. Nothing is written, and the caller says so.
       if (answer.kind === "refused" && deps.onUnread) { deps.onUnread(e.raw); continue; }
+      // A CLOSE CALL IS ASKED (2026-10-31). An event is offered only when a day and a time were read, because an event
+      // with no time would be a guessed schedule; otherwise the choice is between the kinds that need none.
+      let keepRule = false;
+      if (answer.kind === "parsed") {
+        const r = answer.result;
+        if (deps.askKind && r.confidence === "low" && r.alternative) {
+          const canEvent = !!(r.date && r.start);
+          const swap = (k: "task" | "event" | "note", other: "task" | "event" | "note") => (k === "event" && !canEvent ? (other === "task" ? "note" : "task") : k);
+          const first = swap(r.kind, r.alternative);
+          const second = swap(r.alternative, first);
+          if (first !== second) {
+            const pick = await deps.askKind(e.raw, [first, second]);
+            if (pick === null) continue;
+            r.kind = pick;
+          }
+        }
+        delete r.confidence;
+        delete r.alternative;
+      } else if (answer.kind === "unreadable" && deps.askKind) {
+        // The model answered and could not be read: ask rather than file a Note by default. Task keeps the rule's read.
+        const pick = await deps.askKind(e.raw, ["task", "note"]);
+        if (pick === null) continue;
+        keepRule = pick === "task";
+      }
       // Behind memory_v1 (D11): only a model that answered and could not be
       // read makes the note; a refused or unreachable AI leaves the
       // deterministic reading standing, personId and all. Flag off, today's
       // branch byte for byte: any miss with a configured backend is the note.
-      const noteInstead = flagOn("memory_v1") ? answer.kind === "unreadable" : answer.kind !== "parsed" && deps.ai.available;
+      const noteInstead = !keepRule && (flagOn("memory_v1") ? answer.kind === "unreadable" : answer.kind !== "parsed" && deps.ai.available);
       if (answer.kind === "parsed") {
         result = answer.result;
         ruleRead = false;

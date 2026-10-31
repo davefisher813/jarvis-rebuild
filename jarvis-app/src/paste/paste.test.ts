@@ -734,10 +734,15 @@ describe("capture reads reminders, repeats, bills and people", () => {
 // it runs, so a line naming a day must never become one: "remind me tomorrow
 // at 9" would ping every morning forever.
 describe("capture refuses the reads it cannot honestly make", () => {
-  it("a dated reminder stays a dated thing", () => {
+  // AMENDED 2026-10-31 (the speech box; the 2026-10-28 test filed "remind me to email the landlord tomorrow morning" for today,
+  // repeating every day). The worry above was a ping every morning forever. A reminder can run ONCE now (repeat "once" on its
+  // start date), so a dated "remind me" is the one-time reminder it says, never a daily ping and never an event.
+  it("a dated reminder runs once, on that day, and never repeats", () => {
     const e = classifyLine("remind me to call the bank tomorrow at 9am", TODAY);
-    expect(e.reminder).toBeUndefined();
-    expect(e).toMatchObject({ kind: "event", date: "2026-08-16", start: "09:00" });
+    expect(e).toMatchObject({ kind: "task", reminder: { time: "09:00", repeat: { kind: "once" }, startDate: "2026-08-16" } });
+    expect(e.reminder?.days).toBeUndefined();
+    const morning = classifyLine("Remind me to email the landlord tomorrow morning", TODAY);
+    expect(morning).toMatchObject({ kind: "task", title: "Email the Landlord", reminder: { time: "08:00", repeat: { kind: "once" }, startDate: "2026-08-16" } });
   });
 
   it("a standing fact about the person is still a fact, not a bill or a ping", () => {

@@ -242,6 +242,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // UP-MIND-24 (2026-09-05): "what did you say" about this person, asked in
   // Chat, which is where that question already has an answer (UP-MIND-21).
   const chatAskIntent = useOneShot<string>();
+  // A question from the speech box, asked in Chat (2026-10-31).
+  const chatQuestionIntent = useOneShot<string>();
   // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
   const decisionIntent = useOneShot<string>();
   // S6-Q35: a fact captured through Quick Add lives in the Brain's "What
@@ -252,7 +254,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // SHELL-F-21: which account the Money tab should open.
   const accountIntent = useOneShot<string>();
   // Every intent the shell owns, for the one place that cancels them all.
-  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, composeIntent, chatAskIntent, decisionIntent, factIntent, accountIntent];
+  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, composeIntent, chatAskIntent, chatQuestionIntent, decisionIntent, factIntent, accountIntent];
   // Going back closes whatever the jump opened, so the tab you return to is
   // the tab, not the tab with a stranger's sheet still on top of it.
   clearAllRef.current = () => { for (const i of allIntents) i.clear(); };
@@ -754,6 +756,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           askPersonId={chatAskIntent.value}
           askNonce={chatAskIntent.nonce}
           onAskConsumed={chatAskIntent.clear}
+          askText={chatQuestionIntent.value}
+          askTextNonce={chatQuestionIntent.nonce}
+          onAskTextConsumed={chatQuestionIntent.clear}
           onOpen={(kind, id) => void navigateToEntity(kind, id)}
           // UP-MIND-22: the draft is already written and stored; this opens
           // the composer on it. Nothing sends without the user's tap there.
@@ -822,7 +827,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           outside the tab boundary above, so a failed chunk or a render crash
           used to reach the root card. Now the sheet closes, a toast says so,
           and the next tap starts a clean import (see lazyWithRecovery). */}
-      {captureOpen && <ErrorBoundary fallback={null} onFail={() => { setCaptureOpen(false); showToast({ message: "Couldn't Open Quick Capture · Try Again" }); }}><Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} /></Suspense></ErrorBoundary>}
+      {captureOpen && <ErrorBoundary fallback={null} onFail={() => { setCaptureOpen(false); showToast({ message: "Couldn't Open Quick Capture · Try Again" }); }}><Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} onAsk={(q) => { setCaptureOpen(false); jump(() => { chatQuestionIntent.fire(q); setActive("chat"); }); }} /></Suspense></ErrorBoundary>}
       {searchOpen && <ErrorBoundary fallback={null} onFail={() => { setSearchOpen(false); showToast({ message: "Couldn't Open Search · Try Again" }); }}><Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {
         // A search hit becomes the open thing (2026-08-09). SHELL-F-21
         // (2026-09-05): an account is now one of them, so the only surface
