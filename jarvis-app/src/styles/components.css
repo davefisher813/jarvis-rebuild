@@ -6350,6 +6350,15 @@ body.selecting .voice-dock { display: none; }
 .xs-row > .row-ctx:has(+ .row-ctx) { margin-left: auto; }
 .xs-row .row-ctx + .row-ctx { margin-right: calc(var(--s-1) * -1); }
 .row-ctx[aria-pressed="true"] { color: var(--tx-1); }
+/* A SHEET ROW'S QUICK ACTION IN DARK IS THE SHEET'S WORDS COLOUR, AND THE PICKED DAY IS FILLED (Dave 2026-10-30: "White, chosen day
+   filled"). On a sheet's grouped card in dark the tint reads 3.30:1 and no red clears 4.5 there short of the salmon he rejected, so
+   these take --tint-on-sheet (white, BROWSER-F-10), as every other red word on a sheet does. White on both of Edit Event's Today and
+   Tomorrow would erase which one the date is, so the picked one also sits on a filled capsule drawn behind the word, 28px inside its
+   44px reach. Light keeps the tint and the plain-ink pick. */
+[data-theme="dark"] .xs-row .row-ctx { color: var(--tint-on-sheet); }
+[data-theme="dark"] .xs-row .row-ctx[aria-pressed="true"] { position: relative; isolation: isolate; }
+[data-theme="dark"] .xs-row .row-ctx[aria-pressed="true"]::before { content: ""; position: absolute; inset: 8px 0; z-index: -1;
+  border-radius: var(--r-pill); background: var(--press-5); }
 .xs-date .xs-pick { margin-left: 0; justify-content: flex-start; }
 .xs-pick-v { font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-1); white-space: nowrap; }
 .xs-pick-off .xs-pick-v { color: var(--tx-3); }
@@ -6727,7 +6736,7 @@ body.selecting .voice-dock { display: none; }
 /* THE KEY'S RED ON A SHEET GREY (2026-09-26, the lead). Straight on a sheet
    the system red reads 4.09:1 in dark, under AA at the fact size, so a fact
    there takes the sheet twin of the red, the same way the tap words take
-   --tint-on-sheet (BROWSER-F-10). Dark #FF6961, 4.94:1 on the sheet; light
+   --tint-on-sheet (BROWSER-F-10). Dark #FF6B63 (was #FF6961; Dave 2026-10-30), 5.0:1 on the sheet; light
    is the system red unchanged. Both selectors outrank the bare two-class
    fact above, and no sheet draws the ruled line's three-class form. */
 .sheet-scrim > .card .fact.red,

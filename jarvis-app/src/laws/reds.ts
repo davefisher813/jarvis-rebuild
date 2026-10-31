@@ -54,8 +54,11 @@ const OTHER_TOKENS = String.raw`sys-red[\w-]*|red(?!-tint)[\w-]*|cat-(?:[a-z]+-)
  *  ruling.
  *  AMENDED 2026-09-29 (Dave, the approved light palette): #D12416 joins
  *  them, the action red. #E42C18 stays as the red CATEGORY fill only.
- *  A words red, never a tap red: TAP_RED is unchanged; ANY_RED gains it. */
-const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|D22E24|E42C18|D12416`;
+ *  A words red, never a tap red: TAP_RED is unchanged; ANY_RED gains it.
+ *  AMENDED 2026-10-30 (Dave, "Nudge to #FF6B63"): #FF6B63 joins them, dark's
+ *  --sys-red-on-sheet two steps up from #FF6961 so the late red clears 4.5
+ *  on a sheet's grouped card. A words red; ANY_RED gains it. */
+const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|FF6B63|D22E24|E42C18|D12416`;
 
 /** A token reference ends at its closing paren OR at the comma before a
  *  fallback: `var(--tint, #FF2B3C)` is the brand red as surely as

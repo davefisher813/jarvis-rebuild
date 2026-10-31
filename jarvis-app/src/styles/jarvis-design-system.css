@@ -288,7 +288,8 @@
      red: the system red on the sheet ground (#2C2C2E) reads 4.09:1 in dark,
      under AA at the 14px fact size. It cannot go white, because white is the
      key's "a number with no state", so it takes Apple's own increased-
-     contrast systemRed for dark, #FF6961, 4.94:1 there. Light is the system
+     contrast systemRed for dark, #FF6961, 4.94:1 there (nudged to #FF6B63 on
+     2026-10-30 by Dave's pick, 4.52:1 on the grouped card it missed). Light is the system
      red unchanged (settled: light's key colours are Apple's as text). The
      dark value is set in the dark block below. */
   --sys-red-on-sheet: var(--sys-red);
@@ -388,7 +389,7 @@
   --red: #FF453A; --sys-red: #FF453A; --warn: #FF9F0A; --good: #30D158; --blue: #0A84FF;
   /* The key's red straight on a sheet grey: Apple's increased-contrast
      systemRed (see --sys-red-on-sheet at the top of this file). */
-  --sys-red-on-sheet: #FF6961;
+  --sys-red-on-sheet: #FF6B63; /* Dave 2026-10-30: "Nudge to #FF6B63": Apple's #FF6961 read 4.46:1 on a sheet's grouped card (#333336); this reads 4.52 */
   /* The key's amber on a sheet's raised grey: Apple's increased-contrast
      systemOrange (see --warn-on-sheet at the top of this file). */
   --warn-on-sheet: #FFB340;

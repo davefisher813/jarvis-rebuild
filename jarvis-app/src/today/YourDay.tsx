@@ -614,8 +614,13 @@ export default function YourDay({
 
   // A day with five proposals and no meetings is not an empty day. The
   // emptiness test counts what is on screen, not just what is committed.
+  // ...and neither is a day of protected blocks (2026-10-30, the sweep's one
+  // deferred finding; Dave, asked whether to fix it: "Whatever is best"). A day
+  // holding only Deep Work and Gym said "Nothing Scheduled Today" and drew none
+  // of it; it now reaches the guide, which draws them like any other day. The
+  // frozen region is untouched: this decides only whether it is reached.
   const proposedCount = proposed?.blocks.length ?? 0;
-  if (events.length === 0 && proposedCount === 0) {
+  if (events.length === 0 && proposedCount === 0 && locked.length === 0) {
     // Actionable empty state: an icon, one warm line, and the obvious next
     // tap, instead of a grey sentence (RDB, Dave 2026-07-29).
     return (

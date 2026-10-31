@@ -24,10 +24,11 @@
   "fix_file": "src/today/YourDay.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
+  "status": "done",
   "status_note": "TV guide behaviour (when the card renders); Dave: never change its behaviour",
   "id": 1,
-  "needs_dave": false
+  "needs_dave": false,
+  "resolution": "Dave 2026-10-30: \"Whatever is best\"; applied outside the frozen region (YourDay.tsx emptiness test counts locked), hash unchanged"
  },
  {
   "file": "src/today/TodayPage.tsx",
