@@ -172,6 +172,11 @@ const AUDIT = () => {
     if (!txt) continue;
     const cs = getComputedStyle(e);
     if (cs.textOverflow !== "ellipsis" && cs.overflow !== "hidden") continue;
+    // A SCREEN-READER LABEL IS NOT TRUNCATED TEXT (2026-10-30). The 1px clipped
+    // span is meant to be unseen and still read: the unset dropdown's "None"
+    // (.dd-none .dd-w, a row with nothing to say shows nothing) and the
+    // note checklist's "Task item checkbox for ..." label.
+    if (cs.position === "absolute" && e.clientWidth <= 1 && (cs.clip.startsWith("rect") || cs.clipPath.startsWith("inset"))) continue;
     let want = e.scrollWidth;
     // Only ask the ruler when scrollWidth has nothing to say AND the text is
     // on one line, which is the shape the blind spot has.
@@ -808,6 +813,13 @@ const AUDIT = () => {
       if (Number(getComputedStyle(n).opacity) < 0.5) { faded = true; break; }
     }
     if (faded) continue;
+    // AN INACTIVE CONTROL IS EXEMPT (WCAG 1.4.3, 2026-10-30). The fade above
+    // was the old disabled look; disabled primaries now wear a washed fill at
+    // full opacity (ruled.css, "waiting is the same washed fill every disabled
+    // primary wears"), so a Save waiting on a name read as a 2:1 failure. A
+    // real :disabled, aria-disabled, or SheetBar's waiting .dim is inactive.
+    const ctl = e.closest("button, [role=button], a");
+    if (ctl && (ctl.matches(":disabled, [aria-disabled=true]") || ctl.classList.contains("dim"))) continue;
     const cr = ratio(fgc, back);
     if (cr !== null && cr < need) {
       const tag = ruled ? ` [${ruled.why}]` : "";

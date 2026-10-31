@@ -22,7 +22,7 @@ import { dayClock } from "../planClock";
 import { planCount } from "../dayShape";
 import { estimateFor } from "../padding";
 import { DUR_CHOICES, durLabel } from "../durations";
-import { tapField } from "../../shared/FormSheet";
+import { fieldDoor } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { spanLabel } from "../../shared/duration";
 import { lineCase, titleCase } from "../../shared/casing";
@@ -609,7 +609,7 @@ export default function PlanDaySheet({
             </button>
           </div>
           {doneByOpen && (
-            <div className="row plan-doneby" onClick={tapField}>
+            <div className="row plan-doneby" {...fieldDoor}>
               <div className="row-grow"><div className="conn-name">Done By</div></div>
               <input type="time" className="input input-compact" aria-label="Done by" value={doneBy || fromMin(effEnd)} onChange={(e) => setDoneBy(e.target.value)} />
               {doneBy && <button type="button" className="plan-drop" onClick={() => { setDoneBy(""); setDoneByOpen(false); }}>Clear</button>}
@@ -925,7 +925,7 @@ export default function PlanDaySheet({
           {/* P7: if the thing he wants to do is not a task yet, it becomes
               one here, picked, without leaving the sheet. */}
           {onAddTask && (
-            <div className="row plan-add" onClick={tapField}>
+            <div className="row plan-add" {...fieldDoor}>
               <input
                 className="input input-compact"
                 placeholder="Add Something to This Day"

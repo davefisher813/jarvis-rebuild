@@ -278,6 +278,11 @@ html[data-theme="light"] .ruled .st-warn { background: color-mix(in srgb, var(--
   /* NO ORPHAN WORD (2026-10-05, the perfect bar): "Call Ridgeline About the / Field" and "Draft the Coach Onboarding / Email" left one
      word alone on the second line; balance splits the two lines evenly instead. A one-line title is untouched. */
   text-wrap: balance; }
+/* THE SAME TASK, THE SAME TITLE (2026-10-30, the sweep's screen audit). Today's Tasks (the ring's sheet) draws these rows with
+   the Tomorrow action beside them, and its one-line title clipped "Draft the Coach Onboarding Email" to "Draft the Coach O...".
+   It wraps to two balanced lines exactly as the task row above does. */
+.day-sheet .row-grow > .conn-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; text-wrap: balance; }
 /* BROWSER-F-06 (2026-09-05) gave this line flex-wrap so a long goal name got a
    row of its own under the badge rather than whatever the chip left over.
    DEFECT 1 (Dave 2026-09-06, on his phone: "There's wrapping in the tasks

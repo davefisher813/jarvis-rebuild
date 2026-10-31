@@ -2,7 +2,7 @@ import { useState } from "react";
 import { COLOR_GROUPS, CATEGORY_KINDS, KIND_LABEL, type ColorSlot, type CategoryKind } from "../types";
 import { suggestKind } from "../kinds";
 import { catIcon, ICON_GROUPS } from "../icons";
-import { FormSheet, Group, MenuRow, SwitchRow, Strip, DeleteRow, ErrorLine, tapField } from "../../shared/FormSheet";
+import { FormSheet, Group, MenuRow, SwitchRow, Strip, DeleteRow, ErrorLine, fieldDoor } from "../../shared/FormSheet";
 import { FolderGlyph, ClockGlyph, MoonGlyph } from "../../shared/glyphs";
 import { Check } from "../../shared/icons";
 
@@ -86,7 +86,7 @@ export default function CategorySheet({
   return (
     <FormSheet title={mode === "new" ? "New Area" : "Edit Area"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Area">
-        <div className="row xs-row xs-row-name" onClick={tapField}>
+        <div className="row xs-row xs-row-name" {...fieldDoor}>
           <div className={"row-ico cat-bg-" + color}>{catIcon(icon)}</div>
           <input className={"xs-input" + (touched && !valid ? " input-error" : "")} placeholder="Area Name" aria-label="Area name"
             value={name} onChange={(e) => setName(e.target.value)} />

@@ -4591,7 +4591,9 @@ html[data-outline-layers] .tab-bar { outline: 2px solid var(--warn); outline-off
 }
 [data-theme="light"] .note-conn-add { color: var(--on-light-red); }
 .note-conn-add .ic { width: 13px; height: 13px; }
-.note-conn-add::after { content: ""; position: absolute; inset: -6px; }
+/* EVEN ON ALL FOUR SIDES (2026-10-30, the sweep's screen audit). The shared 44 reach above centres its box with a transform and
+   a 100% height; this inset kept both, so the reach slid up and left and the 6px under "Link Something" was dead. */
+.note-conn-add::after { content: ""; position: absolute; inset: -6px; transform: none; width: auto; height: auto; min-width: 0; min-height: 0; }
 /* Pressed is a step past the resting fill in both themes: in light the
    capsule fill IS the 8% press, so the 8% press showed no change, and in
    dark it sank below the opaque rest. The 14% / 13% press lifts it. */
