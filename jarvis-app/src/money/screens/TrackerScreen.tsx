@@ -766,8 +766,9 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
   const [income, setIncome] = useState("");
   const [target, setTarget] = useState("");
   const [rows, setRows] = useState<BudgetRow[]>([]);
-  const [focusKey, setFocusKey] = useState<string | null>(null);
-  const nameRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // QUIET ROWS (Punch 11, Dave 2026-10-31, Option A): the list is read-only rows; a category's name, limit and Remove live on its
+  // own sheet, opened by tapping the row. `editing` is the row whose sheet is open; `fresh` marks one Add a Category just made.
+  const [editing, setEditing] = useState<{ key: string; fresh: boolean } | null>(null);
 
   // The month is the record. Changing months loads that month's numbers
   // rather than carrying the last one's into a form that would save them; a
@@ -784,7 +785,7 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
     setTarget(b ? (b.savingsTargetCents / 100).toFixed(2) : "");
     if (b) { setRows(rowsFromAllocations(b.allocations)); setCopiedFrom(undefined); }
     else { const n = rowsForNewMonth(data.budgets, month); setRows(n.rows); setCopiedFrom(n.from); }
-    setFocusKey(null);
+    setEditing(null);
   }, [month, stored]);
 
   const actuals = useMemo(() => monthActuals(month, rows, data.txs, receipts), [month, rows, data.txs, receipts]);
@@ -802,7 +803,8 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
     const bad = rows.find((r) => (!r.name.trim() || isUncategorized(r.name)) && dollarsToCents(r.limit) > 0);
     if (bad) {
       showToast({ message: bad.name.trim() ? "Uncategorized Has No Limit" : "Name That Category First" });
-      nameRefs.current[bad.key]?.focus();
+      // The name is on the category's sheet now: open it, and its name field takes the cursor.
+      setEditing({ key: bad.key, fresh: true });
       return;
     }
     const d: TrackerBudgetData = {
@@ -821,7 +823,7 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
   const addRow = () => {
     const r = newRow();
     setRows((all) => [...all, r]);
-    setFocusKey(r.key);
+    setEditing({ key: r.key, fresh: true });
   };
 
   return (
@@ -870,56 +872,89 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
       ))}
 
       <SectionHead label="Categories" count={rows.length} action={{ label: "Add a Category", onClick: addRow }} />
-      <div className="pad-x">
+      {/* QUIET ROWS (Punch 11, Dave 2026-10-31: the old screen "looks terrible"; he picked Option A). One flat row per category:
+          its dot, its name, and what went out on the right ("$120 of $300" when it has a limit), with a hairline between rows.
+          The Limit field and Remove are off the list, on the category's own sheet, reached by tapping the row. Over its limit,
+          the amount is the key's red; nothing else on the row speaks. */}
+      <div className="pad-x"><div className="card list-card-ruled mt-cats">
         {shown.map((row) => {
           const over = overLine(row, fmtCents);
           const limit = row.limit;
-          const pct = limit && limit > 0 ? Math.min(100, Math.round((row.spent / limit) * 100)) : 0;
           const form = row.key ? rows.find((r) => r.key === row.key) : undefined;
-          return (
-            <div className="mt-cat" key={row.key ?? "spend:" + row.name}>
-              <div className="mt-cat-head">
-                <span className="mt-cat-name">
-                  <i className="mt-dot" style={{ "--cat": categoryColor(row.name || "New") } as React.CSSProperties} />
-                  {form
-                    ? <input ref={(el) => { nameRefs.current[form.key] = el; }} className="input mt-inline" aria-label={(row.name || "New category") + " name"} placeholder="Name"
-                        autoFocus={form.key === focusKey} value={form.name} onChange={(e) => edit(form.key, { name: e.target.value })} />
-                    : lineCase(row.name)}
-                </span>
-                <span className={"mt-cat-amt" + (over ? " mt-over" : "")}>
-                  {limit !== null ? fmtCents(row.spent) + " of " + fmtCents(limit) : fmtCents(row.spent)}
-                </span>
-              </div>
-              {limit !== null && (
-                <div className="mt-bar">
-                  <div className={"mt-bar-fill" + (over ? " mt-bar-over" : "")}
-                    style={{ "--cat": categoryColor(row.name), width: pct + "%" } as React.CSSProperties} />
-                </div>
-              )}
-              {limit !== null && (
-                <div className="facts">
-                  {over
-                    ? <span className="fact red">{lineCase(over)}</span>
-                    : <span className="fact">Remaining <b>{fmtCents(row.remaining ?? 0)}</b></span>}
-                </div>
-              )}
-              {form && (
-                <div className="mt-limit-edit">
-                  <input className="input mt-inline" inputMode="decimal" aria-label={(row.name || "New category") + " limit"}
-                    placeholder="Limit" value={form.limit} onChange={(e) => edit(form.key, { limit: e.target.value })} />
-                  <button className="quiet-action" aria-label={"Remove " + (row.name || "New category")}
-                    onClick={() => setRows((all) => all.filter((r) => r.key !== form.key))}>Remove</button>
-                </div>
-              )}
-            </div>
+          const name = form ? form.name || "New Category" : lineCase(row.name);
+          const inner = (
+            <>
+              <i className="mt-dot" style={{ "--cat": categoryColor(row.name || "New") } as React.CSSProperties} />
+              <span className="mt-cat-name">{name}</span>
+              <span className={"mt-cat-amt" + (over ? " mt-over" : "")}>
+                {limit !== null ? fmtCents(row.spent) + " of " + fmtCents(limit) : fmtCents(row.spent)}
+              </span>
+            </>
           );
+          return form
+            ? <div className="row mt-cat" key={row.key} {...pressable(() => setEditing({ key: form.key, fresh: false }))} aria-label={"Edit " + (form.name || "New category")}>{inner}</div>
+            : <div className="row mt-cat" key={"spend:" + row.name}>{inner}</div>;
         })}
-      </div>
+      </div></div>
+      {editing && (() => {
+        const form = rows.find((r) => r.key === editing.key);
+        if (!form) return null;
+        const row = shown.find((x) => x.key === form.key);
+        return (
+          <CategorySheet
+            form={form}
+            fresh={editing.fresh}
+            spent={row?.spent ?? 0}
+            remaining={row?.remaining ?? null}
+            over={row ? overLine(row, fmtCents) : null}
+            onDone={(next) => { edit(form.key, next); setEditing(null); }}
+            onCancel={() => {
+              // A row Add a Category made and never named or limited is not left behind as a blank.
+              if (editing.fresh && !form.name.trim() && !form.limit.trim()) setRows((all) => all.filter((r) => r.key !== form.key));
+              setEditing(null);
+            }}
+            onRemove={() => { setRows((all) => all.filter((r) => r.key !== form.key)); setEditing(null); }}
+          />
+        );
+      })()}
 
       {/* THE FORM'S ONE FILLED PRIMARY (Dave 2026-10-05, locked: no pill in a card). Save was a row with a capsule in a
           card of its own; Add a Category is the Categories head's capsule. The save is the screen's one fill. */}
       <div className="pad-x"><button className="btn btn-primary btn-block" onClick={() => void save()}>Save This Month</button></div>
     </>
+  );
+}
+
+/* ------------------------------ A category's sheet ----------------------------- */
+
+// WHERE A CATEGORY IS EDITED (Punch 11, Dave 2026-10-31). The name and the limit, what went out against it, and Remove, which
+// were exposed on every row of the list, are here, one category at a time. Done puts the change into the month's form; Save
+// This Month is still what writes it, exactly as before, so nothing is stored by opening or closing this sheet.
+function CategorySheet({ form, fresh, spent, remaining, over, onDone, onCancel, onRemove }: {
+  form: BudgetRow; fresh: boolean; spent: number; remaining: number | null; over: string | null;
+  onDone: (next: Pick<BudgetRow, "name" | "limit">) => void; onCancel: () => void; onRemove: () => void;
+}) {
+  const [name, setName] = useState(form.name);
+  const [limit, setLimit] = useState(form.limit);
+  const label = form.name.trim() || "New category";
+  return (
+    <FormSheet title={fresh && !form.name.trim() ? "New Category" : lineCase(form.name)} onCancel={onCancel} onSave={() => onDone({ name, limit })} saveLabel="Done">
+      <Group>
+        <FieldRow tone="green" glyph={<Tag className="ic" />} label="Name" value={name} onChange={setName} placeholder="Name" ariaLabel={label + " name"} autoFocus={fresh} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Limit" value={limit} onChange={setLimit} placeholder="0.00" inputMode="decimal" ariaLabel={label + " limit"} />
+      </Group>
+      {(spent > 0 || remaining !== null) && (
+        <div className="pad-x mt-note">
+          <div className="facts">
+            <span className="fact">Spent <b>{fmtCents(spent)}</b></span>
+            {over ? <span className="fact red">{lineCase(over)}</span> : remaining !== null && <span className="fact">Remaining <b>{fmtCents(remaining)}</b></span>}
+          </div>
+        </div>
+      )}
+      <Group>
+        <button type="button" className="row xs-row xs-del" aria-label={"Remove " + label} onClick={onRemove}>Remove Category</button>
+      </Group>
+    </FormSheet>
   );
 }
 
