@@ -17,6 +17,11 @@ import { formatSet } from "../gym/measures";
 import { composeLibrary, type LibraryEntry } from "../gym/library";
 import { STARTER_EXERCISES } from "../gym/starterLibrary";
 import { readQuestion } from "./intent";
+import { useDictation, spokenInto } from "../shared/useDictation";
+import { DICTATION_HINT } from "../shared/Dictate";
+import RecordingCard from "./RecordingCard";
+import SaySheet from "./SaySheet";
+import { chipsFor, countCapture } from "./examples";
 import { readSpokenSet, type SpokenSet } from "./spokenSet";
 import { logSpokenSet, type SetLogged } from "./logSpokenSet";
 import type { SetEntry } from "../gym/types";
@@ -29,8 +34,6 @@ import { formatMoney } from "../money/types";
 import { dayTone } from "../messages/factsLine";
 import { DAY_PRESETS } from "../tasks/reminders";
 import { daysSummary } from "../routine/types";
-import Dictate from "../shared/Dictate";
-import { spokenInto } from "../shared/useDictation";
 import { lineCase } from "../shared/casing";
 import { flagOn } from "../substrate/flags";
 import { capturePeople } from "../paste/captureContext";
@@ -213,8 +216,12 @@ function fmtRecent(ts: number): string {
 // receipt carries refile chips and undo; correction is post-action, never a
 // confirm gate. Recent Captures shows the last ten so a mis-capture from
 // earlier is one tap away.
-export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
+export default function QuickCapture({ ai, onClose, onOpen, onAsk, screen = "today", listen = false }: {
   ai: AIService; onClose: () => void; onOpen?: (kind: RecentCapture["kind"], id: string) => void;
+  /** The screen the box was opened from: its kind of thing leads the suggestions (a hint order, never a filing rule). */
+  screen?: string;
+  /** Opened already recording (the dock's mic, or the one-step link). */
+  listen?: boolean;
   // A QUESTION IS ANSWERED, NEVER FILED (the speech box, 2026-10-31): the box hands it to Chat. Absent (a surface with no
   // Chat), a question goes on to the lanes as it did.
   onAsk?: (question: string) => void;
@@ -233,6 +240,18 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
   // Dictation writes into the same draft the keyboard does (spokenInto): the
   // phrase being said replaces itself until it settles, typing clears the base.
   const spokenBase = useRef<string | null>(null);
+  // THE SPEECH BOX'S EARS (2026-10-31): one recording for the sheet, shared by the Speak capsule and the recording card. The words
+  // land ONCE in the editable draft; nothing here saves (Logging Standard rule 10).
+  const dict = useDictation({ onText: (words, final) => { setText((cur) => spokenInto(spokenBase, cur, words, final)); setDupAge(null); } });
+  const listened = useRef(false);
+  useEffect(() => {
+    if (!listen || listened.current) return;
+    listened.current = true;
+    if (dict.supported) dict.start();
+    else setError("Voice Isn't Available Here · Use the Keyboard Mic");
+
+  }, [listen]);
+  const [sayOpen, setSayOpen] = useState(false);
   const strands = useOptionalStrands();
   // UP-CORE-01 reads Contacts and Projects to match names against; UP-MIND-08
   // WRITES to Contacts when a line states a fact about somebody. One reader
@@ -405,6 +424,7 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
     if (onAsk && readQuestion(t)) {
       CAPTURE_DRAFT.clear();
       setTextState("");
+      countCapture();
       onAsk(t);
       return;
     }
@@ -417,6 +437,7 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
       if (!wrote) return;
       if (!done) { setError("Couldn't Log That Set · Open Training to Log It"); return; }
       haptics.confirm();
+      countCapture();
       CAPTURE_DRAFT.clear();
       setTextState("");
       onClose();
@@ -491,6 +512,7 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
     }
     if (billNote) showToast({ message: billNote });
     haptics.confirm();
+    countCapture();
     // ENTER SAVES, THE COMPOSER STAYS OPEN (rule 4): the receipt joins the
     // ones already on the sheet, the box empties and keeps the keyboard, and
     // the draft it held is spent.
@@ -642,6 +664,9 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
             sheet the whole time, focused and empty after each save, with the receipts under it, so Return, Return,
             Return captures three lines in a row. Return captures; Shift+Return is a new line. */}
         <div className="pad-x sheet-form">
+            {(dict.status === "listening" || dict.status === "transcribing") && (
+              <RecordingCard stream={dict.stream} startedAt={dict.startedAt} writing={dict.status === "transcribing"} onStop={() => dict.stop()} />
+            )}
             <textarea
               ref={boxRef}
               className="input input-multiline"
@@ -663,13 +688,46 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
                 dictation on its keyboard. Speak points at it. Brain Manual v1 (2026-09-27): the filing doors open the one
                 filing sheet (3 fields max) on top; the capture flow is untouched. */}
             <div className="msg-quiet-acts">
-              <Dictate target={boxRef} onText={(words, final) => { setText((cur) => spokenInto(spokenBase, cur, words, final)); setDupAge(null); }} />
+              <button
+                type="button"
+                className="quiet-action"
+                aria-pressed={dict.supported ? dict.status === "listening" : undefined}
+                onClick={() => {
+                  haptics.selection();
+                  boxRef.current?.focus();
+                  if (!dict.supported) { showToast({ message: DICTATION_HINT }); return; }
+                  if (dict.status === "transcribing") return;
+                  if (dict.status === "listening") dict.stop(); else dict.start();
+                }}
+              >{dict.status === "transcribing" ? "Writing It Down" : dict.status === "listening" ? "Listening" : "Speak"}</button>
+              <button type="button" className="quiet-action" onClick={() => setSayOpen(true)}>What Can I Say?</button>
               {brain && <button className="quiet-action" onClick={() => setFilingMode("decision")}>Log the Decision</button>}
               {brain && <button className="quiet-action" onClick={() => setFilingMode("remember")}>Remember This</button>}
             </div>
             {/* UNDER THE AIDS, NOT ABOVE THEM: a row that appears and disappears as the line is typed must not move the Speak button
                 under the thumb. Nothing read, nothing drawn. */}
             {liveLine.length > 0 && <div className="conn-meta live-read">{liveLine}</div>}
+            {/* EVERY VOICE FAILURE HAS A WAY ON (the research, flow step 7): what happened, then Try Again (the kept clip goes again,
+                or a new recording starts) and Type Instead. Never a dead end, never the sentence lost to a blinked network. */}
+            {dict.status === "error" && dict.error && (
+              <div className="rec-fail" role="alert">
+                <div className="input-error">{dict.error}</div>
+                <div className="msg-quiet-acts">
+                  <button type="button" className="quiet-action" onClick={() => (dict.canRetry ? dict.retry() : dict.start())}>Try Again</button>
+                  <button type="button" className="quiet-action" onClick={() => boxRef.current?.focus()}>Type Instead</button>
+                </div>
+              </div>
+            )}
+            {/* TRY SAYING (the research, section 3, item 3): three examples for this screen while the box is empty. A tap puts the
+                words in the box to say or change; it saves nothing. */}
+            {!text.trim() && saved.length === 0 && dict.status !== "listening" && dict.status !== "transcribing" && (
+              <div className="say-try" role="group" aria-label="Try Saying">
+                <div className="eyebrow">Try Saying</div>
+                {chipsFor(screen).map((ex) => (
+                  <button key={ex} type="button" className="say-try-row" onClick={() => { setText(ex); boxRef.current?.focus(); }}>{ex}</button>
+                ))}
+              </div>
+            )}
             {error && <div className="input-error">{error}</div>}
             {dupAge !== null && (
               <div className="input-note">You captured this exact text {Math.max(1, Math.round(dupAge / 86400000))} {dupAge < 86400000 * 1.5 ? "day" : "days"} ago.</div>
@@ -831,7 +889,8 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
                 ))}
                 <button type="button" className="btn btn-tertiary btn-block" onClick={() => { const a = asking; setAsking(null); a.answer(null); }}>Cancel</button>
               </div>
-            ) : (
+            ) : dict.status === "listening" ? null : (
+            // While it records, Done Talking is the sheet's one filled red; Capture comes back with the words.
             <div className="sheet-actions">
               {text.trim() || dupAge !== null || saved.length === 0 ? (
                 dupAge === null ? (
@@ -857,6 +916,7 @@ export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
             )}
           </div>
       </div>
+      {sayOpen && <SaySheet onClose={() => setSayOpen(false)} onPick={(ex) => { setSayOpen(false); setText(ex); boxRef.current?.focus(); }} />}
       {filingMode && (
         <FilingSheet
           mode={filingMode}

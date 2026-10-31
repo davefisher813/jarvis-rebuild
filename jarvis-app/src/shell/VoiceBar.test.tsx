@@ -1,29 +1,61 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import VoiceBar from "./VoiceBar";
+import { barLinesFor, ROTATE_FOR } from "../capture/examples";
 
+beforeEach(() => { localStorage.clear(); });
+afterEach(() => { vi.useRealTimers(); });
+
+// THE SPEECH BOX'S FRONT DOOR (2026-10-31; amends "does not imply voice": voice is built now, recorded and transcribed on the
+// server). Two doors in one pill: the words open typing, the mic opens it recording.
 describe("VoiceBar", () => {
-  it("opens capture on tap and does not imply voice", () => {
+  it("the words open typing and the mic opens recording", () => {
     const onTap = vi.fn();
-    render(<VoiceBar onTap={onTap} />);
-    const btn = screen.getByRole("button");
-    fireEvent.click(btn);
+    const onMic = vi.fn();
+    render(<VoiceBar onTap={onTap} onMic={onMic} />);
+    fireEvent.click(screen.getByRole("button", { name: "Quick capture" }));
     expect(onTap).toHaveBeenCalledTimes(1);
-    expect(btn.getAttribute("aria-label")).toBe("Quick capture");
+    fireEvent.click(screen.getByRole("button", { name: "Voice capture" }));
+    expect(onMic).toHaveBeenCalledTimes(1);
+  });
+
+  it("with no recording door, there is no mic", () => {
+    render(<VoiceBar onTap={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Voice capture" })).toBeNull();
   });
 });
 
-// THE DOCK IS ONE LINE (Dave 2026-10-05, the perfect bar: "JARVIS" sat top-left and a lowercase "Add anything" dropped to
-// the bottom right of a 72px pill, and the two round buttons were different objects by theme).
+// THE DOCK IS ONE LINE (Dave 2026-10-05, the perfect bar), and its words are an example of what to say on this screen.
 describe("VoiceBar, one line", () => {
-  it("is the disc and one Title Case placeholder: no wordmark beside it, no lowercase hint", () => {
-    const { container } = render(<VoiceBar onTap={() => {}} onSearch={() => {}} onWhatNow={() => {}} />);
+  it("one Title Case line, no wordmark, and the screen's own kind of thing first", () => {
+    const { container } = render(<VoiceBar screen="schedule" onTap={() => {}} onMic={() => {}} onSearch={() => {}} onWhatNow={() => {}} />);
     const bar = container.querySelector(".voice-bar")!;
     expect(bar.querySelector(".voice-name")).toBeNull();
-    expect(bar.textContent).toBe("Add Anything");
-    expect(bar.querySelector(".voice-hint")!.textContent).toBe("Add Anything");
-    expect(bar.children.length).toBe(2); // the disc and the hint, nothing else to stagger
+    expect(bar.querySelector(".voice-hint")!.textContent).toBe(barLinesFor("schedule")[0]);
+    expect(barLinesFor("schedule")[0]).toBe("Dinner at 7 PM");
+    expect(barLinesFor("money")[0]).toBe("Spent $42 on Gas");
+  });
+
+  it("rotates every four seconds for the first twenty captures, then stands still", () => {
+    vi.useFakeTimers();
+    const { container, unmount } = render(<VoiceBar screen="today" onTap={() => {}} />);
+    const hint = () => container.querySelector(".voice-hint")!.textContent;
+    const first = hint();
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(hint()).not.toBe(first);
+    unmount();
+    localStorage.setItem("jarvis.capture.count.v1", String(ROTATE_FOR));
+    const later = render(<VoiceBar screen="today" onTap={() => {}} />);
+    const still = later.container.querySelector(".voice-hint")!.textContent;
+    act(() => { vi.advanceTimersByTime(12000); });
+    expect(later.container.querySelector(".voice-hint")!.textContent).toBe(still);
+  });
+
+  it("every bar line is short enough to fit the pill without losing a character", () => {
+    for (const s of ["today", "schedule", "life", "money", "notes", "brain", "more", "messages"]) {
+      for (const l of barLinesFor(s)) expect(l.length, l).toBeLessThanOrEqual(16);
+    }
   });
 
   it("the bolt and the search are the same object: one class, no accent variant", () => {

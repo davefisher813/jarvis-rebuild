@@ -7,6 +7,8 @@ export interface Recording {
   stop: () => Promise<Blob | null>;
   /** Stops and throws the clip away. */
   cancel: () => void;
+  /** The live microphone, for a level meter beside the recording (the speech box's waveform, 2026-10-31). Ends with the clip. */
+  stream: MediaStream;
 }
 
 /** What this page can record with, looked up at call time so a test can plant one. */
@@ -55,5 +57,6 @@ export async function startRecording(opts: { maxSeconds?: number; onAutoStop?: (
   return {
     stop: () => { finished ??= (halt(), done); return finished; },
     cancel: () => { discarded = true; halt(); },
+    stream,
   };
 }
