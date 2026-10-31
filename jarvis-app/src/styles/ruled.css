@@ -218,6 +218,9 @@
 .ruled .st-warn  { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
 /* ...and the due tile's wash is mixed from the amber itself, so it reads as deep as the others in daylight: the light
    --warn-tint was #FFF0DB, a cream on cream that left only the number to say it was a tile (the review). */
+/* 4.5:1 IN DAYLIGHT (2026-10-30, the Colour Key sweep's screen audit). The light amber words (#9A5305) on their own wash at
+   16% measured 4.29:1 on the cream card; at 10% they measure 4.70:1 and the wash still reads as a tile. Dark keeps 16%. */
+html[data-theme="light"] .ruled .st-warn { background: color-mix(in srgb, var(--warn) 10%, transparent); }
 /* The late wash is mixed from the system red (AMENDED 2026-09-26, round-4
    review): the app's red tint token is the BRAND red's wash (the tap red at
    16% in dark, the words red at 10% in light), so the late word sat on the

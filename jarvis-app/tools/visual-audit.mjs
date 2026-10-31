@@ -914,7 +914,10 @@ const AUDIT = () => {
     // Achromatic, and not the primary ink at either end of the ramp.
     // 2026-09-29: the light primary ink is #111318 (max channel 24), so the
     // "near black" floor is on the brightest channel, not the darkest.
-    return mx - mn < 18 && mx < 244 && mx > 30;
+    // 2026-10-30: the warm light ink is #1F1A16 (max channel 31), so the floor
+    // moved to 40; at 30 every light title was counted as a grey run. The
+    // lightest secondary light ink is #4A423A (74), well above it.
+    return mx - mn < 18 && mx < 244 && mx > 40;
   };
   const onOwnFill = (e, stop) => {
     let n = e;
