@@ -84,6 +84,8 @@ import { useAppearance, type Appearance } from "../appearance/AppearanceProvider
 import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS, SETTING_FEEDBACK } from "../data/SettingsService";
 import { useFeedback } from "../encourage/FeedbackProvider";
 import { minutesLabel } from "../shared/duration";
+import { readCaptureLink, withoutCaptureLink, type CaptureMode } from "../capture/captureLink";
+import { onAppUrl } from "../native/appUrl";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -333,6 +335,23 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
 
   const [captureOpen, setCaptureOpen] = useState(false);
+  // THE SPEECH BOX (2026-10-31): the box opens typing or already recording. A link (capture/captureLink.ts) or the dock's mic
+  // asks for recording; the words in the dock ask for typing.
+  const [captureListen, setCaptureListen] = useState(false);
+  const openCapture = (mode: CaptureMode) => { setCaptureListen(mode === "voice"); setCaptureOpen(true); };
+  // A LINK OPENS THE BOX (approved 2026-10-28): the address the app was opened at, once, and a native app link while it runs.
+  useEffect(() => {
+    const take = (url: URL): boolean => {
+      const mode = readCaptureLink(url);
+      if (!mode) return false;
+      try { window.history.replaceState(window.history.state, "", withoutCaptureLink(url)); } catch { /* a sandboxed frame: the box still opens */ }
+      openCapture(mode);
+      return true;
+    };
+    try { take(new URL(window.location.href)); } catch { /* no address to read */ }
+    return onAppUrl(take);
+
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
   // A TOAST BELONGS TO ITS SCREEN (2026-10-05). A receipt about the last screen's action does not ride along into the
   // next one: the tab, Search and Quick Capture each count as a screen. See shared/screenChange.ts and dismissForNavigation (shared/toast.ts).
@@ -795,7 +814,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           owns the bottom edge (§AB R8), and the pill floated over its set list. */}
       {!sessionOpen && <ReturnPill />}
       {showCapture && (
-        <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={openFocus} />
+        <VoiceBar screen={active} onTap={() => openCapture("type")} onMic={() => openCapture("voice")} onSearch={() => setSearchOpen(true)} onWhatNow={openFocus} />
       )}
       {showTabBar && (
         <>
@@ -827,7 +846,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           outside the tab boundary above, so a failed chunk or a render crash
           used to reach the root card. Now the sheet closes, a toast says so,
           and the next tap starts a clean import (see lazyWithRecovery). */}
-      {captureOpen && <ErrorBoundary fallback={null} onFail={() => { setCaptureOpen(false); showToast({ message: "Couldn't Open Quick Capture · Try Again" }); }}><Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} onAsk={(q) => { setCaptureOpen(false); jump(() => { chatQuestionIntent.fire(q); setActive("chat"); }); }} /></Suspense></ErrorBoundary>}
+      {captureOpen && <ErrorBoundary fallback={null} onFail={() => { setCaptureOpen(false); showToast({ message: "Couldn't Open Quick Capture · Try Again" }); }}><Suspense fallback={null}><QuickCapture ai={ai} screen={active} listen={captureListen} onClose={() => { setCaptureOpen(false); setCaptureListen(false); }} onOpen={(kind, id) => void navigateToEntity(kind, id)} onAsk={(q) => { setCaptureOpen(false); jump(() => { chatQuestionIntent.fire(q); setActive("chat"); }); }} /></Suspense></ErrorBoundary>}
       {searchOpen && <ErrorBoundary fallback={null} onFail={() => { setSearchOpen(false); showToast({ message: "Couldn't Open Search · Try Again" }); }}><Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {
         // A search hit becomes the open thing (2026-08-09). SHELL-F-21
         // (2026-09-05): an account is now one of them, so the only surface
