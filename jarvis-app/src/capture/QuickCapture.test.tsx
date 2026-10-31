@@ -937,6 +937,9 @@ describe("QuickCapture: Speak dictates into the draft", () => {
     expect(box.value).toBe("call");
     act(() => FakeRecognition.last!.say("Call Alberto Tomorrow", true));
     expect(box.value).toBe("Call Alberto Tomorrow");
+    // AMENDED 2026-10-31 (the speech box): while it listens, Done Talking is the sheet's one red; Capture returns when it stops.
+    expect(screen.queryByRole("button", { name: "Capture" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Done Talking" }));
     expect(screen.getByRole("button", { name: "Capture" }), "the commit is still a tap away").toBeInTheDocument();
     expect(screen.queryByText(/Saved/)).toBeNull();
   });

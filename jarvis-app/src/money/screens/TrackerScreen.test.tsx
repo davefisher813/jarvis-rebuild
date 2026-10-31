@@ -215,6 +215,22 @@ describe("Dashboard counts what the Budget counts (Dave 2026-10-03)", () => {
   });
 });
 
+// QUIET ROWS (Punch 11, Dave 2026-10-31): a category's name and limit are on its own sheet, reached by tapping its row.
+async function limitOf(name: string): Promise<string> {
+  fireEvent.click(await screen.findByRole("button", { name: "Edit " + name }));
+  const v = (await screen.findByLabelText(name + " limit") as HTMLInputElement).value;
+  fireEvent.click(screen.getByText("Cancel"));
+  await waitFor(() => expect(screen.queryByLabelText(name + " limit")).toBeNull());
+  return v;
+}
+async function setOnSheet(name: string, next: { name?: string; limit?: string }) {
+  fireEvent.click(await screen.findByRole("button", { name: "Edit " + name }));
+  if (next.limit !== undefined) fireEvent.change(await screen.findByLabelText(name + " limit"), { target: { value: next.limit } });
+  if (next.name !== undefined) fireEvent.change(screen.getByLabelText(name + " name"), { target: { value: next.name } });
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.queryByLabelText(name + " limit")).toBeNull());
+}
+
 describe("a new month's budget copies last month's limits (Dave 2026-10-03)", () => {
   it("opens with the previous budget's names and limits, says so, and stores nothing until Save", async () => {
     const prev = new Date(); prev.setDate(1); prev.setMonth(prev.getMonth() - 1);
@@ -223,9 +239,9 @@ describe("a new month's budget copies last month's limits (Dave 2026-10-03)", ()
       await s.tracker.saveBudget({ month: prevMonth, expectedIncomeCents: 500000, savingsTargetCents: 100000, allocations: { Golf: 20000, Restaurants: 45050 } });
     });
     await tab("Budgets");
-    expect((await screen.findByLabelText("Golf limit") as HTMLInputElement).value).toBe("200.00");
-    expect((screen.getByLabelText("Restaurants limit") as HTMLInputElement).value).toBe("450.50");
-    expect(screen.queryByLabelText("Dining limit")).toBeNull();               // not the nine proposed names
+    expect(await limitOf("Golf")).toBe("200.00");
+    expect(await limitOf("Restaurants")).toBe("450.50");
+    expect(screen.queryByRole("button", { name: "Edit Dining" })).toBeNull();   // not the nine proposed names
     expect(screen.getByText(`Limits Copied From ${monthLabel(prevMonth)}`)).toBeInTheDocument();
     // income and savings target are the person's to say again
     expect((screen.getByLabelText("Expected income") as HTMLInputElement).value).toBe("");
@@ -243,10 +259,8 @@ describe("Tracker budget: monthly, on actuals", () => {
   it("a month with no budget starts from the nine names with blank limits", async () => {
     mount("bg-seed");
     await tab("Budgets");
-    for (const name of DEFAULT_BUDGET_CATEGORIES) {
-      const limit = await screen.findByLabelText(`${name} limit`);
-      expect((limit as HTMLInputElement).value).toBe("");
-    }
+    await screen.findByRole("button", { name: "Edit " + DEFAULT_BUDGET_CATEGORIES[0] });
+    for (const name of DEFAULT_BUDGET_CATEGORIES) expect(await limitOf(name)).toBe("");
     // Uncategorized is always at the foot
     expect(screen.getByText("Uncategorized")).toBeInTheDocument();
   });
@@ -254,8 +268,8 @@ describe("Tracker budget: monthly, on actuals", () => {
   it("filling a limit and saving stores cents by name, with the month as its name", async () => {
     const h = mount("bg-save");
     await tab("Budgets");
-    fireEvent.change(await screen.findByLabelText("Groceries limit"), { target: { value: "200" } });
-    fireEvent.change(screen.getByLabelText("Dining limit"), { target: { value: "75.50" } });
+    await setOnSheet("Groceries", { limit: "200" });
+    await setOnSheet("Dining", { limit: "75.50" });
     fireEvent.click(screen.getByText("Save This Month"));
     await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
     const b = (await h.current!.tracker.load()).budgets[0]!.data;
@@ -267,12 +281,13 @@ describe("Tracker budget: monthly, on actuals", () => {
   it("rename, add and remove are free text and save as written", async () => {
     const h = mount("bg-edit");
     await tab("Budgets");
-    fireEvent.change(await screen.findByLabelText("Groceries name"), { target: { value: "Food" } });
-    fireEvent.change(screen.getByLabelText("Food limit"), { target: { value: "300" } });
+    await setOnSheet("Groceries", { name: "Food", limit: "300" });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Dining" }));
     fireEvent.click(screen.getByLabelText("Remove Dining"));
     fireEvent.click(screen.getByText("Add a Category"));
     fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "Pets" } });
-    fireEvent.change(screen.getByLabelText("Pets limit"), { target: { value: "40" } });
+    fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "40" } });
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     fireEvent.click(screen.getByText("Save This Month"));
     await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
     expect((await h.current!.tracker.load()).budgets[0]!.data.allocations).toEqual({ Food: 30000, Pets: 4000 });
@@ -283,9 +298,9 @@ describe("Tracker budget: monthly, on actuals", () => {
       await s.tracker.saveBudget({ month: MONTH, expectedIncomeCents: 500000, savingsTargetCents: 100000, allocations: { Golf: 20000, Restaurants: 45050 } });
     });
     await tab("Budgets");
-    expect((await screen.findByLabelText("Golf limit") as HTMLInputElement).value).toBe("200.00");
-    expect((screen.getByLabelText("Restaurants limit") as HTMLInputElement).value).toBe("450.50");
-    expect(screen.queryByLabelText("Dining limit")).toBeNull();
+    expect(await limitOf("Golf")).toBe("200.00");
+    expect(await limitOf("Restaurants")).toBe("450.50");
+    expect(screen.queryByRole("button", { name: "Edit Dining" })).toBeNull();
     expect((screen.getByLabelText("Expected income") as HTMLInputElement).value).toBe("5000.00");
   });
 
@@ -298,11 +313,20 @@ describe("Tracker budget: monthly, on actuals", () => {
     });
     await tab("Budgets");
     expect(await screen.findByText("$60.00 of $100.00")).toBeInTheDocument();
-    expect(screen.getByText("$40.00")).toBeInTheDocument();   // remaining on Groceries
-    expect(screen.getByText("$40.00 Over")).toBeInTheDocument(); // Dining, stated plainly (Title Case, as every line is)
-    const names = [...document.querySelectorAll(".mt-cat-name")].map((n) => n.textContent);
+    // QUIET ROWS (Punch 11): over its limit the row's amount is the key's red, and the row says nothing else.
+    const dining = screen.getByRole("button", { name: "Edit Dining" });
+    expect(dining.querySelector(".mt-cat-amt")).toHaveClass("mt-over");
+    expect(dining).toHaveTextContent("$90.00 of $50.00");
+    const names = [...document.querySelectorAll(".mt-cats .mt-cat-name")].map((n) => n.textContent);
     expect(names[names.length - 1]).toBe("Uncategorized");
     expect(screen.getByText("$12.34")).toBeInTheDocument();
+    // Remaining and the over line are on each category's own sheet.
+    fireEvent.click(screen.getByRole("button", { name: "Edit Groceries" }));
+    expect(await screen.findByText("$40.00")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dining" }));
+    expect(await screen.findByText("$40.00 Over")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cancel"));
   });
 
   it("a linked pair counts once at the payment, and a differing receipt is stated plainly", async () => {
@@ -387,9 +411,11 @@ describe("Tracker budgets: a limit with no name", () => {
     await tab("Budgets");
     fireEvent.click(await screen.findByText("Add a Category"));
     fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "40" } });
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     fireEvent.click(screen.getByText("Save This Month"));
     expect(toasts.map((t) => t.message)).toContain("Name That Category First");
-    expect(screen.getByLabelText("New category name")).toHaveFocus();
+    // Its sheet opens again with the cursor on the name.
+    await waitFor(() => expect(screen.getByLabelText("New category name")).toHaveFocus());
     expect((await h.current!.tracker.load()).budgets).toHaveLength(0);
     expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
   });
@@ -402,10 +428,11 @@ describe("Tracker budgets: a limit with no name", () => {
     fireEvent.click(await screen.findByText("Add a Category"));
     fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "50" } });
     fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "uncategorized" } });
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     fireEvent.click(screen.getByText("Save This Month"));
     expect(toasts.map((t) => t.message)).toContain("Uncategorized Has No Limit");
     expect(toasts.map((t) => t.message)).not.toContain("Name That Category First");
-    expect(screen.getByLabelText("uncategorized name")).toHaveFocus();
+    await waitFor(() => expect(screen.getByLabelText("uncategorized name")).toHaveFocus());
     expect((await h.current!.tracker.load()).budgets).toHaveLength(0);
     expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
   });
@@ -414,7 +441,8 @@ describe("Tracker budgets: a limit with no name", () => {
     const h = mount("bg-blank");
     await tab("Budgets");
     fireEvent.click(await screen.findByText("Add a Category"));
-    fireEvent.change(await screen.findByLabelText("Groceries limit"), { target: { value: "200" } });
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));   // the blank row, left blank
+    await setOnSheet("Groceries", { limit: "200" });
     fireEvent.click(screen.getByText("Save This Month"));
     await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
     expect((await h.current!.tracker.load()).budgets[0]!.data.allocations).toEqual({ Groceries: 20000 });

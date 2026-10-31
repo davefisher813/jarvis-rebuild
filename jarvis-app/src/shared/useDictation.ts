@@ -42,6 +42,13 @@ export interface Dictation {
   supported: boolean;
   start: () => void;
   stop: () => void;
+  /** The live microphone while recording (null otherwise), for the waveform (2026-10-31). */
+  stream: MediaStream | null;
+  /** When the recording started (ms), for the timer. */
+  startedAt: number | null;
+  /** A clip that could not be turned into words is kept for one more try, so a blinked network never costs the sentence. */
+  canRetry: boolean;
+  retry: () => void;
 }
 
 interface ResultAlt { transcript: string }
@@ -64,8 +71,22 @@ type RecognizerCtor = new () => Recognizer;
 /** The constructor the page offers, or null. Looked up at call time so a test can plant one. */
 export function recognizerCtor(): RecognizerCtor | null {
   if (typeof window === "undefined") return null;
+  // NEVER ON AN IPHONE OR IN THE INSTALLED APP (Alfred's order, 2026-10-31: "in-page iOS speech recognition is unreliable and is
+  // a settled mistake, do not use it"; the 2026-10-28 research: inside an installed web app it silently stops working). There
+  // the voice is recorded and transcribed on the server, or the keyboard's own mic is pointed at; a desktop browser keeps it.
+  if (recognizerBarred()) return null;
   const w = window as unknown as { SpeechRecognition?: RecognizerCtor; webkitSpeechRecognition?: RecognizerCtor };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/** An iPhone or iPad, or the app opened from the home screen: the places the page's own recognizer cannot be trusted. */
+export function recognizerBarred(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1);
+  const standalone = (navigator as unknown as { standalone?: boolean }).standalone === true
+    || (typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches);
+  return ios || standalone;
 }
 
 /** The error, as the line a person reads: one short Title Case line, as every line the app writes (shortCopy law). */
@@ -106,6 +127,10 @@ export function useDictation({ onText, lang = "en-US" }: {
   const [supported] = useState(() => canRecord || recognizerCtor() !== null);
   const [status, setStatus] = useState<DictationStatus>(supported ? "idle" : "unsupported");
   const [error, setError] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const kept = useRef<Blob | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
   const rec = useRef<Recognizer | null>(null);
   const clip = useRef<Recording | null>(null);
   const starting = useRef(false);
@@ -119,32 +144,53 @@ export function useDictation({ onText, lang = "en-US" }: {
   const fail = useCallback((line: string) => { if (!gone.current) { setError(line); setStatus("error"); } }, []);
 
   // The recording path: stop the clip, send it, put the words in the draft. Leaving the screen drops the words.
-  const finishRecording = useCallback(async () => {
-    const r = clip.current;
-    if (!r) return;
-    clip.current = null;
+  const send = useCallback(async (blob: Blob) => {
     working.current = true;
     setStatus("transcribing");
-    const blob = await r.stop();
-    if (gone.current) { working.current = false; return; }
-    if (!blob) { working.current = false; fail(dictationErrorLine("no-speech")); return; }
+    setCanRetry(false);
     const ctl = new AbortController();
     abort.current = ctl;
     try {
       const words = await transcribeAudio(blob, { token: tokenRef.current, signal: ctl.signal });
       if (gone.current) return;
       if (!words) { fail(dictationErrorLine("no-speech")); return; }
+      kept.current = null;
       setError(null);
       setStatus("idle");
       onTextRef.current(words, true);
     } catch (e) {
       if (gone.current || (e instanceof DOMException && e.name === "AbortError")) return;
+      // Keep the clip: a network that blinked or a server that was busy is not a reason to say the sentence again. A
+      // missing key or a refused level is, so those are not offered again.
+      const again = e instanceof TranscribeError ? e.retryable : true;
+      kept.current = again ? blob : null;
+      setCanRetry(again);
       fail(e instanceof TranscribeError ? e.message : dictationErrorLine(""));
     } finally {
       abort.current = null;
       working.current = false;
     }
   }, [fail]);
+
+  const finishRecording = useCallback(async () => {
+    const r = clip.current;
+    if (!r) return;
+    clip.current = null;
+    setStream(null);
+    setStartedAt(null);
+    working.current = true;
+    setStatus("transcribing");
+    const blob = await r.stop();
+    if (gone.current) { working.current = false; return; }
+    if (!blob) { working.current = false; fail(dictationErrorLine("no-speech")); return; }
+    await send(blob);
+  }, [fail, send]);
+
+  const retry = useCallback(() => {
+    const b = kept.current;
+    if (!b || working.current) return;
+    void send(b);
+  }, [send]);
 
   const stop = useCallback(() => {
     if (clip.current) { void finishRecording(); return; }
@@ -163,6 +209,8 @@ export function useDictation({ onText, lang = "en-US" }: {
         starting.current = false;
         if (gone.current) { r.cancel(); return; }
         clip.current = r;
+        setStream(r.stream ?? null);
+        setStartedAt(Date.now());
         if (stopWanted.current) { stopWanted.current = false; void finishRecording(); }
       },
       (e: unknown) => { starting.current = false; fail(dictationErrorLine(micErrorCode(e))); },
@@ -220,7 +268,7 @@ export function useDictation({ onText, lang = "en-US" }: {
     };
   }, []);
 
-  return { status, error, supported, start, stop };
+  return { status, error, supported, start, stop, stream, startedAt, canRetry, retry };
 }
 
 /** Appends spoken words to a draft held in React state. `held` remembers the

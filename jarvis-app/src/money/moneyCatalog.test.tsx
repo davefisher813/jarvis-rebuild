@@ -576,9 +576,15 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
     await screen.findByText("Visa");
     expect(catalogViolations(container)).toEqual([]);
     await tab("Budgets");
-    await screen.findByText("Remaining", { exact: false });
-    expect(container.querySelector(".facts .fact.red")).toHaveTextContent("$40.00 Over");
+    // QUIET ROWS (Punch 11, 2026-10-31): the list is the dot, the name and the amount; over its limit the amount is red, and the
+    // remaining and the over line are on the category's own sheet, which follows the catalog too.
+    const dining = await screen.findByRole("button", { name: "Edit Dining" });
+    expect(dining.querySelector(".mt-cat-amt.mt-over")).not.toBeNull();
     expect(catalogViolations(container)).toEqual([]);
+    fireEvent.click(dining);
+    expect(await screen.findByText("$40.00 Over")).toBeInTheDocument();
+    expect(catalogViolations(document.body)).toEqual([]);
+    fireEvent.click(screen.getByText("Cancel"));
     await tab("Subscriptions");
     await screen.findByText("Netflix");
     expect(catalogViolations(container)).toEqual([]);
