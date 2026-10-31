@@ -38,7 +38,7 @@ export interface ParsedEntity {
   // All optional, all additive: a line with none of these parses exactly as
   // it did before.
   recurrence?: Recurrence;
-  reminder?: { time: string; days?: number[] };
+  reminder?: { time: string; days?: number[]; repeat?: RepeatRule; startDate?: string };
   bill?: { amount: number };
   // A payment already made ("Spent 30 on gas"): Money's transaction, never a
   // task and never a bill (a bill is owed; this is paid). Stated words only.
@@ -87,7 +87,8 @@ import { selfFact } from "./selfFact";
 import { decisionLine } from "./decisionLine";
 import { personLine, type PersonLine } from "./personLine";
 import type { StrandCategory } from "../brain/strands/types";
-import type { Recurrence } from "../notes/types";
+import type { Recurrence, RepeatRule } from "../notes/types";
+import { normalizeSpoken, partOfDayTime } from "./spoken";
 import { exactMentions } from "../people/mentions";
 import { readDuration, readAreaTag, cutWords } from "../tasks/quickWords";
 import { addMinutes } from "../schedule/calendar";
@@ -218,6 +219,8 @@ export interface CaptureContext {
   // The Logging Standard, rule 3 (2026-10-17): the areas a #tag can name.
   // Absent, no tag is read and "#Work" stays in the title as typed.
   categories?: { id: string; name: string }[];
+  // The person's own "morning" (tasks/quickReminder morningTime), for "remind me tomorrow morning". Absent means 08:00.
+  morning?: string;
 }
 
 const REPEAT_RE = new RegExp(
@@ -362,15 +365,21 @@ function followUpOpener(t: string, spans: string[]): boolean {
 
 // One line, one verdict.
 export function classifyLine(line: string, today: string, ctx: CaptureContext = {}): ParsedEntity {
-  const t = line.trim();
+  // THE WORDS AS SPOKEN, READ AS WRITTEN (the speech box, 2026-10-31). "7 p.m." and "42 dollars" are how transcription spells
+  // "7pm" and "$42"; the reads below see the second spelling. `orig` is what he wrote or said, kept verbatim in `raw` and in a
+  // note's body (copied text is never rewritten).
+  const orig = line.trim();
+  const t = normalizeSpoken(orig);
   const lower = t.toLowerCase();
-  const timeHit = matchTime(lower);
+  const remindLead = REMIND_RE.test(t);
+  // A reminder needs a clock, and "remind me tomorrow morning" names one: the part of the day, read only on this lane.
+  const timeHit = matchTime(lower) ?? (remindLead ? partOfDayTime(lower, ctx.morning) : null);
   const dayHit = matchDay(lower, today, timeHit !== null) ?? matchMonthDay(lower, today);
   const date = dayHit?.iso ?? null;
   const time = timeHit?.hhmm ?? null;
   const repeat = matchRepeat(lower);
   const money = matchAmount(lower);
-  const remindMe = REMIND_RE.exec(t);
+  const remindMe = remindLead ? REMIND_RE.exec(t) : null;
   const spans = [dayHit?.text, timeHit?.text, repeat?.text, money?.text, remindMe?.[0]].filter(Boolean) as string[];
 
   // WHO AND WHICH PROJECT. Attached to whatever the line turns out to be,
@@ -419,16 +428,31 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
       expense: { amountCents: spent.amountCents, merchant },
       date: date ?? today,
       confident: true,
-      raw: t,
+      raw: orig,
       ...who,
       inferred: date ? who.inferred : [...who.inferred, "date"],
     };
   }
 
+  // "REMIND ME" ON A DAY IS A REMINDER THAT RUNS ONCE (the speech box, 2026-10-31). "Remind me to email the landlord tomorrow
+  // morning" was filed for today, repeating every day: a reminder could not run once when this lane was written, so a dated
+  // "remind me" was sent to the event branch instead and the model filled the gap. A reminder runs once on its start date now
+  // (repeat "once"), so the words he said land as they read: that day, that time, once. Weekly and daily words still win.
+  if (remindMe && time && date && !repeat) {
+    return {
+      kind: "task",
+      title: titleCase(words),
+      reminder: { time, repeat: { kind: "once" }, startDate: date },
+      ...taskExtra,
+      confident: true,
+      raw: orig,
+      ...who,
+    };
+  }
   // A time plus a day (or just a time with "tonight"-style words caught by
   // resolveDay) is an event, confidently.
   if (time && date) {
-    return { kind: "event", title: titleCase(words), date, start: time, ...eventExtra(time), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who };
+    return { kind: "event", title: titleCase(words), date, start: time, ...eventExtra(time), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: orig, ...who };
   }
   // QUICK ADD (handoff 5.0): a standing fact about the user, before the
   // to-do reads. It sits here and not lower because "I never work out on
@@ -444,18 +468,18 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // with Ridgeline" names a thing, not a person.
   const decided = decisionLine(t);
   if (decided) {
-    return { kind: "decision", title: decided.decision, confident: true, raw: t, inferred: [] };
+    return { kind: "decision", title: decided.decision, confident: true, raw: orig, inferred: [] };
   }
   // `who` above is already the person and project this line is ABOUT
   // (UP-CORE-01); this is the person the line is a FACT about, which is a
   // different question with a different answer.
   const about = personLine(t);
   if (about) {
-    return { kind: "person", title: t, person: about, confident: true, raw: t, inferred: [] };
+    return { kind: "person", title: t, person: about, confident: true, raw: orig, inferred: [] };
   }
   const fact = selfFact(t);
   if (fact) {
-    return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: t, inferred: [] };
+    return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: orig, inferred: [] };
   }
   // A REMINDER, NOT A NINE PM EVENT (UP-CORE-01, 2026-09-05). Two ways in:
   //
@@ -481,7 +505,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
       reminder: { time, ...(days ? { days } : {}) },
       ...taskExtra,
       confident: true,
-      raw: t,
+      raw: orig,
       ...who,
     };
   }
@@ -503,7 +527,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
       ...(date ? { date } : {}),
       ...(repeat ? { recurrence: repeat.recurrence } : {}),
       confident: true,
-      raw: t,
+      raw: orig,
       ...who,
     };
   }
@@ -515,7 +539,7 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // what the AI-less fallback in ai/capture.ts has always assumed. It sits
   // below the fact read so "I don't do anything before 7am" is still a fact.
   if (time) {
-    return { kind: "event", title: titleCase(words), date: today, start: time, ...eventExtra(time), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: t, ...who, inferred: [...who.inferred, "date"] };
+    return { kind: "event", title: titleCase(words), date: today, start: time, ...eventExtra(time), ...(repeat ? { recurrence: repeat.recurrence } : {}), confident: true, raw: orig, ...who, inferred: [...who.inferred, "date"] };
   }
   // Long prose, URLs, confirmation codes: kept verbatim as a note (below).
   const prose = t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2;
@@ -524,26 +548,26 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // copied text, kept verbatim), a question (the model may know better), or
   // someone else's doing (followUpOpener above).
   if (TASK_OPENERS.test(t) || (ctx.followUp && !prose && !/\?\s*$/.test(t) && followUpOpener(t, spans))) {
-    return { kind: "task", title: titleCase(words), ...(date ? { date } : {}), ...(repeat ? { recurrence: repeat.recurrence } : {}), ...taskExtra, confident: true, raw: t, ...who };
+    return { kind: "task", title: titleCase(words), ...(date ? { date } : {}), ...(repeat ? { recurrence: repeat.recurrence } : {}), ...taskExtra, confident: true, raw: orig, ...who };
   }
   // A REPEAT WITH NO CLOCK ("water the plants every week"): the repeat is the
   // whole signal, and a repeating thing is a task the app already knows how
   // to roll forward. Confident, because he wrote the word "every".
   if (repeat) {
-    return { kind: "task", title: titleCase(words), ...(date ? { date } : {}), recurrence: repeat.recurrence, ...taskExtra, confident: true, raw: t, ...who };
+    return { kind: "task", title: titleCase(words), ...(date ? { date } : {}), recurrence: repeat.recurrence, ...taskExtra, confident: true, raw: orig, ...who };
   }
   // A date, no time, not imperative: an all-day-ish event is a guess; a task
   // due that day is the safe, reversible read.
   if (date) {
-    return { kind: "task", title: titleCase(words), date, ...taskExtra, confident: false, raw: t, ...who };
+    return { kind: "task", title: titleCase(words), date, ...taskExtra, confident: false, raw: orig, ...who };
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
   if (prose) {
-    return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true, raw: t, inferred: [] };
+    return { kind: "note", title: titleCase(orig.split(/\s+/).slice(0, 6).join(" ")), body: orig, confident: true, raw: orig, inferred: [] };
   }
   // Short, no signal: a task is the cheapest honest read, but the AI
   // fallback may know better.
-  return { kind: "task", title: titleCase(words), ...taskExtra, confident: false, raw: t, ...who };
+  return { kind: "task", title: titleCase(words), ...taskExtra, confident: false, raw: orig, ...who };
 }
 
 // Remove the date/time words from a created TITLE only (the receipt shows the

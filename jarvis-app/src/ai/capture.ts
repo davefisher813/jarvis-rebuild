@@ -9,7 +9,7 @@ import type { ScheduleService } from "../schedule/ScheduleService";
 import { newConnection, type NotesService } from "../notes/NotesService";
 import { suggestCategory } from "../schedule/memory";
 import { todayISO as isoOf } from "../schedule/calendar";
-import type { Recurrence } from "../notes/types";
+import type { Recurrence, RepeatRule } from "../notes/types";
 import type { LedgerService } from "../money/ledger/LedgerService";
 import { fileManualBill, noteFor } from "../money/ledger/emailBill";
 import type { BillRecurrence } from "../money/ledger/types";
@@ -32,7 +32,10 @@ export interface CaptureResult {
   // read and the AI fallback is allowed to fill in. Every one is a field
   // TasksService already takes; applyCapture passes them straight through.
   recurrence?: Recurrence;
-  reminder?: { time: string; days?: number[] };
+  reminder?: { time: string; days?: number[]; repeat?: RepeatRule; startDate?: string };
+  // The model's own doubt (the speech box, 2026-10-31). Read by smartPaste to ask instead of guessing; never stored.
+  confidence?: "high" | "low";
+  alternative?: "task" | "event" | "note";
   bill?: { amount: number };
   // A payment already made, filed in Money's tracker as a transaction.
   expense?: { amountCents: number; merchant: string };
@@ -52,6 +55,10 @@ export const CAPTURE_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {
     kind: { type: "string", enum: ["task", "event", "note"] },
+    // ASK, DON'T GUESS (the speech box, 2026-10-31): the model says how sure it is, and its second choice, so a close call is
+    // put to him as two buttons instead of being filed wrong in silence ("Dinner with Marco" landed as a Note).
+    confidence: { type: "string", enum: ["high", "low"], description: "low when another kind is nearly as likely" },
+    alternative: { type: "string", enum: ["task", "event", "note"], description: "the second most likely kind, only when confidence is low" },
     title: { type: "string" },
     date: { type: "string", description: "yyyy-mm-dd" },
     start: { type: "string", description: "HH:MM 24h" },
@@ -104,6 +111,7 @@ export function captureSystemPrompt(ctx: AIContext, today: string): AISystem {
       "The user's context is above.",
       `Today is ${today} (ISO). Resolve relative dates ("tomorrow", "Friday") against it.`,
       "Decide if the input is a task, an event (has a time or specific day), or a note (a thought to keep).",
+      "Set confidence to low, and name the alternative kind, when another kind is nearly as likely; the user is then asked to choose. Set it to high otherwise.",
       `Pick a category by NAME from this list when one clearly fits: ${cats}.`,
       // UP-CORE-01 (2026-09-05): the four extra shapes stay named in the
       // reply shape and stay fenced by the line under it. Splitting the
@@ -136,6 +144,8 @@ export function parseCapture(raw: string): CaptureResult | null {
       if (out.reminder && !/^\d{2}:\d{2}$/.test(out.reminder.time ?? "")) delete out.reminder;
       if (out.reminder?.days && !out.reminder.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) delete out.reminder.days;
       if (out.bill && !(Number.isFinite(out.bill.amount) && out.bill.amount > 0)) delete out.bill;
+      if (out.confidence !== "high" && out.confidence !== "low") delete out.confidence;
+      if (out.alternative !== "task" && out.alternative !== "event" && out.alternative !== "note" || out.alternative === out.kind) delete out.alternative;
       // The model speaks dollars and a payee; the record is cents. A payment already made is never also a bill.
       const said = (o as { expense?: { amount?: number; merchant?: string } }).expense;
       delete out.expense;

@@ -127,7 +127,7 @@ interface PendingChoice {
   options: CommandTarget[];
 }
 
-export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onAskConsumed }: {
+export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onAskConsumed, askText, askTextNonce, onAskTextConsumed }: {
   // UP-MIND-02 (2026-09-05): open the record an answer was built from.
   // Optional, and the chips only render when it is given: a chip that opens
   // nothing is a control that lies about being one.
@@ -142,6 +142,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   askPersonId?: string;
   askNonce?: number;
   onAskConsumed?: () => void;
+  // A QUESTION ASKED IN THE SPEECH BOX IS ANSWERED HERE (2026-10-31). "What is on my schedule tomorrow?" was saved as a Note; the
+  // box hands it to Chat, which answers from the records. He already tapped Ask in the box, so it is asked, not left in the box.
+  askText?: string;
+  askTextNonce?: number;
+  onAskTextConsumed?: () => void;
 } = {}) {
   const chat = useChat();
   const tasksSvc = useTasks();
@@ -466,6 +471,25 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     })();
      
   }, [askPersonId, askNonce]);
+
+  const askedText = useRef<string>("");
+  const pendingAsk = useRef<string | null>(null);
+  useEffect(() => {
+    if (!askText) return;
+    const key = askText + "|" + (askTextNonce ?? 0);
+    if (askedText.current === key) return;
+    askedText.current = key;
+    onAskTextConsumed?.();
+    pendingAsk.current = askText;
+    setDraft(askText);
+
+  }, [askText, askTextNonce]);
+  useEffect(() => {
+    if (pendingAsk.current === null || busy || draft !== pendingAsk.current) return;
+    pendingAsk.current = null;
+    void send();
+
+  }, [draft, busy]);
 
   // THE CARDS (2026-10-24, chat box order). A tap is the only thing that makes a change the model asked for: the hook's approve checks the
   // card is still open, inside its five minutes and the very content this tap drew, and only then makes it. The receipt in the thread comes

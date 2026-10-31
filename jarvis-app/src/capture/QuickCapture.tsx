@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, useEffect, useMemo, useDeferredValue, type ReactNode } from "react";
 import { X } from "../shared/icons";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, useOptionalTracker, usePeople, useProjects, useStore } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, useOptionalTracker, usePeople, useProjects, useStore, useOptionalGym } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
@@ -14,6 +14,11 @@ import { parseSetPhrase } from "../gym/parseSet";
 import { readLive, writeLive, logSet, setLoggedSets, skipExercise, isStillActive } from "../gym/liveSession";
 import { newSetId, duplicateEntry } from "../gym/strip";
 import { formatSet } from "../gym/measures";
+import { composeLibrary, type LibraryEntry } from "../gym/library";
+import { STARTER_EXERCISES } from "../gym/starterLibrary";
+import { readQuestion } from "./intent";
+import { readSpokenSet, type SpokenSet } from "./spokenSet";
+import { logSpokenSet, type SetLogged } from "./logSpokenSet";
 import type { SetEntry } from "../gym/types";
 import { pasteSeenAge, readRecentCaptures, dropCapture, type RecentCapture } from "../paste/captureLog";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
@@ -146,7 +151,10 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   // A reminder with no repeat runs every day: that is what an absent `days`
   // MEANS in ReminderInfo, so the receipt says it rather than leaving the
   // person to find out tomorrow morning.
-  const repeat = s.recurrence ? (REPEAT_WORD[s.recurrence] ?? s.recurrence) : s.reminder ? reminderDays(s.reminder.days) : "";
+  // A ONE-TIME REMINDER SAYS ITS DAY (the speech box, 2026-10-31): "Once" and the date, never "Daily".
+  const once = s.reminder?.repeat?.kind === "once";
+  if (once && s.reminder?.startDate) out.push(<span className="fact date" key="onday">{weekdayLongDate(s.reminder.startDate)}</span>);
+  const repeat = s.recurrence ? (REPEAT_WORD[s.recurrence] ?? s.recurrence) : s.reminder ? (once ? "Once" : reminderDays(s.reminder.days)) : "";
   if (repeat) out.push(<span className="fact date" key="repeat">{repeat}</span>);
   if (s.bill) out.push(<span className="fact" key="bill">Bill <b>{formatMoney(s.bill.amount)}</b>{who ? " for " + who : ""}</span>);
   else if (s.expense) out.push(<span className="fact" key="expense">Expense <b>{formatMoney(s.expense.amountCents / 100)}</b></span>);
@@ -178,6 +186,18 @@ function liveFacts(r: LiveRead): ReactNode[] {
 // wrong Undo is one tap from right.
 type Saved = SavedEntity & { removed?: boolean };
 
+const STARTER_NAMES = STARTER_EXERCISES.map((e) => e.name);
+const KIND_WORD: Record<"task" | "event" | "note", string> = { task: "Task", event: "Event", note: "Note" };
+const aOrAn = (w: string): string => (/^[AEIOU]/.test(w) ? "an " : "a ") + w;
+
+// "Deadlift 405 lb × 5", "Kettlebell Swing 3 × 10 at 53 lb": the set as it will be written, in the gym's own words.
+function setWords(s: SpokenSet, name: string): string {
+  const w = s.w !== undefined ? `${s.w} ${s.unit}` : "";
+  const r = s.r !== undefined ? String(s.r) : "";
+  if (s.sets > 1) return `${name} ${s.sets} × ${r || "?"}${w ? " at " + w : ""}`;
+  return `${name} ${w && r ? `${w} × ${r}` : w || `${r} Reps`}`.trim();
+}
+
 function fmtRecent(ts: number): string {
   const d = new Date(ts);
   const today = new Date();
@@ -193,7 +213,12 @@ function fmtRecent(ts: number): string {
 // receipt carries refile chips and undo; correction is post-action, never a
 // confirm gate. Recent Captures shows the last ten so a mis-capture from
 // earlier is one tap away.
-export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; onClose: () => void; onOpen?: (kind: RecentCapture["kind"], id: string) => void }) {
+export default function QuickCapture({ ai, onClose, onOpen, onAsk }: {
+  ai: AIService; onClose: () => void; onOpen?: (kind: RecentCapture["kind"], id: string) => void;
+  // A QUESTION IS ANSWERED, NEVER FILED (the speech box, 2026-10-31): the box hands it to Chat. Absent (a surface with no
+  // Chat), a question goes on to the lanes as it did.
+  onAsk?: (question: string) => void;
+}) {
   const tasks = useTasks();
   const schedule = useSchedule();
   const notes = useNotes();
@@ -222,6 +247,21 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // Brain Manual v1 (2026-09-27): the filing doors. Optional like the
   // decisions seam above -- without a brain service they simply don't render.
   const brain = useOptionalBrainMemory();
+  // WHERE A SPOKEN SET GOES (2026-10-31): his library and the starters, read once when the box opens, so "Deadlift 405 for 5"
+  // names a lift he has. No gym service means the lane is closed and the line is read as it always was.
+  const gym = useOptionalGym();
+  const [lifts, setLifts] = useState<{ library: LibraryEntry[]; names: string[] }>({ library: [], names: STARTER_NAMES });
+  useEffect(() => {
+    if (!gym) return;
+    let on = true;
+    void (async () => {
+      const [progs, works] = await Promise.all([gym.listPrograms().catch(() => []), gym.listWorkouts().catch(() => [])]);
+      if (!on) return;
+      const library = composeLibrary(progs, works);
+      setLifts({ library, names: [...library.map((e) => e.name), ...STARTER_NAMES] });
+    })();
+    return () => { on = false; };
+  }, [gym]);
   const [filingMode, setFilingMode] = useState<"decision" | "remember" | null>(null);
   // THE TRUST CHECKPOINT (Phase 0 D4, 2026-10-10), behind trust_v1. This door
   // reaches no adapter of its own, so it asks the Store through the one seam
@@ -242,6 +282,9 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const [recents, setRecents] = useState<RecentCapture[]>([]);
   const [error, setError] = useState("");
   const [dupAge, setDupAge] = useState<number | null>(null);
+  type Kind3 = "task" | "event" | "note";
+  const [asking, setAsking] = useState<{ choices: readonly [Kind3, Kind3]; answer: (k: Kind3 | null) => void } | null>(null);
+  const askKind = (_line: string, choices: readonly [Kind3, Kind3]) => new Promise<Kind3 | null>((done) => { haptics.selection(); setAsking({ choices, answer: done }); });
   // THE LIVE READ'S LISTS (rule 12): the people, projects and areas the line is read against while it is typed, read once when the sheet opens.
   // The save re-reads them fresh, so a failure here costs the live line its names and the save nothing.
   const [liveCtx, setLiveCtx] = useState<CaptureContext>({});
@@ -265,7 +308,18 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     () => liveRead(typed, todayISO(), liveCtx, { strands: !!strands, decisions: !!decisions, ledger: !!ledger, tracker: !!tracker }),
     [typed, liveCtx, strands, decisions, ledger, tracker],
   );
-  const liveLine = phase === "input" && live ? liveFacts(live) : [];
+  // What the line is FOR, read as it is typed or spoken: a question or a set never reaches the lanes (capture/intent.ts).
+  const intent = useMemo((): { kind: "question" } | { kind: "set"; set: SpokenSet } | null => {
+    const t = typed.trim();
+    if (!t) return null;
+    if (onAsk && readQuestion(t)) return { kind: "question" };
+    const set = gym ? readSpokenSet(t, lifts.names) : null;
+    return set ? { kind: "set", set } : null;
+  }, [typed, onAsk, gym, lifts.names]);
+  const liveLine = phase !== "input" ? []
+    : intent?.kind === "question" ? [<span className="fact" key="q">Question for JARVIS</span>]
+    : intent?.kind === "set" ? [<span className="fact" key="set">Set <b>{setWords(intent.set, intent.set.name)}</b></span>]
+    : live ? liveFacts(live) : [];
   // UP-CORE-01 (2026-09-05): the bounded lists the capture matches people and
   // projects against, and the receipt names them from. Read once with the
   // categories; a failure leaves both lanes closed rather than blocking the
@@ -344,6 +398,36 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     if (!t || phase === "saving") return;
     setError("");
     if (logToSession(t)) return;
+    // A QUESTION GOES TO CHAT, A SET GOES TO TRAINING (the speech box, 2026-10-31). Neither is a record for the lanes below:
+    // both were saved as Notes in the 2026-10-28 test. The tap that got here is the confirm (voice never saves on its own).
+    // Read from the words as they stand at the tap, not the deferred live read.
+    const spokenSet = gym && !(onAsk && readQuestion(t)) ? readSpokenSet(t, lifts.names) : null;
+    if (onAsk && readQuestion(t)) {
+      CAPTURE_DRAFT.clear();
+      setTextState("");
+      onAsk(t);
+      return;
+    }
+    if (spokenSet) {
+      setPhase("saving");
+      const got: { done: SetLogged | null } = { done: null };
+      const wrote = await attemptWrite(async () => { got.done = await logSpokenSet(spokenSet, { gym, library: lifts.library, today: todayISO() }); });
+      setPhase("input");
+      const done = got.done;
+      if (!wrote) return;
+      if (!done) { setError("Couldn't Log That Set · Open Training to Log It"); return; }
+      haptics.confirm();
+      CAPTURE_DRAFT.clear();
+      setTextState("");
+      onClose();
+      showToast({
+        // The set in the gym's own spelling ("405 lb × 5", as the set chip draws it), so the words are not re-cased.
+        message: `Logged ${setWords(spokenSet, done.name)}${done.where === "quick" ? " to Quick Log" : ""}`,
+        actionLabel: "Undo",
+        onAction: () => { void done.undo(); },
+      });
+      return;
+    }
     // A CORRECTION EDITS THE RECEIPT ABOVE IT (Dave, 2026-10-27: "no, Josh Rudd" was saved as a second task). Right after a capture, a line
     // that rejects or restates the filing fixes that item and is never captured. If it cannot be read as a fix, it says so and saves
     // nothing; the same words sent a second time are a capture.
@@ -396,7 +480,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     // lacked, or that Money is unavailable. Said out loud, never a task.
     let billNote = "";
     const ok = await attemptWrite(() =>
-      smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), onFactRefused: () => { refused = true; }, onBillNote: (m) => { billNote = m; } }, out));
+      smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), askKind, onFactRefused: () => { refused = true; }, onBillNote: (m) => { billNote = m; } }, out));
     if (out.length === 0) {
       // The middle dot, not a full stop: the short-copy law forbids a
       // sentence boundary in rendered copy, and this is the exact string
@@ -737,11 +821,22 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
             {/* ONE PRIMARY, FOR WHAT THE BOX HOLDS. Words in the box: Capture (or Save Anyway over a repeat). An empty box
                 over receipts: Done, which closes and says what landed. Before anything is saved, Cancel is the way out and
                 it spends the draft; the scrim keeps it. */}
+            {asking ? (
+              // ASK, DON'T GUESS (the speech box, 2026-10-31): two big buttons, one per reading, and nothing is saved until one is
+              // tapped. The direct cure for an event filed as a note.
+              <div className="sheet-actions ask-kind" role="group" aria-label="Which Is It">
+                <div className="ask-kind-q">{"Is This " + aOrAn(KIND_WORD[asking.choices[0]]) + " or " + aOrAn(KIND_WORD[asking.choices[1]]) + "?"}</div>
+                {asking.choices.map((k) => (
+                  <button key={k} type="button" className="btn btn-secondary btn-block" onClick={() => { const a = asking; setAsking(null); a.answer(k); }}>{KIND_WORD[k]}</button>
+                ))}
+                <button type="button" className="btn btn-tertiary btn-block" onClick={() => { const a = asking; setAsking(null); a.answer(null); }}>Cancel</button>
+              </div>
+            ) : (
             <div className="sheet-actions">
               {text.trim() || dupAge !== null || saved.length === 0 ? (
                 dupAge === null ? (
                   <button className="btn btn-primary btn-block" onClick={() => void capture()} disabled={!text.trim() || phase === "saving"}>
-                    {phase === "saving" ? "Saving..." : "Capture"}
+                    {phase === "saving" ? "Saving..." : intent?.kind === "question" ? "Ask JARVIS" : intent?.kind === "set" ? "Log Set" : "Capture"}
                   </button>
                 ) : (
                   // B12: the sibling Capture button already disables while
@@ -759,6 +854,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                 <button className="btn btn-secondary btn-block" onClick={() => { CAPTURE_DRAFT.clear(); setTextState(""); onClose(); }} disabled={phase === "saving"}>Cancel</button>
               )}
             </div>
+            )}
           </div>
       </div>
       {filingMode && (

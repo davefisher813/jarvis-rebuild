@@ -7986,3 +7986,8 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .card.card-enter { animation: cardRise 220ms var(--ease-out) both; animation-delay: calc(min(var(--enter-i, 0), 5) * 40ms); }
 html[data-motion="reduce"] .card.card-enter { animation: none; }
 @media (prefers-reduced-motion: reduce) { .card.card-enter { animation: none; } }
+
+/* ASK, DON'T GUESS (the speech box, 2026-10-31): the line over the two big buttons that put a close call to him. Ink, one weight,
+   centred over the buttons it asks about. */
+.ask-kind-q { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); text-align: center; padding: var(--s-1) 0 var(--s-2); }
+.sheet-actions.ask-kind { gap: var(--s-2); }
