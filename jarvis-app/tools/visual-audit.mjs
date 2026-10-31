@@ -96,6 +96,10 @@ const AUDIT = () => {
       if (cs.position !== "fixed" && cs.position !== "absolute") continue;
       if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.2) continue;
       if (e.closest(".tab-bar, .voice-dock")) continue;
+      // The fixed .app-shell holds the tab bar and the page itself; taking it
+      // as the modal measured the page UNDER an open overlay (2026-10-30: the
+      // select bar beneath Plan My Day, a dimmed Delete). See layerOf.
+      if (e.querySelector(".tab-bar")) continue;
       const r = e.getBoundingClientRect();
       if (r.width * r.height < area * 0.33) continue;
       if (r.top > window.innerHeight * 0.8) continue;
@@ -168,6 +172,11 @@ const AUDIT = () => {
     if (!txt) continue;
     const cs = getComputedStyle(e);
     if (cs.textOverflow !== "ellipsis" && cs.overflow !== "hidden") continue;
+    // A SCREEN-READER LABEL IS NOT TRUNCATED TEXT (2026-10-30). The 1px clipped
+    // span is meant to be unseen and still read: the unset dropdown's "None"
+    // (.dd-none .dd-w, a row with nothing to say shows nothing) and the
+    // note checklist's "Task item checkbox for ..." label.
+    if (cs.position === "absolute" && e.clientWidth <= 1 && (cs.clip.startsWith("rect") || cs.clipPath.startsWith("inset"))) continue;
     let want = e.scrollWidth;
     // Only ask the ruler when scrollWidth has nothing to say AND the text is
     // on one line, which is the shape the blind spot has.
@@ -539,7 +548,13 @@ const AUDIT = () => {
     const stopsRaw = (m ? m[2] : gi).match(/(rgba?\([^)]*\)|color\(srgb[^)]*\)|#[0-9a-fA-F]{3,8})\s*(-?[\d.]+%)?/g) || [];
     const stops = stopsRaw.map((raw, i) => {
       const pm = raw.match(/(-?[\d.]+)%\s*$/);
-      const c = parse(raw);
+      // THE STOP'S POSITION IS NOT ITS ALPHA (2026-10-30). `raw` is the colour
+      // AND its position ("rgb(15, 15, 17) 100%"), and parse() falls back to
+      // "the first four numbers", so 100% was read as alpha 100 and 0% as
+      // alpha 0. Every word on a dark pane card (Life's areas, Brain's tiles,
+      // Today's hero) composited to grounds like rgb(-318, -172, 23) and was
+      // reported at 1.0:1. Parse the colour alone.
+      const c = parse(raw.replace(/\s*-?[\d.]+%\s*$/, ""));
       return c && { c, pct: pm ? +pm[1] : (i === 0 ? 0 : i === stopsRaw.length - 1 ? 100 : null) };
     }).filter(Boolean);
     if (!m || stops.length < 2 || stops.some((s) => s.pct === null)) {
@@ -798,6 +813,13 @@ const AUDIT = () => {
       if (Number(getComputedStyle(n).opacity) < 0.5) { faded = true; break; }
     }
     if (faded) continue;
+    // AN INACTIVE CONTROL IS EXEMPT (WCAG 1.4.3, 2026-10-30). The fade above
+    // was the old disabled look; disabled primaries now wear a washed fill at
+    // full opacity (ruled.css, "waiting is the same washed fill every disabled
+    // primary wears"), so a Save waiting on a name read as a 2:1 failure. A
+    // real :disabled, aria-disabled, or SheetBar's waiting .dim is inactive.
+    const ctl = e.closest("button, [role=button], a");
+    if (ctl && (ctl.matches(":disabled, [aria-disabled=true]") || ctl.classList.contains("dim"))) continue;
     const cr = ratio(fgc, back);
     if (cr !== null && cr < need) {
       const tag = ruled ? ` [${ruled.why}]` : "";
@@ -857,7 +879,11 @@ const AUDIT = () => {
   // hairlines between rows... like every other grouped list in the app").
   // Two of its own rows sharing that ancestor are not the bug this check
   // exists to catch; only cards OUTSIDE a shared group are.
-  const groupOf = (e) => e.closest(".stream-grouped");
+  // A RULED LIST CARD IS A GROUP TOO (2026-10-30). Brain's sections and the
+  // monthly recap draw their rows as .notice-swipe inside one
+  // .card.list-card-ruled, flush with a hairline between, exactly like
+  // .stream-grouped; they were reported as stacked cards.
+  const groupOf = (e) => e.closest(".stream-grouped, .list-card-ruled");
   for (let i = 1; i < cards.length; i++) {
     const a = cards[i-1].getBoundingClientRect(), c = cards[i].getBoundingClientRect();
     if (cards[i-1].contains(cards[i]) || cards[i].contains(cards[i-1])) continue;
@@ -904,7 +930,10 @@ const AUDIT = () => {
     // Achromatic, and not the primary ink at either end of the ramp.
     // 2026-09-29: the light primary ink is #111318 (max channel 24), so the
     // "near black" floor is on the brightest channel, not the darkest.
-    return mx - mn < 18 && mx < 244 && mx > 30;
+    // 2026-10-30: the warm light ink is #1F1A16 (max channel 31), so the floor
+    // moved to 40; at 30 every light title was counted as a grey run. The
+    // lightest secondary light ink is #4A423A (74), well above it.
+    return mx - mn < 18 && mx < 244 && mx > 40;
   };
   const onOwnFill = (e, stop) => {
     let n = e;
@@ -1442,6 +1471,12 @@ const layerOf = (page) => page.evaluate((sel) => {
     if (r.width * r.height < area * 0.33) continue;
     if (r.top > window.innerHeight * 0.8) continue;        // a docked bar, not a layer
     if (e.closest(".tab-bar, .voice-dock")) continue;      // permanent chrome
+    // THE SHELL IS NOT A LAYER (2026-10-30). .app-shell is fixed to the
+    // viewport once past onboarding, so it covered the whole screen and was
+    // reported as an open layer before every tab ("a layer would not close"),
+    // and every close attempt spent its full run of doors on it. A layer is
+    // laid OVER the app; anything holding the tab bar is the app itself.
+    if (e.querySelector(".tab-bar")) continue;
     const h = e.querySelector("h1, h2, .sheet-title, .nav-title, .pagehead-title, input[placeholder]");
     const t = (h?.getAttribute?.("placeholder") || h?.textContent || e.textContent || "").trim();
     return (t || "overlay").slice(0, 34);
@@ -1675,7 +1710,7 @@ const SEED_LINE = DEMO_BUILD
     "  Rebuild with: DEMO=1 npm run build && npx vite preview --port 4173";
 console.log(SEED_LINE + "\n");
 
-const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 
 async function runPass({ w, h, theme, scale = 1 }) {
   const label = `${w}x${h} ${theme}` + (scale === 1 ? "" : ` @${scale}x type`);

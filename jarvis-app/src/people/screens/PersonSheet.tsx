@@ -167,7 +167,7 @@ export default function PersonSheet({
       </Group>
       {categories.length > 0 && (
         <Group label="Part Of">
-          <Row tone="sky" glyph={<Tag className="ic" />} label="Areas">
+          <Row tone="sky" glyph={<Tag className="ic" />} label="Areas" forwardTo=".dd">
             <HeadMenu variant="value" ariaLabel="Areas" value={categoryIds[0] ?? ""} label={areaWord} off={categoryIds.length === 0} multi picked={categoryIds}
               options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
               onPick={toggleCategory} />

@@ -93,13 +93,16 @@ function isNumericField(el: HTMLInputElement): boolean {
   return el.inputMode === "numeric" || el.inputMode === "decimal" || el.type === "number";
 }
 
+/** The field a row's tap goes to: the first of these inside it. */
+export const FIELD_SEL = "input, textarea, select, .dd, .switch";
+
 export function tapField(e: MouseEvent<HTMLElement>) {
   const row = e.currentTarget;
   const t = e.target as HTMLElement;
   if (!row.contains(t)) return;
   const hit = t.closest("input, textarea, select, button, a, [role], .dd");
   if (hit && hit !== row && row.contains(hit)) return;
-  const ctl = row.querySelector<HTMLElement>("input, textarea, select, .dd, .switch");
+  const ctl = row.querySelector<HTMLElement>(FIELD_SEL);
   if (!ctl) return;
   if (ctl instanceof HTMLInputElement || ctl instanceof HTMLTextAreaElement || ctl instanceof HTMLSelectElement) {
     ctl.focus();
@@ -113,6 +116,13 @@ export function tapField(e: MouseEvent<HTMLElement>) {
     }
   } else ctl.click();
 }
+
+/** A row whose whole area is its field's door: spread on the row in place of
+    `onClick={tapField}`. data-forwards names the field in the DOM, the same
+    attribute Row writes, so the visual audit measures the row as the target
+    (2026-10-30: forty rows forwarded in code only and were measured as their
+    11px chevron). */
+export const fieldDoor = { onClick: tapField, "data-forwards": FIELD_SEL } as const;
 
 /** A caps label and the card under it. */
 export function Group({ label, children, className = "" }: { label?: string; children: ReactNode; className?: string }) {
@@ -200,7 +210,7 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
   autoFocus?: boolean;
 }) {
   return (
-    <div className="row xs-row" onClick={tapField}>
+    <div className="row xs-row" {...fieldDoor}>
       {tone && glyph && <Tile tone={tone}>{glyph}</Tile>}
       {label && <div className="conn-name">{label}</div>}
       <input
@@ -235,7 +245,7 @@ export function TextRow({ value, onChange, placeholder, ariaLabel, rows = 3, aut
   autoFocus?: boolean;
 }) {
   return (
-    <div className="row xs-row xs-textrow" onClick={tapField}>
+    <div className="row xs-row xs-textrow" {...fieldDoor}>
       <textarea className="xs-input xs-textarea" rows={rows} placeholder={placeholder} aria-label={ariaLabel} value={value}
         autoFocus={autoFocus} data-autofocus={autoFocus || undefined}
         onChange={(e) => onChange(e.target.value)} />

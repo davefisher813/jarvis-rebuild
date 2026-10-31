@@ -2765,6 +2765,10 @@ button {
 /* In a sheet's form the quiet capsules are ONE WRAPPING ROW under the field they belong to, on the field's own column
    (2026-10-05, Smart Paste: Speak and the two filing doors). */
 .sheet-form > .msg-quiet-acts { flex-direction: row; flex-wrap: wrap; align-items: center; margin-top: var(--s-2); }
+/* A WRAPPED LINE KEEPS ITS OWN REACH (2026-10-30, the sweep's screen audit). Each 32px capsule reaches 6px above and below to
+   make 44; at an 8px row gap "Remember This" on the second line reached 4px into Speak's, so the foot of Speak tapped the
+   capsule under it. A 12px row gap lets the two reaches meet and not overlap. The 8px between capsules on a line stays. */
+.sheet-form > .msg-quiet-acts { row-gap: var(--s-3); }
 /* THE READ-BACK (voice set logging, the Logging Standard addendum 5, Alfred 2026-10-17): the set as it will be written,
    "Log 225 Lb × 5 on Bench Press", under the field it was said into. A name's type and the primary ink, because it is
    the statement he confirms, not a note about the field; it wraps, never truncates. Both themes, ink only. */
@@ -4591,7 +4595,9 @@ html[data-outline-layers] .tab-bar { outline: 2px solid var(--warn); outline-off
 }
 [data-theme="light"] .note-conn-add { color: var(--on-light-red); }
 .note-conn-add .ic { width: 13px; height: 13px; }
-.note-conn-add::after { content: ""; position: absolute; inset: -6px; }
+/* EVEN ON ALL FOUR SIDES (2026-10-30, the sweep's screen audit). The shared 44 reach above centres its box with a transform and
+   a 100% height; this inset kept both, so the reach slid up and left and the 6px under "Link Something" was dead. */
+.note-conn-add::after { content: ""; position: absolute; inset: -6px; transform: none; width: auto; height: auto; min-width: 0; min-height: 0; }
 /* Pressed is a step past the resting fill in both themes: in light the
    capsule fill IS the 8% press, so the 8% press showed no change, and in
    dark it sank below the opaque rest. The 14% / 13% press lifts it. */

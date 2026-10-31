@@ -16,7 +16,7 @@ import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
 import { rowDoor, own } from "../../shared/rowDoor";
 import HeadMenu from "../../shared/HeadMenu";
-import { tapField, Strip } from "../../shared/FormSheet";
+import { fieldDoor, Strip } from "../../shared/FormSheet";
 import { onPressKey, pressable } from "../../shared/pressable";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { addDays, fmtTime } from "../../schedule/calendar";
@@ -628,7 +628,7 @@ export default function TaskSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">Task</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="red"><CheckSquare className="ic" /></Tile>
               <input
                 className={"xs-input" + (err ? " input-error" : "")}
@@ -709,7 +709,7 @@ export default function TaskSheet({
           {steps.length > 0 && (
           <div className="pad-x"><div className="card xs-group">
             {steps.map((s, i) => (
-              <div className="row xs-row" key={i} onClick={tapField}>
+              <div className="row xs-row" key={i} {...fieldDoor}>
                 <button
                   type="button"
                   className={"cb" + (s.done ? " on" : "")}
@@ -758,7 +758,7 @@ export default function TaskSheet({
                 white/gray, must be amber"). Today is amber, a day behind us is red, and
                 anything later stays the plain value. The tone is on the row; the menu's
                 own value takes it (components.css .xs-due-*). */}
-            <div className={"row xs-row" + (effDue && effDue < today ? " xs-due-red" : effDue === today ? " xs-due-warn" : "")} onClick={tapField}>
+            <div className={"row xs-row" + (effDue && effDue < today ? " xs-due-red" : effDue === today ? " xs-due-warn" : "")} {...fieldDoor}>
               <Tile tone="orange"><Clock className="ic" /></Tile>
               <div className="conn-name">Due</div>
               <HeadMenu variant="value" ariaLabel="Due" value={dueMode} label={dueWord} off={dueMode === "none"}
@@ -769,11 +769,11 @@ export default function TaskSheet({
                 onPick={pickDue} />
             </div>
             {dueMode === "pick" && (
-              <div className="row xs-row xs-date" onClick={tapField}>
+              <div className="row xs-row xs-date" {...fieldDoor}>
                 <input ref={dateRef} type="date" className="xs-input" aria-label="Due date" value={due} onChange={(e) => setDue(e.target.value)} />
               </div>
             )}
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="green"><RepeatGlyph /></Tile>
               <div className="conn-name">Repeat</div>
               <HeadMenu variant="value" ariaLabel="Repeat" value={repeat} off={repeat === ""}
@@ -791,7 +791,7 @@ export default function TaskSheet({
                 pre-selected. Selecting it for him would store a number
                 JARVIS guessed as one he chose, and from then on the
                 category could no longer teach this task anything. */}
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="purple"><Hourglass className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Length</div>
@@ -817,7 +817,7 @@ export default function TaskSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">Where</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="blue"><Tag className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Area</div>
@@ -839,7 +839,7 @@ export default function TaskSheet({
                 rows were gated on the caller handing over a list, so Where
                 read as four fields on one screen and three on another. A
                 menu with nothing to pick says None and offers None. */}
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="teal"><User className="ic" /></Tile>
               <div className="conn-name">Person</div>
               <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
@@ -847,7 +847,7 @@ export default function TaskSheet({
                 onPick={pickPerson} />
             </div>
             {(
-              <div className="row xs-row" onClick={tapField}>
+              <div className="row xs-row" {...fieldDoor}>
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
                 <div className="conn-name">Project</div>
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
@@ -882,7 +882,7 @@ export default function TaskSheet({
                 offer it says None and offers None, the same as Person and
                 Event do with nothing to pick, never a value that looks like
                 a control and is not (O.9). */}
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="red"><TargetGlyph /></Tile>
               <div className="conn-name">Goal</div>
               {project
@@ -902,7 +902,7 @@ export default function TaskSheet({
                 and belongs to Saturday. The menu names the day beside the
                 title, because two practices called "Practice" are not the
                 same practice. */}
-            <div className="row xs-row" onClick={tapField}>
+            <div className="row xs-row" {...fieldDoor}>
               <Tile tone="sky"><CalendarDays className="ic" /></Tile>
               <div className="conn-name">Event</div>
               <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}

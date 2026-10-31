@@ -21,7 +21,7 @@ import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { onPressKey } from "../../shared/pressable";
-import { Tile, tapField } from "../../shared/FormSheet";
+import { Tile, fieldDoor } from "../../shared/FormSheet";
 import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban, Brain, ArrowUp } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph } from "../../shared/glyphs";
 import { spanLabel } from "../../shared/duration";
@@ -446,7 +446,7 @@ export default function EventSheet({
           <Provenance source={source} {...(source && openSourceFor ? { onOpen: openSourceFor(source) } : {})} />
           <div className="grp xs-grp"><div className="eyebrow">Event</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="sky"><CalendarGlyph /></Tile>
               <input
                 className={"xs-input" + (err && !title.trim() ? " input-error" : "")}
@@ -481,7 +481,7 @@ export default function EventSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">When</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="orange"><Calendar className="ic" /></Tile>
               <div className="conn-name">Date</div>
               {/* Tomorrow is a move of the DAY, so it lives on the Date row, not among the minute nudges, and only
@@ -491,12 +491,12 @@ export default function EventSheet({
               <PickValue kind="date" ariaLabel="Date" value={date} invalid={err && !date}
                 onChange={(v) => { setDate(v); if (err) setErr(false); }} />
             </div>
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="green"><ClockGlyph /></Tile>
               <div className="conn-name">Start</div>
               <PickValue kind="time" ariaLabel="Start" value={start} onChange={onStart} />
             </div>
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="teal"><ClockGlyph /></Tile>
               <div className="conn-name">End</div>
               <PickValue kind="time" ariaLabel="End" value={end} invalid={endInvalid}
@@ -504,7 +504,7 @@ export default function EventSheet({
             </div>
             {/* THE SHARED LIST (2026-08-24): one set of lengths for the day
                 row, the plan sheet and this sheet (schedule/durations.ts). */}
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="blue"><Hourglass className="ic" /></Tile>
               <div className="conn-name">Length</div>
               <HeadMenu variant="value" ariaLabel="Length" value={durValue} label={durWord} off={durNow === 0}
@@ -568,7 +568,7 @@ export default function EventSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">Repeat</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="purple"><RepeatGlyph /></Tile>
               <div className="conn-name">Repeat</div>
               <HeadMenu variant="value" ariaLabel="Repeat" value={recurrence} off={recurrence === "none"}
@@ -603,7 +603,7 @@ export default function EventSheet({
               </div>
             )}
             {recurrence === "weekly" && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="orange"><RepeatGlyph /></Tile>
                 <div className="conn-name">Every</div>
                 <HeadMenu variant="value" ariaLabel="Every" value={String(interval)} off={interval === 1}
@@ -615,7 +615,7 @@ export default function EventSheet({
                 event ran forever, so "fall clinics through November" could
                 not be said. */}
             {recurrence !== "none" && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="indigo"><Calendar className="ic" /></Tile>
                 <div className="conn-name">Until</div>
                 <HeadMenu variant="value" ariaLabel="Until" value={until === "" ? "forever" : "date"} label={until ? dateWord(until) : undefined} off={until === ""}
@@ -624,12 +624,12 @@ export default function EventSheet({
               </div>
             )}
             {recurrence !== "none" && until !== "" && (
-              <div onClick={tapField} className="row xs-row xs-date">
+              <div {...fieldDoor} className="row xs-row xs-date">
                 <PickValue kind="date" ariaLabel="Until date" value={until} onChange={setUntil} />
               </div>
             )}
             {recurringEdit && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="graphite"><Shuffle className="ic" /></Tile>
                 <div className="conn-name">Apply To</div>
                 <HeadMenu variant="value" ariaLabel="Apply to" value={scope}
@@ -642,7 +642,7 @@ export default function EventSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">Where</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="blue"><Tag className="ic" /></Tile>
               <div className="conn-name">Area</div>
               <HeadMenu variant="value" ariaLabel="Area" value={category} repick={!areaSet}
@@ -653,7 +653,7 @@ export default function EventSheet({
                 pick fills a new event's area, the menu is in order with a
                 search at its top. */}
             {projects.length > 0 && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
                 <div className="conn-name">Project</div>
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
@@ -665,7 +665,7 @@ export default function EventSheet({
             {/* WHO IT IS WITH (2026-10-27). The task sheet's Person row, on the
                 event, so a person can be changed or taken off (None). */}
             {people.length > 0 && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="teal"><User className="ic" /></Tile>
                 <div className="conn-name">Person</div>
                 <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
@@ -673,7 +673,7 @@ export default function EventSheet({
                   onPick={pickPerson} />
               </div>
             )}
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="pink"><PinGlyph /></Tile>
               <div className="conn-name">Place</div>
               <input className="xs-input xs-field" placeholder="Optional" aria-label="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
@@ -686,7 +686,7 @@ export default function EventSheet({
                 only next to a place, because that is the only thing they
                 mean anything about. */}
             {place && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="teal"><Timer className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Travel</div>
@@ -725,7 +725,7 @@ export default function EventSheet({
               </div>
             )}
             {place && travelCustom && (
-              <div onClick={tapField} className="row xs-row xs-date">
+              <div {...fieldDoor} className="row xs-row xs-date">
                 <input
                   type="number" min={1} max={480} inputMode="numeric"
                   className="xs-input" aria-label="Travel minutes"
@@ -735,7 +735,7 @@ export default function EventSheet({
               </div>
             )}
             {place && travelMin !== null && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="sky"><ClockGlyph /></Tile>
                 <div className="conn-name">Buffer</div>
                 <HeadMenu variant="value" ariaLabel="Buffer" value={bufferMin === null ? "" : String(bufferMin)} label={bufferMin === null ? "None" : `${bufferMin} Min`} off={bufferMin === null}
@@ -744,7 +744,7 @@ export default function EventSheet({
               </div>
             )}
             {place && leaveBy && (
-              <div onClick={tapField} className="row xs-row">
+              <div {...fieldDoor} className="row xs-row">
                 <Tile tone="purple"><PinGlyph /></Tile>
                 <div className="row-grow"><div className="conn-name">Leave By</div></div>
                 {/* The computed time is itself editable (A26 coverage map).
@@ -786,7 +786,7 @@ export default function EventSheet({
               and the notes are editable here, for a hand-made event too. */}
           <div className="grp xs-grp"><div className="eyebrow">Meeting</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="indigo"><Link2 className="ic" /></Tile>
               <div className="conn-name">Link</div>
               <input className="xs-input xs-field" placeholder="Optional" aria-label="Meeting Link" value={url} onChange={(e) => setUrl(e.target.value)} />
@@ -798,7 +798,7 @@ export default function EventSheet({
                 drops .xs-field with it: that class right-aligns a value
                 against its label, which is right for a number and wrong for
                 something you write, for the reason .xs-row-write states. */}
-            <div onClick={tapField} className="row xs-row xs-textrow xs-notes">
+            <div {...fieldDoor} className="row xs-row xs-textrow xs-notes">
               <Tile tone="yellow"><FileText className="ic" /></Tile>
               <div className="conn-name">Notes</div>
               <textarea className="xs-input xs-textarea" rows={3} placeholder="Optional" aria-label="Meeting Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -891,7 +891,7 @@ export default function EventSheet({
               a placeholder. */}
           <div className="grp xs-grp"><div className="eyebrow">Training</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div onClick={tapField} className="row xs-row">
+            <div {...fieldDoor} className="row xs-row">
               <Tile tone="orange"><BarbellGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">{gym ? "This Block Opens the Gym" : "Training Door"}</div>

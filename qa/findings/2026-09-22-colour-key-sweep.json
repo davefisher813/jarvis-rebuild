@@ -584,11 +584,12 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 38,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? This finding was marked done, but the code no longer carries its change."
+  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? This finding was marked done, but the code no longer carries its change.",
+  "resolution": "Dave 2026-09-26: Keep it red (queue 74); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/today/YourDay.tsx",
@@ -600,11 +601,12 @@
   "fix_file": "src/today/YourDay.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 39,
   "phase": "2-code",
   "needs_dave": false,
-  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? (YourDay.tsx is outside this phase's diff; held because LIVE is part of the same held rule.)"
+  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? (YourDay.tsx is outside this phase's diff; held because LIVE is part of the same held rule.)",
+  "resolution": "Dave 2026-09-26: Keep it red (queue 74); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/styles/components.css",
@@ -631,11 +633,12 @@
   "fix_file": "src/today/quiet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 41,
   "phase": "2-code",
   "needs_dave": false,
-  "status_note": "Quiet (today/quiet.tsx) colours every day count red, for example \"3 days left\" and \"Due in 5 days\". You set that on 2026-09-21: \"They should both be red and all instances. We need everything uniform without drifting\". It was about this exact pair: \"Mailchimp trial ends, 3 days left\" next to \"Invoice \u00b7 84 Days\". The Colour Key from 2026-09-22 makes a countdown to a due date amber (needs you soon) and keeps red for late. Should a day count that runs forward (\"N days left\", \"in N days\") now be amber, with red kept for ages like \"Slid 3d\" and \"84 Days\"? Or does your 09-21 ruling stand? If amber, i"
+  "status_note": "Quiet (today/quiet.tsx) colours every day count red, for example \"3 days left\" and \"Due in 5 days\". You set that on 2026-09-21: \"They should both be red and all instances. We need everything uniform without drifting\". It was about this exact pair: \"Mailchimp trial ends, 3 days left\" next to \"Invoice \u00b7 84 Days\". The Colour Key from 2026-09-22 makes a countdown to a due date amber (needs you soon) and keeps red for late. Should a day count that runs forward (\"N days left\", \"in N days\") now be amber, with red kept for ages like \"Slid 3d\" and \"84 Days\"? Or does your 09-21 ruling stand? If amber, i",
+  "resolution": "Dave 2026-09-26: Countdowns amber, slipped red (queue 41); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/styles/components.css",
@@ -663,11 +666,12 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/browserWalk.test.ts:567-574 pins .receipt-line to --tx-quiet (the base rule keeps it; the law should be read against the button override)",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 43,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "Held for Dave (RULEBOOK: the receipt-line (\"13 More Waiting\") quiet grey; dave-queue #43). The overflow lines under a list (\"13 More Waiting\", \"4 More in Anytime\", \"Welcome Back\") can be tapped, and the Colour Key gives a tappable word brand red, but on 2026-09-11 Dave moved exactly these from a red link to a quiet grey line and a law keeps them quiet. Question: keep them quiet grey (the chevron marks the tap), or make them tap red like See All? components.css:2384 still draws `.receipt-line` in --tx-quiet, with a comment that its grey is held for Dave."
+  "status_note": "Held for Dave (RULEBOOK: the receipt-line (\"13 More Waiting\") quiet grey; dave-queue #43). The overflow lines under a list (\"13 More Waiting\", \"4 More in Anytime\", \"Welcome Back\") can be tapped, and the Colour Key gives a tappable word brand red, but on 2026-09-11 Dave moved exactly these from a red link to a quiet grey line and a law keeps them quiet. Question: keep them quiet grey (the chevron marks the tap), or make them tap red like See All? components.css:2384 still draws `.receipt-line` in --tx-quiet, with a comment that its grey is held for Dave.",
+  "resolution": "Dave 2026-09-26: Keep them grey (queue 43); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/styles/ruled.css",
@@ -1135,11 +1139,12 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "src/laws/laws.test.ts pins the Now rule's hairline min-width and Running Late neutrality; check the adjacent Now-rule assertions before changing its colour",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 74,
   "needs_dave": false,
   "phase": "1-css",
-  "status_note": "Schedule's Now rule paints NOW, the LIVE state word and its hairline in the system red. That is your C-28 pick of 2026-09-12: 'LIVE is the only red, on the Now rule alone'. The Colour Key of 2026-09-22 gives that red only to late, overdue and missed, and has no entry for 'now'; Health uses cyan for now. Should the red Now rule stay, written into \u00a7AM as a named exception? Or should NOW and LIVE go white with a neutral hairline? Two constraints: laws.test.ts 'the Now rule is a hairline and a word, never a fill' pins the hairline to --sys-red, and in light the NOW word uses --on-light-red, the br"
+  "status_note": "Schedule's Now rule paints NOW, the LIVE state word and its hairline in the system red. That is your C-28 pick of 2026-09-12: 'LIVE is the only red, on the Now rule alone'. The Colour Key of 2026-09-22 gives that red only to late, overdue and missed, and has no entry for 'now'; Health uses cyan for now. Should the red Now rule stay, written into \u00a7AM as a named exception? Or should NOW and LIVE go white with a neutral hairline? Two constraints: laws.test.ts 'the Now rule is a hairline and a word, never a fill' pins the hairline to --sys-red, and in light the NOW word uses --on-light-red, the br",
+  "resolution": "Dave 2026-09-26: Keep it red (queue 74); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1241,11 +1246,12 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "needs_dave",
+  "status": "done",
   "id": 81,
   "needs_dave": false,
   "phase": "2-code",
-  "status_note": "Event sheet, Travel row: when a place has a remembered travel time, a grey line under 'Travel' says '25 min last time', beside the grey 'None' value. That is two greys on one row. The only fix that satisfies the key is to make the line a one-tap red link (.note-fix) that sets Travel to 25 min, and that adds new behaviour. Today it only informs, and 25 min is not in the Travel menu, so using it means Custom and typing 25. Should 'Use 25 min last time' become a tap that fills Travel? Recommended: yes."
+  "status_note": "Event sheet, Travel row: when a place has a remembered travel time, a grey line under 'Travel' says '25 min last time', beside the grey 'None' value. That is two greys on one row. The only fix that satisfies the key is to make the line a one-tap red link (.note-fix) that sets Travel to 25 min, and that adds new behaviour. Today it only informs, and 25 min is not in the Travel menu, so using it means Custom and typing 25. Should 'Use 25 min last time' become a tap that fills Travel? Recommended: yes.",
+  "resolution": "Dave 2026-09-26: Make it a one-tap fill (queue 81); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/schedule/screens/EventSheet.tsx",
@@ -4812,11 +4818,12 @@
   "fix_file": "src/gym/LibraryPage.tsx",
   "law_risk": "none (healthSkin law 6 only needs className={\"ex-chip\" \u2026})",
   "confidence": "medium",
-  "status": "needs_dave",
+  "status": "done",
   "id": 316,
   "phase": "2-code",
   "needs_dave": false,
-  "status_note": "This is dave-queue.json #317, which the rulebook lists as held for Dave ('the Classify sheet's question colours', library row chips included), so nothing was changed. The Exercises page chips are coloured by axis: muscles lime, equipment violet, movement plain. That followed your 2026-09-16 'too much of the same color'. Under the 2026-09-22 Colour Key, Health lime means done and violet means budget/pair. Should the chips go neutral (fill only, with secondary muscles as an outline), or keep the axis hues as a named exemption? If neutral: chipTone in LibraryPage.tsx becomes `ch.tone === \"seconda"
+  "status_note": "This is dave-queue.json #317, which the rulebook lists as held for Dave ('the Classify sheet's question colours', library row chips included), so nothing was changed. The Exercises page chips are coloured by axis: muscles lime, equipment violet, movement plain. That followed your 2026-09-16 'too much of the same color'. Under the 2026-09-22 Colour Key, Health lime means done and violet means budget/pair. Should the chips go neutral (fill only, with secondary muscles as an outline), or keep the axis hues as a named exemption? If neutral: chipTone in LibraryPage.tsx becomes `ch.tone === \"seconda",
+  "resolution": "Dave 2026-09-26: Keep the colours (queue 317); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/gym/ClassifySheet.tsx",
@@ -5117,11 +5124,12 @@
   "fix_file": "src/brain/BrainTop.tsx",
   "law_risk": "none (BrainTop.test.tsx:57 only asserts no .sh2 when empty)",
   "confidence": "high",
-  "status": "needs_dave",
+  "status": "done",
   "id": 336,
   "phase": "2-code",
   "needs_dave": false,
-  "status_note": "Held for Dave (RULEBOOK: Brain's two red heads; dave-queue #599). BrainTop.tsx:172 \"Shaping JARVIS Now\" and :204 \"Needs You\" were kept loud by Dave's C-38 pick (2026-09-12), and LAW 11 records that pick as an exemption. Question: should those two Brain heads go quiet like every other head (sh2-quiet), leaving Today's Now as the only red head? If yes, BrainTop.tsx adds sh2-quiet to both and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. (BrainTop.tsx is outside this phase's diff; held because it is the same question as #599.)"
+  "status_note": "Held for Dave (RULEBOOK: Brain's two red heads; dave-queue #599). BrainTop.tsx:172 \"Shaping JARVIS Now\" and :204 \"Needs You\" were kept loud by Dave's C-38 pick (2026-09-12), and LAW 11 records that pick as an exemption. Question: should those two Brain heads go quiet like every other head (sh2-quiet), leaving Today's Now as the only red head? If yes, BrainTop.tsx adds sh2-quiet to both and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. (BrainTop.tsx is outside this phase's diff; held because it is the same question as #599.)",
+  "resolution": "Dave 2026-09-26: Make them grey like the rest (queue 599); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/brain/strands/state.ts",
@@ -6682,11 +6690,12 @@
   "fix_file": "src/settings/AccountPage.tsx + src/styles/components.css",
   "law_risk": "laws.test.ts one-fill exemption list names .av-accent (no change needed; the class is still used on Today)",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 439,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "The Account screen's 72px avatar (your initial) sits on a brand-red disc and cannot be tapped. The Colour Key says brand red means 'tap this', but laws.test.ts:971 exempts .av-accent as an identity mark, and the same class is a real button on Today and a red-coloured person's avatar in People. Should your own avatar on Account go neutral (grey disc, white initial), or stay brand red as your identity mark? If neutral, the change goes in AccountPage.tsx (not a stylesheet-only fix)."
+  "status_note": "The Account screen's 72px avatar (your initial) sits on a brand-red disc and cannot be tapped. The Colour Key says brand red means 'tap this', but laws.test.ts:971 exempts .av-accent as an identity mark, and the same class is a real button on Today and a red-coloured person's avatar in People. Should your own avatar on Account go neutral (grey disc, white initial), or stay brand red as your identity mark? If neutral, the change goes in AccountPage.tsx (not a stylesheet-only fix).",
+  "resolution": "Dave 2026-09-26: Keep the red disc; make it tappable to change the picture (photo or icon) (queue 439); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/people/screens/PeopleListPage.tsx",
@@ -7097,11 +7106,12 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 466,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "Life > Areas: the Health card sits on a green --good-tint panel with a green border, green-filled section chips and green chip glyphs, all to say 'this is Health'. Under \u00a7AM (2026-09-22) green means done / on track, and an area's colour belongs on its dot only. You approved this card on 2026-09-16: the component quotes 'we can keep the green background' and 'keep the font white in the health section'. A ruled.css comment from the same day quotes 'remove the green background' about the older row. Should \u00a7AM override that approval? If yes, the card goes plain like the other area cards and the ch"
+  "status_note": "Life > Areas: the Health card sits on a green --good-tint panel with a green border, green-filled section chips and green chip glyphs, all to say 'this is Health'. Under \u00a7AM (2026-09-22) green means done / on track, and an area's colour belongs on its dot only. You approved this card on 2026-09-16: the component quotes 'we can keep the green background' and 'keep the font white in the health section'. A ruled.css comment from the same day quotes 'remove the green background' about the older row. Should \u00a7AM override that approval? If yes, the card goes plain like the other area cards and the ch",
+  "resolution": "Dave 2026-09-26: Make it plain like the others (queue 466); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -8070,11 +8080,12 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 530,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "The Remember star turns filled YELLOW when on (.row-star.on { color: var(--yellow) }). Your 2026-09-12 ruling (catalog line 572) says 'filled yellow', but the Colour Key (\u00a7AM) says there are eight colours and no ninth, and yellow means nothing in it. Keep the yellow star, or make the on-star white (the fill already shows on vs off)?"
+  "status_note": "The Remember star turns filled YELLOW when on (.row-star.on { color: var(--yellow) }). Your 2026-09-12 ruling (catalog line 572) says 'filled yellow', but the Colour Key (\u00a7AM) says there are eight colours and no ninth, and yellow means nothing in it. Keep the yellow star, or make the on-star white (the fill already shows on vs off)?",
+  "resolution": "Dave 2026-09-26: Keep them yellow (queue 530); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/styles/editor.css",
@@ -8513,11 +8524,12 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "needs_dave",
+  "status": "done",
   "id": 559,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? This finding was marked done, but the code no longer carries its change."
+  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? This finding was marked done, but the code no longer carries its change.",
+  "resolution": "Dave 2026-09-26: Keep it red (queue 74); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/styles/components.css",
@@ -9136,11 +9148,12 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/laws.test.ts LAW 11 requires YourDay.tsx to keep a plain className=\"sh2\" (the sanctioned loud head)",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 599,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "Today's red \"Now\" head is sanctioned in the rulebook and stays. Brain's two red heads, \"Shaping JARVIS Now\" and \"Needs You\" (BrainTop.tsx:172 and :204), were kept loud by your C-38 pick on 2026-09-12, and LAW 11 records that pick as an exemption. But the Colour Key (2026-09-22) says brand red on anything that cannot be tapped is wrong. Should those two Brain heads go quiet like every other head (grey label, quiet hairline), leaving Today's Now as the only red head? If yes: BrainTop.tsx adds sh2-quiet to both heads, and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. No components."
+  "status_note": "Today's red \"Now\" head is sanctioned in the rulebook and stays. Brain's two red heads, \"Shaping JARVIS Now\" and \"Needs You\" (BrainTop.tsx:172 and :204), were kept loud by your C-38 pick on 2026-09-12, and LAW 11 records that pick as an exemption. But the Colour Key (2026-09-22) says brand red on anything that cannot be tapped is wrong. Should those two Brain heads go quiet like every other head (grey label, quiet hairline), leaving Today's Now as the only red head? If yes: BrainTop.tsx adds sh2-quiet to both heads, and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. No components.",
+  "resolution": "Dave 2026-09-26: Make them grey like the rest (queue 599); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/styles/components.css",
@@ -9568,11 +9581,12 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/gym/ConditioningFace.test.tsx:29-63 (text content only)",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 627,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "The conditioning clock face is a full-screen black readout the stylesheet says is 'read across a room'. Should its 'ROUND 2 OF 10' line (.cf-round, 15px caps) stay at 15px as a stated arm's-length exception to the two-size subtext rule, or drop to the 11px kicker size like every other caps label? The 11px size is correct by the rule but would be small mid-workout. The same question covers the face's 13px caps format tag (.cf-fmt) and the landscape corner labels (.cf-corner). Everything else in #627 (blue off the format tag and the corner, name and 'last' split at 14px in --tx-3) was already ap"
+  "status_note": "The conditioning clock face is a full-screen black readout the stylesheet says is 'read across a room'. Should its 'ROUND 2 OF 10' line (.cf-round, 15px caps) stay at 15px as a stated arm's-length exception to the two-size subtext rule, or drop to the 11px kicker size like every other caps label? The 11px size is correct by the rule but would be small mid-workout. The same question covers the face's 13px caps format tag (.cf-fmt) and the landscape corner labels (.cf-corner). Everything else in #627 (blue off the format tag and the corner, name and 'last' split at 14px in --tx-3) was already ap",
+  "resolution": "Dave 2026-09-26: Keep it at 15px (queue 627); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/money/screens/TrackerScreen.tsx",
@@ -9949,11 +9963,12 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "needs_dave",
+  "status": "done",
   "id": 652,
   "phase": "1-css",
   "needs_dave": false,
-  "status_note": "Held for Dave (RULEBOOK: the yellow Remember star; dave-queue #530). mail-rows.css:45 `.mstar` is back to `--yellow` with an AMENDED 2026-09-26 HELD FOR DAVE note: a remembered VIP thread shows both stars on one row, so the VIP star moves with the Remember star on his answer. Question: keep the yellow stars, or make the on-star white (the fill already shows on vs off)? This finding was marked done, but the code no longer carries its change."
+  "status_note": "Held for Dave (RULEBOOK: the yellow Remember star; dave-queue #530). mail-rows.css:45 `.mstar` is back to `--yellow` with an AMENDED 2026-09-26 HELD FOR DAVE note: a remembered VIP thread shows both stars on one row, so the VIP star moves with the Remember star on his answer. Question: keep the yellow stars, or make the on-star white (the fill already shows on vs off)? This finding was marked done, but the code no longer carries its change.",
+  "resolution": "Dave 2026-09-26: Keep them yellow (queue 530); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -10277,11 +10292,12 @@
   "fix_file": "src/styles/uniformity.css",
   "confidence": "low",
   "id": 673,
-  "status": "needs_dave",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css",
-  "status_note": "The user's own chat bubble is a brand-red fill: .bubble-user in onboarding and .chat-user in Chat. Should it stay that way under the Colour Key? Two rulings disagree here. On 2026-08-14 you approved the red user bubble (components.css:2581, 'chat-user rides the accent'), and laws.test.ts:971 explicitly exempts both .chat-user and .bubble-user as 'identity marks, not actions'. The 2026-09-22 key (R3) says --accent* on anything that cannot be tapped is a violation. If you keep the bubble red, it stays as a sanctioned exception and nothing changes. If you want it neutral, both bubbles have to mov"
+  "status_note": "The user's own chat bubble is a brand-red fill: .bubble-user in onboarding and .chat-user in Chat. Should it stay that way under the Colour Key? Two rulings disagree here. On 2026-08-14 you approved the red user bubble (components.css:2581, 'chat-user rides the accent'), and laws.test.ts:971 explicitly exempts both .chat-user and .bubble-user as 'identity marks, not actions'. The 2026-09-22 key (R3) says --accent* on anything that cannot be tapped is a violation. If you keep the bubble red, it stays as a sanctioned exception and nothing changes. If you want it neutral, both bubbles have to mov",
+  "resolution": "Dave 2026-09-26: Keep it red (queue 673); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -10293,11 +10309,12 @@
   "fix_file": "src/styles/mail-rows.css",
   "confidence": "low",
   "id": 674,
-  "status": "needs_dave",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css",
-  "status_note": "Held for Dave (RULEBOOK: the yellow Remember star; dave-queue #530). mail-rows.css:45 `.mstar` is back to `--yellow` with an AMENDED 2026-09-26 HELD FOR DAVE note: a remembered VIP thread shows both stars on one row, so the VIP star moves with the Remember star on his answer. Question: keep the yellow stars, or make the on-star white (the fill already shows on vs off)? This finding was marked done, but the code no longer carries its change."
+  "status_note": "Held for Dave (RULEBOOK: the yellow Remember star; dave-queue #530). mail-rows.css:45 `.mstar` is back to `--yellow` with an AMENDED 2026-09-26 HELD FOR DAVE note: a remembered VIP thread shows both stars on one row, so the VIP star moves with the Remember star on his answer. Question: keep the yellow stars, or make the on-star white (the fill already shows on vs off)? This finding was marked done, but the code no longer carries its change.",
+  "resolution": "Dave 2026-09-26: Keep them yellow (queue 530); applied on main, verified 2026-10-30"
  },
  {
   "file": "src/shared/DocEditor.tsx",

@@ -218,6 +218,9 @@
 .ruled .st-warn  { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
 /* ...and the due tile's wash is mixed from the amber itself, so it reads as deep as the others in daylight: the light
    --warn-tint was #FFF0DB, a cream on cream that left only the number to say it was a tile (the review). */
+/* 4.5:1 IN DAYLIGHT (2026-10-30, the Colour Key sweep's screen audit). The light amber words (#9A5305) on their own wash at
+   16% measured 4.29:1 on the cream card; at 10% they measure 4.70:1 and the wash still reads as a tile. Dark keeps 16%. */
+html[data-theme="light"] .ruled .st-warn { background: color-mix(in srgb, var(--warn) 10%, transparent); }
 /* The late wash is mixed from the system red (AMENDED 2026-09-26, round-4
    review): the app's red tint token is the BRAND red's wash (the tap red at
    16% in dark, the words red at 10% in light), so the late word sat on the
@@ -275,6 +278,11 @@
   /* NO ORPHAN WORD (2026-10-05, the perfect bar): "Call Ridgeline About the / Field" and "Draft the Coach Onboarding / Email" left one
      word alone on the second line; balance splits the two lines evenly instead. A one-line title is untouched. */
   text-wrap: balance; }
+/* THE SAME TASK, THE SAME TITLE (2026-10-30, the sweep's screen audit). Today's Tasks (the ring's sheet) draws these rows with
+   the Tomorrow action beside them, and its one-line title clipped "Draft the Coach Onboarding Email" to "Draft the Coach O...".
+   It wraps to two balanced lines exactly as the task row above does. */
+.day-sheet .row-grow > .conn-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; text-wrap: balance; }
 /* BROWSER-F-06 (2026-09-05) gave this line flex-wrap so a long goal name got a
    row of its own under the badge rather than whatever the chip left over.
    DEFECT 1 (Dave 2026-09-06, on his phone: "There's wrapping in the tasks
@@ -2797,6 +2805,10 @@ html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--g
 .ruled.health-ruled .h-stat { background: none; border: 0; border-left: 0.5px solid var(--divider); padding: var(--s-0h) var(--s-2h); text-align: left;
   font-family: var(--f); color: var(--tx-1); cursor: pointer; min-width: 0; }
 .ruled.health-ruled .h-stat:first-child { border-left: 0; padding-left: 0; }
+/* 44pt reach on the week stats (2026-10-30, the Colour Key sweep's screen audit): each stat is a tap that measured 41px tall. The
+   reach is drawn past the box, as the day pills do, so nothing on the card moves. */
+.ruled.health-ruled .h-stat { position: relative; }
+.ruled.health-ruled .h-stat::after { content: ""; position: absolute; inset: -3px 0; }
 .ruled.health-ruled .h-stat b { display: block; font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled.health-ruled .h-stat b small { font-size: var(--t-caption); font-weight: var(--w-semi); }
@@ -3632,7 +3644,9 @@ html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--g
 
 /* A DESTRUCTIVE HEAD CAPSULE, AND ITS ARMED STEP (Brain's Erase). Danger is the system red on its own tonal fill; armed is the solid
    destructive slab, so the confirm never looks like the step before it. No ring, no border (the capsule law). */
-.sh2 .see-all.pill-action.pill-danger { color: var(--sys-red); background-color: color-mix(in srgb, var(--sys-red) 14%, var(--capsule-fill)); }
+/* 8%, not 14% (2026-10-30, the sweep's screen audit): the dark system red measured 4.29:1 on a 14% wash of itself; at 8% it is 4.63:1
+   and the capsule still reads red-tinted. */
+.sh2 .see-all.pill-action.pill-danger { color: var(--sys-red); background-color: color-mix(in srgb, var(--sys-red) 8%, var(--capsule-fill)); }
 [data-theme="light"] .sh2 .see-all.pill-action.pill-danger { color: var(--sys-red); }
 .sh2 .see-all.pill-action.pill-armed { background-color: var(--sys-red); color: #fff; }
 [data-theme="light"] .sh2 .see-all.pill-action.pill-armed { color: #fff; }
@@ -4024,3 +4038,7 @@ html[data-theme] .ruled.health-ruled .h-hero-head > .see-all.pill-action { color
 /* ---- A DIM LOG BUTTON SAYS WHY (Dave 2026-10-24: logging is never blocked silently) ----
    One line under the button, the row's one grey, centred like the capsules beneath it. */
 .ruled.health-ruled .logbar-why { text-align: center; margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-2); }
+
+/* THE REPEATS CARD STANDS APART FROM THE DAY ABOVE IT (2026-10-30, the sweep's screen audit). At the foot of Month it sat flush
+   under the day's schedule card, two card edges touching with no space between them. One 12px step, the gap between cards. */
+.month-repeats { margin-top: var(--s-3); }

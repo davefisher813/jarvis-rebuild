@@ -3,14 +3,20 @@
 Decisions that outlive the session that made them. Short, dated, and only
 the ones a future session would otherwise get wrong.
 
-## Unfinished: the Colour Key sweep (paused 2026-09-22)
+## The Colour Key sweep closed (2026-10-30)
 
-Dave paused a sweep to make the 2026-09-22 rulings (§AK one grey, §AL the
-capsule, §AM the Colour Key and Subtext Catalog picks) hold on every screen,
-to resume when his usage resets. **If he says "resume", start at
-`qa/findings/2026-09-22-RESUME.md`** and follow it in order: it holds the
-questions to ask him first, the 581 pending findings, the ready-to-run
-workflow, and the pitfalls already hit. Do not re-audit from scratch.
+The sweep that made the 2026-09-22 rulings (§AK one grey, §AL the capsule, §AM the Colour Key) hold on every screen is closed:
+676 findings, 593 done, 82 rejected with reasons, 1 deferred (the TV guide's empty-day card, frozen, Dave's word only). The
+record is `qa/findings/2026-09-22-RESUME.md` and the findings JSON beside it. The on-screen proof is
+`tools/visual-audit.mjs` at 390 in both themes: 106 screens, 42 sheets, nothing outside its ruled exemptions but two dark
+reds below. Two things about that tool a future session must not undo:
+- The fixed `.app-shell` is not a layer or a modal root (it holds the tab bar). Taking it for one made every screen look like
+  an open sheet, so for weeks no sheet was really audited and sheet audits measured the page underneath.
+- A form row that forwards its tap in code must say so in the DOM: spread `fieldDoor` (shared/FormSheet) instead of
+  `onClick={tapField}`, or give `Row` a `forwardTo`. The audit reads `data-forwards`; without it a 44px row is measured
+  as its 11px chevron.
+Waiting on Dave: red text on a sheet's grouped card in dark. The edit-event Today/Tomorrow pair's red reads 3.30:1 there
+(white, the sheet's usual red, would erase the pair's difference) and the late date's #FF6961 reads 4.46:1.
 
 ## The Today TV guide is frozen (Dave, 2026-09-27)
 

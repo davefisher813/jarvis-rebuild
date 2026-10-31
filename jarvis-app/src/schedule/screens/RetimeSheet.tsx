@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FormSheet, Tile, tapField } from "../../shared/FormSheet";
+import { FormSheet, Tile, fieldDoor } from "../../shared/FormSheet";
 import { ClockGlyph } from "../../shared/glyphs";
 import { DUR_CHOICES, durLabel } from "../durations";
 import { nudgeStart } from "../eventMoves";
@@ -53,7 +53,7 @@ export default function RetimeSheet({
     >
       <div className="grp xs-grp"><div className="eyebrow">{title}</div></div>
       <div className="pad-x"><div className="card xs-group">
-        <div onClick={tapField} className="row xs-row">
+        <div {...fieldDoor} className="row xs-row">
           <Tile tone="green"><ClockGlyph /></Tile>
           <div className="conn-name">Starts</div>
           <input

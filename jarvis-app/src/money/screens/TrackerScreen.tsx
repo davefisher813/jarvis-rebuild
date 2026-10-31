@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../../shared/PageHeader";
 import { useOptionalLedger, useTracker } from "../../data/NotesProvider";
-import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Row, tapField } from "../../shared/FormSheet";
+import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Row, fieldDoor } from "../../shared/FormSheet";
 import { Calendar, ChevronLeft, ChevronRight, Clock, FileText, FolderKanban, Link2, RotateCcw, Tag, Wallet } from "../../shared/icons";
 import { DollarGlyph, WalletGlyph, RepeatGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
@@ -829,12 +829,12 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
       <MonthNav month={month} onMonth={onMonth} />
       <SectionHead label="The Month" />
       <div className="pad-x"><div className="card list-card-ruled">
-        <div className="row" onClick={tapField}>
+        <div className="row" {...fieldDoor}>
           <div className="row-grow"><div className="conn-name">Expected Income</div></div>
           <input className="input mt-inline" inputMode="decimal" aria-label="Expected income"
             placeholder="0.00" value={income} onChange={(e) => setIncome(e.target.value)} />
         </div>
-        <div className="row" onClick={tapField}>
+        <div className="row" {...fieldDoor}>
           <div className="row-grow"><div className="conn-name">Savings Target</div></div>
           <input className="input mt-inline" inputMode="decimal" aria-label="Savings target"
             placeholder="0.00" value={target} onChange={(e) => setTarget(e.target.value)} />
