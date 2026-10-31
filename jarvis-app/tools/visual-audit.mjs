@@ -539,7 +539,13 @@ const AUDIT = () => {
     const stopsRaw = (m ? m[2] : gi).match(/(rgba?\([^)]*\)|color\(srgb[^)]*\)|#[0-9a-fA-F]{3,8})\s*(-?[\d.]+%)?/g) || [];
     const stops = stopsRaw.map((raw, i) => {
       const pm = raw.match(/(-?[\d.]+)%\s*$/);
-      const c = parse(raw);
+      // THE STOP'S POSITION IS NOT ITS ALPHA (2026-10-30). `raw` is the colour
+      // AND its position ("rgb(15, 15, 17) 100%"), and parse() falls back to
+      // "the first four numbers", so 100% was read as alpha 100 and 0% as
+      // alpha 0. Every word on a dark pane card (Life's areas, Brain's tiles,
+      // Today's hero) composited to grounds like rgb(-318, -172, 23) and was
+      // reported at 1.0:1. Parse the colour alone.
+      const c = parse(raw.replace(/\s*-?[\d.]+%\s*$/, ""));
       return c && { c, pct: pm ? +pm[1] : (i === 0 ? 0 : i === stopsRaw.length - 1 ? 100 : null) };
     }).filter(Boolean);
     if (!m || stops.length < 2 || stops.some((s) => s.pct === null)) {
@@ -1675,7 +1681,7 @@ const SEED_LINE = DEMO_BUILD
     "  Rebuild with: DEMO=1 npm run build && npx vite preview --port 4173";
 console.log(SEED_LINE + "\n");
 
-const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 
 async function runPass({ w, h, theme, scale = 1 }) {
   const label = `${w}x${h} ${theme}` + (scale === 1 ? "" : ` @${scale}x type`);
