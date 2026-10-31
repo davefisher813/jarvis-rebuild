@@ -7408,8 +7408,12 @@ span.row-star { cursor: default; }
    which was eating "Expected Income" down to "Expected Inc...". */
 .mt-inline { width: 8em; max-width: 42vw; flex: 0 0 auto; text-align: right; }
 
-.mt-limit-edit { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); }
-.mt-limit-edit .mt-inline { flex: 1; text-align: left; }
+/* QUIET ROWS (Punch 11, Dave 2026-10-31, Option A): the budget's categories are flat rows in one ruled card: the dot, the name,
+   the amount at the right, the card's own hairline between rows. The type is the task row's (16, regular) so the list reads as a
+   list, not a stack of headings; the amount keeps its tabular figures. The limit field and Remove are on the category's sheet. */
+.mt-cats .mt-cat { display: flex; align-items: center; gap: var(--s-2h); margin-bottom: 0; min-height: var(--tap-min); }
+.mt-cats .mt-cat-name { flex: 1 1 auto; font-size: var(--t-body); font-weight: var(--w-regular); }
+.mt-cats .mt-cat-amt { font-size: var(--t-body); font-weight: var(--w-medium); }
 
 /* THE PUBLIC BOOKING PAGE (Track 3, 2026-09-19). The one screen a stranger
    sees, so it wears the app's own chrome and adds only what a page with no
