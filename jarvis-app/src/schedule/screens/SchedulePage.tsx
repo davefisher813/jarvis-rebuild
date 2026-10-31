@@ -946,7 +946,7 @@ export default function SchedulePage({
           to Accept the Day / Not Today. Scoped to just this card, not the
           page -- the rest of Schedule stays unported. */}
       {mode === "month" && (
-        <div className="ruled">
+        <div className="ruled month-repeats">
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="task-row p2" {...pressable(() => onMode?.("repeats"))}>
             <div className="task-title"><span className="task-name">Repeats</span>

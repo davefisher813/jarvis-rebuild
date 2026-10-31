@@ -4038,3 +4038,7 @@ html[data-theme] .ruled.health-ruled .h-hero-head > .see-all.pill-action { color
 /* ---- A DIM LOG BUTTON SAYS WHY (Dave 2026-10-24: logging is never blocked silently) ----
    One line under the button, the row's one grey, centred like the capsules beneath it. */
 .ruled.health-ruled .logbar-why { text-align: center; margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-2); }
+
+/* THE REPEATS CARD STANDS APART FROM THE DAY ABOVE IT (2026-10-30, the sweep's screen audit). At the foot of Month it sat flush
+   under the day's schedule card, two card edges touching with no space between them. One 12px step, the gap between cards. */
+.month-repeats { margin-top: var(--s-3); }
