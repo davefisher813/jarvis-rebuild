@@ -161,6 +161,17 @@ Looking someone up (a question, meeting prep, the card's Still Open) still reads
   explicit lead-in retitles a task. Anything unreadable changes nothing, saves nothing, and offers Save as Task / Note. "No" needs its punctuation:
   "No meeting Friday" is still a capture.
 
+## Notes: the Area Library, three groupings, the app's row (Dave 2026-10-31, Punch 12 and his phone check)
+
+One section per area, the area's unified chip on the section head only, rows with no mark (title, one preview line, date).
+A switch beside the view (`Group Notes`: By Area, the default; By Date; By Subject) is kept per device
+(`jarvis.notes.groupBy.v1`). Subject is the note's own tags: a note sits once, under its FIRST tag, untagged last as No
+Subject. Date and Subject heads are the plain quiet head with a count, never the chip. The title wears the task row's type
+(`--t-name`, `--w-name`, `--track-name`; it was 18px, "it is massive"); the preview line is NOT to be touched (his
+correction: "the previews are fine", italic stays). A note row is the Life task row's height (64px, measured at 390, his
+Life screenshot was the reference). The red margin line is off: he left it as a design call, and no other card has one.
+`NotesList.grouping.test.tsx` pins all of it.
+
 ## Money Tracker categories are Quiet Rows (Punch 11, Dave 2026-10-31, Option A)
 
 "It looks terrible." The budget's categories are flat rows in one card: the dot, the name, the amount ("$60.00 of $100.00" with a
@@ -349,7 +360,7 @@ the most sense", "Whatever is standard") and Alfred ruled. Do not reopen.
 - **Cancel Workout asks to confirm** (standard; protects a misclick).
 - **Voice logging is the adopted standard**: a "Log" phrase starts it, the
   set is read back, he confirms, Undo after. Session More, Log by Voice.
-- **Notes keep the serif titles** (V10 closed). **The workout screens and the
+- **Notes titles are the app's font** (V10 reversed 2026-10-18; sized 2026-10-31, see the Notes section). **The workout screens and the
   two add-on surfaces are approved as built.**
 
 ## Still open on Dave's word (do not guess these)
