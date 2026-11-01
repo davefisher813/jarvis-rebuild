@@ -303,9 +303,11 @@ describe("the Notes area is its own cut, composing with the view", () => {
     // only on a library that actually has tags, so an empty capsule is never
     // drawn (these notes have none).
     const line = [...container.querySelectorAll(".hdr-controls .dd")];
-    expect(line.map((d) => d.getAttribute("aria-label"))).toEqual(["View", "Area"]);
+    // The grouping switch (Dave 2026-10-31) sits between the view and the cuts: it shapes the page.
+    expect(line.map((d) => d.getAttribute("aria-label"))).toEqual(["View", "Group Notes", "Area"]);
     expect(line[0]).toHaveTextContent("All");
-    expect(line[1]).toHaveTextContent("Area");
+    expect(line[1]).toHaveTextContent("By Area");
+    expect(line[2]).toHaveTextContent("Area");
     // The area is still not a MEMBER of the view list: the two cuts compose.
     fireEvent.click(screen.getByLabelText("View"));
     expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent)).toEqual(["All", "Pinned", "Unfiled"]);

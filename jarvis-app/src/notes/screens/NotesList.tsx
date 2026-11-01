@@ -204,6 +204,84 @@ export function editedLabel(edited: number, now: Date = new Date()): string {
   return then.getFullYear() === now.getFullYear() ? md : `${md}, ${then.getFullYear()}`;
 }
 
+// THREE WAYS TO GROUP THE LIBRARY (Dave 2026-10-31, the phone check of Punch 12: "group by Area, by Date, and by Subject").
+// Area stays the default and is the only one whose heads wear the area's chip; Date and Subject heads are the page's plain
+// quiet head with a count. Subject is the note's own tags (types.ts: "the user's own words"): a note sits under its first
+// tag, so it is listed once, and a note with no tag closes the page under No Subject. Date is the day it was last touched:
+// Today, Yesterday, Earlier This Week, then by month ("September", "August 2025"); a note the store cannot date goes last.
+// Inside every section a pinned note leads, then newest first, as the page has always read.
+export type NoteGrouping = "area" | "date" | "subject";
+export const GROUPINGS: { value: NoteGrouping; label: string }[] = [
+  { value: "area", label: "By Area" },
+  { value: "date", label: "By Date" },
+  { value: "subject", label: "By Subject" },
+];
+const GROUP_KEY = "jarvis.notes.groupBy.v1";
+function readGrouping(): NoteGrouping {
+  try {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem(GROUP_KEY) : null;
+    return v === "date" || v === "subject" ? v : "area";
+  } catch { return "area"; }
+}
+function keepGrouping(v: NoteGrouping) {
+  try { window.localStorage.setItem(GROUP_KEY, v); } catch { /* private mode: it resets to Area, which is the default */ }
+}
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+export type NoteGroup<T> = { key: string; area: string | null; label?: string; items: T[] };
+export function groupNotes<T extends Pick<NoteListItem, "category" | "edited" | "tags" | "pinned" | "archived" | "deleted">>(
+  shown: T[], by: NoteGrouping, now: Date, areaOrder: string[] = catIds(), areaName: (id: string) => string = catName,
+): NoteGroup<T>[] {
+  const leads = (n: T) => !!n.pinned && !n.archived && !n.deleted;
+  const pinFirst = (items: T[]) => [...items.filter(leads), ...items.filter((n) => !leads(n))];
+  const buckets = new Map<string, T[]>();
+  const put = (k: string, n: T) => { const l = buckets.get(k) ?? []; l.push(n); buckets.set(k, l); };
+  if (by === "date") {
+    // Keys sort newest first: "0" today, "1" yesterday, "2" this week, then "m:YYYY-MM" descending, "~" undated last.
+    const label = new Map<string, string>();
+    for (const n of shown) {
+      if (!n.edited) { put("~", n); label.set("~", "No Date"); continue; }
+      const d = dayDiff(n.edited, now);
+      if (d <= 0) { put("0", n); label.set("0", "Today"); continue; }
+      if (d === 1) { put("1", n); label.set("1", "Yesterday"); continue; }
+      if (d < 7) { put("2", n); label.set("2", "Earlier This Week"); continue; }
+      const t = new Date(n.edited);
+      const k = `m:${9999 - t.getFullYear()}-${String(11 - t.getMonth()).padStart(2, "0")}`;
+      put(k, n);
+      label.set(k, MONTHS[t.getMonth()]! + (t.getFullYear() === now.getFullYear() ? "" : " " + t.getFullYear()));
+    }
+    return [...buckets.keys()].sort().map((k) => ({ key: k, label: label.get(k)!, area: null, items: pinFirst(buckets.get(k)!) }));
+  }
+  if (by === "subject") {
+    const word = new Map<string, string>();
+    for (const n of shown) {
+      const t = (n.tags ?? []).map((x) => x.trim()).find(Boolean);
+      const k = t ? t.toLowerCase() : "";
+      if (t && !word.has(k)) word.set(k, t);
+      put(k, n);
+    }
+    const named = [...buckets.keys()].filter(Boolean).sort((a, b) => a.localeCompare(b));
+    return [
+      ...named.map((k) => ({ key: "s:" + k, area: null, label: titleCase(word.get(k)!), items: pinFirst(buckets.get(k)!) })),
+      ...(buckets.has("") ? [{ key: "s:", area: null, label: "No Subject", items: pinFirst(buckets.get("")!) }] : []),
+    ];
+  }
+  // An area with no live name is not a section of its own, so it never shows a borrowed colour.
+  for (const n of shown) {
+    const key = chipArea(n.category) ? n.category : "";
+    put(key, n);
+  }
+  const order = [...buckets.keys()].filter((k) => k).sort((a, b) => {
+    const ia = areaOrder.indexOf(a), ib = areaOrder.indexOf(b);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
+    return areaName(a).localeCompare(areaName(b));
+  });
+  return [
+    ...order.map((k) => ({ key: k, area: k as string | null, items: pinFirst(buckets.get(k)!) })),
+    ...(buckets.has("") ? [{ key: "", area: null, items: pinFirst(buckets.get("")!) }] : []),
+  ];
+}
+
 /** Hands a note row its Remember toggle. `row` is a render function, not a component, so the hook lives here: one per note. */
 function RememberGate({ id, title, children }: { id: string; title: string; children: (remember: ReturnType<typeof useRemember>) => ReactNode }) {
   return <>{children(useRemember("note", id, title))}</>;
@@ -278,6 +356,8 @@ export default function NotesList({
   /** The area cut, composing with whichever view is chosen. Null is every
    *  area, which is what the menu calls All Areas. */
   const [area, setArea] = useState<string | null>(null);
+  /** How the sections are cut (Area, Date or Subject), kept on this device. */
+  const [groupBy, setGroupBy] = useState<NoteGrouping>(readGrouping);
   // Newest first, always (Apple Notes' own order). A note the store cannot
   // date keeps the order the store gave it, behind every dated one.
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
@@ -340,27 +420,7 @@ export default function NotesList({
   // any other named area after them by name, and the notes with no area (or an area with no live name) last, under No
   // Area. Inside a section a pinned note leads, then newest first, as the page has always read. The day heads (Pinned,
   // Today, Yesterday, Earlier) went with the grouping they belonged to; Pinned is still a view in the header's menu.
-  type Group = { key: string; area: string | null; items: NoteListItem[] };
-  const byArea = new Map<string, NoteListItem[]>();
-  for (const n of shown) {
-    const key = chipArea(n.category) ? n.category : "";
-    const list = byArea.get(key) ?? [];
-    list.push(n);
-    byArea.set(key, list);
-  }
-  const settingsOrder = catIds();
-  const areaOrder = [...byArea.keys()].filter((k) => k).sort((a, b) => {
-    const ia = settingsOrder.indexOf(a), ib = settingsOrder.indexOf(b);
-    if (ia >= 0 && ib >= 0) return ia - ib;
-    if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
-    return catName(a).localeCompare(catName(b));
-  });
-  const leadsPinned = (n: NoteListItem) => !!n.pinned && !n.archived && !n.deleted;
-  const pinFirst = (items: NoteListItem[]) => [...items.filter(leadsPinned), ...items.filter((n) => !leadsPinned(n))];
-  const groups: Group[] = [
-    ...areaOrder.map((k) => ({ key: k, area: k as string | null, items: pinFirst(byArea.get(k)!) })),
-    ...(byArea.has("") ? [{ key: "", area: null, items: pinFirst(byArea.get("")!) }] : []),
-  ];
+  const groups = groupNotes(shown, groupBy, now);
 
   const row = (n: NoteListItem, remember: ReturnType<typeof useRemember>) => {
     const picked = sel.isSelected(n.id);
@@ -469,7 +529,7 @@ export default function NotesList({
 
   const failedEmpty = loadFailed && notes.length === 0;
   return (
-    <div className="screen ruled notes-list notes-trial">
+    <div className="screen ruled notes-list">
       {/* Library chassis (Design 2, approved 2026-08-18): pencil rides the
           bar, search under the title. */}
       <PageHeader
@@ -514,8 +574,15 @@ export default function NotesList({
           // row this header replaced, then rows in the options sheet; they
           // are the two lists on this page that grow with the library, which
           // is exactly what a dropdown is for and a chip is not.
-          drops={areaIds.length > 0 || tagNames.length > 0 ? (
+          drops={(
             <>
+              {/* THE GROUPING SWITCH (Dave 2026-10-31): how the sections are cut. Always here, and first, since it shapes the page. */}
+              <HeadMenu
+                ariaLabel="Group Notes"
+                value={groupBy}
+                options={GROUPINGS}
+                onPick={(v) => { const g = v as NoteGrouping; setGroupBy(g); keepGrouping(g); }}
+              />
               {areaIds.length > 0 && (
                 <HeadMenu
                   ariaLabel="Area"
@@ -538,7 +605,7 @@ export default function NotesList({
                 />
               )}
             </>
-          ) : undefined}
+          )}
 
         />
       </PageHeader>
@@ -563,10 +630,17 @@ export default function NotesList({
           area's unified chip where the head's words go. That chip is the area's ONE mark on the page. */}
       {groups.map((g) => (
         <Fragment key={g.key}>
-          <div className="sh2 sh2-quiet note-area-head" role="heading" aria-level={2}>
-            <CatChip category={g.area} empty="No Area" />
-            <span className="n">{g.items.length}</span>
-          </div>
+          {groupBy === "area" ? (
+            <div className="sh2 sh2-quiet note-area-head" role="heading" aria-level={2}>
+              <CatChip category={g.area} empty="No Area" />
+              <span className="n">{g.items.length}</span>
+            </div>
+          ) : (
+            <div className="sh2 sh2-quiet note-group-head" role="heading" aria-level={2}>
+              <span className="t">{g.label}</span>
+              <span className="n">{g.items.length}</span>
+            </div>
+          )}
           <div className="pad-x"><div className="card list-card-ruled note-card">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, remember)}</RememberGate>)}</div></div>
         </Fragment>
       ))}

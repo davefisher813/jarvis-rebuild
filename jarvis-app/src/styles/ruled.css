@@ -1487,8 +1487,11 @@ html[data-theme="light"] .ruled .st-warn { background: color-mix(in srgb, var(--
 .ruled.notes-list .note-row .note-line1 > .task-name { color: var(--tx-1); }
 .ruled .note-row .note-line1 > .task-name {
   display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-  font-weight: var(--w-semi); font-size: calc(18px * var(--type-scale)); line-height: 1.15;
+  font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); line-height: 1.25;
 }
+/* THE NOTE TITLE IS THE TASK ROW'S TYPE (Dave 2026-10-31, "it is massive"): the size, weight and tracking of
+   .ruled .task-row .task-title, the app's one row title. It was 18px on the type scale, a size no other row wears. Titles only:
+   the preview line under it is untouched (Dave's correction, same evening). */
 /* THE NOTE TITLE IS THE APP'S FONT (Dave 2026-10-18, Notes screen order item 1; this REVERSES the 2026-10-11 "Note Titles" serif ruling
    above and settles parked item V10): no family of its own, so it is Poppins like every other title in the app. Size and the one line
    with an ellipsis are as they were. */
@@ -1505,14 +1508,12 @@ html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--g
 .ruled.notes-list .set-row .conn-name { color: var(--tx-1); opacity: 1; }
 .ruled.notes-list .note-new-tile { background: var(--tx-1); color: var(--bg); opacity: 1; }
 [data-theme="light"] .ruled.notes-list .note-new-tile { background: var(--surface-3); color: var(--tx-1); }
-/* THE NOTES TRIAL (Dave 2026-10-18, item 3, judged live on his phone): a thin red margin line down the inside left of the list card
-   at about 45%, and the preview in italic of the app's font. Both hang on `.notes-trial` (NotesList's root) and nothing else, so they
-   come out cleanly: delete this block, or the class. */
-.ruled.notes-list.notes-trial .card.note-card { position: relative; }
-.ruled.notes-list.notes-trial .card.note-card::before {
-  content: ""; position: absolute; top: 0; bottom: 0; left: var(--s-2h); width: 1.5px; background: var(--tint); opacity: 0.45; pointer-events: none; z-index: 1;
-}
-.ruled.notes-list.notes-trial .note-row .note-preview { font-style: italic; }
+/* THE RED MARGIN LINE IS GONE (Dave 2026-10-31: "was not in the design Dave approved"). It was half of the 2026-10-18 trial;
+   the other half, the preview in italic of the app's font, stays exactly as it was (Dave's word: "the previews are fine"). */
+.ruled.notes-list .note-row .note-preview { font-style: italic; }
+/* A DATE OR SUBJECT HEAD (the grouping switch, 2026-10-31) is the page's plain quiet head: words, leader, count. No chip:
+   the capsule is the area's mark and is drawn only when the page is grouped by area. */
+.ruled.notes-list .note-group-head { align-items: center; }
 /* THE AREA LIBRARY (Punch 12, Dave 2026-10-31: Direction B, the Capsule mark). Each section's head is the page's quiet
    section head (.sh2: the dotted leader, the count at the right) with the area's unified chip where its words go, the
    area's one mark on the page. The rows under it carry no mark, and their words start where the area's NAME starts
@@ -1524,6 +1525,10 @@ html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--g
 .ruled.notes-list .note-area-head { align-items: center; }
 .ruled.notes-list .note-area-head > .cat-chip { order: 0; }
 .ruled.notes-list .note-card .note-row { padding-left: var(--note-indent); }
+/* THE CARD'S INSIDE SPACING IS THE LIFE CARD'S (Dave 2026-10-31, his Life screen picture as the reference). Measured at 390: a Life
+   task row (title over its chip) is 64px, 8px above and below its words; a note row (title over a shorter preview) came to 59px, so
+   the Notes card read cramped beside it. A note row is the task row's height, its two lines centred in it as every row's are. */
+.ruled.notes-list .note-card .note-row { min-height: 64px; }
 .ruled.notes-list .note-card > .task-swipe + .task-swipe::before { left: var(--note-indent); }
 .ruled .note-row .gm-slot .ic { width: 20px; height: 20px; }
 /* A file's row (a receipt on Money): the type glyph in the check column,
