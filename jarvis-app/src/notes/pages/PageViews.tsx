@@ -232,9 +232,12 @@ export function ScorecardView({ page, onHole, onPlayer, onAddPlayer, onCourse, o
   const g = page.golf!;
   const anyPlayed = page.records.some((r) => golfTotals(page, r).played > 0);
   const allDone = page.records.length > 0 && page.records.every((r) => golfTotals(page, r).played >= g.holes);
+  // A ROUND FINISHED IS FINISHED (issue #115, seen 2026-10-18): Finish Round on the last hole keeps a dated "finish" snapshot, so a
+  // round finished with holes left blank reads Review Holes like a full card, never Keep Scoring.
+  const finished = allDone || (page.snapshots ?? []).some((s) => s.why === "finish");
   return (
     <>
-      <Head label="Scores" action={{ label: allDone ? "Review Holes" : anyPlayed ? "Keep Scoring" : "Start Hole 1", onClick: onHole }} />
+      <Head label="Scores" action={{ label: finished ? "Review Holes" : anyPlayed ? "Keep Scoring" : "Start Hole 1", onClick: onHole }} />
       <Card>
         {page.records.map((r) => {
           const t = golfTotals(page, r);
