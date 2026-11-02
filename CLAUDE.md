@@ -132,8 +132,10 @@ spoken "Dinner with Marco Thursday 7 p.m." as a Note. Each is pinned by its word
   used on an iPhone or in the installed app (`recognizerBarred`, Alfred's order).
 - **One step from anywhere:** `/capture?mode=voice` (and `/?capture=voice`) opens the box recording; the words are taken out of the
   address after. Also in the manifest's shortcuts. Dave ties it to a Siri phrase or Back Tap.
-- **Blocker, Dave's at a computer:** `TRANSCRIBE_API_KEY` is not set in Vercel (checked 2026-10-31). Until it is, the box records and
-  then says "Voice Isn't Set Up Yet". Never fake a transcript.
+- **Proven in production (2026-11-02, Dave's phone, 2:52 PM):** `TRANSCRIBE_API_KEY` set in Vercel by Dave on 2026-11-01. He said
+  "Dinner with Marco Thursday at 7 p.m."; the box showed those words exactly and read Event, Thursday, Nov 5, 7:00 PM. Unset again, the
+  box says "Voice Isn't Set Up Yet". Never fake a transcript. The box can only be tested where a mic can be granted: a browser
+  tool cannot grant one, so the live check is a phone run (a file-upload test door would be Dave's call).
 
 ## Speech, chat talk and stacked Undos (Dave's order, 2026-10-27)
 
