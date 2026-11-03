@@ -903,12 +903,14 @@ html[data-theme="light"] .ruled .st-warn { background: color-mix(in srgb, var(--
    block they belong to, instead of tappable rows nested inside the event button"). On the Schedule tab a pick that a holding block
    holds is the ordinary proposed row (the check, the time column, the title with PROPOSED and its length under it) marked
    .sched-nested, in time order after its block. HOW FAR IT SITS IN is one knob, --sched-nest-indent, which the row's padding and
-   its rail read, so they cannot drift apart. It is zero (the fallback; nothing declares it) until the approved catalog picture
-   gives a measurement: the check stands where the block's own time starts, so the row's time and title already sit a check and
-   a gap (28px) further in. Geometry only, so no colour, surface or type moves and light and dark are identical. The third line
+   its rail read, so they cannot drift apart. It is 16 points, Dave's pick of three rendered (2026-11-03, below); with
+   none declared the fallback is 0, where the check stands at the block's own time. Geometry only, so no colour, surface or type moves and light and dark are identical. The third line
    keeps a divider on the row's own edge and is idle today: no hairline is drawn between swipe rows (their ::before has no content,
    measured), the same reason the swipe-row half of the rule above is idle. Today's day card is the frozen TV guide and does not
    wear any of this. */
+/* THE INDENT IS 16 POINTS (Dave 2026-11-03, issue #106 V6b: option B of a rendered A/B/C at 0, 16 and 28 on the real Schedule rows,
+   both themes; relayed by Alfred). Declared once, here, on the day list; the three rules below read it. */
+.ruled .sched-list { --sched-nest-indent: 16px; }
 .ruled .sched-nested .sched-row { padding-left: calc(var(--s-4) + var(--s-3) + var(--sched-nest-indent, 0px)); }
 .ruled .sched-nested .sched-bar { left: calc(var(--s-4) + var(--sched-nest-indent, 0px)); }
 .ruled .sched-swipe-wrap.sched-nested .sched-row::before { left: calc(var(--s-4) + var(--s-3) + var(--sched-nest-indent, 0px)); }

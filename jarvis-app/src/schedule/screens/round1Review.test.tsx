@@ -167,12 +167,14 @@ describe("the grid and the key, read off the stylesheet", () => {
   // the check already stands where the block's time does, so the row sits under its block with no extra step. The row, its rail and
   // its divider all read the knob, so they cannot drift apart when it is turned. (Today's day card is the frozen TV guide and still
   // draws the nested .block-held rows above; those rules stay.)
-  it("a nested proposed row's padding, rail and divider all follow one indent knob, which is zero", () => {
+  // AMENDED 2026-11-03 (Dave, option B of the rendered A/B/C, relayed by Alfred): the knob is 16 points, declared once on the day list.
+  it("a nested proposed row's padding, rail and divider all follow one indent knob, which is 16 points", () => {
     expect(body(".ruled .sched-nested .sched-row")).toMatch(/padding-left:\s*calc\(var\(--s-4\) \+ var\(--s-3\) \+ var\(--sched-nest-indent, 0px\)\)/);
     expect(body(".ruled .sched-nested .sched-bar")).toMatch(/left:\s*calc\(var\(--s-4\) \+ var\(--sched-nest-indent, 0px\)\)/);
     expect(body(".ruled .sched-swipe-wrap.sched-nested .sched-row::before")).toMatch(/left:\s*calc\(var\(--s-4\) \+ var\(--s-3\) \+ var\(--sched-nest-indent, 0px\)\)/);
-    // Nobody turns the knob without a ruling: it is declared nowhere, so the fallback (0px) is what draws.
-    expect(bare).not.toMatch(/--sched-nest-indent\s*:/);
+    // Turned once, by Dave's ruling: declared in exactly one place, at 16px.
+    expect(bare.match(/--sched-nest-indent\s*:[^;]*/g)).toEqual(["--sched-nest-indent: 16px"]);
+    expect(body(".ruled .sched-list")).toMatch(/--sched-nest-indent:\s*16px/);
     // It moves nothing else: the row's colour and surface are not this rule's business.
     for (const sel of [".ruled .sched-nested .sched-row", ".ruled .sched-nested .sched-bar", ".ruled .sched-swipe-wrap.sched-nested .sched-row::before"]) {
       expect(body(sel), sel + " sets geometry only").not.toMatch(/color|background|font|opacity|border/);

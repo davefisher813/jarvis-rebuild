@@ -25,6 +25,8 @@ import { SAME_CONTENT, contactDoorLabel } from "./copy";
 import { threadWord } from "./sections";
 import { cleanSnippet } from "./snippet";
 import type { InboxRow } from "./emailClient";
+import type { GroupBadge } from "./contactResolve";
+import { CatChip } from "../shared/CatChipLine";
 
 /** Two letters for the badge: the first and last word of the name, else the address's first two. */
 export function initialsOf(r: Pick<InboxRow, "from_name" | "from_address">): string {
@@ -35,7 +37,7 @@ export function initialsOf(r: Pick<InboxRow, "from_name" | "from_address">): str
   return (local.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2) || "?").toUpperCase();
 }
 
-function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0, onContact, onArchive, onTrash }: {
+function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked = false, onPick, sameContent = false, threadCount = 0, group, onContact, onArchive, onTrash }: {
   row: InboxRow;
   /** More than one mailbox is in the list, so each row says whose it is; empty when there is one. */
   accountLabel: string;
@@ -49,6 +51,8 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
   sameContent?: boolean;
   /** Loaded messages in this message's thread, when two or more: a fact on the row, never a pill. */
   threadCount?: number;
+  /** A saved contact's group badge (spec AC07): their first area as the unified chip, then +N. Absent: an unknown sender, no badge. */
+  group?: GroupBadge;
   /** The sender's circle opens the contact sheet (issue 112, item 14). Absent: the circle is the plain mark it was. Keep it stable (useCallback), or every row redraws. */
   onContact?: (row: InboxRow) => void;
   /** SWIPE LEFT (Dave 2026-10-13: swipe is the standard): Archive and Delete, the mail rows' rail everywhere else in the app. Both stable. Absent, or in select mode, the row does not swipe. */
@@ -89,8 +93,11 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
           {subject}
           {row.attachment_metadata.length > 0 && <Paperclip className="mclip" aria-label="Has Attachments" />}
         </div>
-        {(snippet || accountLabel || sameContent || threadCount > 1) && (
+        {(group || snippet || accountLabel || sameContent || threadCount > 1) && (
           <div className="mline3">
+            {/* THE SENDER'S GROUP LEADS THE LINE (Dave 2026-11-03, issue 112: yes to the badge), as a task row leads its second line
+                with its area chip and the grey words after it. A mark, not a control: the circle is still the contact door. */}
+            {group && <span className="mgroup"><CatChip category={group.category} />{group.more > 0 && <span className="mgroup-more">+{group.more}</span>}</span>}
             {snippet && <span className="msnip">{snippet}</span>}
             {accountLabel && <span className="macct">{accountLabel}</span>}
             {sameContent && <span className="macct msame">{SAME_CONTENT}</span>}
@@ -112,5 +119,5 @@ function MailRowBody({ row, accountLabel, now, onOpen, selecting = false, picked
 // clock crossed a minute (the time words are minute-coarse). InboxList.test.tsx counts.
 const sameMinute = (a: Date, b: Date): boolean => Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 const MailRow = memo(MailRowBody, (a, b) => a.row === b.row && a.accountLabel === b.accountLabel && a.onOpen === b.onOpen && sameMinute(a.now, b.now)
-  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount && a.onContact === b.onContact && a.onArchive === b.onArchive && a.onTrash === b.onTrash);
+  && a.selecting === b.selecting && a.picked === b.picked && a.onPick === b.onPick && a.sameContent === b.sameContent && a.threadCount === b.threadCount && a.group === b.group && a.onContact === b.onContact && a.onArchive === b.onArchive && a.onTrash === b.onTrash);
 export default MailRow;

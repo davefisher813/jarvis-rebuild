@@ -52,6 +52,9 @@ const done = () => fireEvent.click(within(document.body).getByRole("button", { n
 beforeEach(() => {
   localStorage.clear();
   svc.list.mockReset();
+  // AMENDED 2026-11-03 (Dave's yes to the group badge, issue 112): Email reads the store ONCE when it opens, for the rows' badges.
+  // That first read answers here; every read the tests queue below is the sheet's own fresh read, which is unchanged.
+  svc.list.mockResolvedValueOnce([]);
   Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ ok: true, synced: 0, removed: 0, next_page: null, complete: true, resynced: false }) }) as Response));
 });
@@ -62,25 +65,25 @@ describe("the app's People store", () => {
     svc.list.mockResolvedValueOnce([maya("Maya Chen")]);
     mount();
     await waitFor(() => expect(document.querySelector(".erow")).toBeTruthy());
-    expect(svc.list).not.toHaveBeenCalled();
+    await waitFor(() => expect(svc.list).toHaveBeenCalledTimes(1)); // the rows' one read
     await tapCircle();
     await waitFor(() => expect(words(head().querySelector(".email-from-name"))).toBe("Maya Chen"));
     expect(facts()).toEqual([MAYA, "Family"]);
-    expect(svc.list).toHaveBeenCalledTimes(1);
+    expect(svc.list).toHaveBeenCalledTimes(2);
     done();
 
     svc.list.mockResolvedValueOnce([maya("Maya Chen-Ortiz", [])]);
     await tapCircle();
     await waitFor(() => expect(words(head().querySelector(".email-from-name"))).toBe("Maya Chen-Ortiz"));
     expect(facts()).toEqual([MAYA]);
-    expect(svc.list).toHaveBeenCalledTimes(2);
+    expect(svc.list).toHaveBeenCalledTimes(3);
     done();
 
     svc.list.mockResolvedValueOnce([]);
     await tapCircle();
     await waitFor(() => expect(facts()).toEqual([MAYA, "Not in Contacts"]));
     expect(words(head().querySelector(".email-from-name"))).toBe("Maya C.");
-    expect(svc.list).toHaveBeenCalledTimes(3);
+    expect(svc.list).toHaveBeenCalledTimes(4);
   });
 
   it("the sheet is up at once and says nothing about contacts until the store answers, then says what it found", async () => {
@@ -100,7 +103,7 @@ describe("the app's People store", () => {
     svc.list.mockRejectedValueOnce(new Error("the store is down"));
     mount();
     await tapCircle();
-    await waitFor(() => expect(svc.list).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(svc.list).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(words(sheet()!.querySelector(".sh2 .t"))).toBe("Recent Mail"));
     expect(words(sheet()!)).not.toMatch(/Not in Contacts|Choose Contact|Your Mailbox/);
     expect(facts()).toEqual([MAYA]);
@@ -115,11 +118,12 @@ describe("the app's People store", () => {
     expect(svc.list).not.toHaveBeenCalled();
   });
 
-  it("nothing is read until the circle is tapped, and the list itself never waits on the store", async () => {
+  it("the list never waits on the store: it reads once for the badges, and the sheet reads again on its own", async () => {
+    svc.list.mockReset();
     svc.list.mockReturnValue(new Promise<Person[]>(() => {}));
     mount();
     await waitFor(() => expect(screen.getAllByRole("button", { name: /Maya C\./ }).length).toBeGreaterThan(0));
-    expect(svc.list).not.toHaveBeenCalled();
+    expect(svc.list).toHaveBeenCalledTimes(1);
     // A store that never answers leaves the sheet open and unjudged, and closeable.
     await tapCircle();
     expect(facts()).toEqual([MAYA]);

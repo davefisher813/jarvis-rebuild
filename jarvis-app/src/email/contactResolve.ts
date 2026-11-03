@@ -66,6 +66,38 @@ export function groupFacts(p: Person, categories: readonly Category[]): EmailFac
   return out;
 }
 
+/** A known sender's group badge on an inbox row (spec AC07, issue 112 item 14; Dave's yes, 2026-11-03): the contact's first saved
+ *  area, as the app's one unified chip, and how many more they belong to (+N). */
+export interface GroupBadge { category: string; more: number }
+
+/**
+ * Every address that resolves to exactly ONE saved contact with at least one live area, keyed by addressKey. The row rules are
+ * resolveSender's: the person's own mailboxes are never contacts, an address two contacts share is nobody's (no silent winner),
+ * a name is never read. An area id with no area left is skipped, so a badge never borrows a colour. Nothing is stored.
+ */
+export function groupBadges(people: readonly Person[] | null, live: readonly string[], own: readonly string[]): Map<string, GroupBadge> {
+  const out = new Map<string, GroupBadge>();
+  if (!people) return out;
+  const mine = new Set(own.map(addressKey).filter(Boolean));
+  const owners = new Map<string, Person[]>();
+  for (const p of people) {
+    for (const m of emailsOf(p.data)) {
+      const k = addressKey(m.value);
+      if (!k || mine.has(k)) continue;
+      const list = owners.get(k) ?? [];
+      if (!list.includes(p)) list.push(p);
+      owners.set(k, list);
+    }
+  }
+  const alive = new Set(live);
+  for (const [k, list] of owners) {
+    if (list.length !== 1) continue;
+    const ids = [...new Set(list[0]!.data.categoryIds ?? [])].filter((id) => alive.has(id));
+    if (ids.length) out.set(k, { category: ids[0]!, more: ids.length - 1 });
+  }
+  return out;
+}
+
 /**
  * Recent mail FROM exactly this address, newest first, one message per thread (the newest from them), at most five.
  * The cached search that feeds this also returns mail that merely mentions the address in its words, so the sender is

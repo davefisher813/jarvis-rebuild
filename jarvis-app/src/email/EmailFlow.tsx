@@ -125,7 +125,7 @@ import CaptureSheet from "./CaptureSheet";
 import WhySectionSheet from "./WhySectionSheet";
 import SectionWhySheet from "./SectionWhySheet";
 import ContactSheet from "./ContactSheet";
-import { recentFrom, resolveSender } from "./contactResolve";
+import { addressKey, groupBadges, recentFrom, resolveSender } from "./contactResolve";
 import {
   bodyProposals, bodyReadingKey, candidatesFor, contextFor, isPastEvent, isProvisional, isToReview, listReadingKey, listRowProposals, localCandidate, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
   type Candidate,
@@ -753,6 +753,19 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const openInboxRow = useCallback((row: InboxRow) => setScreen({ kind: "message", row, from: "inbox" }), []);
   // THE SENDER'S CIRCLE (issue 112, item 14): the contact sheet. Stable for the same reason as the line above; the open message's
   // head hands its sender in as an object, a list row hands the row.
+  // THE GROUP BADGE ON A ROW (spec AC07, issue 112; Dave's yes 2026-11-03). The saved contacts are read once when Email opens (the
+  // sheet still reads its own fresh copy), and every row whose sender is exactly one of them, with an area, shows that area.
+  // Unreadable or absent, the map is empty and no row claims anything.
+  const [roster, setRoster] = useState<Person[] | null>(givenPeople ?? null);
+  useEffect(() => {
+    if (givenPeople || !peopleSvc) return;
+    let alive = true;
+    void peopleSvc.list().then((list) => { if (alive) setRoster(list); }).catch(() => { /* unreadable: no badges */ });
+    return () => { alive = false; };
+  }, [givenPeople, peopleSvc]);
+  const badges = useMemo(() => groupBadges(givenPeople ?? roster, categories.map((c) => c.id), accounts.map((a) => a.address)),
+    [givenPeople, roster, categories, accounts]);
+  const groupFor = useCallback((r: InboxRow) => badges.get(addressKey(r.from_address)), [badges]);
   const openContactRow = useCallback((r: InboxRow) => setContact({ address: r.from_address, name: r.from_name }), []);
   const openContactWho = useCallback((who: { address: string; name: string }) => setContact({ address: who.address, name: who.name }), []);
   // Read fresh every time the sheet opens, and dropped when it closes: the saved contacts (so a rename or a delete is always
@@ -1547,7 +1560,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
             </div>
           )}
           <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
-            selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads}
+            selecting={selecting} isPicked={isPicked} onPick={onPick} onPickGroup={onPickGroup} sameContent={same} threads={threads} groupFor={groupFor}
             onOpen={openInboxRow} onContact={openContactRow} onWhy={openSectionWhy} onArchive={archiveRow} onTrash={trashRow}
             // The open message owns its own cards inside the sheet; the dimmed
             // row behind it does not draw them a second time.
