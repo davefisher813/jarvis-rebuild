@@ -151,6 +151,10 @@ html.overlay-open { overflow: hidden; }
   font-family: var(--f); text-align: left; cursor: pointer; color: inherit; }
 button.voice-mic { border: 0; padding: 0; cursor: pointer; position: relative; }
 button.voice-mic::after { content: ""; position: absolute; inset: -8px; }
+/* THE TYPING DOOR REACHES 44 (the 2026-11-03 audit: the field stretched to the pill's 40px inside and measured 40 tall on every
+   screen). Its reach grows 2px above and below, as the mic's does; nothing drawn moves. */
+.voice-field { position: relative; }
+.voice-field::after { content: ""; position: absolute; inset: -2px 0; }
 
 /* ===== Schedule: month calendar grid (RULE 9 component, no canonical calendar
    existed) + timeline category line. Tokens only; selected/today use --accent
@@ -4742,6 +4746,10 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    which is WHITE on dark card surfaces by deliberate palette decision, so
    every Delete in the app rendered identical to the Cancel beneath it. */
 .btn-danger-text { color: var(--danger-tx); }
+/* A RED WORD ON A GREY CAPSULE IN DARK (the 2026-11-03 audit: Notes' Delete read 3.90:1 on the secondary fill, Today's Drop One
+   3.70:1). Dave's ruled sheet red (#FF6B63, 2026-10-30, "Nudge to #FF6B63") reads 4.77 and 4.53 there. Dark only: light's
+   danger ink already passes on its own fill. */
+[data-theme="dark"] .btn-secondary.btn-danger-text { color: var(--sys-red-on-sheet); }
 
 /* Law 3E override, placed after the notice card's 2-line clamps: inside a
    VERB ROW one line IS the form's contract, so the clamps that serve full
