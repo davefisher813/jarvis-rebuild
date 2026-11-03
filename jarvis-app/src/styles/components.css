@@ -7003,6 +7003,11 @@ span.row-star { cursor: default; }
 .itile-sky span { color: var(--tx-3); }
 .itile b { white-space: nowrap; }
 .itile b small { font-size: var(--t-sub); font-weight: var(--w-semi); letter-spacing: 0; margin-left: var(--s-0h); }
+/* A DURATION GIVES WAY BEFORE IT SPILLS (the 2026-11-03 audit: at the largest text "45m" painted 9px outside its tile on a 390
+   phone). The number and its unit stay whole, each on no break of its own, and the smaller unit drops under the larger only when the
+   tile cannot hold both; at the default size, where they always fit, it is one line as before. */
+.itile-sky b { white-space: normal; }
+.itile-sky b small { white-space: nowrap; display: inline-block; }
 .stack { display: flex; height: 10px; border-radius: var(--r-xs); overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }
