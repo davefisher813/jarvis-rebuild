@@ -174,6 +174,16 @@ correction: "the previews are fine", italic stays). A note row is the Life task 
 Life screenshot was the reference). The red margin line is off: he left it as a design call, and no other card has one.
 `NotesList.grouping.test.tsx` pins all of it.
 
+## Schedule nesting and the email sender badge (Dave, 2026-11-03, relayed by Alfred)
+
+- **A task held inside a Schedule block sits 16 points in** (#106 V6b, option B of a rendered A/B/C at 0/16/28). One knob,
+  `--sched-nest-indent: 16px`, declared once on `.ruled .sched-list`; the nested row, its rail and its divider read it.
+- **A saved contact's mail rows wear their group** (#112 item 14, spec AC07). Exactly one contact with an area: that area as the
+  unified chip leading the row's third line, then +N, as a task row leads with its chip. Own mailboxes, shared addresses, unknown
+  senders and removed areas show nothing; dots and plus tags are never stripped; a name is never matched. The circle stays the row's
+  one control (the contact sheet). People is read once when Email opens; the sheet still reads its own fresh copy on every open.
+  Setup: a contact shows a badge only once it has an Area in Contacts.
+
 ## Money Tracker categories are Quiet Rows (Punch 11, Dave 2026-10-31, Option A)
 
 "It looks terrible." The budget's categories are flat rows in one card: the dot, the name, the amount ("$60.00 of $100.00" with a
@@ -322,6 +332,11 @@ are a guide; three confirmation buckets and never a second inbox; the capture
 box is a front door and every section keeps its own fast surface; voice set
 logging is built as a test with a command phrase, read-back and undo; one
 event, one record). Read it before touching any capture surface.
+
+## The tab bar is accepted on Dave's phone (issue 110 CLOSED, 2026-11-03)
+
+Dave's verdict on his phone, relayed by Alfred: the bottom tab bar looks fine. #110 is closed; do not rework the tab bar. The
+history below stays because the method (ask for the phone's own readout before touching a layout value) still holds.
 
 ## The tab bar and the Life header are accepted on the phone only (issue 110, 2026-10-18)
 
