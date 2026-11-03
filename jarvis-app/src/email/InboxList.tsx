@@ -12,6 +12,7 @@
 import { Fragment, type ReactNode } from "react";
 import ListFloor from "../shared/ListFloor";
 import MailRow from "./MailRow";
+import type { GroupBadge } from "./contactResolve";
 import { DESELECT_SECTION, LOADED_SO_FAR, LOAD_MORE, LOADING_MORE, SELECT_SECTION, WHY_SECTION } from "./copy";
 import { Info } from "../shared/icons";
 import type { InboxRow } from "./emailClient";
@@ -27,7 +28,7 @@ export interface ListGroup {
   key?: string;
 }
 
-export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads, onContact, onWhy, onArchive, onTrash }: {
+export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy, onLoadMore, floorWords, renderBelow, selecting = false, isPicked, onPick, onPickGroup, sameContent, threads, groupFor, onContact, onWhy, onArchive, onTrash }: {
   groups: ListGroup[];
   /** The label each mailbox wears on its rows; empty labels when there is one mailbox. */
   labels: Record<string, string>;
@@ -52,6 +53,8 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
   /** Rows whose thread has two or more loaded messages, with the count (the Grouped view). */
   threads?: Record<string, number>;
   /** A sender's circle was tapped: the contact sheet (issue 112, item 14). Keep it stable, or every row redraws. */
+  /** A saved contact's group badge for a row's sender (spec AC07); absent or undefined, no badge. */
+  groupFor?: (row: InboxRow) => GroupBadge | undefined;
   onContact?: (row: InboxRow) => void;
   /** A section heading's Why This Section? (issue 112 remainder): the flow opens the sheet for that section. */
   onWhy?: (group: ListGroup) => void;
@@ -80,7 +83,7 @@ export default function InboxList({ groups, labels, now, onOpen, atEnd, moreBusy
                 // A fragment, not a wrapper: the card's hairline is drawn between two adjacent rows.
                 <Fragment key={r.id}>
                   <MailRow row={r} accountLabel={labels[r.account] ?? ""} now={now} onOpen={onOpen}
-                    selecting={selecting} picked={selecting && !!isPicked?.(r.id)} onPick={onPick} sameContent={!!sameContent?.[r.id]} threadCount={threads?.[r.id]} onContact={onContact} onArchive={onArchive} onTrash={onTrash} />
+                    selecting={selecting} picked={selecting && !!isPicked?.(r.id)} onPick={onPick} sameContent={!!sameContent?.[r.id]} threadCount={threads?.[r.id]} group={groupFor?.(r)} onContact={onContact} onArchive={onArchive} onTrash={onTrash} />
                   {!selecting && renderBelow?.(r)}
                 </Fragment>
               ))}
