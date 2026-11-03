@@ -23,12 +23,23 @@
 // cannot exist before the registry it mirrors, and that check always runs.
 
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { REFERENCE_FIELDS } from "../backup/references";
 
 const SRC = join(__dirname, "..");
-const MIG_0060 = resolve(__dirname, "../../../jarvis-core/supabase/migrations/0060_memory.sql");
+const MIG_DIR = resolve(__dirname, "../../../jarvis-core/supabase/migrations");
+const MIG_0060 = join(MIG_DIR, "0060_memory.sql");
+// THE REGISTRY IS THE NEWEST ONE (2026-10-31, migration 0073: an event's person is a link). A later migration may replace
+// jarvis_link_paths() with 0060's list plus rows; the rows are read from the newest migration that defines the function, and
+// the kind vocabulary still from 0060's check constraint, which no migration has changed.
+const MIG_REGISTRY = (() => {
+  try {
+    const files = readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql")).sort();
+    const defining = files.filter((f) => readFileSync(join(MIG_DIR, f), "utf8").includes("function jarvis_link_paths("));
+    return defining.length ? join(MIG_DIR, defining[defining.length - 1]!) : MIG_0060;
+  } catch { return MIG_0060; }
+})();
 const PATHS_TS = join(SRC, "substrate/links/paths.ts");
 const haveSql = existsSync(MIG_0060);
 const havePaths = existsSync(PATHS_TS);
@@ -128,7 +139,7 @@ describe("LAW: the link registry in SQL and its TypeScript mirror are one list",
   const whenSql = haveSql ? it : it.skip;
   whenSql("the SQL registry has rows, sixteen kinds, and excludes what the rosters exclude", () => {
     const sql = readFileSync(MIG_0060, "utf8");
-    const rows = sqlRows(sql);
+    const rows = sqlRows(readFileSync(MIG_REGISTRY, "utf8"));
     expect(rows.length, "jarvis_link_paths() must hold one values row per path").toBeGreaterThan(30);
     const kinds = sqlKinds(sql);
     expect(kinds.length, "item_link.kind must carry a check constraint over the closed vocabulary").toBe(16);
@@ -159,7 +170,7 @@ describe("LAW: the link registry in SQL and its TypeScript mirror are one list",
   whenBoth("jarvis_link_paths() and LINK_PATHS are the same rows, and the kind vocabularies match", async () => {
     const sql = readFileSync(MIG_0060, "utf8");
     const { LINK_PATHS, LINK_KINDS } = await loadPaths();
-    expect(sqlRows(sql).map(keyOf).sort(), "0060's jarvis_link_paths() and substrate/links/paths.ts LINK_PATHS differ")
+    expect(sqlRows(readFileSync(MIG_REGISTRY, "utf8")).map(keyOf).sort(), "the newest jarvis_link_paths() and substrate/links/paths.ts LINK_PATHS differ")
       .toEqual(tsRows(LINK_PATHS).map(keyOf).sort());
     expect(sqlKinds(sql).sort(), "item_link's kind check and LINK_KINDS differ").toEqual([...LINK_KINDS].sort());
   });

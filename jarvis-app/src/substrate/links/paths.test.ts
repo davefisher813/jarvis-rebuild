@@ -7,8 +7,8 @@ import { LINK_KINDS, LINK_PATHS, linkPathsFor, linksOf } from "./paths";
 import { ALL_ENTITY_TYPES } from "../../backup/entityRegistry";
 
 describe("the link registry mirror", () => {
-  it("mirrors the 42 registry rows and the 16 kinds", () => {
-    expect(LINK_PATHS.length).toBe(42);
+  it("mirrors the 43 registry rows (0073 added the event's person, 2026-10-31) and the 16 kinds", () => {
+    expect(LINK_PATHS.length).toBe(43);
     expect(LINK_KINDS.length).toBe(16);
     expect(new Set(LINK_KINDS).size).toBe(16);
     // Every row's kind is a registry word, and every word is derived by a row.
