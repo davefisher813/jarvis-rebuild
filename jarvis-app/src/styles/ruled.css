@@ -3243,7 +3243,7 @@ html[data-theme="light"] .ruled.notes-list .card.note-card { background: var(--g
 .ruled .bp-card-more {
   position: relative;
   flex-shrink: 0; width: 28px; height: 22px; margin: -4px -4px -4px 0; padding: 0;
-  border: 0; background: transparent; color: rgba(255, 255, 255, 0.92);
+  border: 0; background: transparent; color: #FFFFFF; /* full white (the 2026-11-03 audit: at 92% it read 4.31:1 on the blue card's light corner at the largest text; full reads 4.78) */
   font-size: calc(15px * var(--type-scale)); line-height: 1; cursor: pointer;
 }
 /* 22x28 painted, needs the app's own 44 floor (2026-09-22, widened from a
