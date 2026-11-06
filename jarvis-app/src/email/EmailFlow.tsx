@@ -1125,7 +1125,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (target.kind === "gone") { void loadPaused(); return; }
     if (target.kind === "outcome") { setCheckLine(null); setScreen({ kind: "outcome", draft: target.draft }); return; }
     const x = target.draft;
-    setScreen({ kind: "compose", start: { localKey: x.id, draftId: x.id, accountId: x.account_id, fields: fieldsOf(x), revision: x.revision, failedLine: x.action_verb ?? null }, from: { kind: "paused" } });
+    setScreen({ kind: "compose", start: { localKey: x.id, draftId: x.id, accountId: x.account_id, fields: fieldsOf(x), revision: x.revision, failedLine: x.action_verb ?? null, paused: true }, from: { kind: "paused" } });
   };
   const openLocal = (l: LocalDraft) => {
     setSendFailure(null);

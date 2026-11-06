@@ -22,7 +22,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import EmailFlow from "./EmailFlow";
-import { CLOSE_DRAFT, DISCARD_DRAFT, HELD_TITLE, NOT_SENT_YET, PAUSED_TITLE, REVIEW_SEND, REVIEW_TITLE, SEND_THIS, SENT_TITLE } from "./copy";
+import { CLOSE_DRAFT, DISCARD_DRAFT, HELD_TITLE, KEEP_AS_DRAFT, NOT_SENT_YET, PAUSED_TITLE, REVIEW_SEND, REVIEW_TITLE, SEND_THIS, SENT_TITLE } from "./copy";
 import type { EmailAccount, RpcClient } from "./emailClient";
 import type { DraftFields, DraftRow } from "./drafts";
 import { subscribeToast, resetToasts } from "../shared/toast";
@@ -257,8 +257,32 @@ describe("X1: the paused send, resaved", () => {
     expect(sends(r).length).toBe(0);
   });
 
-  // Spec section 7 also names Keep as Draft as an exit for a paused row. It is not built (issue 107, left to Dave's word), so today a
-  // row leaves the list by a review that is approved, by an edit that saves, or by Discard; backing out of it untouched leaves it there.
+  // Spec section 7's third exit, Keep as Draft, is built (Alfred's ruling 2026-11-06 under Dave's word: "A draft is kept, not dropped").
+  // A row leaves the list by a review that is approved, an edit that saves, Keep as Draft, or Discard; backing out untouched leaves it there.
+  it("Keep as Draft saves the draft as it stands, untouched, sends nothing, and the row leaves the paused list for Drafts", async () => {
+    const r = rig();
+    await openPaused(r);
+    await waitFor(() => expect(screen.getByLabelText("Message")).toBeInTheDocument(), LONG);
+    fireEvent.click(screen.getByRole("button", { name: KEEP_AS_DRAFT }));
+    await waitFor(() => expect(screen.queryByLabelText("Message")).toBeNull(), LONG);
+    const saves = r.calls.filter((c) => c.fn === "draft_save");
+    expect(saves).toHaveLength(1);
+    expect(saves[0]!.args.p_draft).toBe("d-p");
+    expect(r.world.d.send_state).toBe("draft");
+    expect(r.world.discarded).toBe(false);
+    expect(r.calls.some((c) => c.fn === "send_review" || c.fn === "draft_discard")).toBe(false);
+    expect(sends(r).length).toBe(0);
+    await waitFor(() => expect(pausedRow()).toBeNull(), LONG);
+  });
+
+  it("Keep as Draft is offered only on a draft opened from the paused list", async () => {
+    const r = rig();
+    await openPaused(r);
+    await waitFor(() => expect(screen.getByLabelText("Message")).toBeInTheDocument(), LONG);
+    expect(screen.getByRole("button", { name: KEEP_AS_DRAFT })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: DISCARD_DRAFT })).toBeInTheDocument();
+  });
+
   it("backing out of an opened row without an edit saves nothing, sends nothing, and leaves it on the paused list", async () => {
     const r = rig();
     await openPaused(r);
