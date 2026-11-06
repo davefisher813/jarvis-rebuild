@@ -231,6 +231,8 @@ export const UPLOADING = "Uploading";
 export const REVIEW_SEND = "Review Send";
 export const CLOSE_DRAFT = "Close";
 export const DISCARD_DRAFT = "Discard Draft";
+/** A paused send's third way out (spec section 7; Alfred's ruling 2026-11-06 under Dave's word): keep it as an ordinary draft. */
+export const KEEP_AS_DRAFT = "Keep as Draft";
 export const DRAFT_DISCARDED = "Draft Discarded";
 export const DRAFT_KEPT = "Draft Kept";
 // Close on a composer with words in it (issue 103, 2026-10-13): never silent. The first is said only after the server

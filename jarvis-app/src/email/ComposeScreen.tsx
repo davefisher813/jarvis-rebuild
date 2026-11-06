@@ -27,7 +27,7 @@ import type { FileStore } from "../files/FileStore";
 import { useFileUrl } from "../files/useFileUrl";
 import {
   ATTACH, ATTACH_FAILED, ATTACH_NEEDS_APP, ATTACH_TOO_MUCH, ATTACHMENTS_LABEL, ATTACHMENTS_WAIT, BAD_ADDRESS, BCC_LABEL, BODY_LABEL, CC_BCC, CC_LABEL, CLOSE_DRAFT, COMPOSE_TITLE,
-  CONFLICT_TITLE, DISCARD_ASK, DISCARD_DRAFT, DISCARD_OFFLINE, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
+  CONFLICT_TITLE, DISCARD_ASK, DISCARD_DRAFT, KEEP_AS_DRAFT, DISCARD_OFFLINE, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
   NO_SUBJECT, SAVED_LINE, SAVING_LINE, SIGNATURE_OFFER_NOTE, ADD_SIGNATURE, NO_SIGNATURE_NOTE, SIG_PICTURE_ROW, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT, USE_SAVED_SIGNATURE, DRAFTING_REPLY, REPLY_NOT_DRAFTED } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import { sizeLine } from "./format";
@@ -58,6 +58,8 @@ export interface ComposeStart {
   failedLine?: string | null;
   /** Opened from a device copy the server may not hold (Drafts, On This Device): its words are not known to be saved, so the first save pushes them. */
   unsynced?: boolean;
+  /** Opened from the paused list (a send that stopped before it reached Gmail): Keep as Draft is offered. */
+  paused?: boolean;
   /** A reply's opening words, read from the thread while the composer opens (2026-10-17). Resolves to "" when there is nothing to say. */
   draftBody?: () => Promise<string>;
 }
@@ -225,13 +227,13 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
 
   // One turn at the server's copy, from the refs as they stand WHEN IT RUNS. Only ever called from `exclusive`, so nothing else is saving this
   // draft meanwhile. `quiet` leaves the saving words and the error lines to the caller (Review Send says its own); `overwrite` is Keep This Draft.
-  const put = async (f: DraftFields, o: { quiet?: boolean; overwrite?: string } = {}): Promise<Landed> => {
+  const put = async (f: DraftFields, o: { quiet?: boolean; overwrite?: string; force?: boolean } = {}): Promise<Landed> => {
     const e = cur.current;
     if (stopped.current || !e.client || e.offline || (conflictRef.current && !o.overwrite)) return { kind: "skipped" };
     // A screen that has gone only brings a draft the server already has up to date. It never makes one: a first save nobody is watching could
     // land beside a copy reopened from Drafts, or after a discard, and make a draft nobody asked for. (A discarded row answers NOT_FOUND to an update.)
     if (!live.current && idRef.current === null && !o.overwrite) return { kind: "skipped" };
-    if (!o.overwrite && idRef.current !== null && onServer(f)) return { kind: "same" };
+    if (!o.overwrite && !o.force && idRef.current !== null && onServer(f)) return { kind: "same" };
     const acct = e.accountId;
     if (!o.quiet && live.current) setSaveWord("saving");
     const r = await saveDraft(e.client, o.overwrite ?? idRef.current, acct, f, o.overwrite ? null : revRef.current);
@@ -450,6 +452,29 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
   // been committed yet included), never from a closure made before the last keystroke; the save takes its turn behind any
   // autosave still out, so Close never makes a second draft beside it; and a composer with words in it is never dropped
   // without a word: the draft is kept and the toast says where (EmailFlow). An empty composer just closes.
+  // KEEP AS DRAFT (spec section 7's third way out of a paused send; Alfred's ruling 2026-11-06 under Dave's word: "A draft is kept, not
+  // dropped"). A save of the words as they stand, even untouched: draft_save makes a stopped send an ordinary draft again (send_state
+  // 'draft', the stopped attempt let go, saved now; 0069), which takes it off the paused list and leaves it in Drafts. Nothing is sent and
+  // nothing is deleted; Discard stays beside it. A refusal says why on the screen and keeps the person here.
+  const keepAsDraft = async () => {
+    if (closing.current) return;
+    closing.current = true;
+    try {
+      if (serverTimer.current) { clearTimeout(serverTimer.current); serverTimer.current = null; }
+      if (localTimer.current) { clearTimeout(localTimer.current); localTimer.current = null; }
+      const { to, cc, bcc } = commitAddresses();
+      const f: DraftFields = { ...fields, to_addresses: to, cc_addresses: cc, bcc_addresses: bcc };
+      keepOnDevice(f);
+      const landed = await exclusive(async (): Promise<Landed> => {
+        try { return await put(f, { force: true }); } catch { return { kind: "refused", failure: failure("UNAVAILABLE") }; }
+      });
+      if (landed.kind === "saved") { onBack("server"); return; }
+      if (landed.kind === "refused" && live.current && landed.failure.code !== "DRAFT_CONFLICT") setLine(lineFor(landed.failure));
+    } finally {
+      closing.current = false;
+    }
+  };
+
   const close = async () => {
     if (closing.current) return;
     closing.current = true;
@@ -640,6 +665,7 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       <div className="email-sheet-acts email-compose-acts">
         <button className="btn btn-primary" onClick={() => void review()} disabled={!canReview || offline}>{REVIEW_SEND}</button>
         <button className="quiet-action" onClick={() => void close()}>{CLOSE_DRAFT}</button>
+        {start.paused && <button className="quiet-action" onClick={() => void keepAsDraft()} disabled={offline || !client}>{KEEP_AS_DRAFT}</button>}
         <button className="quiet-action" onClick={() => setAskDiscard(true)}>{DISCARD_DRAFT}</button>
       </div>
       <div className="screen-foot" />
