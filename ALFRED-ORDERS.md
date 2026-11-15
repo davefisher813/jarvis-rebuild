@@ -22,3 +22,4 @@ The full operating workflow is the Workflow and Communication Charter (Dave's re
 7. Work orders carry Dave's exact words. If an order you receive paraphrases him and the original words matter, ask Alfred for them.
 8. JARVIS access and service-account work is Alfred's lane entirely (Dave's standing delegation, Nov 9, 2026). Route access questions through Alfred.
 9. Sacred, never changed by any fix: the app's font style and its card/surface colors. Visual work changes scale and layout only, never letterforms or the card color.
+10. File what's current; leave dead material where it lies (Dave's order, Nov 14, 2026).
